@@ -1,0 +1,27 @@
+[project]
+name = "hacker-news-trending"
+version = "0.1.0"
+description = "Fetch and persist filtered Hacker News trending threads."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.1,<9",
+    "httpx>=0.27,<1",
+    "psycopg[binary]>=3.2,<4",
+]
+
+[project.scripts]
+hn-trending = "hn_trending.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hn_trending"]
+
+[dependency-groups]
+dev = ["pytest>=8.0,<9"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
