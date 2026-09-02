@@ -11,7 +11,8 @@ cd data
 cp .env.example .env
 # Edit .env and replace [YOUR-PASSWORD]. SUPABASE_PASSWORD is sufficient.
 uv sync
-psql "$DATABASE_URL" -f sql/schema.sql
+set -a; source ../.env; set +a
+uv run alembic upgrade head
 ```
 
 Load the environment file before running the command (for example,
@@ -36,3 +37,39 @@ The command upserts by `hn_id`, so it is safe to run on a schedule. It refreshes
 the story data and raw contents while retaining the original `date_added` value.
 The command always connects through this project's IPv4-capable Supabase pooler
 with TLS. Its only required database setting is `SUPABASE_PASSWORD`.
+
+## Database migrations
+
+Alembic is the single source of truth for the database schema. Run migrations as
+a deployment step before the scheduled collector, never as part of each collector
+run:
+
+```sh
+set -a; source ../.env; set +a
+uv run alembic upgrade head
+```
+
+The existing production `hacker_news_threads` table was created before Alembic.
+On that database only, first record the baseline without re-creating the table:
+
+```sh
+uv run alembic stamp 0001_initial_threads
+uv run alembic upgrade head
+```
+
+New databases use `uv run alembic upgrade head` directly. The history contains
+the current-thread table, immutable ingestion runs and thread snapshots, and
+versioned LLM summary records. These tables are private by default: RLS is
+enabled and no Data API policies are created.
+
+## GitHub Actions
+
+The [schema workflow](../.github/workflows/supabase-schema.yml) validates changes
+to migrations on pull requests. Once a matching change reaches `main`, it applies
+the pending migrations through the IPv4 pooler. Configure `SUPABASE_PASSWORD` as
+a GitHub Actions secret, preferably scoped to the `supabase-production`
+environment and protected by a required reviewer.
+
+The pooler hostname, port, database, and user are fixed in the application, so a
+separate connection-string secret is not needed. Never add a password-bearing
+connection URL to repository files or workflow logs.

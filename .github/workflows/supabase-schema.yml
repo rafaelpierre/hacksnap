@@ -1,0 +1,84 @@
+name: Supabase schema
+
+on:
+  pull_request:
+    paths:
+      - "data/migrations/**"
+      - "data/alembic.ini"
+      - "data/pyproject.toml"
+      - "data/uv.lock"
+      - ".github/workflows/supabase-schema.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/migrations/**"
+      - "data/alembic.ini"
+      - "data/pyproject.toml"
+      - "data/uv.lock"
+      - ".github/workflows/supabase-schema.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate migrations
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --group dev
+
+      - name: Validate migration graph and application tests
+        run: |
+          uv run alembic heads
+          uv run alembic history
+          uv run pytest
+
+  migrate:
+    name: Apply schema migrations
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: supabase-production
+    concurrency:
+      group: supabase-schema-production
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: data
+    env:
+      SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Apply Alembic migrations through the IPv4 pooler
+        run: |
+          test -n "$SUPABASE_PASSWORD"
+          uv run alembic current
+          uv run alembic upgrade head
+          uv run alembic current

@@ -5,6 +5,7 @@ description = "Fetch and persist filtered Hacker News trending threads."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.14,<2",
     "click>=8.1,<9",
     "httpx>=0.27,<1",
     "psycopg[binary]>=3.2,<4",
