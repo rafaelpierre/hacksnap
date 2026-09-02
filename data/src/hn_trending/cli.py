@@ -72,7 +72,7 @@ def resolve_database_url() -> str:
     "--classify-topic/--no-classify-topic",
     default=False,
     show_default=True,
-    help="Use Qwen3 Next on Bedrock to gate titles for AI-news relevance.",
+    help="Use Qwen3 32B on Bedrock to gate titles for AI-news relevance.",
 )
 @click.option(
     "--limit",
