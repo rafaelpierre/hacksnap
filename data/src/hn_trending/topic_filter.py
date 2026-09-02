@@ -54,7 +54,7 @@ TOPIC_DECISION_TOOL_CONFIG = {
         {
             "toolSpec": {
                 "name": "classify_topic",
-                "description": "Classify the relevance of an HN title to practical AI systems.",
+                "description": "Classify the relevance of an HN title to the AI news feed.",
                 "inputSchema": {"json": TopicDecision.model_json_schema()},
             }
         }
@@ -69,6 +69,29 @@ def parse_topic_decision(payload: object) -> TopicDecision:
         return TopicDecision.model_validate(payload)
     except ValidationError as error:
         raise ValueError("Qwen3 Next did not return a valid relevance decision.") from error
+
+
+def topic_decision_from_response(response: dict[str, Any]) -> TopicDecision:
+    """Extract a constrained tool payload or JSON response from a Bedrock model."""
+    try:
+        content = response["output"]["message"]["content"]
+    except KeyError as error:
+        raise ValueError("The topic classifier returned an invalid Bedrock response.") from error
+
+    tool_input = next(
+        (block["toolUse"]["input"] for block in content if "toolUse" in block),
+        None,
+    )
+    if tool_input is not None:
+        return parse_topic_decision(tool_input)
+
+    text = "".join(block["text"] for block in content if "text" in block).strip()
+    if not text:
+        raise ValueError("Qwen3 Next did not return a relevance decision.")
+    try:
+        return parse_topic_decision(json.loads(text))
+    except json.JSONDecodeError as error:
+        raise ValueError("Qwen3 Next did not return JSON relevance output.") from error
 
 
 class TitleTopicClassifier:
@@ -92,12 +115,4 @@ class TitleTopicClassifier:
             inferenceConfig={"maxTokens": 100, "temperature": 0},
             toolConfig=TOPIC_DECISION_TOOL_CONFIG,
         )
-        try:
-            tool_use = next(
-                block["toolUse"]
-                for block in response["output"]["message"]["content"]
-                if "toolUse" in block
-            )
-        except (KeyError, StopIteration) as error:
-            raise ValueError("Qwen3 Next did not return the topic-classification tool call.") from error
-        return parse_topic_decision(tool_use["input"])
+        return topic_decision_from_response(response)

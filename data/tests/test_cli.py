@@ -12,6 +12,7 @@ from hn_trending.topic_filter import (
     TOPIC_DECISION_TOOL_CONFIG,
     TitleTopicClassifier,
     parse_topic_decision,
+    topic_decision_from_response,
 )
 
 
@@ -79,6 +80,21 @@ def test_topic_decision_parses_constrained_json() -> None:
 def test_topic_decision_rejects_invalid_output() -> None:
     with pytest.raises(ValueError, match="valid relevance decision"):
         parse_topic_decision({"relevant": "yes"})
+
+
+def test_topic_decision_accepts_json_text_response() -> None:
+    decision = topic_decision_from_response(
+        {"output": {"message": {"content": [{"text": '{"relevant": true}'}]}}}
+    )
+
+    assert decision.relevant is True
+
+
+def test_topic_decision_rejects_non_json_text_response() -> None:
+    with pytest.raises(ValueError, match="JSON relevance output"):
+        topic_decision_from_response(
+            {"output": {"message": {"content": [{"text": "relevant"}]}}}
+        )
 
 
 def test_title_classifier_uses_bedrock_converse_parameters() -> None:
