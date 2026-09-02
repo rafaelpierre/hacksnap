@@ -10,7 +10,7 @@ from urllib.parse import quote
 import click
 import httpx
 
-from hn_trending.client import HackerNewsClient
+from hn_trending.client import HackerNewsClient, retain_comments_with_descendants
 from hn_trending.storage import (
     database_row,
     finish_ingestion_run,
@@ -61,6 +61,13 @@ def resolve_database_url() -> str:
     help="Maximum comment nesting level to retrieve; direct comments are depth 1.",
 )
 @click.option(
+    "--min-comment-descendants",
+    type=click.IntRange(min=0),
+    default=0,
+    show_default=True,
+    help="Keep comments with this many descendants in the fetched tree, plus ancestors.",
+)
+@click.option(
     "--limit",
     type=click.IntRange(min=1),
     default=100,
@@ -72,6 +79,7 @@ def main(
     min_comments: int,
     min_points: int,
     max_comment_depth: int,
+    min_comment_descendants: int,
     limit: int,
 ) -> None:
     """Fetch filtered top HN stories and save their raw thread contents to Supabase."""
@@ -81,6 +89,7 @@ def main(
         "min_comments": min_comments,
         "min_points": min_points,
         "max_comment_depth": max_comment_depth,
+        "min_comment_descendants": min_comment_descendants,
         "limit": limit,
     }
     run_id = start_ingestion_run(database_url, run_filters)
@@ -99,7 +108,8 @@ def main(
             click.echo(
                 "Starting Hacker News scan: "
                 f"limit={limit}, min_points={min_points}, min_comments={min_comments}, "
-                f"max_comment_depth={max_comment_depth}."
+                f"max_comment_depth={max_comment_depth}, "
+                f"min_comment_descendants={min_comment_descendants}."
             )
             story_ids = hn.top_story_ids()[:limit]
             click.echo(f"Received {len(story_ids)} top-story ID(s); fetching story metadata.")
@@ -145,11 +155,17 @@ def main(
                     max_comment_depth,
                     on_progress=report_comment_progress,
                 )
-                click.echo(f"{prefix} Collected {len(comments)} comment item(s).")
+                retained_comments = retain_comments_with_descendants(
+                    comments, min_comment_descendants
+                )
+                click.echo(
+                    f"{prefix} Collected {len(comments)} comment item(s); retained "
+                    f"{len(retained_comments)} after subtree filtering."
+                )
                 rows.append(
                     database_row(
                         story,
-                        raw_thread_contents(story, comments),
+                        raw_thread_contents(story, retained_comments),
                         top_story_rank=position,
                         max_comment_depth=max_comment_depth,
                     )

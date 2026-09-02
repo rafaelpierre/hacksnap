@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-from hn_trending.client import HackerNewsClient
+from hn_trending.client import HackerNewsClient, retain_comments_with_descendants
 from hn_trending.cli import resolve_database_url, title_matches
 from hn_trending.storage import database_row, snapshot_row
 
@@ -38,6 +38,28 @@ def test_comment_traversal_reports_progress() -> None:
 
     assert [comment["item"]["id"] for comment in comments] == [1, 2]
     assert progress == [(1, 1)]
+
+
+def test_comment_subtree_filter_retains_qualifying_branch_and_its_ancestors() -> None:
+    comments = [
+        {"depth": 1, "item": {"id": 1, "parent": 100}},
+        {"depth": 1, "item": {"id": 2, "parent": 100}},
+        {"depth": 2, "item": {"id": 3, "parent": 1}},
+        {"depth": 3, "item": {"id": 4, "parent": 3}},
+        {"depth": 3, "item": {"id": 5, "parent": 3}},
+        {"depth": 2, "item": {"id": 6, "parent": 2}},
+    ]
+
+    retained = retain_comments_with_descendants(comments, min_descendants=2)
+
+    # Comment 3 qualifies directly; comment 1 remains as its context.
+    assert [entry["item"]["id"] for entry in retained] == [1, 3]
+
+
+def test_comment_subtree_filter_can_be_disabled() -> None:
+    comments = [{"depth": 1, "item": {"id": 1, "parent": 100}}]
+
+    assert retain_comments_with_descendants(comments, min_descendants=0) == comments
 
 
 def test_database_row_contains_current_hacker_news_metrics() -> None:

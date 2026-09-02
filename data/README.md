@@ -32,6 +32,11 @@ Stories are selected from the first `--limit` (default: 100) IDs returned by the
 top-stories endpoint. Direct comments are depth 1; use depth 0 to persist only
 the story payload. `full_raw_text_contents` stores a JSON document containing the
 raw official API payload for the story plus every retrieved comment and its depth.
+Use `--min-comment-descendants` to retain only comments with at least that many
+descendants inside the fetched depth, together with their ancestor comments for
+context. The official API has no comment vote-score field; descendant counts are
+therefore the available API-only signal. A value of `0` (the CLI default) retains
+every fetched comment.
 The current-thread table also records each story's latest HN `points` and total
 `comment_count` values for fast filtering and display.
 
@@ -88,6 +93,8 @@ connection URL to repository files or workflow logs.
 The [ingestion workflow](../.github/workflows/hn-ingestion.yml) fetches the
 latest 20 HN top stories every hour at minute 17 UTC, then persists the matching
 threads with at least 20 points and 20 comments through the IPv4 pooler. The
+workflow traverses comment trees to depth 3, retaining comments that have at
+least 3 descendants in that fetched tree plus their ancestors.
 offset avoids GitHub Actions' busiest top-of-hour period. It can also be started from the GitHub Actions page with
 **Run workflow**. Its job log ends with the number of stored threads.
 It also reports each story being fetched, every filter decision, comment traversal

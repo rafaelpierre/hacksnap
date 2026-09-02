@@ -12,6 +12,39 @@ import httpx
 API_BASE_URL = "https://hacker-news.firebaseio.com/v0"
 
 
+def retain_comments_with_descendants(
+    comments: list[dict[str, Any]], min_descendants: int
+) -> list[dict[str, Any]]:
+    """Retain substantive comments and their in-tree ancestor context.
+
+    Descendants are counted only inside ``comments``, which is already bounded by
+    the requested traversal depth. The HN API exposes immediate child IDs only.
+    """
+    if min_descendants == 0:
+        return comments
+
+    entries_by_id = {entry["item"]["id"]: entry for entry in comments}
+    descendant_counts = {comment_id: 0 for comment_id in entries_by_id}
+    for entry in reversed(comments):
+        item = entry["item"]
+        parent_id = item.get("parent")
+        if parent_id in descendant_counts:
+            descendant_counts[parent_id] += descendant_counts[item["id"]] + 1
+
+    retained_ids = {
+        comment_id
+        for comment_id, descendant_count in descendant_counts.items()
+        if descendant_count >= min_descendants
+    }
+    for comment_id in tuple(retained_ids):
+        parent_id = entries_by_id[comment_id]["item"].get("parent")
+        while parent_id in entries_by_id:
+            retained_ids.add(parent_id)
+            parent_id = entries_by_id[parent_id]["item"].get("parent")
+
+    return [entry for entry in comments if entry["item"]["id"] in retained_ids]
+
+
 class HackerNewsClient:
     """Retrieve data exclusively from the official Hacker News API."""
 

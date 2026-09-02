@@ -43,7 +43,8 @@ jobs:
             --limit 20 \
             --min-points 20 \
             --min-comments 20 \
-            --max-comment-depth 1 \
+            --max-comment-depth 3 \
+            --min-comment-descendants 3 \
             --title-word ai \
             --title-word "artificial intelligence" \
             --title-word "gen ai" \
