@@ -1,11 +1,18 @@
+import json
 from uuid import uuid4
 
 import pytest
+from botocore.session import get_session
 
 from hn_trending.client import HackerNewsClient, retain_comments_with_descendants
 from hn_trending.cli import resolve_database_url, title_matches
 from hn_trending.storage import database_row, snapshot_row
-from hn_trending.topic_filter import NOVA_MICRO_MODEL, TitleTopicClassifier, parse_topic_decision
+from hn_trending.topic_filter import (
+    NOVA_MICRO_MODEL,
+    TOPIC_DECISION_OUTPUT_CONFIG,
+    TitleTopicClassifier,
+    parse_topic_decision,
+)
 
 
 def test_title_words_are_case_insensitive_and_match_any_word() -> None:
@@ -64,15 +71,14 @@ def test_comment_subtree_filter_can_be_disabled() -> None:
 
 
 def test_topic_decision_parses_constrained_json() -> None:
-    decision = parse_topic_decision('{"include": true, "reason": "Agent tooling release."}')
+    decision = parse_topic_decision('{"relevant": true}')
 
-    assert decision.include is True
-    assert decision.reason == "Agent tooling release."
+    assert decision.relevant is True
 
 
 def test_topic_decision_rejects_invalid_output() -> None:
-    with pytest.raises(ValueError, match="valid JSON"):
-        parse_topic_decision("Include: yes")
+    with pytest.raises(ValueError, match="valid relevance decision"):
+        parse_topic_decision('{"relevant": "yes"}')
 
 
 def test_title_classifier_uses_bedrock_converse_parameters() -> None:
@@ -87,18 +93,20 @@ def test_title_classifier_uses_bedrock_converse_parameters() -> None:
             system: list[dict[str, str]],
             messages: list[dict[str, object]],
             inferenceConfig: dict[str, int],
+            outputConfig: dict[str, object],
         ):
             self.kwargs = {
                 "modelId": modelId,
                 "system": system,
                 "messages": messages,
                 "inferenceConfig": inferenceConfig,
+                "outputConfig": outputConfig,
             }
             return {
                 "output": {
                     "message": {
                         "content": [
-                            {"text": '{"include": true, "reason": "AI systems release."}'}
+                            {"text": '{"relevant": true}'}
                         ]
                     }
                 }
@@ -109,10 +117,26 @@ def test_title_classifier_uses_bedrock_converse_parameters() -> None:
 
     decision = classifier.classify("New agent framework")
 
-    assert decision.include is True
+    assert decision.relevant is True
     assert client.kwargs is not None
     assert client.kwargs["modelId"] == NOVA_MICRO_MODEL
     assert client.kwargs["inferenceConfig"] == {"maxTokens": 100, "temperature": 0}
+    assert client.kwargs["outputConfig"] == TOPIC_DECISION_OUTPUT_CONFIG
+
+
+def test_installed_bedrock_sdk_supports_converse_structured_output() -> None:
+    converse_input = (
+        get_session().get_service_model("bedrock-runtime").operation_model("Converse").input_shape
+    )
+    assert converse_input is not None
+    assert "outputConfig" in converse_input.members
+
+    schema = json.loads(
+        TOPIC_DECISION_OUTPUT_CONFIG["textFormat"]["structure"]["jsonSchema"]["schema"]
+    )
+    assert schema["required"] == ["relevant"]
+    assert schema["properties"]["relevant"]["type"] == "boolean"
+    assert schema["additionalProperties"] is False
 
 
 def test_database_row_contains_current_hacker_news_metrics() -> None:

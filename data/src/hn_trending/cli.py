@@ -150,10 +150,9 @@ def main(
                 if classifier is not None:
                     decision = classifier.classify(title)
                     click.echo(
-                        f"{prefix} Topic classification: include={decision.include}; "
-                        f"reason={decision.reason}"
+                        f"{prefix} Topic classification: relevant={decision.relevant}."
                     )
-                    if not decision.include:
+                    if not decision.relevant:
                         filtered += 1
                         click.echo(f"{prefix} Filtered {title!r}: not relevant to practical AI.")
                         continue
