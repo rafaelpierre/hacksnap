@@ -1,4 +1,3 @@
-import json
 from uuid import uuid4
 
 import pytest
@@ -9,7 +8,7 @@ from hn_trending.cli import resolve_database_url, title_matches
 from hn_trending.storage import database_row, snapshot_row
 from hn_trending.topic_filter import (
     NOVA_MICRO_MODEL,
-    TOPIC_DECISION_OUTPUT_CONFIG,
+    TOPIC_DECISION_TOOL_CONFIG,
     TitleTopicClassifier,
     parse_topic_decision,
 )
@@ -71,14 +70,14 @@ def test_comment_subtree_filter_can_be_disabled() -> None:
 
 
 def test_topic_decision_parses_constrained_json() -> None:
-    decision = parse_topic_decision('{"relevant": true}')
+    decision = parse_topic_decision({"relevant": True})
 
     assert decision.relevant is True
 
 
 def test_topic_decision_rejects_invalid_output() -> None:
     with pytest.raises(ValueError, match="valid relevance decision"):
-        parse_topic_decision('{"relevant": "yes"}')
+        parse_topic_decision({"relevant": "yes"})
 
 
 def test_title_classifier_uses_bedrock_converse_parameters() -> None:
@@ -93,23 +92,17 @@ def test_title_classifier_uses_bedrock_converse_parameters() -> None:
             system: list[dict[str, str]],
             messages: list[dict[str, object]],
             inferenceConfig: dict[str, int],
-            outputConfig: dict[str, object],
+            toolConfig: dict[str, object],
         ):
             self.kwargs = {
                 "modelId": modelId,
                 "system": system,
                 "messages": messages,
                 "inferenceConfig": inferenceConfig,
-                "outputConfig": outputConfig,
+                "toolConfig": toolConfig,
             }
             return {
-                "output": {
-                    "message": {
-                        "content": [
-                            {"text": '{"relevant": true}'}
-                        ]
-                    }
-                }
+                "output": {"message": {"content": [{"toolUse": {"name": "classify_topic", "input": {"relevant": True}}}]}}
             }
 
     client = StrictBedrockClient()
@@ -121,19 +114,17 @@ def test_title_classifier_uses_bedrock_converse_parameters() -> None:
     assert client.kwargs is not None
     assert client.kwargs["modelId"] == NOVA_MICRO_MODEL
     assert client.kwargs["inferenceConfig"] == {"maxTokens": 100, "temperature": 0}
-    assert client.kwargs["outputConfig"] == TOPIC_DECISION_OUTPUT_CONFIG
+    assert client.kwargs["toolConfig"] == TOPIC_DECISION_TOOL_CONFIG
 
 
-def test_installed_bedrock_sdk_supports_converse_structured_output() -> None:
+def test_installed_bedrock_sdk_supports_converse_tool_schema() -> None:
     converse_input = (
         get_session().get_service_model("bedrock-runtime").operation_model("Converse").input_shape
     )
     assert converse_input is not None
-    assert "outputConfig" in converse_input.members
+    assert "toolConfig" in converse_input.members
 
-    schema = json.loads(
-        TOPIC_DECISION_OUTPUT_CONFIG["textFormat"]["structure"]["jsonSchema"]["schema"]
-    )
+    schema = TOPIC_DECISION_TOOL_CONFIG["tools"][0]["toolSpec"]["inputSchema"]["json"]
     assert schema["required"] == ["relevant"]
     assert schema["properties"]["relevant"]["type"] == "boolean"
     assert schema["additionalProperties"] is False

@@ -43,8 +43,9 @@ through Amazon Bedrock with the title only, and retains practical AI, LLM, agent
 and AI-security developments while excluding unrelated technology and strictly
 academic research. Set `BEDROCK_API_KEY`; `BEDROCK_REGION` defaults to
 `eu-west-1`. Bedrock constrains the response to a Pydantic-derived JSON schema
-with one field, `relevant: bool`; the classifier fails closed if validation fails,
-so unrelated stories are never silently admitted.
+with one field, `relevant: bool`, through Nova's constrained tool-use schema; the
+classifier fails closed if validation fails, so unrelated stories are never
+silently admitted.
 The current-thread table also records each story's latest HN `points` and total
 `comment_count` values for fast filtering and display.
 

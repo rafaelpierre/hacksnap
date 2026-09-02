@@ -30,24 +30,24 @@ class TopicDecision(BaseModel):
     relevant: bool
 
 
-TOPIC_DECISION_OUTPUT_CONFIG = {
-    "textFormat": {
-        "type": "json_schema",
-        "structure": {
-            "jsonSchema": {
-                "name": "topic_decision",
-                "description": "Whether an HN title is relevant to practical AI systems.",
-                "schema": json.dumps(TopicDecision.model_json_schema()),
+TOPIC_DECISION_TOOL_CONFIG = {
+    "tools": [
+        {
+            "toolSpec": {
+                "name": "classify_topic",
+                "description": "Classify the relevance of an HN title to practical AI systems.",
+                "inputSchema": {"json": TopicDecision.model_json_schema()},
             }
-        },
-    }
+        }
+    ],
+    "toolChoice": {"tool": {"name": "classify_topic"}},
 }
 
 
-def parse_topic_decision(response_text: str) -> TopicDecision:
-    """Validate Bedrock's schema-constrained JSON response with Pydantic."""
+def parse_topic_decision(payload: object) -> TopicDecision:
+    """Validate Nova Micro's schema-constrained tool input with Pydantic."""
     try:
-        return TopicDecision.model_validate_json(response_text)
+        return TopicDecision.model_validate(payload)
     except ValidationError as error:
         raise ValueError("Nova Micro did not return a valid relevance decision.") from error
 
@@ -71,7 +71,14 @@ class TitleTopicClassifier:
                 {"role": "user", "content": [{"text": json.dumps({"title": title})}]}
             ],
             inferenceConfig={"maxTokens": 100, "temperature": 0},
-            outputConfig=TOPIC_DECISION_OUTPUT_CONFIG,
+            toolConfig=TOPIC_DECISION_TOOL_CONFIG,
         )
-        response_text = response["output"]["message"]["content"][0]["text"]
-        return parse_topic_decision(response_text)
+        try:
+            tool_use = next(
+                block["toolUse"]
+                for block in response["output"]["message"]["content"]
+                if "toolUse" in block
+            )
+        except (KeyError, StopIteration) as error:
+            raise ValueError("Nova Micro did not return the topic-classification tool call.") from error
+        return parse_topic_decision(tool_use["input"])
