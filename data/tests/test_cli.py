@@ -4,7 +4,7 @@ import pytest
 from botocore.session import get_session
 
 from hn_trending.client import HackerNewsClient, retain_comments_with_descendants
-from hn_trending.cli import resolve_database_url, title_matches
+from hn_trending.cli import main, resolve_database_url, title_matches
 from hn_trending.storage import database_row, snapshot_row
 from hn_trending.topic_filter import (
     CLASSIFIER_SYSTEM_PROMPT,
@@ -28,6 +28,16 @@ def test_database_url_resolution_uses_the_ipv4_pooler(monkeypatch: pytest.Monkey
     assert "a%20password%2Fwith%20symbols" in database_url
     assert "aws-1-eu-west-1.pooler.supabase.com:5432" in database_url
     assert database_url.endswith("?sslmode=require")
+
+
+def test_cli_defaults_to_five_comment_levels() -> None:
+    max_depth_option = next(
+        parameter
+        for parameter in main.params
+        if parameter.name == "max_comment_depth"
+    )
+
+    assert max_depth_option.default == 5
 
 
 def test_comment_traversal_reports_progress() -> None:

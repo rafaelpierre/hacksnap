@@ -24,14 +24,15 @@ uv run hn-trending \
   --title-word engineering \
   --min-comments 20 \
   --min-points 100 \
-  --max-comment-depth 3
+  --max-comment-depth 5
 ```
 
 At least one `--title-word` value must occur in a title, without regard to case.
 Stories are selected from the first `--limit` (default: 100) IDs returned by the official
 top-stories endpoint. Direct comments are depth 1; use depth 0 to persist only
-the story payload. `full_raw_text_contents` stores a JSON document containing the
-raw official API payload for the story plus every retrieved comment and its depth.
+the story payload. The default maximum comment depth is 5.
+`full_raw_text_contents` stores a JSON document containing the raw official API
+payload for the story plus every retrieved comment and its depth.
 Use `--min-comment-descendants` to retain only comments with at least that many
 descendants inside the fetched depth, together with their ancestor comments for
 context. The official API has no comment vote-score field; descendant counts are
@@ -102,7 +103,7 @@ connection URL to repository files or workflow logs.
 The [ingestion workflow](../.github/workflows/hn-ingestion.yml) fetches the
 latest 20 HN top stories every hour at minute 17 UTC, then persists the matching
 threads with at least 20 points and 20 comments through the IPv4 pooler. The
-workflow traverses comment trees to depth 3, retaining comments that have at
+workflow traverses comment trees to depth 5, retaining comments that have at
 least 3 descendants in that fetched tree plus their ancestors.
 It uses `BEDROCK_API_KEY` to classify each title with Qwen3 32B before comment
 traversal; configure that as a repository or environment secret.

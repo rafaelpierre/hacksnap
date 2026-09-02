@@ -57,7 +57,7 @@ def resolve_database_url() -> str:
 @click.option(
     "--max-comment-depth",
     type=click.IntRange(min=0),
-    default=1,
+    default=5,
     show_default=True,
     help="Maximum comment nesting level to retrieve; direct comments are depth 1.",
 )
