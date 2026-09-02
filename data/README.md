@@ -32,6 +32,8 @@ Stories are selected from the first `--limit` (default: 100) IDs returned by the
 top-stories endpoint. Direct comments are depth 1; use depth 0 to persist only
 the story payload. `full_raw_text_contents` stores a JSON document containing the
 raw official API payload for the story plus every retrieved comment and its depth.
+The current-thread table also records each story's latest HN `points` and total
+`comment_count` values for fast filtering and display.
 
 The command upserts by `hn_id`, so it is safe to run on a schedule. It refreshes
 the story data and raw contents while retaining the original `date_added` value.

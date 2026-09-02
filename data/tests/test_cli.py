@@ -2,6 +2,7 @@ import pytest
 
 from hn_trending.client import HackerNewsClient
 from hn_trending.cli import resolve_database_url, title_matches
+from hn_trending.storage import database_row
 
 
 def test_title_words_are_case_insensitive_and_match_any_word() -> None:
@@ -35,3 +36,19 @@ def test_comment_traversal_reports_progress() -> None:
 
     assert [comment["item"]["id"] for comment in comments] == [1, 2]
     assert progress == [(1, 1)]
+
+
+def test_database_row_contains_current_hacker_news_metrics() -> None:
+    row = database_row(
+        {
+            "id": 1,
+            "title": "Example story",
+            "time": 1,
+            "score": 42,
+            "descendants": 24,
+        },
+        "{}",
+    )
+
+    assert row["points"] == 42
+    assert row["comment_count"] == 24
