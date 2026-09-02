@@ -7,6 +7,7 @@ from hn_trending.client import HackerNewsClient, retain_comments_with_descendant
 from hn_trending.cli import resolve_database_url, title_matches
 from hn_trending.storage import database_row, snapshot_row
 from hn_trending.topic_filter import (
+    CLASSIFIER_SYSTEM_PROMPT,
     NOVA_MICRO_MODEL,
     TOPIC_DECISION_TOOL_CONFIG,
     TitleTopicClassifier,
@@ -115,6 +116,14 @@ def test_title_classifier_uses_bedrock_converse_parameters() -> None:
     assert client.kwargs["modelId"] == NOVA_MICRO_MODEL
     assert client.kwargs["inferenceConfig"] == {"maxTokens": 100, "temperature": 0}
     assert client.kwargs["toolConfig"] == TOPIC_DECISION_TOOL_CONFIG
+
+
+def test_topic_prompt_includes_ai_coding_assistant_ecosystem() -> None:
+    prompt = CLASSIFIER_SYSTEM_PROMPT.casefold()
+
+    for product in ("claude code", "codex", "cursor", "hermes agent"):
+        assert product in prompt
+    assert "bundling libreoffice" in prompt
 
 
 def test_installed_bedrock_sdk_supports_converse_tool_schema() -> None:
