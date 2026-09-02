@@ -5,7 +5,7 @@ import pytest
 from hn_trending.client import HackerNewsClient, retain_comments_with_descendants
 from hn_trending.cli import resolve_database_url, title_matches
 from hn_trending.storage import database_row, snapshot_row
-from hn_trending.topic_filter import parse_topic_decision
+from hn_trending.topic_filter import HAIKU_MODEL, TitleTopicClassifier, parse_topic_decision
 
 
 def test_title_words_are_case_insensitive_and_match_any_word() -> None:
@@ -73,6 +73,43 @@ def test_topic_decision_parses_constrained_json() -> None:
 def test_topic_decision_rejects_invalid_output() -> None:
     with pytest.raises(ValueError, match="valid JSON"):
         parse_topic_decision("Include: yes")
+
+
+def test_title_classifier_uses_only_supported_bedrock_message_arguments() -> None:
+    class StrictMessages:
+        def __init__(self) -> None:
+            self.kwargs: dict[str, object] | None = None
+
+        def create(
+            self,
+            *,
+            model: str,
+            max_tokens: int,
+            system: str,
+            messages: list[dict[str, str]],
+        ):
+            self.kwargs = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "system": system,
+                "messages": messages,
+            }
+            return type(
+                "Response",
+                (),
+                {"content": [type("TextBlock", (), {"type": "text", "text": '{"include": true, "reason": "AI systems release."}'})()]},
+            )()
+
+    messages = StrictMessages()
+    classifier = TitleTopicClassifier("test-key")
+    classifier.client = type("Client", (), {"messages": messages})()
+
+    decision = classifier.classify("New agent framework")
+
+    assert decision.include is True
+    assert messages.kwargs is not None
+    assert messages.kwargs["model"] == HAIKU_MODEL
+    assert messages.kwargs["max_tokens"] == 100
 
 
 def test_database_row_contains_current_hacker_news_metrics() -> None:
