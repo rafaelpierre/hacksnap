@@ -39,4 +39,8 @@ jobs:
       - name: Fetch and store Hacker News threads
         run: |
           test -n "$SUPABASE_PASSWORD"
-          uv run hn-trending --limit 100 --max-comment-depth 1
+          uv run hn-trending \
+            --limit 100 \
+            --min-points 20 \
+            --min-comments 20 \
+            --max-comment-depth 1

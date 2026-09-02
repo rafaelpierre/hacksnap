@@ -78,8 +78,8 @@ connection URL to repository files or workflow logs.
 
 The [ingestion workflow](../.github/workflows/hn-ingestion.yml) fetches the
 latest 100 HN top stories every hour at minute 17 UTC, then persists the matching
-threads through the IPv4 pooler. The offset avoids GitHub Actions' busiest
-top-of-hour period. It can also be started from the GitHub Actions page with
+threads with at least 20 points and 20 comments through the IPv4 pooler. The
+offset avoids GitHub Actions' busiest top-of-hour period. It can also be started from the GitHub Actions page with
 **Run workflow**. Its job log ends with the number of stored threads.
 
 It requires the same `SUPABASE_PASSWORD` GitHub Actions secret as the migration
