@@ -73,3 +73,15 @@ environment and protected by a required reviewer.
 The pooler hostname, port, database, and user are fixed in the application, so a
 separate connection-string secret is not needed. Never add a password-bearing
 connection URL to repository files or workflow logs.
+
+## Hourly Hacker News ingestion
+
+The [ingestion workflow](../.github/workflows/hn-ingestion.yml) fetches the
+latest 100 HN top stories every hour at minute 17 UTC, then persists the matching
+threads through the IPv4 pooler. The offset avoids GitHub Actions' busiest
+top-of-hour period. It can also be started from the GitHub Actions page with
+**Run workflow**. Its job log ends with the number of stored threads.
+
+It requires the same `SUPABASE_PASSWORD` GitHub Actions secret as the migration
+workflow. Only one ingestion run may write at a time; queued hourly or manual
+runs wait instead of overlapping.
