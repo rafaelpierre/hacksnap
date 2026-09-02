@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import os
+from typing import Any
 
-from anthropic import AnthropicBedrock
+import boto3
 
 
-HAIKU_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
+NOVA_MICRO_MODEL = "eu.amazon.nova-micro-v1:0"
 CLASSIFIER_SYSTEM_PROMPT = """You classify Hacker News titles for a practical AI-systems news feed.
 
 Include a title only when it concerns AI, generative AI, LLMs, AI agents, AI security,
@@ -43,19 +45,24 @@ def parse_topic_decision(response_text: str) -> TopicDecision:
 
 
 class TitleTopicClassifier:
-    """Classify HN titles through Claude Haiku on Amazon Bedrock."""
+    """Classify HN titles through Amazon Nova Micro on Amazon Bedrock."""
 
-    def __init__(self, api_key: str, *, region: str = "eu-west-1") -> None:
-        self.client = AnthropicBedrock(api_key=api_key, aws_region=region)
+    def __init__(
+        self, api_key: str, *, region: str = "eu-west-1", client: Any | None = None
+    ) -> None:
+        # Bedrock's bearer-key authentication is resolved by boto3 from this
+        # standard environment variable.
+        os.environ["AWS_BEARER_TOKEN_BEDROCK"] = api_key
+        self.client = client or boto3.client("bedrock-runtime", region_name=region)
 
     def classify(self, title: str) -> TopicDecision:
-        response = self.client.messages.create(
-            model=HAIKU_MODEL,
-            max_tokens=100,
-            system=CLASSIFIER_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": json.dumps({"title": title})}],
+        response = self.client.converse(
+            modelId=NOVA_MICRO_MODEL,
+            system=[{"text": CLASSIFIER_SYSTEM_PROMPT}],
+            messages=[
+                {"role": "user", "content": [{"text": json.dumps({"title": title})}]}
+            ],
+            inferenceConfig={"maxTokens": 100, "temperature": 0},
         )
-        response_text = "".join(
-            block.text for block in response.content if getattr(block, "type", None) == "text"
-        )
+        response_text = response["output"]["message"]["content"][0]["text"]
         return parse_topic_decision(response_text)

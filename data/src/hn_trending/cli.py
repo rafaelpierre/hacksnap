@@ -72,7 +72,7 @@ def resolve_database_url() -> str:
     "--classify-topic/--no-classify-topic",
     default=False,
     show_default=True,
-    help="Use Claude Haiku on Bedrock to gate titles for practical AI relevance.",
+    help="Use Amazon Nova Micro on Bedrock to gate titles for practical AI relevance.",
 )
 @click.option(
     "--limit",

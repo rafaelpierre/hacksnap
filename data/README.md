@@ -38,7 +38,7 @@ context. The official API has no comment vote-score field; descendant counts are
 therefore the available API-only signal. A value of `0` (the CLI default) retains
 every fetched comment.
 
-For a less brittle topic gate, use `--classify-topic`. It calls Claude Haiku 4.5
+For a less brittle topic gate, use `--classify-topic`. It calls Amazon Nova Micro
 through Amazon Bedrock with the title only, and retains practical AI, LLM, agent,
 and AI-security developments while excluding unrelated technology and strictly
 academic research. Set `BEDROCK_API_KEY`; `BEDROCK_REGION` defaults to
@@ -102,7 +102,7 @@ latest 20 HN top stories every hour at minute 17 UTC, then persists the matching
 threads with at least 20 points and 20 comments through the IPv4 pooler. The
 workflow traverses comment trees to depth 3, retaining comments that have at
 least 3 descendants in that fetched tree plus their ancestors.
-It uses `BEDROCK_API_KEY` to classify each title with Claude Haiku before comment
+It uses `BEDROCK_API_KEY` to classify each title with Amazon Nova Micro before comment
 traversal; configure that as a repository or environment secret.
 offset avoids GitHub Actions' busiest top-of-hour period. It can also be started from the GitHub Actions page with
 **Run workflow**. Its job log ends with the number of stored threads.
