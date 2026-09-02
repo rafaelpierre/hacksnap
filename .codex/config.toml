@@ -1,0 +1,4 @@
+[mcp_servers.hacker_news_threads]
+command = "/Users/rafaelpierre/projects/lighthouse-hacker-news/mcp/run-server.sh"
+cwd = "/Users/rafaelpierre/projects/lighthouse-hacker-news/mcp"
+startup_timeout_sec = 30
