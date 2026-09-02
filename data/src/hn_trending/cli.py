@@ -72,7 +72,7 @@ def resolve_database_url() -> str:
     "--classify-topic/--no-classify-topic",
     default=False,
     show_default=True,
-    help="Use Amazon Nova Micro on Bedrock to gate titles for practical AI relevance.",
+    help="Use Qwen3 Next on Bedrock to gate titles for AI-news relevance.",
 )
 @click.option(
     "--limit",
@@ -154,7 +154,7 @@ def main(
                     )
                     if not decision.relevant:
                         filtered += 1
-                        click.echo(f"{prefix} Filtered {title!r}: not relevant to practical AI.")
+                        click.echo(f"{prefix} Filtered {title!r}: not relevant to the AI news feed.")
                         continue
 
                 filter_failures: list[str] = []

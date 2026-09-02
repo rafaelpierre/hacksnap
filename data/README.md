@@ -38,12 +38,12 @@ context. The official API has no comment vote-score field; descendant counts are
 therefore the available API-only signal. A value of `0` (the CLI default) retains
 every fetched comment.
 
-For a less brittle topic gate, use `--classify-topic`. It calls Amazon Nova Micro
-through Amazon Bedrock with the title only, and retains practical AI, LLM, agent,
-and AI-security developments while excluding unrelated technology and strictly
-academic research. Set `BEDROCK_API_KEY`; `BEDROCK_REGION` defaults to
+For a less brittle topic gate, use `--classify-topic`. It calls Qwen3 Next 80B A3B
+through Amazon Bedrock with the title only, and retains AI, LLM, agent, AI-security,
+and direct AI-impact stories while excluding unrelated technology and strictly academic
+research. Set `BEDROCK_API_KEY`; `BEDROCK_REGION` defaults to
 `eu-west-1`. Bedrock constrains the response to a Pydantic-derived JSON schema
-with one field, `relevant: bool`, through Nova's constrained tool-use schema; the
+with one field, `relevant: bool`, through Qwen3 Next's constrained tool-use schema; the
 classifier fails closed if validation fails, so unrelated stories are never
 silently admitted.
 The current-thread table also records each story's latest HN `points` and total
@@ -104,7 +104,7 @@ latest 20 HN top stories every hour at minute 17 UTC, then persists the matching
 threads with at least 20 points and 20 comments through the IPv4 pooler. The
 workflow traverses comment trees to depth 3, retaining comments that have at
 least 3 descendants in that fetched tree plus their ancestors.
-It uses `BEDROCK_API_KEY` to classify each title with Amazon Nova Micro before comment
+It uses `BEDROCK_API_KEY` to classify each title with Qwen3 Next 80B A3B before comment
 traversal; configure that as a repository or environment secret.
 offset avoids GitHub Actions' busiest top-of-hour period. It can also be started from the GitHub Actions page with
 **Run workflow**. Its job log ends with the number of stored threads.

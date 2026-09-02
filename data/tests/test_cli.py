@@ -8,7 +8,7 @@ from hn_trending.cli import resolve_database_url, title_matches
 from hn_trending.storage import database_row, snapshot_row
 from hn_trending.topic_filter import (
     CLASSIFIER_SYSTEM_PROMPT,
-    NOVA_MICRO_MODEL,
+    QWEN3_NEXT_MODEL,
     TOPIC_DECISION_TOOL_CONFIG,
     TitleTopicClassifier,
     parse_topic_decision,
@@ -113,7 +113,7 @@ def test_title_classifier_uses_bedrock_converse_parameters() -> None:
 
     assert decision.relevant is True
     assert client.kwargs is not None
-    assert client.kwargs["modelId"] == NOVA_MICRO_MODEL
+    assert client.kwargs["modelId"] == QWEN3_NEXT_MODEL
     assert client.kwargs["inferenceConfig"] == {"maxTokens": 100, "temperature": 0}
     assert client.kwargs["toolConfig"] == TOPIC_DECISION_TOOL_CONFIG
 
@@ -124,6 +124,10 @@ def test_topic_prompt_includes_ai_coding_assistant_ecosystem() -> None:
     for product in ("claude code", "codex", "cursor", "hermes agent"):
         assert product in prompt
     assert "bundling libreoffice" in prompt
+    assert "local-model setups" in prompt
+    assert "ai-labeled content" in prompt
+    assert "favor inclusion when a title is ambiguous" in prompt
+    assert "work, industries, professions" in prompt
 
 
 def test_installed_bedrock_sdk_supports_converse_tool_schema() -> None:
