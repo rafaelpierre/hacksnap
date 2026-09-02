@@ -22,6 +22,7 @@ jobs:
         working-directory: data
     env:
       SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+      BEDROCK_API_KEY: ${{ secrets.BEDROCK_API_KEY }}
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
@@ -39,14 +40,11 @@ jobs:
       - name: Fetch and store Hacker News threads
         run: |
           test -n "$SUPABASE_PASSWORD"
+          test -n "$BEDROCK_API_KEY"
           uv run hn-trending \
             --limit 20 \
             --min-points 20 \
             --min-comments 20 \
             --max-comment-depth 3 \
             --min-comment-descendants 3 \
-            --title-word ai \
-            --title-word "artificial intelligence" \
-            --title-word "gen ai" \
-            --title-word agents \
-            --title-word llms
+            --classify-topic

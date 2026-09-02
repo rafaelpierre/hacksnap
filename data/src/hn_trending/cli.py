@@ -17,6 +17,7 @@ from hn_trending.storage import (
     start_ingestion_run,
     store_threads_and_snapshots,
 )
+from hn_trending.topic_filter import TitleTopicClassifier
 
 
 def title_matches(title: str, title_words: tuple[str, ...]) -> bool:
@@ -68,6 +69,12 @@ def resolve_database_url() -> str:
     help="Keep comments with this many descendants in the fetched tree, plus ancestors.",
 )
 @click.option(
+    "--classify-topic/--no-classify-topic",
+    default=False,
+    show_default=True,
+    help="Use Claude Haiku on Bedrock to gate titles for practical AI relevance.",
+)
+@click.option(
     "--limit",
     type=click.IntRange(min=1),
     default=100,
@@ -80,9 +87,19 @@ def main(
     min_points: int,
     max_comment_depth: int,
     min_comment_descendants: int,
+    classify_topic: bool,
     limit: int,
 ) -> None:
     """Fetch filtered top HN stories and save their raw thread contents to Supabase."""
+    classifier: TitleTopicClassifier | None = None
+    if classify_topic:
+        bedrock_api_key = os.environ.get("BEDROCK_API_KEY")
+        if not bedrock_api_key:
+            raise click.UsageError("Set BEDROCK_API_KEY when using --classify-topic.")
+        classifier = TitleTopicClassifier(
+            bedrock_api_key, region=os.environ.get("BEDROCK_REGION", "eu-west-1")
+        )
+
     database_url = resolve_database_url()
     run_filters = {
         "title_words": list(title_words),
@@ -90,6 +107,7 @@ def main(
         "min_points": min_points,
         "max_comment_depth": max_comment_depth,
         "min_comment_descendants": min_comment_descendants,
+        "classify_topic": classify_topic,
         "limit": limit,
     }
     run_id = start_ingestion_run(database_url, run_filters)
@@ -109,7 +127,8 @@ def main(
                 "Starting Hacker News scan: "
                 f"limit={limit}, min_points={min_points}, min_comments={min_comments}, "
                 f"max_comment_depth={max_comment_depth}, "
-                f"min_comment_descendants={min_comment_descendants}."
+                f"min_comment_descendants={min_comment_descendants}, "
+                f"classify_topic={classify_topic}."
             )
             story_ids = hn.top_story_ids()[:limit]
             click.echo(f"Received {len(story_ids)} top-story ID(s); fetching story metadata.")
@@ -128,6 +147,17 @@ def main(
                 title = story.get("title", "")
                 score = story.get("score", 0)
                 descendants = story.get("descendants", 0)
+                if classifier is not None:
+                    decision = classifier.classify(title)
+                    click.echo(
+                        f"{prefix} Topic classification: include={decision.include}; "
+                        f"reason={decision.reason}"
+                    )
+                    if not decision.include:
+                        filtered += 1
+                        click.echo(f"{prefix} Filtered {title!r}: not relevant to practical AI.")
+                        continue
+
                 filter_failures: list[str] = []
                 if not title_matches(title, title_words):
                     filter_failures.append("title does not match")

@@ -5,6 +5,7 @@ import pytest
 from hn_trending.client import HackerNewsClient, retain_comments_with_descendants
 from hn_trending.cli import resolve_database_url, title_matches
 from hn_trending.storage import database_row, snapshot_row
+from hn_trending.topic_filter import parse_topic_decision
 
 
 def test_title_words_are_case_insensitive_and_match_any_word() -> None:
@@ -60,6 +61,18 @@ def test_comment_subtree_filter_can_be_disabled() -> None:
     comments = [{"depth": 1, "item": {"id": 1, "parent": 100}}]
 
     assert retain_comments_with_descendants(comments, min_descendants=0) == comments
+
+
+def test_topic_decision_parses_constrained_json() -> None:
+    decision = parse_topic_decision('{"include": true, "reason": "Agent tooling release."}')
+
+    assert decision.include is True
+    assert decision.reason == "Agent tooling release."
+
+
+def test_topic_decision_rejects_invalid_output() -> None:
+    with pytest.raises(ValueError, match="valid JSON"):
+        parse_topic_decision("Include: yes")
 
 
 def test_database_row_contains_current_hacker_news_metrics() -> None:
