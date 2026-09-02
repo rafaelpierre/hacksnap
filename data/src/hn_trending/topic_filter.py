@@ -52,7 +52,6 @@ class TitleTopicClassifier:
         response = self.client.messages.create(
             model=HAIKU_MODEL,
             max_tokens=100,
-            temperature=0,
             system=CLASSIFIER_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": json.dumps({"title": title})}],
         )
