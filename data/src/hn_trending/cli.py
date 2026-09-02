@@ -11,7 +11,12 @@ import click
 import httpx
 
 from hn_trending.client import HackerNewsClient
-from hn_trending.storage import database_row, store_threads
+from hn_trending.storage import (
+    database_row,
+    finish_ingestion_run,
+    start_ingestion_run,
+    store_threads_and_snapshots,
+)
 
 
 def title_matches(title: str, title_words: tuple[str, ...]) -> bool:
@@ -70,71 +75,116 @@ def main(
     limit: int,
 ) -> None:
     """Fetch filtered top HN stories and save their raw thread contents to Supabase."""
+    database_url = resolve_database_url()
+    run_filters = {
+        "title_words": list(title_words),
+        "min_comments": min_comments,
+        "min_points": min_points,
+        "max_comment_depth": max_comment_depth,
+        "limit": limit,
+    }
+    run_id = start_ingestion_run(database_url, run_filters)
+    click.echo(f"Created ingestion run {run_id}.")
+
+    rows: list[dict[str, Any]] = []
+    detected = 0
+    filtered = 0
+    skipped = 0
+    examined = 0
+    snapshots_inserted = 0
     timeout = httpx.Timeout(20.0)
-    with httpx.Client(timeout=timeout) as http_client:
-        hn = HackerNewsClient(http_client)
-        click.echo(
-            "Starting Hacker News scan: "
-            f"limit={limit}, min_points={min_points}, min_comments={min_comments}, "
-            f"max_comment_depth={max_comment_depth}."
-        )
-        story_ids = hn.top_story_ids()[:limit]
-        click.echo(f"Received {len(story_ids)} top-story ID(s); fetching story metadata.")
-
-        rows: list[dict[str, Any]] = []
-        detected = 0
-        filtered = 0
-        skipped = 0
-        for position, story_id in enumerate(story_ids, start=1):
-            prefix = f"[{position}/{len(story_ids)}]"
-            click.echo(f"{prefix} Fetching story {story_id}.")
-            story = hn.item(story_id)
-            if story is None or story.get("type") != "story" or story.get("dead"):
-                skipped += 1
-                click.echo(f"{prefix} Skipped: unavailable, non-story, or dead item.")
-                continue
-
-            detected += 1
-            title = story.get("title", "")
-            score = story.get("score", 0)
-            descendants = story.get("descendants", 0)
-            filter_failures: list[str] = []
-            if not title_matches(title, title_words):
-                filter_failures.append("title does not match")
-            if descendants < min_comments:
-                filter_failures.append(f"comments={descendants} < {min_comments}")
-            if score < min_points:
-                filter_failures.append(f"points={score} < {min_points}")
-            if filter_failures:
-                filtered += 1
-                click.echo(f"{prefix} Filtered {title!r}: {', '.join(filter_failures)}.")
-                continue
-
+    try:
+        with httpx.Client(timeout=timeout) as http_client:
+            hn = HackerNewsClient(http_client)
             click.echo(
-                f"{prefix} Matched {title!r} "
-                f"({score} points, {descendants} comments); fetching comments."
+                "Starting Hacker News scan: "
+                f"limit={limit}, min_points={min_points}, min_comments={min_comments}, "
+                f"max_comment_depth={max_comment_depth}."
             )
+            story_ids = hn.top_story_ids()[:limit]
+            click.echo(f"Received {len(story_ids)} top-story ID(s); fetching story metadata.")
 
-            def report_comment_progress(processed: int, pending: int) -> None:
+            for position, story_id in enumerate(story_ids, start=1):
+                prefix = f"[{position}/{len(story_ids)}]"
+                click.echo(f"{prefix} Fetching story {story_id}.")
+                examined += 1
+                story = hn.item(story_id)
+                if story is None or story.get("type") != "story" or story.get("dead"):
+                    skipped += 1
+                    click.echo(f"{prefix} Skipped: unavailable, non-story, or dead item.")
+                    continue
+
+                detected += 1
+                title = story.get("title", "")
+                score = story.get("score", 0)
+                descendants = story.get("descendants", 0)
+                filter_failures: list[str] = []
+                if not title_matches(title, title_words):
+                    filter_failures.append("title does not match")
+                if descendants < min_comments:
+                    filter_failures.append(f"comments={descendants} < {min_comments}")
+                if score < min_points:
+                    filter_failures.append(f"points={score} < {min_points}")
+                if filter_failures:
+                    filtered += 1
+                    click.echo(f"{prefix} Filtered {title!r}: {', '.join(filter_failures)}.")
+                    continue
+
                 click.echo(
-                    f"{prefix} Comment traversal: processed={processed}, pending={pending}."
+                    f"{prefix} Matched {title!r} "
+                    f"({score} points, {descendants} comments); fetching comments."
                 )
 
-            comments = hn.thread_comments(
-                story,
-                max_comment_depth,
-                on_progress=report_comment_progress,
-            )
-            click.echo(f"{prefix} Collected {len(comments)} comment item(s).")
-            rows.append(database_row(story, raw_thread_contents(story, comments)))
+                def report_comment_progress(processed: int, pending: int) -> None:
+                    click.echo(
+                        f"{prefix} Comment traversal: processed={processed}, pending={pending}."
+                    )
 
-    click.echo(
-        "Scan complete: "
-        f"detected={detected}, filtered={filtered}, skipped={skipped}, matched={len(rows)}."
-    )
-    click.echo(f"Writing {len(rows)} matched thread(s) to Supabase.")
-    stored = store_threads(resolve_database_url(), rows)
-    click.echo(f"Stored {stored} Hacker News thread(s).")
+                comments = hn.thread_comments(
+                    story,
+                    max_comment_depth,
+                    on_progress=report_comment_progress,
+                )
+                click.echo(f"{prefix} Collected {len(comments)} comment item(s).")
+                rows.append(
+                    database_row(
+                        story,
+                        raw_thread_contents(story, comments),
+                        top_story_rank=position,
+                        max_comment_depth=max_comment_depth,
+                    )
+                )
+
+        click.echo(
+            "Scan complete: "
+            f"detected={detected}, filtered={filtered}, skipped={skipped}, matched={len(rows)}."
+        )
+        click.echo(f"Writing {len(rows)} matched thread(s) and their snapshots to Supabase.")
+        stored, snapshots_inserted = store_threads_and_snapshots(database_url, run_id, rows)
+    except Exception as error:
+        finish_ingestion_run(
+            database_url,
+            run_id,
+            status="failed",
+            stories_examined=examined,
+            threads_matched=len(rows),
+            snapshots_inserted=snapshots_inserted,
+            error=str(error),
+        )
+        raise
+    else:
+        finish_ingestion_run(
+            database_url,
+            run_id,
+            status="succeeded",
+            stories_examined=examined,
+            threads_matched=len(rows),
+            snapshots_inserted=snapshots_inserted,
+        )
+        click.echo(
+            f"Run {run_id} completed: stored={stored}, "
+            f"snapshots_inserted={snapshots_inserted}."
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -1,8 +1,10 @@
+from uuid import uuid4
+
 import pytest
 
 from hn_trending.client import HackerNewsClient
 from hn_trending.cli import resolve_database_url, title_matches
-from hn_trending.storage import database_row
+from hn_trending.storage import database_row, snapshot_row
 
 
 def test_title_words_are_case_insensitive_and_match_any_word() -> None:
@@ -48,7 +50,28 @@ def test_database_row_contains_current_hacker_news_metrics() -> None:
             "descendants": 24,
         },
         "{}",
+        top_story_rank=1,
+        max_comment_depth=2,
     )
 
     assert row["points"] == 42
     assert row["comment_count"] == 24
+    assert row["top_story_rank"] == 1
+    assert row["max_comment_depth"] == 2
+
+
+def test_snapshot_row_has_stable_hash_and_parsed_payload() -> None:
+    row = {
+        "hn_id": 1,
+        "full_raw_text_contents": '{"story": {"id": 1}}',
+        "points": 42,
+        "comment_count": 24,
+        "top_story_rank": 3,
+        "max_comment_depth": 1,
+    }
+
+    snapshot = snapshot_row(row, run_id=uuid4())
+
+    assert snapshot["content_hash"] == "b4dc5a7020c95dfe03bf62ab0dd3dce93dc6da8664d61282e53db36451cef072"
+    assert snapshot["raw_payload"].obj == {"story": {"id": 1}}
+    assert snapshot["top_story_rank"] == 3

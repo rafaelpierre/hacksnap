@@ -37,6 +37,13 @@ The current-thread table also records each story's latest HN `points` and total
 
 The command upserts by `hn_id`, so it is safe to run on a schedule. It refreshes
 the story data and raw contents while retaining the original `date_added` value.
+Every invocation also creates an `hn_ingestion_runs` record. Each selected thread
+is written to the current-thread table and to `hn_thread_snapshots` in one
+transaction; identical raw content is deduplicated per thread. The run records
+the filters, examined and matched counts, terminal status, and number of newly
+inserted snapshots. `hn_thread_summaries` is intentionally populated later by a
+separate LLM worker, which should read a snapshot (not the mutable current-thread
+row) as its source.
 The command always connects through this project's IPv4-capable Supabase pooler
 with TLS. Its only required database setting is `SUPABASE_PASSWORD`.
 
@@ -84,7 +91,8 @@ threads with at least 20 points and 20 comments through the IPv4 pooler. The
 offset avoids GitHub Actions' busiest top-of-hour period. It can also be started from the GitHub Actions page with
 **Run workflow**. Its job log ends with the number of stored threads.
 It also reports each story being fetched, every filter decision, comment traversal
-progress, and the final detected/filtered/matched totals.
+progress, the final detected/filtered/matched totals, and the ingestion run ID
+with its snapshot count.
 
 It requires the same `SUPABASE_PASSWORD` GitHub Actions secret as the migration
 workflow. Only one ingestion run may write at a time; queued hourly or manual
