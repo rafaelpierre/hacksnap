@@ -152,7 +152,16 @@ and expires on 26 April 2031. Replace it if Supabase rotates its CA.
 An explicit `sslrootcert` connection parameter overrides the bundled CA path.
 Read-only mode and the statement timeout are applied within each transaction,
 so they do not depend on persistent database sessions. Each instance keeps at
-most one pooled connection and closes idle connections after five seconds.
+most one pooled connection and closes idle connections after 90 seconds.
+The homepage shares a persistent Next.js data cache with a 30-minute revalidation
+interval. The first request fills the cache; after it expires, a request serves
+the saved data while refreshing it in the background. Failed refreshes retain
+the last successful result. Rendering remains per-request, so the delayed-update
+notice is evaluated against the current time. Builds do not connect to the database.
+On a cache miss, the stories and ingestion timestamp use one SQL query; including
+the read-only transaction setup and commit, this takes three database round trips.
+For Vercel, configure the function region close to the Supabase database
+(the current database is in Ireland) to reduce the remaining network latency.
 
 Vercel's Git integration can deploy automatically, independently of the manual
 GitHub Actions workflows. Configure its deployment policy to match your intended

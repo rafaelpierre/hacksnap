@@ -1,5 +1,6 @@
 import "server-only";
 import path from "node:path";
+import { unstable_cache } from "next/cache";
 import { Pool, type PoolClient } from "pg";
 
 export type Summary = {
@@ -54,7 +55,7 @@ function pool(): Pool {
     }
     globalDB.hacksnapPool = new Pool({
       connectionString, max: 1, connectionTimeoutMillis: 10000,
-      idleTimeoutMillis: 5000, allowExitOnIdle: true,
+      idleTimeoutMillis: 90000, allowExitOnIdle: true,
     });
     globalDB.hacksnapPool.on("error", () => console.error("Hacksnap database connection failed"));
   }
@@ -64,9 +65,8 @@ function pool(): Pool {
 async function read<T>(query: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool().connect();
   try {
-    await client.query("BEGIN READ ONLY");
     // Transaction pooling does not preserve session-level settings.
-    await client.query("SET LOCAL statement_timeout = '10s'");
+    await client.query("BEGIN READ ONLY; SET LOCAL statement_timeout = '10s'");
     const result = await query(client);
     await client.query("COMMIT");
     return result;
@@ -88,16 +88,36 @@ const fields = `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added
     'model', s.model, 'source_coverage', s.source_coverage
   ) END AS summary`;
 
-export async function getLeaderboard(): Promise<{stories: Story[]; ingestion: Date | null}> {
+// Cache JSON-safe values: Next's persistent data cache does not preserve Dates.
+type CachedLeaderboard = {
+  stories: (Omit<Story, "date_added"> & {date_added: string})[];
+  ingestion: string | null;
+};
+
+const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> => {
   return read(async client => {
-    const result = await client.query<Story>(`SELECT ${fields}, t.rank, t.is_recent
-      FROM hacksnap_current_stories t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
-      ORDER BY t.rank`);
-    const runs = await client.query<{finished_at: Date}>(`SELECT finished_at FROM hn_ingestion_runs
-      WHERE status = 'succeeded' AND filters @> '{"classify_topic": true}'::jsonb
-      ORDER BY started_at DESC, run_id DESC LIMIT 1`);
-    return {stories: result.rows, ingestion: runs.rows[0]?.finished_at ?? null};
+    const result = await client.query<{stories: CachedLeaderboard["stories"]; ingestion: Date | null}>(`
+      SELECT COALESCE((
+        SELECT json_agg(story ORDER BY story.rank) FROM (
+          SELECT ${fields}, t.rank, t.is_recent
+          FROM hacksnap_current_stories t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+        ) story
+      ), '[]'::json) AS stories, (
+        SELECT finished_at FROM hn_ingestion_runs
+        WHERE status = 'succeeded' AND filters @> '{"classify_topic": true}'::jsonb
+        ORDER BY started_at DESC, run_id DESC LIMIT 1
+      ) AS ingestion`);
+    const {stories, ingestion} = result.rows[0];
+    return {stories, ingestion: ingestion?.toISOString() ?? null};
   });
+}, ["hacksnap-leaderboard-v1"], {revalidate: 1800});
+
+export async function getLeaderboard(): Promise<{stories: Story[]; ingestion: Date | null}> {
+  const {stories, ingestion} = await cachedLeaderboard();
+  return {
+    stories: stories.map(story => ({...story, date_added: new Date(story.date_added)})),
+    ingestion: ingestion ? new Date(ingestion) : null,
+  };
 }
 
 export async function getStory(id: string): Promise<Story | null> {

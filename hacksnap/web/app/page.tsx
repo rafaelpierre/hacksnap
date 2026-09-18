@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { getLeaderboard } from "../lib/data";
 import { articleURL, domain, timestamp } from "../lib/format";
 
-export const dynamic = "force-dynamic";
-
 export default async function Home() {
+  // Render timestamps per request without disabling the shared data cache or
+  // requiring a database connection during the production build.
+  await connection();
   const {stories, ingestion} = await getLeaderboard();
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
   return <>
