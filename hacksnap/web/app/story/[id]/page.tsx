@@ -11,27 +11,38 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
   if (!story) notFound();
   const summary = story.summary;
   const article = articleURL(story.url);
-  return <div className="detail">
-    <Link className="back-link" href="/">← Back to the radar</Link>
-    <header className="story-header"><div className="eyebrow">THE STORY / {domain(story.url)}</div>
-      <h1>{story.title}</h1><div className="metrics"><span className="points">▲ {story.points.toLocaleString("en-GB")} points</span><span>{story.comment_count.toLocaleString("en-GB")} comments on HN</span></div>
-      <div className="source-buttons">{article && <a className="button primary" href={article}>Read the original ↗</a>}<a className="button" href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>Join the HN discussion ↗</a></div>
+  return <article className="detail">
+    <Link className="back-link" href="/">← All stories</Link>
+    <header className="story-header">
+      <div className="channel-path">ai / <span>{domain(story.url)}</span></div>
+      <h1>{story.title}</h1>
+      <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments on HN ↗</a></div>
+      {summary && <p className="standfirst">{summary.overall_takeaway}</p>}
+      <div className="source-links">{article && <a href={article}>Read original ↗</a>}<a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>Full discussion ↗</a></div>
     </header>
-    {summary ? <>
-      <aside className="takeaway-box"><span className="eyebrow">THE TAKEAWAY</span><p>{summary.overall_takeaway}</p></aside>
-      <div className="detail-columns">
-        <section className="article-section"><div className="section-label"><span aria-hidden="true">01</span><h2>The article</h2></div>
-          {summary.article_summary ? <><p className="section-intro">{summary.article_summary}</p><h3 className="eyebrow">KEY POINTS</h3><ul className="key-points">{summary.article_key_points.map((point, i) => <li key={i}>{point}</li>)}</ul></> :
-            <p className="section-intro muted">{summary.source_coverage.article_status === "unavailable" ? "The linked article could not be retrieved. No article summary was generated; the discussion is summarized separately." : "This is an HN post without an external article. The discussion is summarized alongside."}</p>}
-        </section>
-        <section className="discussion-section"><div className="section-label"><span aria-hidden="true">02</span><h2>The HN discussion</h2></div>
-          <p className="section-intro">{summary.discussion_summary}</p>
-          <div className="discussion-points">{summary.discussion_points.map((point, i) => <article className="discussion-point" key={i}><h3>{point.title}</h3><p>{point.summary}</p><div className="comment-links">{point.comment_ids.map(comment => <a key={comment} href={`https://news.ycombinator.com/item?id=${comment}`}>Comment #{comment} ↗</a>)}</div></article>)}</div>
-        </section>
-      </div>
-      <aside className="source-note"><span className="eyebrow">ABOUT THIS SNAPSHOT</span><p>Generated <time dateTime={summary.generated_at}>{timestamp(summary.generated_at)}</time> using {summary.model}.</p>
-        <p>Based on {summary.source_coverage.included_comments} of {summary.source_coverage.stored_comments} usable stored comments. Ingestion filters comments by depth and branch activity; this is a sample of the discussion.{summary.source_coverage.comments_truncated ? " The model input was further limited to fit its context budget." : ""} Article text may also be shortened.</p>
+    {summary ? <div className="editorial">
+      <section aria-labelledby="article-heading">
+        <h2 id="article-heading">{article ? "The brief" : "The post"}</h2>
+        {summary.article_summary ? <>
+          <p>{summary.article_summary}</p>
+          {summary.article_key_points.length > 0 && <ul className="key-points">{summary.article_key_points.map((point, i) => <li key={i}>{point}</li>)}</ul>}
+        </> : <p className="muted">{summary.source_coverage.article_status === "unavailable" ? "The original article couldn’t be retrieved. This brief covers the discussion only." : "An HN text post. The discussion is summarized below."}</p>}
+      </section>
+      <section className="discussion-section" aria-labelledby="discussion-heading">
+        <h2 id="discussion-heading">In the discussion</h2>
+        <p>{summary.discussion_summary}</p>
+        <div className="discussion-points">{summary.discussion_points.map((point, i) => <section className="discussion-point" key={i}>
+          <h3>{point.title}</h3><p>{point.summary}</p>
+          {point.comment_ids.length > 0 && <div className="comment-links"><span>Sources</span>{point.comment_ids.map((comment, index) => <a key={comment} href={`https://news.ycombinator.com/item?id=${comment}`} aria-label={`Source comment ${comment} for ${point.title}`}>[{index + 1}] ↗</a>)}</div>}
+        </section>)}</div>
+      </section>
+      <aside className="source-note">
+        <p>AI-generated summary · <time dateTime={summary.generated_at}>{timestamp(summary.generated_at)}</time></p>
+        <details><summary>Sources &amp; coverage · {summary.source_coverage.included_comments} comments sampled</summary>
+          <p>Based on {summary.source_coverage.included_comments} of {summary.source_coverage.stored_comments} usable stored comments, selected by depth and branch activity. This is a sample of the discussion.{summary.source_coverage.comments_truncated ? " The model input was further shortened to fit its context limit." : ""} Article text may also be shortened.</p>
+          <p>Generated using {summary.model}. Check the linked sources for full context.</p>
+        </details>
       </aside>
-    </> : <section className="empty"><span className="eyebrow">IN THE QUEUE</span><h2>The summary is on its way.</h2><p>The hourly refresh generates the article brief and discussion highlights. The original sources are available above.</p></section>}
-  </div>;
+    </div> : <section className="empty"><h2>Summary pending.</h2><p>Summaries update hourly. You can read the original sources above.</p></section>}
+  </article>;
 }
