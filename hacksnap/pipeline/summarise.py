@@ -2,6 +2,7 @@
 
 import json
 from typing import Protocol
+from uuid import uuid4
 
 import httpx
 
@@ -26,11 +27,16 @@ class ModalSummarizer:
     ):
         self.client, self.base_url, self.model, self.api_key = client, base_url, model, api_key
         self.reasoning_effort = reasoning_effort
+        # run() creates one summarizer per batch; affinity is scoped to that run.
+        self.session_id = str(uuid4())
 
     def summarize(self, source: dict) -> StorySummary:
         response = self.client.post(
             f"{self.base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {self.api_key}"},
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Modal-Session-Id": self.session_id,
+            },
             json={
                 "model": self.model,
                 "temperature": 0.2,

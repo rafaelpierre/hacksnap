@@ -293,3 +293,31 @@ def test_logs_never_include_arbitrary_exception_content_or_query_secrets(caplog)
     assert "secret-token" not in caplog.text
     assert "secret-password" not in caplog.text
     assert '"error_type": "RuntimeError"' in caplog.text
+
+
+def test_modal_session_affinity_is_shared_within_batch_and_rotates_between_batches():
+    sessions = []
+
+    def handler(request):
+        sessions.append(request.headers["Modal-Session-Id"])
+        assert request.headers["Authorization"] == "Bearer fake-key"
+        return httpx.Response(
+            200,
+            json={"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(output())}}]},
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        for _ in range(2):
+            repo = FakeRepository([story(100), story(101)])
+            model = ModalSummarizer(client, "https://test.modal.run/v1", "test-model", "fake-key")
+            counts = refresh(repo, SimpleNamespace(fetch=lambda url: "article"), model)
+            assert counts == {"generated": 2, "unchanged": 0, "failed": 0}
+            # A cached repeat skips inference regardless of the routing header.
+            assert refresh(repo, SimpleNamespace(fetch=lambda url: "article"), model) == {
+                "generated": 0, "unchanged": 2, "failed": 0,
+            }
+
+    assert len(sessions) == 4
+    assert sessions[0] == sessions[1]
+    assert sessions[2] == sessions[3]
+    assert sessions[0] != sessions[2]

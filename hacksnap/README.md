@@ -66,7 +66,7 @@ uv run alembic upgrade head
 cd ..
 ```
 
-Copy `hacksnap/.env.example` to `hacksnap/.env.local` and fill in the database
+For local runs, copy `hacksnap/.env.example` to `hacksnap/.env.local` and fill in the database
 password and inference API key. The selected model is **moonshotai/Kimi-K3** at:
 
 ```text
@@ -80,10 +80,11 @@ configuration, not dependencies of the pipeline.
 
 The API key is a Modal proxy token ID and secret joined with a period, as described
 in the [Modal endpoint docs](https://modal.com/docs/guide/endpoints). Keep it in a
-local environment file or Modal Secret. Do not commit it. An existing endpoint
+GitHub environment secret for CI, or a local environment file for local runs. Do not commit it. An existing endpoint
 alone does not provide a persistent credential for the scheduled worker.
 
-Create the named Modal Secret from the filled environment file:
+For a local deployment, create the named Modal Secret from the filled environment
+file (GitHub Actions syncs this secret automatically):
 
 ```sh
 cd hacksnap
@@ -133,6 +134,30 @@ For a dedicated web database role, grant SELECT on `hacker_news_threads`,
 base tables. Do not grant writes
 or give that role to browser clients. The existing pooler password remains a
 supported PoC fallback, kept only on the server.
+
+## Vercel frontend
+
+Import the repository with root directory `hacksnap/web`, the Next.js preset,
+and Node.js 22 or newer. Set the server-only `HACKSNAP_WEB_DATABASE_URL` variable
+for the deployment environment. Copy the **Transaction pooler** URI from Supabase's
+Connect dialog (port 6543) and URL-encode the database password. A dedicated
+SELECT-only role with the grants and RLS policies described above is preferred.
+The frontend does not need Modal credentials.
+
+Supabase connections use `verify-full` TLS with the public CA in
+`web/certs/supabase-ca.crt`, which Next.js includes in each server bundle.
+The certificate was downloaded from
+`https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt`
+and expires on 26 April 2031. Replace it if Supabase rotates its CA.
+An explicit `sslrootcert` connection parameter overrides the bundled CA path.
+Read-only mode and the statement timeout are applied within each transaction,
+so they do not depend on persistent database sessions. Each instance keeps at
+most one pooled connection and closes idle connections after five seconds.
+
+Vercel's Git integration can deploy automatically, independently of the manual
+GitHub Actions workflows. Configure its deployment policy to match your intended
+release process. After changing environment variables, redeploy and check both
+the homepage and a story detail page against real data.
 
 ## Cache and failures
 
@@ -207,11 +232,25 @@ Modal worker or apply database migrations.
 
 For a production rollout, manually run **Supabase schema** against `main` first
 and wait for it to succeed. Then manually run **Hacksnap** against `main`; after
-tests pass, it verifies the schema version and deploys the Modal function.
+tests pass, it verifies the schema version, syncs the worker secret, and deploys
+the Modal function.
 
-Configure the `hacksnap-production` environment with `SUPABASE_PASSWORD`,
-`MODAL_TOKEN_ID`, and `MODAL_TOKEN_SECRET`. Create the `hacksnap` Modal Secret as
-above. The `supabase-production` environment supplies the migration credentials.
+Configure these GitHub secrets in `hacksnap-production` (repository secrets are
+also inherited unless overridden):
+
+- `SUPABASE_PASSWORD`: database password.
+- `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`: deployment API token pair.
+- `MODAL_LLM_API_KEY`: inference proxy token ID and secret joined with a period.
+
+Optional GitHub environment variables `MODAL_LLM_BASE_URL`, `MODAL_LLM_MODEL`, and
+`MODAL_LLM_REASONING_EFFORT` override the endpoint, model, and `low` defaults shown
+above. The manual deployment creates or replaces Modal's `hacksnap` Secret with
+the database password, inference key, and model settings. GitHub is the source
+of truth; changes made directly to that Modal Secret are overwritten on the next
+deployment. Deployment API tokens are not copied into the worker secret.
+A private temporary JSON file transfers the values and is removed afterward.
+
+The `supabase-production` environment supplies the migration credentials.
 No database writes are performed by the web build or deployment preflight.
 Existing hourly Modal and HN ingestion schedules are unchanged by these manual
 deployment gates. No frontend deployment is configured in these workflows.
