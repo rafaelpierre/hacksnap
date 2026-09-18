@@ -1,0 +1,95 @@
+name: Hacksnap
+
+on:
+  pull_request:
+    paths: ["hacksnap/**", "data/**", ".github/workflows/hacksnap.yml"]
+  push:
+    branches: [main]
+    paths: ["hacksnap/**", "data/**", ".github/workflows/hacksnap.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: hacksnap/web/package-lock.json
+      - name: Worker tests and lint
+        working-directory: hacksnap
+        run: |
+          uv sync --locked
+          uv run ruff check pipeline tests modal_app.py
+          uv run pytest
+          uv run python -c 'import modal_app'
+      - name: Ingestion regression tests and migration SQL
+        working-directory: data
+        env:
+          SUPABASE_PASSWORD: offline-test-only
+        run: |
+          uv sync --locked
+          uv run pytest
+          uv run alembic upgrade head --sql > "$RUNNER_TEMP/hacksnap-schema.sql"
+      - name: Database behavior and production web build
+        working-directory: hacksnap/web
+        env:
+          HACKSNAP_SCHEMA_SQL: ${{ runner.temp }}/hacksnap-schema.sql
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          npm ci
+          npm run test:db
+          npm run build
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    environment: hacksnap-production
+    concurrency:
+      group: hacksnap-modal-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+      - name: Verify the schema deployment has completed
+        working-directory: data
+        env:
+          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+        run: |
+          uv sync --locked
+          uv run python - <<'PY'
+          import psycopg
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+          from hn_trending.cli import resolve_database_url
+          expected = set(ScriptDirectory.from_config(Config("alembic.ini")).get_heads())
+          with psycopg.connect(resolve_database_url(), connect_timeout=10) as connection:
+              connection.execute("SET TRANSACTION READ ONLY")
+              connection.execute("SET LOCAL statement_timeout = '10s'")
+              versions = {row[0] for row in connection.execute("SELECT version_num FROM alembic_version")}
+              if versions != expected:
+                  raise SystemExit("Run the existing Supabase schema workflow, then rerun Hacksnap deployment.")
+          PY
+      - name: Deploy the hourly Modal function
+        working-directory: hacksnap
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          uv sync --locked --no-dev
+          uv run modal deploy modal_app.py

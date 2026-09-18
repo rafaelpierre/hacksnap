@@ -5,7 +5,7 @@ from botocore.session import get_session
 
 from hn_trending.client import HackerNewsClient, retain_comments_with_descendants
 from hn_trending.cli import main, resolve_database_url, title_matches
-from hn_trending.storage import database_row, snapshot_row
+from hn_trending.storage import database_row, snapshot_row, store_threads_and_snapshots
 from hn_trending.topic_filter import (
     CLASSIFIER_SYSTEM_PROMPT,
     QWEN3_32B_MODEL,
@@ -20,6 +20,31 @@ def test_title_words_are_case_insensitive_and_match_any_word() -> None:
     assert title_matches("AI engineering at scale", ("ai", "ENGINEERING"))
     assert title_matches("AI research", ("ai", "engineering"))
     assert not title_matches("Database research", ("ai", "engineering"))
+
+
+def test_unchanged_snapshot_still_updates_current_run_membership(monkeypatch) -> None:
+    from hn_trending import storage
+
+    run_id = uuid4()
+    executions = []
+
+    class Cursor:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def execute(self, query, params): executions.append((query, params))
+        def fetchone(self): return None  # deduplicated snapshot
+
+    class Connection(Cursor):
+        def cursor(self): return Cursor()
+        def commit(self): pass
+
+    monkeypatch.setattr(storage.psycopg, "connect", lambda url: Connection())
+    row = database_row({"id": 1, "title": "AI", "time": 1}, '{"story": {}}',
+                       top_story_rank=1, max_comment_depth=5)
+    assert store_threads_and_snapshots("test-only", run_id, [row]) == (1, 0)
+    assert executions[0][1]["last_seen_run_id"] == run_id
+    assert "last_seen_run_id = EXCLUDED.last_seen_run_id" in executions[0][0]
+    assert "last_seen_run_id" not in row
 
 
 def test_database_url_resolution_uses_the_ipv4_pooler(monkeypatch: pytest.MonkeyPatch) -> None:
