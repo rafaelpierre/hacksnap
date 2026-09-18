@@ -40,13 +40,17 @@ therefore the available API-only signal. A value of `0` (the CLI default) retain
 every fetched comment.
 
 For a less brittle topic gate, use `--classify-topic`. It calls Qwen3 32B
-through Amazon Bedrock with the title only, and retains AI, LLM, agent, AI-security,
-and direct AI-impact stories while excluding unrelated technology and strictly academic
-research. Set `BEDROCK_API_KEY`; `BEDROCK_REGION` defaults to
+through Amazon Bedrock with the title only. This high-recall first-pass filter retains
+AI, ML research, LLM, agent, AI-security, and AI-impact stories, including indirect model
+signals such as parameter counts and compression, with model-name hints for Astra,
+Fable, and Mythos. It favors inclusion when AI signals are ambiguous, accepting some
+false positives to avoid losing AI stories with sparse titles. Product launches and
+coding-workflow changes alone do not establish AI relevance. Clearly unrelated
+technology is excluded. Set `BEDROCK_API_KEY`; `BEDROCK_REGION` defaults to
 `eu-west-1`. Bedrock constrains the response to a Pydantic-derived JSON schema
 with one field, `relevant: bool`, through Qwen3 32B's constrained tool-use schema; the
-classifier fails closed if validation fails, so unrelated stories are never
-silently admitted.
+classifier fails closed if validation fails. A valid decision can still misclassify a
+story because the classifier sees only its title.
 The current-thread table also records each story's latest HN `points` and total
 `comment_count` values for fast filtering and display.
 
@@ -101,7 +105,7 @@ connection URL to repository files or workflow logs.
 ## Hourly Hacker News ingestion
 
 The [ingestion workflow](../.github/workflows/hn-ingestion.yml) fetches the
-latest 20 HN top stories every hour at minute 17 UTC, then persists the matching
+latest 20 HN top stories every 20 minutes at :17, :37, and :57 UTC, then persists the matching
 threads with at least 20 points and 20 comments through the IPv4 pooler. The
 workflow traverses comment trees to depth 5, retaining comments that have at
 least 3 descendants in that fetched tree plus their ancestors.
@@ -114,5 +118,5 @@ progress, the final detected/filtered/matched totals, and the ingestion run ID
 with its snapshot count.
 
 It requires the same `SUPABASE_PASSWORD` GitHub Actions secret as the migration
-workflow. Only one ingestion run may write at a time; queued hourly or manual
+workflow. Only one ingestion run may write at a time; queued scheduled or manual
 runs wait instead of overlapping.

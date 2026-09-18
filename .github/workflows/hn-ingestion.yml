@@ -2,8 +2,8 @@ name: Hacker News ingestion
 
 on:
   schedule:
-    # Every hour at minute 17 UTC; avoids the heavily contended top of the hour.
-    - cron: "17 * * * *"
+    # Every 20 minutes at :17, :37, and :57 UTC; avoids the top of the hour.
+    - cron: "17,37,57 * * * *"
   workflow_dispatch:
 
 permissions:

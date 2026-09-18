@@ -252,7 +252,7 @@ A private temporary JSON file transfers the values and is removed afterward.
 
 The `supabase-production` environment supplies the migration credentials.
 No database writes are performed by the web build or deployment preflight.
-Existing hourly Modal and HN ingestion schedules are unchanged by these manual
+Existing hourly Modal and 20-minute HN ingestion schedules are unchanged by these manual
 deployment gates. No frontend deployment is configured in these workflows.
 
 No production schema migration, persistent proxy token creation, scheduled

@@ -2,7 +2,7 @@
 
 The top AI stories from Hacker News, with separate article and discussion briefs.
 
-- `data/`: existing hourly HN ingestion and Alembic migrations.
+- `data/`: HN ingestion every 20 minutes and Alembic migrations.
 - `mcp/`: existing read-only tools for stored HN threads.
 - `hacksnap/`: hourly Modal enrichment using Kestrel and Kimi K3, plus a Next.js UI.
 
