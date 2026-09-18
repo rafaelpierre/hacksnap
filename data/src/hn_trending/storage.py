@@ -15,10 +15,11 @@ from psycopg.types.json import Jsonb
 UPSERT_THREAD = """
 INSERT INTO hacker_news_threads
     (hn_id, title, url, full_raw_text_contents, date_published, date_added, author,
-     points, comment_count)
+     points, comment_count, last_seen_run_id)
 VALUES
     (%(hn_id)s, %(title)s, %(url)s, %(full_raw_text_contents)s,
-     %(date_published)s, %(date_added)s, %(author)s, %(points)s, %(comment_count)s)
+     %(date_published)s, %(date_added)s, %(author)s, %(points)s, %(comment_count)s,
+     %(last_seen_run_id)s)
 ON CONFLICT (hn_id) DO UPDATE SET
     title = EXCLUDED.title,
     url = EXCLUDED.url,
@@ -26,7 +27,8 @@ ON CONFLICT (hn_id) DO UPDATE SET
     date_published = EXCLUDED.date_published,
     author = EXCLUDED.author,
     points = EXCLUDED.points,
-    comment_count = EXCLUDED.comment_count
+    comment_count = EXCLUDED.comment_count,
+    last_seen_run_id = EXCLUDED.last_seen_run_id
 """
 
 INSERT_INGESTION_RUN = """
@@ -120,7 +122,7 @@ def store_threads_and_snapshots(
     with psycopg.connect(database_url) as connection:
         with connection.cursor() as cursor:
             for row in rows:
-                cursor.execute(UPSERT_THREAD, row)
+                cursor.execute(UPSERT_THREAD, {**row, "last_seen_run_id": run_id})
                 cursor.execute(INSERT_SNAPSHOT, snapshot_row(row, run_id))
                 snapshots_inserted += int(cursor.fetchone() is not None)
         connection.commit()

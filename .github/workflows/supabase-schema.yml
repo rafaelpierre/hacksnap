@@ -50,7 +50,8 @@ jobs:
 
   migrate:
     name: Apply schema migrations
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    # Production changes require an explicit manual workflow run.
+    if: github.event_name == 'workflow_dispatch'
     needs: validate
     runs-on: ubuntu-latest
     environment: supabase-production

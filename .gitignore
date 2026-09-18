@@ -216,3 +216,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Hacksnap web build and local configuration
+node_modules/
+.next/
+*.tsbuildinfo
+.env.local
+.env.*.local
+playwright-report/
+test-results/
+!hacksnap/web/lib/
+!hacksnap/web/lib/**
