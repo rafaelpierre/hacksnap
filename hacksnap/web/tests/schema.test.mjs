@@ -86,6 +86,31 @@ test("a new successful run with no matches preserves the leaderboard", async () 
   assert.equal(rows.length, 10);
 });
 
+test("failed fetches leave the leaderboard and the next story fills the slot", async () => {
+  await db.query("INSERT INTO hacksnap_fetch_failures(story_id,article_url) VALUES (21,'https://example.com')");
+  let result = await db.query("SELECT hn_id FROM hacksnap_current_stories ORDER BY rank");
+  assert.deepEqual(result.rows.map(r => Number(r.hn_id)), [15,14,13,12,11,10,9,8,7,6]);
+  // Another ingestion update does not clear the failure.
+  await db.query("UPDATE hacker_news_threads SET points=10000 WHERE hn_id=21");
+  result = await db.query("SELECT hn_id FROM hacksnap_current_stories WHERE hn_id=21");
+  assert.equal(result.rows.length, 0);
+  await db.query("UPDATE hacker_news_threads SET url='https://example.com/corrected' WHERE hn_id=21");
+  result = await db.query("SELECT hn_id FROM hacksnap_current_stories WHERE hn_id=21");
+  assert.equal(result.rows.length, 1);
+  await db.exec("DELETE FROM hacksnap_fetch_failures; UPDATE hacker_news_threads SET url='https://example.com', points=9999 WHERE hn_id=21");
+});
+
+test("fetch failure records are private and protected by RLS", async () => {
+  const { rows } = await db.query("SELECT relrowsecurity FROM pg_class WHERE relname='hacksnap_fetch_failures'");
+  assert.equal(rows[0].relrowsecurity, true);
+  for (const role of ["anon", "authenticated"]) {
+    await db.exec(`SET ROLE ${role}`);
+    await assert.rejects(db.query("SELECT * FROM hacksnap_fetch_failures"), /permission denied/);
+    await assert.rejects(db.query("INSERT INTO hacksnap_fetch_failures(story_id,article_url) VALUES (21,'x')"), /permission denied/);
+    await db.exec("RESET ROLE");
+  }
+});
+
 test("older stories fill gaps without outranking recent stories during selection", async () => {
   await db.exec("UPDATE hacker_news_threads SET date_added = now() - interval '2 days' WHERE hn_id BETWEEN 1 AND 12");
   const { rows } = await db.query("SELECT hn_id, is_recent, points FROM hacksnap_current_stories ORDER BY rank");

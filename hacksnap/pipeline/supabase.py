@@ -28,6 +28,18 @@ class Repository:
                 (limit,),
             ).fetchall()
 
+    def save_fetch_failure(self, story_id: int, article_url: str) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO hacksnap_fetch_failures (story_id, article_url)
+                VALUES (%s, %s)
+                ON CONFLICT (story_id) DO UPDATE SET
+                    article_url = EXCLUDED.article_url, failed_at = CURRENT_TIMESTAMP
+                """,
+                (story_id, article_url),
+            )
+
     def get_summary(self, story_id: int) -> dict | None:
         with self._connect() as connection:
             return connection.execute(

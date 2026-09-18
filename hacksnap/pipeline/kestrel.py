@@ -11,6 +11,10 @@ class FetchError(RuntimeError):
     pass
 
 
+class FetcherUnavailableError(RuntimeError):
+    """A worker configuration problem, not a failure of an individual article."""
+
+
 def external_article_url(url: str | None) -> str | None:
     if not url:
         return None
@@ -52,7 +56,7 @@ class KestrelFetcher:
         except subprocess.TimeoutExpired:
             raise FetchError("Kestrel timed out") from None
         except OSError:
-            raise FetchError("Kestrel executable unavailable") from None
+            raise FetcherUnavailableError("Kestrel executable unavailable") from None
         if result.returncode:
             # Do not echo arbitrary subprocess output or URL query credentials into logs.
             raise FetchError(f"Kestrel exited with code {result.returncode}")

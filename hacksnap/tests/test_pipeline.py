@@ -71,9 +71,13 @@ class FakeRepository:
     def __init__(self, stories=None):
         self.stories = stories or [story()]
         self.saved = {}
+        self.failures = {}
 
     def get_current_top_stories(self, limit):
-        return self.stories[:limit]
+        return [s for s in self.stories if self.failures.get(s["hn_id"]) != s["url"]][:limit]
+
+    def save_fetch_failure(self, story_id, article_url):
+        self.failures[story_id] = article_url
 
     def get_summary(self, story_id):
         return self.saved.get(story_id)
@@ -180,15 +184,16 @@ def test_fetch_failure_does_not_replace_valid_summary():
     assert model.calls == 1
 
 
-def test_new_story_with_failed_article_can_have_discussion_only_summary():
+def test_new_story_with_failed_article_is_excluded_without_inference():
     repo, model = FakeRepository(), FakeSummarizer()
 
     def fail(url):
         raise FetchError("Kestrel timed out")
 
-    assert process_story(story(), repo, SimpleNamespace(fetch=fail), model) == "generated"
-    assert repo.saved[100]["summary"].article_summary is None
-    assert repo.saved[100]["coverage"]["article_status"] == "unavailable"
+    assert process_story(story(), repo, SimpleNamespace(fetch=fail), model) == "failed"
+    assert not repo.saved
+    assert model.calls == 0
+    assert repo.failures == {100: story()["url"]}
 
 
 def test_hn_self_post_never_fetches_hn_again():
@@ -321,3 +326,46 @@ def test_modal_session_affinity_is_shared_within_batch_and_rotates_between_batch
     assert sessions[0] == sessions[1]
     assert sessions[2] == sessions[3]
     assert sessions[0] != sessions[2]
+
+
+def test_failed_article_is_replaced_in_same_refresh_and_not_retried():
+    repo = FakeRepository([story(i) for i in range(12)])
+    for item in repo.stories:
+        item["url"] = f"https://example.com/{item['hn_id']}"
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        if url.endswith(("/0", "/10")):
+            raise FetchError("Kestrel exited with code 1")
+        return "article"
+
+    fetcher, model = SimpleNamespace(fetch=fetch), FakeSummarizer()
+    assert refresh(repo, fetcher, model) == {"generated": 10, "unchanged": 0, "failed": 2}
+    assert set(repo.saved) == set(range(1, 10)) | {11}
+    calls.clear()
+    assert refresh(repo, fetcher, model) == {"generated": 0, "unchanged": 10, "failed": 0}
+    assert not any(url.endswith(("/0", "/10")) for url in calls)
+    repo.stories[0]["url"] = "https://example.com/corrected"
+    assert refresh(repo, fetcher, model)["generated"] == 1
+
+
+def test_all_fetches_fail_without_looping_forever():
+    repo = FakeRepository([story(i) for i in range(60)])
+
+    def fail(url):
+        raise FetchError("Kestrel timed out")
+
+    counts = refresh(repo, SimpleNamespace(fetch=fail), FakeSummarizer())
+    assert counts == {"generated": 0, "unchanged": 0, "failed": 50}
+    assert len(repo.failures) == 50
+
+
+def test_missing_kestrel_does_not_permanently_exclude_articles(monkeypatch):
+    def missing(*args, **kwargs):
+        raise FileNotFoundError("missing executable")
+
+    monkeypatch.setattr(subprocess, "run", missing)
+    repo = FakeRepository()
+    assert refresh(repo, KestrelFetcher("missing"), FakeSummarizer())["failed"] == 1
+    assert not repo.failures

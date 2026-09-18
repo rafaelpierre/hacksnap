@@ -9,7 +9,7 @@ Supabase over a server-only PostgreSQL connection.
 The `hacksnap_current_stories` database view is the shared ranking definition for
 the worker and website:
 
-1. Consider stories from successful AI-classified ingestion runs.
+1. Consider stories from successful AI-classified ingestion runs, excluding articles whose current URL previously failed to fetch.
 2. Prefer stories whose **first `date_added` is within the last 24 hours**.
 3. Select the highest-point recent stories, filling remaining places from older
    eligible stories by points until there are ten.
@@ -129,8 +129,8 @@ Database access is server-only (`server-only` import, no public credentials), wi
 read-only transactions and an explicit public-data projection. New database
 objects have RLS enabled or `security_invoker=true`, and no anonymous API access.
 For a dedicated web database role, grant SELECT on `hacker_news_threads`,
-`hn_ingestion_runs`, `hn_thread_snapshots`, `hacksnap_summaries`, and
-`hacksnap_current_stories`, plus SELECT RLS policies for that role on the four
+`hn_ingestion_runs`, `hn_thread_snapshots`, `hacksnap_summaries`, `hacksnap_fetch_failures`, and
+`hacksnap_current_stories`, plus SELECT RLS policies for that role on the five
 base tables. Do not grant writes
 or give that role to browser clients. The existing pooler password remains a
 supported PoC fallback, kept only on the server.
@@ -188,8 +188,20 @@ and further truncation; raw articles are not persisted.
 Every output is validated against Pydantic and checked for invented comment IDs
 and article claims without an article. HTML is never generated or injected into
 the UI. Invalid or failed inference cannot overwrite a valid saved summary.
-If fetching fails, an existing summary is retained; a new story can receive a
-discussion-only summary. HN self-posts do not invoke Kestrel.
+If fetching fails, the worker records the story ID and failed URL permanently.
+The shared leaderboard excludes that story while its URL matches the failure record,
+and the worker processes the next eligible story in the same refresh. Existing
+summaries remain stored; no discussion-only fallback is generated for failed articles.
+Refreshes attempt at most 50 distinct stories to bound work if many articles fail.
+A corrected story URL becomes eligible automatically; to deliberately retry an
+unchanged URL, delete its row from `hacksnap_fetch_failures`. A missing Kestrel
+executable is a worker configuration error and does not exclude articles.
+HN self-posts still receive discussion summaries without fetching an article.
+
+Apply migration `0005_fetch_failures` before deploying the updated worker. It also
+excludes legacy summaries marked with `article_status=unavailable`; failures only
+present in old logs are recorded when next encountered. Dedicated read-only web
+roles need SELECT and a SELECT RLS policy on `hacksnap_fetch_failures` as well.
 
 Failures log UTC time, story ID, URL without query/userinfo, stage, error type and
 HTTP status or controlled fetch diagnostic. Arbitrary exception messages,

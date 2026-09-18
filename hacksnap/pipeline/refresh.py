@@ -61,11 +61,9 @@ def process_story(
                 article = fetcher.fetch(article_url)
             except FetchError as error:
                 log_event(story, stage, "failed", error)
-                # Preserve a previous complete summary; transient fetch errors must not
-                # replace it with a discussion-only version. New stories may still be useful.
-                if repository.get_summary(story["hn_id"]):
-                    return "failed"
-                coverage["article_status"] = "unavailable"
+                stage = "persist_fetch_failure"
+                repository.save_fetch_failure(story["hn_id"], article_url)
+                return "failed"
         coverage.setdefault("article_status", "fetched" if article else "not_applicable")
         source = {
             "title": story["title"],
@@ -104,9 +102,22 @@ def process_story(
 
 def refresh(repository, fetcher, summarizer, comment_budget: int = 48000) -> dict:
     counts = {"generated": 0, "unchanged": 0, "failed": 0}
-    for story in repository.get_current_top_stories(limit=10):
-        result = process_story(story, repository, fetcher, summarizer, comment_budget)
-        counts[result] += 1
+    attempted = set()
+    # Re-read the shared ranking after failures so replacements are processed now.
+    # Bound work even if many articles are inaccessible or ingestion changes the queue.
+    while len(attempted) < 50:
+        candidates = [
+            story for story in repository.get_current_top_stories(limit=10)
+            if story["hn_id"] not in attempted
+        ]
+        if not candidates:
+            break
+        for story in candidates[:50 - len(attempted)]:
+            attempted.add(story["hn_id"])
+            result = process_story(story, repository, fetcher, summarizer, comment_budget)
+            counts[result] += 1
+    if len(attempted) == 50:
+        logger.warning(json.dumps({"event": "refresh_attempt_limit", "limit": 50}))
     logger.info(json.dumps({"event": "refresh_completed", **counts}))
     return counts
 
