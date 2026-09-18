@@ -1,4 +1,5 @@
 import "server-only";
+import path from "node:path";
 import { Pool, type PoolClient } from "pg";
 
 export type Summary = {
@@ -38,10 +39,22 @@ function pool(): Pool {
       connectionString = `postgresql://postgres.tbihbssiluihmnseuknk:${encodeURIComponent(process.env.SUPABASE_PASSWORD)}@aws-1-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=verify-full`;
     }
     if (!connectionString) throw new Error("Hacksnap database is not configured");
+    // Bundle the public Supabase CA so hosted Node runtimes can verify TLS too.
+    // Local preview databases and other providers retain their own SSL settings.
+    let databaseURL: URL;
+    try { databaseURL = new URL(connectionString); }
+    catch { throw new Error("Hacksnap database URL is invalid"); }
+    if (databaseURL.hostname.endsWith(".pooler.supabase.com") ||
+        databaseURL.hostname.endsWith(".supabase.co")) {
+      databaseURL.searchParams.set("sslmode", "verify-full");
+      if (!databaseURL.searchParams.has("sslrootcert")) {
+        databaseURL.searchParams.set("sslrootcert", path.join(process.cwd(), "certs", "supabase-ca.crt"));
+      }
+      connectionString = databaseURL.toString();
+    }
     globalDB.hacksnapPool = new Pool({
-      connectionString, max: 3, connectionTimeoutMillis: 10000,
-      idleTimeoutMillis: 20000, statement_timeout: 10000,
-      options: "-c default_transaction_read_only=on",
+      connectionString, max: 1, connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 5000, allowExitOnIdle: true,
     });
     globalDB.hacksnapPool.on("error", () => console.error("Hacksnap database connection failed"));
   }
@@ -52,6 +65,8 @@ async function read<T>(query: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool().connect();
   try {
     await client.query("BEGIN READ ONLY");
+    // Transaction pooling does not preserve session-level settings.
+    await client.query("SET LOCAL statement_timeout = '10s'");
     const result = await query(client);
     await client.query("COMMIT");
     return result;

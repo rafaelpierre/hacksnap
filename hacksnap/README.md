@@ -135,6 +135,30 @@ base tables. Do not grant writes
 or give that role to browser clients. The existing pooler password remains a
 supported PoC fallback, kept only on the server.
 
+## Vercel frontend
+
+Import the repository with root directory `hacksnap/web`, the Next.js preset,
+and Node.js 22 or newer. Set the server-only `HACKSNAP_WEB_DATABASE_URL` variable
+for the deployment environment. Copy the **Transaction pooler** URI from Supabase's
+Connect dialog (port 6543) and URL-encode the database password. A dedicated
+SELECT-only role with the grants and RLS policies described above is preferred.
+The frontend does not need Modal credentials.
+
+Supabase connections use `verify-full` TLS with the public CA in
+`web/certs/supabase-ca.crt`, which Next.js includes in each server bundle.
+The certificate was downloaded from
+`https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt`
+and expires on 26 April 2031. Replace it if Supabase rotates its CA.
+An explicit `sslrootcert` connection parameter overrides the bundled CA path.
+Read-only mode and the statement timeout are applied within each transaction,
+so they do not depend on persistent database sessions. Each instance keeps at
+most one pooled connection and closes idle connections after five seconds.
+
+Vercel's Git integration can deploy automatically, independently of the manual
+GitHub Actions workflows. Configure its deployment policy to match your intended
+release process. After changing environment variables, redeploy and check both
+the homepage and a story detail page against real data.
+
 ## Cache and failures
 
 The fingerprint includes the normalized extracted article, title, URL, HN post
