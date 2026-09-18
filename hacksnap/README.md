@@ -200,17 +200,21 @@ synthetic data only.
 ## GitHub Actions
 
 `hacksnap.yml` tests the worker, ingestion regressions, actual migration SQL, and
-production frontend build. On `main`, after tests pass, it checks that the
-Supabase migration is applied and deploys the Modal function. The hourly work is
-scheduled only by Modal; the existing HN ingestion schedule is unchanged.
+production frontend build. Pull requests and pushes to `main` run validation only.
+Production jobs in both `hacksnap.yml` and `supabase-schema.yml` run only through
+GitHub Actions **Run workflow** (`workflow_dispatch`). Merging does not deploy the
+Modal worker or apply database migrations.
+
+For a production rollout, manually run **Supabase schema** against `main` first
+and wait for it to succeed. Then manually run **Hacksnap** against `main`; after
+tests pass, it verifies the schema version and deploys the Modal function.
 
 Configure the `hacksnap-production` environment with `SUPABASE_PASSWORD`,
 `MODAL_TOKEN_ID`, and `MODAL_TOKEN_SECRET`. Create the `hacksnap` Modal Secret as
-above. The existing `supabase-production` environment and schema workflow still
-apply migrations. On the initial rollout, run that workflow first or rerun
-Hacksnap deployment after it completes; a concurrent first push can reach the
-schema check before migration has finished. No database writes are performed
-by the web build or deployment preflight.
+above. The `supabase-production` environment supplies the migration credentials.
+No database writes are performed by the web build or deployment preflight.
+Existing hourly Modal and HN ingestion schedules are unchanged by these manual
+deployment gates. No frontend deployment is configured in these workflows.
 
 No production schema migration, persistent proxy token creation, scheduled
 deployment or public web deployment is performed by local tests.

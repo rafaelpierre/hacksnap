@@ -52,7 +52,8 @@ jobs:
           npm run build
 
   deploy:
-    if: github.event_name != 'pull_request'
+    # Production changes require an explicit manual workflow run.
+    if: github.event_name == 'workflow_dispatch'
     needs: test
     runs-on: ubuntu-latest
     environment: hacksnap-production
