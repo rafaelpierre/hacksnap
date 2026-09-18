@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { getLeaderboard } from "../lib/data";
 import { articleURL, domain, timestamp } from "../lib/format";
+import { HotnessSparkline } from "./hotness-sparkline";
 
 export default async function Home() {
   // Render timestamps per request without disabling the shared data cache or
@@ -30,7 +31,7 @@ export default async function Home() {
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
             <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a>{!story.summary && <span>Summary pending</span>}</div>
           </div>
-          <Link className="read-link" href={`/story/${story.hn_id}`} aria-label={`Read summary: ${story.title}`}><span aria-hidden="true">→</span></Link>
+          <HotnessSparkline history={story.score_history} title={story.title} />
         </article>
       </li>)}</ol>}
       <p className="method-note">Ranked by points · Past 24 hours, with older stories to fill the list · Summaries updated hourly</p>
