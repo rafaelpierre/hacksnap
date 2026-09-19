@@ -1,17 +1,17 @@
 "use client";
 
 import { useId, useState, type PointerEvent } from "react";
-import { chartPoints, smoothPath, type ScoreObservation } from "../lib/score-history";
+import { chartPoints, rankPath, type RankObservation } from "../lib/rank-history";
 
 const time = (value: string) => new Date(value).toLocaleString("en-GB", {
   day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC",
 });
 
-export function HotnessSparkline({ history, title }: {history: ScoreObservation[]; title: string}) {
+export function RankSparkline({ history, title }: {history: RankObservation[]; title: string}) {
   const [active, setActive] = useState<number | null>(null);
   const gradientId = useId();
   const points = chartPoints(history);
-  const line = smoothPath(points);
+  const line = rankPath(points);
   const selected = points[Math.min(active ?? points.length - 1, points.length - 1)];
   const first = points[0];
   const last = points.at(-1);
@@ -22,15 +22,15 @@ export function HotnessSparkline({ history, title }: {history: ScoreObservation[
     points.forEach((point, i) => { if (Math.abs(point.x - x) < Math.abs(points[nearest].x - x)) nearest = i; });
     setActive(nearest);
   }
-  const description = !first || !last ? "No points history yet" : points.length === 1
-    ? `One observation: ${last.score} points, ${time(last.observed_at)} UTC`
-    : `${first.score} to ${last.score} points, ${time(first.observed_at)} to ${time(last.observed_at)} UTC. Smoothed trend; hover values are recorded observations. Scale fitted to this story. Use left and right arrow keys to explore.`;
+  const description = !first || !last ? "No ranking history yet" : points.length === 1
+    ? `One observation: rank #${last.rank}, ${time(last.observed_at)} UTC`
+    : `Rank #${first.rank} to #${last.rank}, ${time(first.observed_at)} to ${time(last.observed_at)} UTC. Recorded leaderboard positions; better positions appear higher. Scale fitted to this story. Use left and right arrow keys to explore.`;
 
-  return <figure className="score-history" aria-label={`Points history for ${title}`}>
-    <figcaption>Hotness</figcaption>
+  return <figure className="rank-history" aria-label={`Hacksnap ranking history for ${title}`}>
+    <figcaption>Rank history</figcaption>
     {selected ? <>
       <svg viewBox="0 0 160 60" role="img" tabIndex={0}
-        aria-label={active === null ? description : `${selected.score} points, ${time(selected.observed_at)} UTC. Use arrow keys to explore.`}
+        aria-label={active === null ? description : `Rank #${selected.rank}, ${time(selected.observed_at)} UTC. Use arrow keys to explore.`}
         onFocus={() => setActive(points.length - 1)} onBlur={() => setActive(null)}
         onPointerLeave={event => { if (event.pointerType === "mouse") setActive(null); }}
         onPointerDown={event => { event.currentTarget.focus(); selectAtPointer(event); }}
@@ -57,7 +57,7 @@ export function HotnessSparkline({ history, title }: {history: ScoreObservation[
         <circle className="sparkline-endpoint-halo" cx={last!.x} cy={last!.y} r="6" />
         <circle className="sparkline-endpoint" cx={last!.x} cy={last!.y} r="3" />
       </svg>
-      {active !== null && <div className="sparkline-tooltip"><strong>{selected.score.toLocaleString("en-GB")} points</strong><br />{time(selected.observed_at)} UTC</div>}
+      {active !== null && <div className="sparkline-tooltip"><strong>Rank #{selected.rank.toLocaleString("en-GB")}</strong><br />{time(selected.observed_at)} UTC</div>}
     </> : <div className="sparkline-empty">Awaiting history</div>}
   </figure>;
 }

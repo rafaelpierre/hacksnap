@@ -131,6 +131,50 @@ test("an entirely quiet 24h still has ten archive stories", async () => {
   assert.deepEqual(rows.map(r => Number(r.hn_id)), [25,21,20,15,14,13,12,11,10,9]);
 });
 
+test("ranking history captures positions beyond ten and preserves unchanged observations", async () => {
+  await db.exec("BEGIN");
+  try {
+    const capture = `INSERT INTO hacksnap_rank_history(hn_id, rank, observed_at)
+      SELECT hn_id, rank, $1::timestamptz FROM hacksnap_ranked_stories`;
+    await db.query(capture, ['2026-09-19T10:00:00Z']);
+    const {rows} = await db.query("SELECT hn_id, rank FROM hacksnap_rank_history ORDER BY rank");
+    assert.ok(rows.length > 10);
+    assert.deepEqual(rows.map(r => Number(r.rank)), rows.map((_, i) => i + 1));
+    const top = await db.query("SELECT hn_id, rank FROM hacksnap_current_stories ORDER BY rank");
+    assert.deepEqual(rows.slice(0, 10), top.rows);
+    assert.ok(!rows.some(r => [22,23,24].includes(Number(r.hn_id))));
+    const outsider = rows.at(-1).hn_id;
+    await db.query("UPDATE hacker_news_threads SET points=999999 WHERE hn_id=$1", [outsider]);
+    await db.query(capture, ['2026-09-19T11:00:00Z']);
+    await db.query(capture, ['2026-09-19T12:00:00Z']);
+    const history = await db.query("SELECT rank FROM hacksnap_rank_history WHERE hn_id=$1 ORDER BY observed_at", [outsider]);
+    assert.deepEqual(history.rows.map(r => Number(r.rank)), [rows.length, 1, 1]);
+    await db.query("INSERT INTO hacksnap_fetch_failures(story_id,article_url) SELECT hn_id,url FROM hacker_news_threads WHERE hn_id=$1", [outsider]);
+    await db.query(capture, ['2026-09-19T13:00:00Z']);
+    const excluded = await db.query("SELECT * FROM hacksnap_rank_history WHERE hn_id=$1 AND observed_at='2026-09-19T13:00:00Z'", [outsider]);
+    assert.equal(excluded.rows.length, 0);
+  } finally { await db.exec("ROLLBACK"); }
+});
+
+test("rank history and full ranking are private, with RLS and valid positions", async () => {
+  const {rows} = await db.query("SELECT relname, relrowsecurity, reloptions FROM pg_class WHERE relname IN ('hacksnap_rank_history','hacksnap_ranked_stories')");
+  assert.equal(rows.find(r => r.relname === 'hacksnap_rank_history').relrowsecurity, true);
+  assert.ok(rows.find(r => r.relname === 'hacksnap_ranked_stories').reloptions.includes('security_invoker=true'));
+  await assert.rejects(db.query("INSERT INTO hacksnap_rank_history(hn_id, rank) VALUES (1, 0)"), /hacksnap_rank_positive/);
+  for (const role of ['anon', 'authenticated']) {
+    await db.exec(`SET ROLE ${role}`);
+    try {
+      for (const query of [
+        'SELECT * FROM hacksnap_rank_history',
+        'SELECT * FROM hacksnap_ranked_stories',
+        'INSERT INTO hacksnap_rank_history(hn_id, rank) VALUES (1, 1)',
+        'UPDATE hacksnap_rank_history SET rank=1',
+        'DELETE FROM hacksnap_rank_history',
+      ]) await assert.rejects(db.query(query), /permission denied/);
+    } finally { await db.exec('RESET ROLE'); }
+  }
+});
+
 test("fewer than ten eligible stories returns everything available", async () => {
   await db.exec("DELETE FROM hn_thread_snapshots");
   await db.exec("DELETE FROM hacker_news_threads WHERE hn_id > 3");

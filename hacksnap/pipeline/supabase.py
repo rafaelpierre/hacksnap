@@ -28,6 +28,17 @@ class Repository:
                 (limit,),
             ).fetchall()
 
+    def record_rank_history(self) -> None:
+        # One statement gives all eligible stories the same observation time and
+        # a consistent ranking, including positions below the display cutoff.
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO hacksnap_rank_history (hn_id, rank, observed_at)
+                SELECT hn_id, rank, statement_timestamp() FROM hacksnap_ranked_stories
+                """
+            )
+
     def save_fetch_failure(self, story_id: int, article_url: str) -> None:
         with self._connect() as connection:
             connection.execute(

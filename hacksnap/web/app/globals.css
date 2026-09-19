@@ -40,9 +40,9 @@ h1, h2, h3, p { margin-top: 0; }
 .story-meta a:hover { text-decoration: underline; }
 .points { color: var(--accent); }
 .read-link { align-self: center; padding: 12px; font-size: 20px; color: var(--muted); text-decoration: none; }
-.score-history { position: relative; flex: 0 0 140px; width: 140px; align-self: center; margin: 0; color: var(--muted); font: 10px/1.5 var(--mono); }
-.score-history figcaption { margin-bottom: 4px; }
-.score-history svg { display: block; width: 100%; overflow: visible; cursor: crosshair; }
+.rank-history { position: relative; flex: 0 0 140px; width: 140px; align-self: center; margin: 0; color: var(--muted); font: 10px/1.5 var(--mono); }
+.rank-history figcaption { margin-bottom: 4px; }
+.rank-history svg { display: block; width: 100%; overflow: visible; cursor: crosshair; }
 .sparkline-baseline { stroke: var(--line); fill: none; }
 .sparkline-path { stroke: var(--accent); fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .sparkline-endpoint-halo { fill: var(--accent); opacity: .16; }
@@ -93,7 +93,7 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
   .feed-header { padding-top: 32px; padding-bottom: 25px; } .feed-header h1 { font-size: 27px; }
   .feed-bar { align-items: flex-start; flex-direction: column; gap: 10px; }
   .story-row { gap: 12px; padding: 21px 0; } .rank { font-size: 22px; }
-  .score-history { flex-basis: 80px; width: 80px; font-size: 9px; }
+  .rank-history { flex-basis: 80px; width: 80px; font-size: 9px; }
   .story-row h3 { font-size: 17px; } .read-link { display: none; }
   .feed-excerpt { font-size: 13px; } .story-meta { font-size: 10px; gap: 6px 14px; }
   .detail { padding-top: 20px; } .back-link { margin-bottom: 25px; }

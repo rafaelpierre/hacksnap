@@ -49,6 +49,7 @@ jobs:
         run: |
           npm ci
           npm run test:db
+          npm run test:history
           npm run build
 
   deploy:

@@ -72,9 +72,14 @@ class FakeRepository:
         self.stories = stories or [story()]
         self.saved = {}
         self.failures = {}
+        self.rank_observations = []
 
     def get_current_top_stories(self, limit):
         return [s for s in self.stories if self.failures.get(s["hn_id"]) != s["url"]][:limit]
+
+    def record_rank_history(self):
+        self.rank_observations.append([s["hn_id"] for s in self.stories
+                                       if self.failures.get(s["hn_id"]) != s["url"]])
 
     def save_fetch_failure(self, story_id, article_url):
         self.failures[story_id] = article_url
@@ -401,3 +406,35 @@ def test_run_surfaces_inference_failure_even_with_cache_hits(monkeypatch, fail_i
         assert 101 not in repo.saved
     else:
         assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0}
+
+
+def test_refresh_records_all_ranks_after_fetch_failures_even_when_unchanged():
+    repo = FakeRepository([story(i) for i in range(100, 112)])
+
+    def fetch(url):
+        if url == repo.stories[0]["url"]:
+            raise FetchError("unavailable")
+        return "article"
+
+    # Give each story its own URL so only the first one is excluded.
+    for item in repo.stories:
+        item["url"] = f"https://example.com/{item['hn_id']}"
+    model = FakeSummarizer()
+    counts = refresh(repo, SimpleNamespace(fetch=fetch), model)
+    assert counts["failed"] == 1
+    assert repo.rank_observations == [list(range(101, 112))]
+    assert 111 not in repo.saved  # Below the ten-story inference/display cutoff.
+    counts = refresh(repo, SimpleNamespace(fetch=fetch), model)
+    assert counts["unchanged"] == 10
+    assert repo.rank_observations == [list(range(101, 112))] * 2
+
+
+def test_rank_recording_failure_is_not_reported_as_success():
+    repo = FakeRepository()
+
+    def fail():
+        raise RuntimeError("rank storage failed")
+
+    repo.record_rank_history = fail
+    with pytest.raises(RuntimeError, match="rank storage failed"):
+        refresh(repo, SimpleNamespace(fetch=lambda url: "article"), FakeSummarizer())

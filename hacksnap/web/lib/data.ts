@@ -2,7 +2,7 @@ import "server-only";
 import path from "node:path";
 import { unstable_cache } from "next/cache";
 import { Pool, type PoolClient } from "pg";
-import { scoreHistorySQL, type ScoreObservation } from "./score-history";
+import { rankHistorySQL, type RankObservation } from "./rank-history";
 
 export type Summary = {
   article_summary: string | null;
@@ -91,7 +91,7 @@ const fields = `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added
 
 // Cache JSON-safe values: Next's persistent data cache does not preserve Dates.
 type CachedLeaderboard = {
-  stories: (Omit<Story, "date_added"> & {date_added: string; score_history: ScoreObservation[]})[];
+  stories: (Omit<Story, "date_added"> & {date_added: string; rank_history: RankObservation[]})[];
   ingestion: string | null;
 };
 
@@ -100,7 +100,7 @@ const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> =>
     const result = await client.query<{stories: CachedLeaderboard["stories"]; ingestion: Date | null}>(`
       SELECT COALESCE((
         SELECT json_agg(story ORDER BY story.rank) FROM (
-          SELECT ${fields}, t.rank, t.is_recent, ${scoreHistorySQL} AS score_history
+          SELECT ${fields}, t.rank, t.is_recent, ${rankHistorySQL} AS rank_history
           FROM hacksnap_current_stories t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
         ) story
       ), '[]'::json) AS stories, (
@@ -111,9 +111,9 @@ const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> =>
     const {stories, ingestion} = result.rows[0];
     return {stories, ingestion: ingestion?.toISOString() ?? null};
   });
-}, ["hacksnap-leaderboard-v3"], {revalidate: 1800});
+}, ["hacksnap-leaderboard-v4"], {revalidate: 1800});
 
-export async function getLeaderboard(): Promise<{stories: (Story & {score_history: ScoreObservation[]})[]; ingestion: Date | null}> {
+export async function getLeaderboard(): Promise<{stories: (Story & {rank_history: RankObservation[]})[]; ingestion: Date | null}> {
   const {stories, ingestion} = await cachedLeaderboard();
   return {
     stories: stories.map(story => ({...story, date_added: new Date(story.date_added)})),

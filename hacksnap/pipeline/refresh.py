@@ -118,6 +118,8 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = 48000) -> dic
             counts[result] += 1
     if len(attempted) == 50:
         logger.warning(json.dumps({"event": "refresh_attempt_limit", "limit": 50}))
+    # Capture the final ordering after failed articles have been excluded.
+    repository.record_rank_history()
     logger.log(
         logging.ERROR if counts["failed"] else logging.INFO,
         json.dumps({"event": "refresh_completed", "status": "failed" if counts["failed"] else "succeeded", **counts}),

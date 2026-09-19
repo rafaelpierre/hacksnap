@@ -21,6 +21,26 @@ the worker and website:
 Apply migration `0006_recent_first` to update the shared ranking for the worker
 and website. Recency still uses the original collection time (`date_added`).
 
+### Ranking history
+
+Migration `0007_rank_history` adds `hacksnap_rank_history` with `hn_id`, `rank`,
+and `observed_at` (timestamp with time zone). The `(hn_id, observed_at)` primary
+key indexes each story's history. RLS and revoked client grants keep writes private.
+
+`hacksnap_ranked_stories` ranks **all eligible stories** using the same recency,
+points and ID ordering. `hacksnap_current_stories` displays its first ten rows.
+At the end of every worker refresh, after fetch failures are excluded, one atomic
+insert records every eligible rank with a shared timestamp, including ranks below
+10 and unchanged positions. This follows the worker's four-hour daytime schedule;
+manual refreshes also record observations. These are sampled positions, not every
+intermediate change to the live view. Failed rank writes fail the refresh.
+
+The sparkline shows the latest 168 observations of **our ranking**, with better
+positions higher and lines passing through recorded observations. Historical HN
+ranks cannot backfill our ranking. Until observations accumulate, charts show an
+empty state or a single point. Apply the migration before deploying the worker
+and website; this migration does not fabricate historical data.
+
 An empty or failed new ingestion run does not clear previous stories. If there
 are fewer than ten eligible stories in the entire database, show all available
 stories. Older fallback cards are labeled **Archive**. Scores are the latest
