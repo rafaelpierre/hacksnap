@@ -70,21 +70,39 @@ cd ..
 ```
 
 For local runs, copy `hacksnap/.env.example` to `hacksnap/.env.local` and fill in the database
-password and inference API key. The selected model is **moonshotai/Kimi-K3** at:
+password and inference API key. The selected model is **deepseek-ai/DeepSeek-V4.1-Flash** at:
 
 ```text
-https://rafaelpierre--ep-kimi-k3-server.us-west.modal.direct/v1
+https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1
 ```
 
-The endpoint was checked with a live synthetic structured-summary request.
-Use `MODAL_LLM_REASONING_EFFORT=low`: the live Kimi K3 server rejects `none`, even
-though the dashboard's default example includes it. The endpoint and model are
-configuration, not dependencies of the pipeline.
+To use GLM 5.3 Flash instead, replace both settings in your local environment or
+set these variables in GitHub's `hacksnap-production` environment:
+
+```dotenv
+MODAL_LLM_BASE_URL=https://rafaelpierre--ep-glm-5-3-flash-server.us-west.modal.direct/v1
+MODAL_LLM_MODEL=zai-org/GLM-5.3-Flash
+```
+
+DeepSeek remains the workflow default. GitHub variable changes take effect when
+you manually run the **Hacksnap** deployment workflow.
+
+Both replacement endpoints passed a live synthetic structured-summary smoke test
+on 2026-09-18 using the pipeline's exact request format: strict JSON-schema output,
+`MODAL_LLM_REASONING_EFFORT=low`, temperature 0.2, and an 8,000-token output limit.
+Both completed normally and passed schema and source-ID validation. This was one
+small request per model, not a quality or latency benchmark on production stories.
+The endpoint and model are configuration, not dependencies of the pipeline.
 
 The API key is a Modal proxy token ID and secret joined with a period, as described
 in the [Modal endpoint docs](https://modal.com/docs/guide/endpoints). Keep it in a
 GitHub environment secret for CI, or a local environment file for local runs. Do not commit it. An existing endpoint
 alone does not provide a persistent credential for the scheduled worker.
+
+For manual endpoint tests, `uv run modal curl` can authenticate using the existing
+CLI credentials in `~/.modal.toml`; a local inference key is not required. Those
+CLI credentials are distinct from proxy tokens. The scheduled worker still uses
+`MODAL_LLM_API_KEY` for its bearer-token authentication.
 
 For a local deployment, create the named Modal Secret from the filled environment
 file (GitHub Actions syncs this secret automatically):

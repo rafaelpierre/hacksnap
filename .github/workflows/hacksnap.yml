@@ -93,8 +93,8 @@ jobs:
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
           SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
           MODAL_LLM_API_KEY: ${{ secrets.MODAL_LLM_API_KEY }}
-          MODAL_LLM_BASE_URL: ${{ vars.MODAL_LLM_BASE_URL || 'https://rafaelpierre--ep-kimi-k3-server.us-west.modal.direct/v1' }}
-          MODAL_LLM_MODEL: ${{ vars.MODAL_LLM_MODEL || 'moonshotai/Kimi-K3' }}
+          MODAL_LLM_BASE_URL: ${{ vars.MODAL_LLM_BASE_URL || 'https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1' }}
+          MODAL_LLM_MODEL: ${{ vars.MODAL_LLM_MODEL || 'deepseek-ai/DeepSeek-V4.1-Flash' }}
           MODAL_LLM_REASONING_EFFORT: ${{ vars.MODAL_LLM_REASONING_EFFORT || 'low' }}
         run: |
           uv sync --locked --no-dev
