@@ -4,8 +4,10 @@ import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://hacksnap.live"),
   title: {default: "Hacksnap — AI on Hacker News", template: "%s | Hacksnap"},
   description: "AI stories from Hacker News, with article briefs and highlights from the discussion.",
+  alternates: { types: { "application/rss+xml": "https://hacksnap.live/feed.xml" } },
 };
 
 export default function Layout({ children }: {children: React.ReactNode}) {
@@ -24,6 +26,6 @@ export default function Layout({ children }: {children: React.ReactNode}) {
       <a className="header-link" href="https://news.ycombinator.com/">Hacker News ↗</a>
     </div></header>
     <main id="main">{children}</main>
-    <footer><Link className="footer-brand" href="/">hacksnap</Link><p>An independent reader for Hacker News.</p></footer>
+    <footer><Link className="footer-brand" href="/">hacksnap</Link><p>An independent reader for Hacker News. <a href="/feed.xml">RSS feed</a></p></footer>
   </body></html>;
 }

@@ -1,9 +1,29 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getStory } from "../../../lib/data";
 import { articleURL, domain, timestamp } from "../../../lib/format";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({params}: {params: Promise<{id: string}>}): Promise<Metadata> {
+  const {id} = await params;
+  const story = await getStory(id);
+  if (!story) notFound();
+  const description = (story.summary?.overall_takeaway ||
+    `Read ${story.title} and its Hacker News discussion on Hacksnap.`).replace(/\s+/g, " ").trim();
+  const url = `https://hacksnap.live/story/${story.hn_id}`;
+  return {
+    title: story.title,
+    description,
+    alternates: {
+      canonical: url,
+      types: { "application/rss+xml": "https://hacksnap.live/feed.xml" },
+    },
+    openGraph: { title: story.title, description, url, type: "article" },
+    twitter: { card: "summary", title: story.title, description },
+  };
+}
 
 export default async function StoryPage({params}: {params: Promise<{id: string}>}) {
   const {id} = await params;

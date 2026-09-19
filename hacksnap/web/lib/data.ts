@@ -1,5 +1,6 @@
 import "server-only";
 import path from "node:path";
+import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { Pool, type PoolClient } from "pg";
 import { rankHistorySQL, type RankObservation } from "./rank-history";
@@ -121,19 +122,35 @@ export async function getLeaderboard(): Promise<{stories: (Story & {rank_history
   };
 }
 
-export async function getPublicStoryIds(): Promise<string[]> {
+export async function getSitemapStories(): Promise<{hn_id: string; modified_at: Date}[]> {
   return read(async client => {
     // Match getStory's public collection and supported route IDs, including
     // archived stories and stories whose summaries are still pending.
-    const result = await client.query<{hn_id: string}>(`
-      SELECT hn_id FROM hacker_news_threads
-      WHERE hn_id BETWEEN 1 AND 999999999999999
-      ORDER BY hn_id`);
-    return result.rows.map(story => story.hn_id);
+    const result = await client.query<{hn_id: string; modified_at: Date}>(`
+      SELECT t.hn_id, GREATEST(t.date_added, s.updated_at, (
+        SELECT observed_at FROM hn_thread_snapshots
+        WHERE hn_id = t.hn_id ORDER BY observed_at DESC LIMIT 1
+      )) AS modified_at
+      FROM hacker_news_threads t
+      LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+      WHERE t.hn_id BETWEEN 1 AND 999999999999999
+      ORDER BY t.hn_id`);
+    return result.rows;
   });
 }
 
-export async function getStory(id: string): Promise<Story | null> {
+export async function getFeedStories(): Promise<Story[]> {
+  return read(async client => {
+    const result = await client.query<Story>(`SELECT ${fields}
+      FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+      WHERE t.hn_id BETWEEN 1 AND 999999999999999
+      ORDER BY t.date_added DESC, t.hn_id DESC LIMIT 50`);
+    return result.rows;
+  });
+}
+
+// Share the read between page metadata and rendering within the same request.
+export const getStory = cache(async (id: string): Promise<Story | null> => {
   // Bound the route before handing a bigint to PostgreSQL.
   if (!/^[1-9][0-9]{0,14}$/.test(id)) return null;
   return read(async client => {
@@ -142,4 +159,4 @@ export async function getStory(id: string): Promise<Story | null> {
       WHERE t.hn_id = $1`, [id]);
     return result.rows[0] ?? null;
   });
-}
+});
