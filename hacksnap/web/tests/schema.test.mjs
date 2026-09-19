@@ -111,13 +111,16 @@ test("fetch failure records are private and protected by RLS", async () => {
   }
 });
 
-test("older stories fill gaps without outranking recent stories during selection", async () => {
+test("older stories fill gaps without outranking recent stories in the displayed ranking", async () => {
   await db.exec("UPDATE hacker_news_threads SET date_added = now() - interval '2 days' WHERE hn_id BETWEEN 1 AND 12");
   const { rows } = await db.query("SELECT hn_id, is_recent, points FROM hacksnap_current_stories ORDER BY rank");
   assert.equal(rows.length, 10);
   assert.deepEqual(rows.filter(r => r.is_recent).map(r => Number(r.hn_id)), [21,15,14,13]);
   assert.ok(rows.some(r => Number(r.hn_id) === 20));
-  assert.ok(rows.every((r, i) => i === 0 || r.points <= rows[i-1].points));
+  assert.deepEqual(rows.map(r => Number(r.hn_id)), [21,15,14,13,20,12,11,10,9,8]);
+  assert.ok(rows[4].points > rows[3].points, "higher archive points must not override recency");
+  const ranked = await db.query("SELECT rank FROM hacksnap_current_stories ORDER BY rank");
+  assert.deepEqual(ranked.rows.map(r => Number(r.rank)), [1,2,3,4,5,6,7,8,9,10]);
 });
 
 test("an entirely quiet 24h still has ten archive stories", async () => {
@@ -125,6 +128,7 @@ test("an entirely quiet 24h still has ten archive stories", async () => {
   const { rows } = await db.query("SELECT hn_id, is_recent FROM hacksnap_current_stories ORDER BY rank");
   assert.equal(rows.length, 10);
   assert.ok(rows.every(r => !r.is_recent));
+  assert.deepEqual(rows.map(r => Number(r.hn_id)), [25,21,20,15,14,13,12,11,10,9]);
 });
 
 test("fewer than ten eligible stories returns everything available", async () => {

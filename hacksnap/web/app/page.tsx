@@ -34,7 +34,7 @@ export default async function Home() {
           <HotnessSparkline history={story.score_history} title={story.title} />
         </article>
       </li>)}</ol>}
-      <p className="method-note">Ranked by points · Past 24 hours, with older stories to fill the list · Summaries updated hourly</p>
+      <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Summaries updated hourly</p>
     </section>
   </>;
 }

@@ -13,9 +13,12 @@ the worker and website:
 2. Prefer stories whose **first `date_added` is within the last 24 hours**.
 3. Select the highest-point recent stories, filling remaining places from older
    eligible stories by points until there are ten.
-4. Display the selected ten in **points descending** order. HN ID descending is
-   the deterministic tie-breaker. An older fallback can therefore be ranked above
-   a recent story with fewer points.
+4. Display **recent stories first, then archive entries**, sorting each group by
+   points descending. HN ID descending is the deterministic tie-breaker. An older
+   fallback cannot rank above a recent story, even if it has more points.
+
+Apply migration `0006_recent_first` to update the shared ranking for the worker
+and website. Recency still uses the original collection time (`date_added`).
 
 An empty or failed new ingestion run does not clear previous stories. If there
 are fewer than ten eligible stories in the entire database, show all available
