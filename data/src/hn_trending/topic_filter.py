@@ -3,10 +3,20 @@
 from __future__ import annotations
 
 import json
+import logging
+import math
+import time
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
+
+
+logger = logging.getLogger(__name__)
+REQUEST_PAUSE_SECONDS = 5.0
+MAX_ATTEMPTS = 5
+MAX_RETRY_DELAY_SECONDS = 120.0
 
 
 MODAL_LLM_BASE_URL = "https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1"
@@ -110,6 +120,26 @@ def topic_decision_from_response(response: dict[str, Any]) -> TopicDecision:
         raise ValueError("The model did not return JSON relevance output.") from error
 
 
+def retry_delay(response: httpx.Response, attempt: int) -> float:
+    """Honor server cooldowns; fall back to bounded exponential backoff."""
+    delay = min(15.0 * 2**attempt, MAX_RETRY_DELAY_SECONDS)
+    value = response.headers.get("Retry-After")
+    if value:
+        try:
+            server_delay = float(value)
+        except ValueError:
+            try:
+                server_delay = parsedate_to_datetime(value).timestamp() - time.time()
+            except (ValueError, TypeError, OverflowError):
+                server_delay = 0.0
+        if math.isfinite(server_delay):
+            delay = max(delay, server_delay)
+    # Do not retry earlier than a long server cooldown or exhaust the job timeout.
+    if delay > MAX_RETRY_DELAY_SECONDS:
+        response.raise_for_status()
+    return delay
+
+
 class TitleTopicClassifier:
     """Classify HN titles using Modal's OpenAI-compatible DeepSeek endpoint."""
 
@@ -121,23 +151,38 @@ class TitleTopicClassifier:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.client = client or httpx
+        self._next_request_at = 0.0
 
     def classify(self, title: str) -> TopicDecision:
-        response = self.client.post(
-            f"{self.base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout=180.0,
-            json={
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": CLASSIFIER_SYSTEM_PROMPT},
-                    {"role": "user", "content": json.dumps({"title": title})},
-                ],
-                "max_tokens": 2048,
-                "temperature": 0,
-                "reasoning_effort": "low",
-                "response_format": TOPIC_DECISION_RESPONSE_FORMAT,
-            },
-        )
-        response.raise_for_status()
-        return topic_decision_from_response(response.json())
+        for attempt in range(MAX_ATTEMPTS):
+            pause = self._next_request_at - time.monotonic()
+            if pause > 0:
+                time.sleep(pause)
+            response = self.client.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                timeout=180.0,
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": CLASSIFIER_SYSTEM_PROMPT},
+                        {"role": "user", "content": json.dumps({"title": title})},
+                    ],
+                    "max_tokens": 2048,
+                    "temperature": 0,
+                    "reasoning_effort": "low",
+                    "response_format": TOPIC_DECISION_RESPONSE_FORMAT,
+                },
+            )
+            self._next_request_at = time.monotonic() + REQUEST_PAUSE_SECONDS
+            if response.status_code == 429 and attempt < MAX_ATTEMPTS - 1:
+                delay = retry_delay(response, attempt)
+                self._next_request_at = time.monotonic() + delay
+                logger.warning(
+                    "DeepSeek rate limited (429); retrying in %.1fs (attempt %d/%d).",
+                    delay, attempt + 2, MAX_ATTEMPTS,
+                )
+                continue
+            response.raise_for_status()
+            return topic_decision_from_response(response.json())
+        raise AssertionError("Unreachable retry state")

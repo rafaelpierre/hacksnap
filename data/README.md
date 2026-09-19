@@ -52,6 +52,11 @@ and `MODAL_LLM_MODEL` defaults to `deepseek-ai/DeepSeek-V4.1-Flash`.
 The endpoint receives a strict Pydantic-derived JSON schema with one field,
 `relevant: bool`. Incomplete responses and invalid decisions fail the run. A valid decision can
 still misclassify a story because the classifier sees only its title.
+Classification requests have a minimum five-second pause after the previous response.
+HTTP 429 responses retry up to four times with 15/30/60/120-second backoff,
+honoring longer `Retry-After` values (seconds or HTTP dates). A server cooldown
+above 120 seconds fails the run instead of retrying too early. Each retry is logged;
+other HTTP errors and invalid model output still fail immediately.
 The current-thread table also records each story's latest HN `points` and total
 `comment_count` values for fast filtering and display.
 

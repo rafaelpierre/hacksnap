@@ -232,3 +232,90 @@ def test_snapshot_row_has_stable_hash_and_parsed_payload() -> None:
     assert snapshot["content_hash"] == "b4dc5a7020c95dfe03bf62ab0dd3dce93dc6da8664d61282e53db36451cef072"
     assert snapshot["raw_payload"].obj == {"story": {"id": 1}}
     assert snapshot["top_story_rank"] == 3
+
+
+@pytest.fixture
+def classifier_clock(monkeypatch):
+    from hn_trending import topic_filter
+
+    class Clock:
+        now = 1000.0
+        sleeps = None
+
+        def __init__(self):
+            self.sleeps = []
+
+        def sleep(self, seconds):
+            self.sleeps.append(seconds)
+            self.now += seconds
+
+    clock = Clock()
+    monkeypatch.setattr(topic_filter.time, "monotonic", lambda: clock.now)
+    monkeypatch.setattr(topic_filter.time, "time", lambda: clock.now)
+    monkeypatch.setattr(topic_filter.time, "sleep", clock.sleep)
+    return clock
+
+
+def successful_decision_response():
+    return httpx.Response(200, json={"choices": [{
+        "finish_reason": "stop", "message": {"content": '{"relevant": true}'}
+    }]})
+
+
+def test_classifier_pauses_between_titles_but_counts_elapsed_work(classifier_clock):
+    with httpx.Client(transport=httpx.MockTransport(lambda request: successful_decision_response())) as client:
+        classifier = TitleTopicClassifier("key", client=client)
+        classifier.classify("AI one")
+        classifier_clock.now += 2  # Other ingestion work consumes part of the pause.
+        classifier.classify("AI two")
+        classifier_clock.now += 10
+        classifier.classify("AI three")
+    assert classifier_clock.sleeps == [3.0]
+
+
+@pytest.mark.parametrize("retry_after,expected", [
+    (None, 15.0), ("45", 45.0), ("broken", 15.0), ("-1", 15.0),
+    ("Thu, 01 Jan 1970 00:17:30 GMT", 50.0),
+])
+def test_classifier_recovers_from_first_request_rate_limit(classifier_clock, retry_after, expected):
+    requests = []
+
+    def respond(request):
+        requests.append(json.loads(request.content))
+        if len(requests) == 1:
+            return httpx.Response(429, headers={"Retry-After": retry_after} if retry_after else {})
+        return successful_decision_response()
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        assert TitleTopicClassifier("key", client=client).classify("AI").relevant
+    assert len(requests) == 2
+    assert requests[0] == requests[1]
+    assert classifier_clock.sleeps == [expected]
+
+
+def test_classifier_stops_after_bounded_rate_limit_retries(classifier_clock):
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(429)
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(httpx.HTTPStatusError):
+            TitleTopicClassifier("key", client=client).classify("AI")
+    assert len(requests) == 5
+    assert classifier_clock.sleeps == [15.0, 30.0, 60.0, 120.0]
+
+
+def test_classifier_does_not_retry_before_excessive_server_cooldown(classifier_clock):
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(429, headers={"Retry-After": "600"})
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(httpx.HTTPStatusError):
+            TitleTopicClassifier("key", client=client).classify("AI")
+    assert len(requests) == 1
+    assert classifier_clock.sleeps == []
