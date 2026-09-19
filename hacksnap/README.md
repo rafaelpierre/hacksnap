@@ -1,6 +1,7 @@
 # Hacksnap
 
 An hourly article + HN discussion digest on top of the existing collector.
+The Modal schedule runs at the top of each hour from 08:00 through 23:00 UTC.
 The worker never fetches Hacker News. Next.js renders structured summaries from
 Supabase over a server-only PostgreSQL connection.
 

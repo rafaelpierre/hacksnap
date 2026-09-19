@@ -39,18 +39,19 @@ context. The official API has no comment vote-score field; descendant counts are
 therefore the available API-only signal. A value of `0` (the CLI default) retains
 every fetched comment.
 
-For a less brittle topic gate, use `--classify-topic`. It calls Qwen3 32B
-through Amazon Bedrock with the title only. This high-recall first-pass filter retains
+For a less brittle topic gate, use `--classify-topic`. It calls DeepSeek V4.1 Flash
+through your Modal endpoint with the title only. This high-recall first-pass filter retains
 AI, ML research, LLM, agent, AI-security, and AI-impact stories, including indirect model
 signals such as parameter counts and compression, with model-name hints for Astra,
 Fable, and Mythos. It favors inclusion when AI signals are ambiguous, accepting some
 false positives to avoid losing AI stories with sparse titles. Product launches and
 coding-workflow changes alone do not establish AI relevance. Clearly unrelated
-technology is excluded. Set `BEDROCK_API_KEY`; `BEDROCK_REGION` defaults to
-`eu-west-1`. Bedrock constrains the response to a Pydantic-derived JSON schema
-with one field, `relevant: bool`, through Qwen3 32B's constrained tool-use schema; the
-classifier fails closed if validation fails. A valid decision can still misclassify a
-story because the classifier sees only its title.
+technology is excluded. Set `MODAL_LLM_API_KEY`. `MODAL_LLM_BASE_URL` defaults to
+`https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1`
+and `MODAL_LLM_MODEL` defaults to `deepseek-ai/DeepSeek-V4.1-Flash`.
+The endpoint receives a strict Pydantic-derived JSON schema with one field,
+`relevant: bool`. Incomplete responses and invalid decisions fail the run. A valid decision can
+still misclassify a story because the classifier sees only its title.
 The current-thread table also records each story's latest HN `points` and total
 `comment_count` values for fast filtering and display.
 
@@ -102,21 +103,34 @@ The pooler hostname, port, database, and user are fixed in the application, so a
 separate connection-string secret is not needed. Never add a password-bearing
 connection URL to repository files or workflow logs.
 
-## Hourly Hacker News ingestion
+## Scheduled ingestion on Modal
 
-The [ingestion workflow](../.github/workflows/hn-ingestion.yml) fetches the
-latest 20 HN top stories every 20 minutes at :17, :37, and :57 UTC, then persists the matching
-threads with at least 20 points and 20 comments through the IPv4 pooler. The
-workflow traverses comment trees to depth 5, retaining comments that have at
-least 3 descendants in that fetched tree plus their ancestors.
-It uses `BEDROCK_API_KEY` to classify each title with Qwen3 32B before comment
-traversal; configure that as a repository or environment secret.
-offset avoids GitHub Actions' busiest top-of-hour period. It can also be started from the GitHub Actions page with
-**Run workflow**. Its job log ends with the number of stored threads.
-It also reports each story being fetched, every filter decision, comment traversal
-progress, the final detected/filtered/matched totals, and the ingestion run ID
-with its snapshot count.
+[modal_app.py](modal_app.py) deploys the `hn-ingestion` app. Its `ingest` function
+runs every 20 minutes at :17, :37, and :57 from 08:00 through 23:59 UTC. It preserves the previous filters:
+20 top stories, at least 20 points and 20 comments, comment depth 5, and at least
+3 descendants per retained comment (plus ancestors).
 
-It requires the same `SUPABASE_PASSWORD` GitHub Actions secret as the migration
-workflow. Only one ingestion run may write at a time; queued scheduled or manual
-runs wait instead of overlapping.
+It reuses `SUPABASE_PASSWORD` and `MODAL_LLM_API_KEY` from the existing `hacksnap`
+Modal Secret. The scheduled function explicitly selects the DeepSeek endpoint and
+model above, independently of the enrichment app's model settings.
+
+```sh
+cd data
+uv sync --locked
+uv run pytest
+# One-off verification before activating the schedule:
+uv run modal run modal_app.py::ingest
+uv run modal deploy modal_app.py
+```
+
+One container processes one invocation at a time, with a 25-minute timeout.
+Runs keep the existing database run history, failure reporting, and snapshot
+counts. View logs and trigger manual runs from the Modal app dashboard. Redeploy
+after source changes; GitHub no longer runs ingestion. Database migrations remain
+in the separate GitHub Actions schema workflow.
+
+For production cutover, verify a one-off Modal run, disable the old workflow with
+`gh workflow disable hn-ingestion.yml`, then deploy the Modal schedule. The old
+workflow file is removed from this repository to prevent duplicate schedules once
+these changes are merged. To roll back, first stop the `hn-ingestion` Modal app,
+then restore and enable the old workflow and its required credentials.

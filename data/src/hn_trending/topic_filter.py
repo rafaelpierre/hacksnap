@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
-import boto3
+import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 
-QWEN3_32B_MODEL = "qwen.qwen3-32b-v1:0"
+MODAL_LLM_BASE_URL = "https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1"
+MODAL_LLM_MODEL = "deepseek-ai/DeepSeek-V4.1-Flash"
 CLASSIFIER_SYSTEM_PROMPT = """You classify Hacker News titles for a broad AI news feed.
 This is a high-recall first-pass filter using only a title, not the article or comments.
 Missing a potentially relevant AI story is worse than retaining an uncertain candidate.
@@ -77,70 +77,67 @@ class TopicDecision(BaseModel):
     relevant: bool
 
 
-TOPIC_DECISION_TOOL_CONFIG = {
-    "tools": [
-        {
-            "toolSpec": {
-                "name": "classify_topic",
-                "description": "Classify the relevance of an HN title to the AI news feed.",
-                "inputSchema": {"json": TopicDecision.model_json_schema()},
-            }
-        }
-    ],
-    "toolChoice": {"tool": {"name": "classify_topic"}},
+TOPIC_DECISION_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "classify_topic",
+        "strict": True,
+        "schema": TopicDecision.model_json_schema(),
+    },
 }
 
 
 def parse_topic_decision(payload: object) -> TopicDecision:
-    """Validate Qwen3 32B's schema-constrained tool input with Pydantic."""
+    """Validate the model's structured decision without coercing booleans."""
     try:
         return TopicDecision.model_validate(payload)
     except ValidationError as error:
-        raise ValueError("Qwen3 32B did not return a valid relevance decision.") from error
+        raise ValueError("The model did not return a valid relevance decision.") from error
 
 
 def topic_decision_from_response(response: dict[str, Any]) -> TopicDecision:
-    """Extract a constrained tool payload or JSON response from a Bedrock model."""
+    """Reject incomplete, malformed, or unstructured inference responses."""
     try:
-        content = response["output"]["message"]["content"]
-    except KeyError as error:
-        raise ValueError("The topic classifier returned an invalid Bedrock response.") from error
-
-    tool_input = next(
-        (block["toolUse"]["input"] for block in content if "toolUse" in block),
-        None,
-    )
-    if tool_input is not None:
-        return parse_topic_decision(tool_input)
-
-    text = "".join(block["text"] for block in content if "text" in block).strip()
-    if not text:
-        raise ValueError("Qwen3 32B did not return a relevance decision.")
+        choice = response["choices"][0]
+        if choice.get("finish_reason") != "stop":
+            raise ValueError("The topic classifier response did not complete normally.")
+        content = choice["message"]["content"]
+    except (KeyError, IndexError, TypeError, AttributeError) as error:
+        raise ValueError("The topic classifier returned an invalid response.") from error
     try:
-        return parse_topic_decision(json.loads(text))
-    except json.JSONDecodeError as error:
-        raise ValueError("Qwen3 32B did not return JSON relevance output.") from error
+        return parse_topic_decision(json.loads(content))
+    except (json.JSONDecodeError, TypeError) as error:
+        raise ValueError("The model did not return JSON relevance output.") from error
 
 
 class TitleTopicClassifier:
-    """Classify HN titles through Qwen3 32B on Amazon Bedrock."""
+    """Classify HN titles using Modal's OpenAI-compatible DeepSeek endpoint."""
 
     def __init__(
-        self, api_key: str, *, region: str = "eu-west-1", client: Any | None = None
+        self, api_key: str, *, base_url: str = MODAL_LLM_BASE_URL,
+        model: str = MODAL_LLM_MODEL, client: Any | None = None,
     ) -> None:
-        # Bedrock's bearer-key authentication is resolved by boto3 from this
-        # standard environment variable.
-        os.environ["AWS_BEARER_TOKEN_BEDROCK"] = api_key
-        self.client = client or boto3.client("bedrock-runtime", region_name=region)
+        self.api_key = api_key
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.client = client or httpx
 
     def classify(self, title: str) -> TopicDecision:
-        response = self.client.converse(
-            modelId=QWEN3_32B_MODEL,
-            system=[{"text": CLASSIFIER_SYSTEM_PROMPT}],
-            messages=[
-                {"role": "user", "content": [{"text": json.dumps({"title": title})}]}
-            ],
-            inferenceConfig={"maxTokens": 100, "temperature": 0},
-            toolConfig=TOPIC_DECISION_TOOL_CONFIG,
+        response = self.client.post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=180.0,
+            json={
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": CLASSIFIER_SYSTEM_PROMPT},
+                    {"role": "user", "content": json.dumps({"title": title})},
+                ],
+                "max_tokens": 2048,
+                "temperature": 0,
+                "reasoning_effort": "low",
+                "response_format": TOPIC_DECISION_RESPONSE_FORMAT,
+            },
         )
-        return topic_decision_from_response(response)
+        response.raise_for_status()
+        return topic_decision_from_response(response.json())

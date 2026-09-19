@@ -2,9 +2,9 @@
 
 The top AI stories from Hacker News, with separate article and discussion briefs.
 
-- `data/`: HN ingestion every 20 minutes and Alembic migrations.
+- `data/`: Modal HN ingestion with DeepSeek Flash every 20 minutes and Alembic migrations.
 - `mcp/`: existing read-only tools for stored HN threads.
-- `hacksnap/`: hourly Modal enrichment using Kestrel and Kimi K3, plus a Next.js UI.
+- `hacksnap/`: hourly Modal enrichment using Kestrel and a Modal-hosted model, plus a Next.js UI.
 
 The leaderboard prefers stories first added within the last 24 hours, fills
 remaining slots with older AI stories, and ranks the selected ten by points

@@ -17,7 +17,7 @@ from hn_trending.storage import (
     start_ingestion_run,
     store_threads_and_snapshots,
 )
-from hn_trending.topic_filter import TitleTopicClassifier
+from hn_trending.topic_filter import MODAL_LLM_BASE_URL, MODAL_LLM_MODEL, TitleTopicClassifier
 
 
 def title_matches(title: str, title_words: tuple[str, ...]) -> bool:
@@ -72,7 +72,7 @@ def resolve_database_url() -> str:
     "--classify-topic/--no-classify-topic",
     default=False,
     show_default=True,
-    help="Use Qwen3 32B on Bedrock to gate titles for AI-news relevance.",
+    help="Use DeepSeek Flash on Modal to gate titles for AI-news relevance.",
 )
 @click.option(
     "--limit",
@@ -93,11 +93,13 @@ def main(
     """Fetch filtered top HN stories and save their raw thread contents to Supabase."""
     classifier: TitleTopicClassifier | None = None
     if classify_topic:
-        bedrock_api_key = os.environ.get("BEDROCK_API_KEY")
-        if not bedrock_api_key:
-            raise click.UsageError("Set BEDROCK_API_KEY when using --classify-topic.")
+        modal_api_key = os.environ.get("MODAL_LLM_API_KEY")
+        if not modal_api_key:
+            raise click.UsageError("Set MODAL_LLM_API_KEY when using --classify-topic.")
         classifier = TitleTopicClassifier(
-            bedrock_api_key, region=os.environ.get("BEDROCK_REGION", "eu-west-1")
+            modal_api_key,
+            base_url=os.environ.get("MODAL_LLM_BASE_URL", MODAL_LLM_BASE_URL),
+            model=os.environ.get("MODAL_LLM_MODEL", MODAL_LLM_MODEL),
         )
 
     database_url = resolve_database_url()

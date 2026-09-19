@@ -1,15 +1,17 @@
 from uuid import uuid4
 
 import pytest
-from botocore.session import get_session
+import httpx
+import json
+from click.testing import CliRunner
 
 from hn_trending.client import HackerNewsClient, retain_comments_with_descendants
 from hn_trending.cli import main, resolve_database_url, title_matches
 from hn_trending.storage import database_row, snapshot_row, store_threads_and_snapshots
 from hn_trending.topic_filter import (
     CLASSIFIER_SYSTEM_PROMPT,
-    QWEN3_32B_MODEL,
-    TOPIC_DECISION_TOOL_CONFIG,
+    MODAL_LLM_MODEL,
+    TOPIC_DECISION_RESPONSE_FORMAT,
     TitleTopicClassifier,
     parse_topic_decision,
     topic_decision_from_response,
@@ -119,7 +121,7 @@ def test_topic_decision_rejects_invalid_output() -> None:
 
 def test_topic_decision_accepts_json_text_response() -> None:
     decision = topic_decision_from_response(
-        {"output": {"message": {"content": [{"text": '{"relevant": true}'}]}}}
+        {"choices": [{"finish_reason": "stop", "message": {"content": '{"relevant": true}'}}]}
     )
 
     assert decision.relevant is True
@@ -128,45 +130,51 @@ def test_topic_decision_accepts_json_text_response() -> None:
 def test_topic_decision_rejects_non_json_text_response() -> None:
     with pytest.raises(ValueError, match="JSON relevance output"):
         topic_decision_from_response(
-            {"output": {"message": {"content": [{"text": "relevant"}]}}}
+            {"choices": [{"finish_reason": "stop", "message": {"content": "relevant"}}]}
         )
 
 
-def test_title_classifier_uses_bedrock_converse_parameters() -> None:
-    class StrictBedrockClient:
-        def __init__(self) -> None:
-            self.kwargs: dict[str, object] | None = None
+def test_title_classifier_uses_modal_structured_response() -> None:
+    def respond(request):
+        assert str(request.url) == "https://example.modal.direct/v1/chat/completions"
+        assert request.headers["Authorization"] == "Bearer test-key"
+        payload = json.loads(request.content)
+        assert payload["model"] == MODAL_LLM_MODEL
+        assert payload["response_format"] == TOPIC_DECISION_RESPONSE_FORMAT
+        assert json.loads(payload["messages"][1]["content"]) == {"title": "New agent framework"}
+        return httpx.Response(200, json={"choices": [{
+            "finish_reason": "stop", "message": {"content": '{"relevant": true}'}
+        }]})
 
-        def converse(
-            self,
-            *,
-            modelId: str,
-            system: list[dict[str, str]],
-            messages: list[dict[str, object]],
-            inferenceConfig: dict[str, int],
-            toolConfig: dict[str, object],
-        ):
-            self.kwargs = {
-                "modelId": modelId,
-                "system": system,
-                "messages": messages,
-                "inferenceConfig": inferenceConfig,
-                "toolConfig": toolConfig,
-            }
-            return {
-                "output": {"message": {"content": [{"toolUse": {"name": "classify_topic", "input": {"relevant": True}}}]}}
-            }
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        classifier = TitleTopicClassifier(
+            "test-key", base_url="https://example.modal.direct/v1/", client=client
+        )
+        assert classifier.classify("New agent framework").relevant is True
 
-    client = StrictBedrockClient()
-    classifier = TitleTopicClassifier("test-key", client=client)
 
-    decision = classifier.classify("New agent framework")
+@pytest.mark.parametrize("response", [
+    {}, {"choices": []}, {"choices": None},
+    {"choices": [{"finish_reason": "length", "message": {"content": '{"relevant": true}'}}]},
+    {"choices": [{"finish_reason": "stop", "message": {"content": None}}]},
+    {"choices": [{"finish_reason": "stop", "message": {"content": '{"relevant": "yes"}'}}]},
+])
+def test_topic_decision_rejects_malformed_or_incomplete_responses(response):
+    with pytest.raises(ValueError):
+        topic_decision_from_response(response)
 
-    assert decision.relevant is True
-    assert client.kwargs is not None
-    assert client.kwargs["modelId"] == QWEN3_32B_MODEL
-    assert client.kwargs["inferenceConfig"] == {"maxTokens": 100, "temperature": 0}
-    assert client.kwargs["toolConfig"] == TOPIC_DECISION_TOOL_CONFIG
+
+def test_classifier_propagates_http_failure():
+    with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(401))) as client:
+        with pytest.raises(httpx.HTTPStatusError):
+            TitleTopicClassifier("bad-key", client=client).classify("AI")
+
+
+def test_cli_requires_modal_key(monkeypatch):
+    monkeypatch.delenv("MODAL_LLM_API_KEY", raising=False)
+    result = CliRunner().invoke(main, ["--classify-topic"])
+    assert result.exit_code == 2
+    assert "Set MODAL_LLM_API_KEY" in result.output
 
 
 def test_topic_prompt_includes_ai_coding_assistant_ecosystem() -> None:
@@ -182,14 +190,8 @@ def test_topic_prompt_includes_ai_coding_assistant_ecosystem() -> None:
     assert "criticism, commentary, and analysis" in prompt
 
 
-def test_installed_bedrock_sdk_supports_converse_tool_schema() -> None:
-    converse_input = (
-        get_session().get_service_model("bedrock-runtime").operation_model("Converse").input_shape
-    )
-    assert converse_input is not None
-    assert "toolConfig" in converse_input.members
-
-    schema = TOPIC_DECISION_TOOL_CONFIG["tools"][0]["toolSpec"]["inputSchema"]["json"]
+def test_topic_schema_requires_strict_boolean() -> None:
+    schema = TOPIC_DECISION_RESPONSE_FORMAT["json_schema"]["schema"]
     assert schema["required"] == ["relevant"]
     assert schema["properties"]["relevant"]["type"] == "boolean"
     assert schema["additionalProperties"] is False
