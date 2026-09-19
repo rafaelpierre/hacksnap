@@ -210,6 +210,19 @@ GitHub Actions workflows. Configure its deployment policy to match your intended
 release process. After changing environment variables, redeploy and check both
 the homepage and a story detail page against real data.
 
+### Sitemap
+
+`/sitemap.xml` serves a Next.js XML sitemap with canonical `https://hacksnap.live`
+URLs for the homepage and every accessible `/story/[id]` page, including archived
+stories and pending summaries. It reads story IDs in a server-only, read-only
+transaction on every request, so additions and deletions appear without a rebuild
+or cache purge. Builds do not require database access. `/robots.txt` advertises
+`Sitemap: https://hacksnap.live/sitemap.xml`.
+
+After deploying, POST `{"url":"https://hacksnap.live"}` as JSON to
+`https://isitagentready.com/api/scan` and check that
+`checks.discoverability.sitemap.status` is `"pass"`.
+
 ## Cache and failures
 
 The fingerprint includes the normalized extracted article, title, URL, HN post

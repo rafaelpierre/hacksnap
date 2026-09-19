@@ -121,6 +121,18 @@ export async function getLeaderboard(): Promise<{stories: (Story & {rank_history
   };
 }
 
+export async function getPublicStoryIds(): Promise<string[]> {
+  return read(async client => {
+    // Match getStory's public collection and supported route IDs, including
+    // archived stories and stories whose summaries are still pending.
+    const result = await client.query<{hn_id: string}>(`
+      SELECT hn_id FROM hacker_news_threads
+      WHERE hn_id BETWEEN 1 AND 999999999999999
+      ORDER BY hn_id`);
+    return result.rows.map(story => story.hn_id);
+  });
+}
+
 export async function getStory(id: string): Promise<Story | null> {
   // Bound the route before handing a bigint to PostgreSQL.
   if (!/^[1-9][0-9]{0,14}$/.test(id)) return null;
