@@ -15,7 +15,7 @@ image = (
 
 @app.function(
     image=image,
-    schedule=modal.Cron("17,37,57 8-23 * * *"),
+    schedule=modal.Cron("17 8-23 * * *"),
     secrets=[modal.Secret.from_name(
         "hacksnap", required_keys=["SUPABASE_PASSWORD", "MODAL_LLM_API_KEY"]
     )],

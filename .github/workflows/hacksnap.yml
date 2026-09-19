@@ -122,7 +122,7 @@ jobs:
                   check=True,
               )
           PYTHON
-      - name: Deploy the hourly Modal function
+      - name: Deploy the scheduled Modal function
         working-directory: hacksnap
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}

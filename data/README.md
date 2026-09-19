@@ -106,7 +106,7 @@ connection URL to repository files or workflow logs.
 ## Scheduled ingestion on Modal
 
 [modal_app.py](modal_app.py) deploys the `hn-ingestion` app. Its `ingest` function
-runs every 20 minutes at :17, :37, and :57 from 08:00 through 23:59 UTC. It preserves the previous filters:
+runs hourly at :17 from 08:17 through 23:17 UTC. It preserves the previous filters:
 20 top stories, at least 20 points and 20 comments, comment depth 5, and at least
 3 descendants per retained comment (plus ancestors).
 

@@ -1,7 +1,7 @@
 # Hacksnap
 
-An hourly article + HN discussion digest on top of the existing collector.
-The Modal schedule runs at the top of each hour from 08:00 through 23:00 UTC.
+An article + HN discussion digest refreshed every four hours on top of the existing collector.
+The Modal schedule runs at 08:00, 12:00, 16:00, and 20:00 UTC.
 The worker never fetches Hacker News. Next.js renders structured summaries from
 Supabase over a server-only PostgreSQL connection.
 
@@ -35,7 +35,7 @@ deduplicated observations; subsequent ingestion maintains it correctly.
 ## Files
 
 ```text
-modal_app.py             hourly schedule + pinned Linux Kestrel image
+modal_app.py             four-hour schedule + pinned Linux Kestrel image
 pipeline/config.py      all runtime environment configuration
 pipeline/supabase.py    existing PostgreSQL connection pattern + enrichment writes
 pipeline/kestrel.py     bounded JSON CLI adapter
@@ -295,7 +295,7 @@ A private temporary JSON file transfers the values and is removed afterward.
 
 The `supabase-production` environment supplies the migration credentials.
 No database writes are performed by the web build or deployment preflight.
-Existing hourly Modal and 20-minute HN ingestion schedules are unchanged by these manual
+Existing four-hour Modal enrichment and hourly HN ingestion schedules are unchanged by these manual
 deployment gates. No frontend deployment is configured in these workflows.
 
 No production schema migration, persistent proxy token creation, scheduled

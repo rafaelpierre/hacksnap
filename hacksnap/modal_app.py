@@ -26,7 +26,7 @@ hacksnap_image = (
 
 @app.function(
     image=hacksnap_image,
-    schedule=modal.Cron("0 8-23 * * *"),
+    schedule=modal.Cron("0 8,12,16,20 * * *"),
     secrets=[modal.Secret.from_name("hacksnap")],
     timeout=2400,
     max_containers=1,
