@@ -195,7 +195,7 @@ An explicit `sslrootcert` connection parameter overrides the bundled CA path.
 Read-only mode and the statement timeout are applied within each transaction,
 so they do not depend on persistent database sessions. Each instance keeps at
 most one pooled connection and closes idle connections after 90 seconds.
-The homepage shares a persistent Next.js data cache with a 30-minute revalidation
+The homepage shares a persistent Next.js data cache with a 10-minute revalidation
 interval. The first request fills the cache; after it expires, a request serves
 the saved data while refreshing it in the background. Failed refreshes retain
 the last successful result. Rendering remains per-request, so the delayed-update

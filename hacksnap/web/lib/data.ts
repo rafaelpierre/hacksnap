@@ -111,7 +111,7 @@ const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> =>
     const {stories, ingestion} = result.rows[0];
     return {stories, ingestion: ingestion?.toISOString() ?? null};
   });
-}, ["hacksnap-leaderboard-v4"], {revalidate: 1800});
+}, ["hacksnap-leaderboard-v4"], {revalidate: 600});
 
 export async function getLeaderboard(): Promise<{stories: (Story & {rank_history: RankObservation[]})[]; ingestion: Date | null}> {
   const {stories, ingestion} = await cachedLeaderboard();
