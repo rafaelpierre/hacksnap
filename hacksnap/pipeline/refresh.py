@@ -118,7 +118,10 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = 48000) -> dic
             counts[result] += 1
     if len(attempted) == 50:
         logger.warning(json.dumps({"event": "refresh_attempt_limit", "limit": 50}))
-    logger.info(json.dumps({"event": "refresh_completed", **counts}))
+    logger.log(
+        logging.ERROR if counts["failed"] else logging.INFO,
+        json.dumps({"event": "refresh_completed", "status": "failed" if counts["failed"] else "succeeded", **counts}),
+    )
     return counts
 
 
@@ -139,7 +142,14 @@ def run() -> dict:
             settings.llm_api_key,
             settings.llm_reasoning_effort,
         )
-        return refresh(repository, fetcher, summarizer, settings.comment_chars)
+        counts = refresh(repository, fetcher, summarizer, settings.comment_chars)
+    # Finish isolated story work, but surface failures to the scheduler.
+    if counts["failed"]:
+        raise RuntimeError(
+            f"Hacksnap refresh failed: {counts['failed']} failed, "
+            f"{counts['generated']} generated, {counts['unchanged']} unchanged."
+        )
+    return counts
 
 
 if __name__ == "__main__":

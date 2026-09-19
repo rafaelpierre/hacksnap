@@ -369,3 +369,35 @@ def test_missing_kestrel_does_not_permanently_exclude_articles(monkeypatch):
     repo = FakeRepository()
     assert refresh(repo, KestrelFetcher("missing"), FakeSummarizer())["failed"] == 1
     assert not repo.failures
+
+
+@pytest.mark.parametrize("fail_inference", [False, True])
+def test_run_surfaces_inference_failure_even_with_cache_hits(monkeypatch, fail_inference):
+    import importlib
+    module = importlib.import_module("pipeline.refresh")
+    repo = FakeRepository([story(), story(101)])
+    fetcher = SimpleNamespace(fetch=lambda url: "article")
+    model = FakeSummarizer()
+    process_story(story(), repo, fetcher, model)
+
+    class RateLimited(FakeSummarizer):
+        def summarize(self, source):
+            response = httpx.Response(429, request=httpx.Request("POST", "https://example.com"))
+            response.raise_for_status()
+
+    monkeypatch.setattr(module.Settings, "from_env", lambda: SimpleNamespace(
+        database_url="unused", kestrel_binary="unused", fetch_timeout=1,
+        article_chars=100, llm_timeout=1, llm_base_url="https://example.com",
+        llm_model=model.model, llm_api_key="unused", llm_reasoning_effort="low",
+        comment_chars=48000,
+    ))
+    monkeypatch.setattr(module, "Repository", lambda _: repo)
+    monkeypatch.setattr(module, "KestrelFetcher", lambda *args: fetcher)
+    monkeypatch.setattr(module, "ModalSummarizer", lambda *args: RateLimited() if fail_inference else model)
+    if fail_inference:
+        with pytest.raises(RuntimeError, match="1 failed, 0 generated, 1 unchanged"):
+            module.run()
+        assert 100 in repo.saved
+        assert 101 not in repo.saved
+    else:
+        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0}
