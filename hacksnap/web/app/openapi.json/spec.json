@@ -1,0 +1,218 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Hacksnap Stories API",
+    "version": "1.0.0",
+    "description": "Public read-only stories and AI-generated summaries. No authentication required."
+  },
+  "servers": [
+    {
+      "url": "https://hacksnap.live"
+    }
+  ],
+  "externalDocs": {
+    "url": "https://hacksnap.live/docs/api"
+  },
+  "security": [],
+  "paths": {
+    "/api/stories": {
+      "get": {
+        "operationId": "listStories",
+        "summary": "List the current ranked stories",
+        "description": "Uses the homepage selection and shared 10-minute data cache. May serve stale data during refresh failures. No pagination or query parameters.",
+        "responses": {
+          "200": {
+            "description": "Current stories; the list may be empty.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "stories",
+                    "ingestion"
+                  ],
+                  "properties": {
+                    "stories": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Story"
+                      }
+                    },
+                    "ingestion": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Data temporarily unavailable. Retry after 60 seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Delay in seconds before retrying."
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stories/{id}": {
+      "get": {
+        "operationId": "getStory",
+        "summary": "Get a story, including archived stories",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,14}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Story; summary is null while pending.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Story"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid story ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Story not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Data temporarily unavailable. Retry after 60 seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Delay in seconds before retrying."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Story": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "hn_id",
+          "title",
+          "url",
+          "points",
+          "comment_count",
+          "date_added",
+          "summary"
+        ],
+        "properties": {
+          "hn_id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,14}$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "points": {
+            "type": "integer"
+          },
+          "comment_count": {
+            "type": "integer"
+          },
+          "date_added": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summary": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "article_summary",
+              "discussion_summary",
+              "overall_takeaway"
+            ],
+            "properties": {
+              "article_summary": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "discussion_summary": {
+                "type": "string"
+              },
+              "overall_takeaway": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

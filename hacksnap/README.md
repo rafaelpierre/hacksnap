@@ -223,6 +223,32 @@ After deploying, POST `{"url":"https://hacksnap.live"}` as JSON to
 `https://isitagentready.com/api/scan` and check that
 `checks.discoverability.sitemap.status` is `"pass"`.
 
+### Public Stories API and catalog
+
+`GET /.well-known/api-catalog` returns an RFC 9727 Linkset with HTTP 200 and
+`application/linkset+json`, linking the Stories API to `/openapi.json` and
+`/docs/api`. HEAD returns the same content type and an `api-catalog` Link header.
+All web responses also advertise the catalog in a Link header. These discovery
+resources do not need database access.
+
+`GET /api/stories` returns the current ranked stories and ingestion timestamp,
+using the homepage's shared 10-minute data cache. `GET /api/stories/{id}` returns
+one story, including archived stories. Both are public and read-only, exposing
+an explicit set of story fields and summary text. Invalid IDs return 400,
+unknown stories return 404, and data failures return a sanitized 503 with
+`Retry-After: 60`. See `/docs/api` for the response contract and polling guidance.
+
+Run `npm run test:api`, `npm run typecheck`, and `npm run build` from `web/`.
+After deploying the frontend, validate the public catalog with:
+
+```sh
+curl -sS https://isitagentready.com/api/scan \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://hacksnap.live"}'
+```
+
+Check that `checks.discovery.apiCatalog.status` is `"pass"`.
+
 ## Cache and failures
 
 The fingerprint includes the normalized extracted article, title, URL, HN post
