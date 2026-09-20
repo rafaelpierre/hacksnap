@@ -58,6 +58,6 @@ export function ActivitySparkline({history, title, asOf}: {history: ActivityObse
         {active !== null && <circle className="sparkline-endpoint" cx={selected.x} cy={selected.y} r="3" />}
       </svg>
       {active !== null && <div className="sparkline-tooltip"><strong>{change === null ? "Change unavailable: one measured rate" : `${formatRate(change)} points/hour change`}</strong><br />First → latest measured rate<br /><br />{formatRate(selected.rate)} points/hour at selected point<br />{time(selected.start)}–{time(selected.end)} UTC<br />Average between observations{selected === points[0] && <><br />Flat lead-in uses this first value; earlier activity is unknown.</>}<br />Scale: {formatRate(min)} to {formatRate(max)} pts/h</div>}
-    </> : <div className="sparkline-empty">Collecting history<span>Needs two observations in 24h</span></div>}
+    </> : <div className="sparkline-empty">Collecting history</div>}
   </figure>;
 }

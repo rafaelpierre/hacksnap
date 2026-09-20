@@ -112,12 +112,10 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
 }
 
 .sentiment { flex: 0 0 112px; width: 112px; align-self: center; margin: 0; color: var(--muted); font: 10px/1.5 var(--mono); }
-.sentiment figcaption { margin-bottom: 8px; }
-.sentiment-label { color: var(--sentiment-color, var(--muted)); font-size: 12px; white-space: nowrap; }
 .sentiment-skeptical { --sentiment-color: #f09a93; }
 .sentiment-neutral { --sentiment-color: #d6c48f; }
 .sentiment-excited { --sentiment-color: #86cdaa; }
-.sentiment-scale { display: flex; gap: 5px; margin-top: 12px; padding: 3px; }
+.sentiment-scale { display: flex; gap: 5px; margin: 0; padding: 12px 3px; }
 .sentiment-scale span { flex: 1; height: 5px; border-radius: 3px; background: var(--line); }
 .sentiment-scale .selected { background: var(--sentiment-color); outline: 1px solid var(--sentiment-color); outline-offset: 2px; }
 @media (max-width: 760px) {
