@@ -97,10 +97,10 @@ def process_story(
             try:
                 article = fetcher.fetch(article_url)
             except FetchError as error:
-                log_event(story, stage, "failed", error)
+                log_event(story, stage, "fetch_skipped", error)
                 stage = "persist_fetch_failure"
                 repository.save_fetch_failure(story["hn_id"], article_url)
-                return "failed"
+                return "fetch_skipped"
         coverage.setdefault("article_status", "fetched" if article else "not_applicable")
         source = {
             "title": story["title"],
@@ -137,7 +137,10 @@ def process_story(
 
 
 def refresh(repository, fetcher, summarizer, comment_budget: int = 48000) -> dict:
-    counts = {"generated": 0, "unchanged": 0, "failed": 0, "unavailable": 0, "sentiment_updated": 0}
+    counts = {
+        "generated": 0, "unchanged": 0, "failed": 0, "fetch_skipped": 0,
+        "unavailable": 0, "sentiment_updated": 0,
+    }
     attempted = set()
     # Re-read the shared ranking after failures so replacements are processed now.
     # Bound work even if many articles are inaccessible or ingestion changes the queue.
@@ -183,7 +186,7 @@ def run() -> dict:
         counts = refresh(repository, fetcher, summarizer, settings.comment_chars)
         cleanup = repository.cleanup_contents()
         logger.info(json.dumps({"event": "contents_cleanup", **cleanup}))
-    # Finish isolated story work, but surface failures to the scheduler.
+    # Article fetch skips are expected; surface operational failures to the scheduler.
     if counts["failed"]:
         raise RuntimeError(
             f"Hacksnap refresh failed: {counts['failed']} failed, "

@@ -210,10 +210,25 @@ def test_new_story_with_failed_article_is_excluded_without_inference():
     def fail(url):
         raise FetchError("Kestrel timed out")
 
-    assert process_story(story(), repo, SimpleNamespace(fetch=fail), model) == "failed"
+    assert process_story(story(), repo, SimpleNamespace(fetch=fail), model) == "fetch_skipped"
     assert not repo.saved
     assert model.calls == 0
     assert repo.failures == {100: story()["url"]}
+
+
+def test_fetch_failure_storage_error_still_fails():
+    repo = FakeRepository()
+
+    def fail_fetch(url):
+        raise FetchError("Kestrel timed out")
+
+    def fail_save(*args):
+        raise RuntimeError("storage unavailable")
+
+    repo.save_fetch_failure = fail_save
+    counts = refresh(repo, SimpleNamespace(fetch=fail_fetch), FakeSummarizer())
+    assert counts["failed"] == 1
+    assert counts["fetch_skipped"] == 0
 
 
 def test_hn_self_post_never_fetches_hn_again():
@@ -336,10 +351,10 @@ def test_modal_session_affinity_is_shared_within_batch_and_rotates_between_batch
             repo = FakeRepository([story(100), story(101)])
             model = ModalSummarizer(client, "https://test.modal.run/v1", "test-model", "fake-key")
             counts = refresh(repo, SimpleNamespace(fetch=lambda url: "article"), model)
-            assert counts == {"generated": 2, "unchanged": 0, "failed": 0, "unavailable": 0, "sentiment_updated": 0}
+            assert counts == {"generated": 2, "unchanged": 0, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0}
             # A cached repeat skips inference regardless of the routing header.
             assert refresh(repo, SimpleNamespace(fetch=lambda url: "article"), model) == {
-                "generated": 0, "unchanged": 2, "failed": 0, "unavailable": 0, "sentiment_updated": 0}
+                "generated": 0, "unchanged": 2, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0}
 
     assert len(sessions) == 4
     assert sessions[0] == sessions[1]
@@ -360,10 +375,10 @@ def test_failed_article_is_replaced_in_same_refresh_and_not_retried():
         return "article"
 
     fetcher, model = SimpleNamespace(fetch=fetch), FakeSummarizer()
-    assert refresh(repo, fetcher, model) == {"generated": 10, "unchanged": 0, "failed": 2, "unavailable": 0, "sentiment_updated": 0}
+    assert refresh(repo, fetcher, model) == {"generated": 10, "unchanged": 0, "failed": 0, "fetch_skipped": 2, "unavailable": 0, "sentiment_updated": 0}
     assert set(repo.saved) == set(range(1, 10)) | {11}
     calls.clear()
-    assert refresh(repo, fetcher, model) == {"generated": 0, "unchanged": 10, "failed": 0, "unavailable": 0, "sentiment_updated": 0}
+    assert refresh(repo, fetcher, model) == {"generated": 0, "unchanged": 10, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0}
     assert not any(url.endswith(("/0", "/10")) for url in calls)
     repo.stories[0]["url"] = "https://example.com/corrected"
     assert refresh(repo, fetcher, model)["generated"] == 1
@@ -376,7 +391,7 @@ def test_all_fetches_fail_without_looping_forever():
         raise FetchError("Kestrel timed out")
 
     counts = refresh(repo, SimpleNamespace(fetch=fail), FakeSummarizer())
-    assert counts == {"generated": 0, "unchanged": 0, "failed": 50, "unavailable": 0, "sentiment_updated": 0}
+    assert counts == {"generated": 0, "unchanged": 0, "failed": 0, "fetch_skipped": 50, "unavailable": 0, "sentiment_updated": 0}
     assert len(repo.failures) == 50
 
 
@@ -390,14 +405,19 @@ def test_missing_kestrel_does_not_permanently_exclude_articles(monkeypatch):
     assert not repo.failures
 
 
-@pytest.mark.parametrize("fail_inference", [False, True])
-def test_run_surfaces_inference_failure_even_with_cache_hits(monkeypatch, fail_inference):
+@pytest.mark.parametrize("outcome", ["generated", "inference_failure", "fetch_skipped"])
+def test_run_surfaces_only_operational_failures_with_cache_hits(monkeypatch, caplog, outcome):
     import importlib
     module = importlib.import_module("pipeline.refresh")
     repo = FakeRepository([story(), story(101)])
     fetcher = SimpleNamespace(fetch=lambda url: "article")
     model = FakeSummarizer()
     process_story(story(), repo, fetcher, model)
+
+    if outcome == "fetch_skipped":
+        def fail_fetch(url):
+            raise FetchError("Kestrel timed out")
+        fetcher = SimpleNamespace(fetch=fail_fetch)
 
     class RateLimited(FakeSummarizer):
         def summarize(self, source):
@@ -412,14 +432,24 @@ def test_run_surfaces_inference_failure_even_with_cache_hits(monkeypatch, fail_i
     ))
     monkeypatch.setattr(module, "Repository", lambda _: repo)
     monkeypatch.setattr(module, "KestrelFetcher", lambda *args: fetcher)
-    monkeypatch.setattr(module, "ModalSummarizer", lambda *args: RateLimited() if fail_inference else model)
-    if fail_inference:
+    monkeypatch.setattr(module, "ModalSummarizer", lambda *args: RateLimited() if outcome == "inference_failure" else model)
+    if outcome == "inference_failure":
         with pytest.raises(RuntimeError, match="1 failed, 0 generated, 1 unchanged"):
             module.run()
         assert 100 in repo.saved
         assert 101 not in repo.saved
+    elif outcome == "fetch_skipped":
+        with caplog.at_level("INFO", logger="hacksnap"):
+            counts = module.run()
+        assert counts["failed"] == 0
+        assert counts["fetch_skipped"] == 1
+        assert counts["unchanged"] == 1
+        events = [json.loads(record.message) for record in caplog.records]
+        completed = next(event for event in events if event.get("event") == "refresh_completed")
+        assert completed["status"] == "succeeded"
+        assert repo.failures == {101: story(101)["url"]}
     else:
-        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0, "unavailable": 0, "sentiment_updated": 0}
+        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0}
 
 
 def test_refresh_records_all_ranks_after_fetch_failures_even_when_unchanged():
@@ -435,7 +465,8 @@ def test_refresh_records_all_ranks_after_fetch_failures_even_when_unchanged():
         item["url"] = f"https://example.com/{item['hn_id']}"
     model = FakeSummarizer()
     counts = refresh(repo, SimpleNamespace(fetch=fetch), model)
-    assert counts["failed"] == 1
+    assert counts["failed"] == 0
+    assert counts["fetch_skipped"] == 1
     assert repo.rank_observations == [list(range(101, 112))]
     assert 111 not in repo.saved  # Below the ten-story inference/display cutoff.
     counts = refresh(repo, SimpleNamespace(fetch=fetch), model)

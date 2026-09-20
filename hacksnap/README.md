@@ -320,6 +320,9 @@ Refreshes attempt at most 50 distinct stories to bound work if many articles fai
 A corrected story URL becomes eligible automatically; to deliberately retry an
 unchanged URL, delete its row from `hacksnap_fetch_failures`. A missing Kestrel
 executable is a worker configuration error and does not exclude articles.
+Article fetch failures are logged as warnings and counted as `fetch_skipped`; they
+do not fail the scheduled run. Inference, storage, and worker configuration errors
+still fail the run, including errors while recording a fetch failure.
 HN self-posts still receive discussion summaries without fetching an article.
 
 Apply migration `0005_fetch_failures` before deploying the updated worker. It also
