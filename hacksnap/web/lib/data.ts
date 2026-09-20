@@ -98,6 +98,7 @@ type CachedLeaderboard = {
   observed_at: string;
 };
 
+// v8 invalidates the persistent pre-migration cache after the sentiment backfill.
 const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> => {
   return read(async client => {
     const result = await client.query<{stories: CachedLeaderboard["stories"]; ingestion: Date | null; ranked_at: Date}>(`
@@ -118,7 +119,7 @@ const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> =>
       ingestion: ingestion?.toISOString() ?? null,
     };
   });
-}, ["hacksnap-leaderboard-v7-sentiment"], {revalidate: 1800});
+}, ["hacksnap-leaderboard-v8-sentiment-backfill"], {revalidate: 1800});
 
 export async function getLeaderboard(): Promise<{stories: (Story & {activity_history: ActivityObservation[]})[]; ingestion: Date | null; observed_at: string}> {
   const {stories, ingestion, observed_at} = await cachedLeaderboard();
