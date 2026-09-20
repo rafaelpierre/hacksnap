@@ -89,11 +89,11 @@ class Repository:
                 """
                 INSERT INTO hacksnap_summaries
                     (story_id, article_url, article_summary, article_key_points,
-                     discussion_summary, discussion_points, overall_takeaway,
+                     discussion_summary, discussion_points, sentiment, overall_takeaway,
                      source_fingerprint, model, prompt_version, source_coverage, summarized_content_hash)
                 VALUES (%(story_id)s, %(article_url)s, %(article_summary)s,
                         %(article_key_points)s, %(discussion_summary)s, %(discussion_points)s,
-                        %(overall_takeaway)s, %(source_fingerprint)s, %(model)s,
+                        %(sentiment)s, %(overall_takeaway)s, %(source_fingerprint)s, %(model)s,
                         %(prompt_version)s, %(source_coverage)s, %(content_hash)s)
                 ON CONFLICT (story_id) DO UPDATE SET
                     summarized_content_hash = EXCLUDED.summarized_content_hash,
@@ -102,6 +102,7 @@ class Repository:
                     article_key_points = EXCLUDED.article_key_points,
                     discussion_summary = EXCLUDED.discussion_summary,
                     discussion_points = EXCLUDED.discussion_points,
+                    sentiment = EXCLUDED.sentiment,
                     overall_takeaway = EXCLUDED.overall_takeaway,
                     source_fingerprint = EXCLUDED.source_fingerprint,
                     model = EXCLUDED.model, prompt_version = EXCLUDED.prompt_version,

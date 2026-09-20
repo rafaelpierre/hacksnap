@@ -31,6 +31,12 @@ export function activityIntervals(history: ActivityObservation[], asOf: string):
   });
 }
 
+// Compare only measured rates; the decorative lead-in is not an observation.
+export function activityChange(intervals: ActivityInterval[]): number | null {
+  if (intervals.length < 2) return null;
+  return intervals[intervals.length - 1].rate - intervals[0].rate;
+}
+
 export function activityChart(intervals: ActivityInterval[], asOf: string) {
   // Per-story scale with a minimum range prevents tiny changes filling the chart.
   const min = Math.min(0, ...intervals.map(p => p.rate));

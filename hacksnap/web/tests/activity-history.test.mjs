@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
-import { activityHistorySQL, activityIntervals, activityChart, formatRate } from '../lib/activity-history.ts';
+import { activityHistorySQL, activityIntervals, activityChange, activityChart, formatRate } from '../lib/activity-history.ts';
 const asOf = '2026-09-20T12:00:00Z';
 const sample = (hour, score) => ({observed_at: `2026-09-20T${String(hour).padStart(2, '0')}:00:00Z`, score});
 
@@ -60,4 +60,16 @@ test('history query isolates stories, filters to last 24h, caps payload and retu
     assert.equal(rows[1].history[0].score,42);
     assert.deepEqual(rows[2].history,[]);
   } finally { await db.close(); }
+});
+
+
+test('headline change follows the measured line direction, not the sign of its latest rate', () => {
+  const rates = values => values.map((rate, i) => ({start:i * 3600000, end:(i+1)*3600000, rate}));
+  assert.equal(activityChange(rates([127, 40, 4])), -123);
+  assert.equal(activityChange(rates([4, 12, 24])), 20);
+  assert.equal(activityChange(rates([12, 12])), 0);
+  assert.equal(activityChange(rates([32, 0])), -32);
+  assert.equal(activityChange(rates([-10, -2])), 8);
+  assert.equal(activityChange(rates([12.3])), null);
+  assert.equal(activityChange([]), null);
 });

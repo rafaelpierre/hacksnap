@@ -58,8 +58,12 @@ rates across stories, not line heights. Hover, focus, touch and arrow keys expos
 interval times and rates. At least two observations in the window are required;
 otherwise the card shows “Collecting history”.
 
-The card shows Hotness, the 24h window, and the latest signed rate without a unit
-suffix or trend/scale labels. Hover and keyboard details explain points/hour,
+The card shows Hotness, the 24h window, and the signed change from the first
+measured rate to the latest measured rate, without a unit suffix or trend/scale
+labels. The line still plots activity rates: an endpoint below the first point
+produces a negative headline. A single measured rate shows “—”, since a change
+requires at least two rates (three snapshots). The decorative flat lead-in does
+not participate in the calculation. Hover and keyboard details explain points/hour,
 observation times and the scale. The page's cached read timestamp anchors the
 window. Feed ranking remains recent-first, then points.
 
@@ -394,3 +398,19 @@ counted as unavailable, rather than fabricated as an empty discussion. Each
 scheduled refresh runs one bounded retention batch, including snapshot payloads.
 See [retention and deployment](../data/README.md#source-content-retention-migration-0008)
 for the seven-day cutoff, grants and coordinated deployment steps.
+
+### Comment sentiment
+
+The front page displays sentiment to the left of hotness: **−1 Skeptical**,
+**0 Neutral**, or **+1 Excited**, with a three-position scale. The summary model
+estimates the reaction to the story from sampled comments only. Mixed, factual
+or inconclusive reactions are Neutral; no usable comments produce `null` and
+“No comments,” rather than a fabricated neutral score. This is a qualitative
+sample estimate, not a community vote.
+
+Apply Alembic migration `0009_sentiment` before deploying the web app and summary
+worker. It adds a nullable, constrained small integer to `hacksnap_summaries`;
+existing summaries remain unscored and display “Pending.” Prompt version
+`v2-sentiment` invalidates previous inference fingerprints so eligible stories
+with retained source content receive sentiment on their next successful refresh.
+Older stories without retained comments remain unscored until ingested again.

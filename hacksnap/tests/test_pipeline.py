@@ -63,6 +63,7 @@ def output(article=True):
                 "comment_ids": [1, 2],
             }
         ],
+        "sentiment": 0,
         "overall_takeaway": "Cost comparisons depend on batching assumptions.",
     }
 
@@ -486,3 +487,42 @@ def test_unchanged_summary_backfills_successful_hash():
     assert process_story(item, repo, fetcher, model) == "unchanged"
     assert repo.saved[100]["summarized_content_hash"] == "a" * 64
     assert model.calls == 1
+
+
+@pytest.mark.parametrize("sentiment", [-1, 0, 1])
+def test_sentiment_accepts_only_scale_integers(sentiment):
+    result = StorySummary.model_validate({**output(), "sentiment": sentiment})
+    result.validate_sources("article", [{"id": 1}, {"id": 2}])
+    assert result.sentiment == sentiment
+
+
+@pytest.mark.parametrize("sentiment", [-2, 2, 0.5, "1", True, False])
+def test_sentiment_rejects_invalid_scores(sentiment):
+    with pytest.raises(ValueError):
+        StorySummary.model_validate({**output(), "sentiment": sentiment})
+
+
+def test_sentiment_requires_comments_and_cannot_be_omitted():
+    with pytest.raises(ValueError):
+        StorySummary.model_validate({k: v for k, v in output().items() if k != "sentiment"})
+    result = StorySummary.model_validate({**output(), "sentiment": None, "discussion_points": []})
+    result.validate_sources("article", [])
+    with pytest.raises(ValueError, match="omits discussion sentiment"):
+        result.validate_sources("article", [{"id": 1}])
+    result.sentiment = 0
+    with pytest.raises(ValueError, match="requires supplied comments"):
+        result.validate_sources("article", [])
+
+
+def test_sentiment_prompt_refreshes_legacy_cache():
+    from pipeline.prompts import PROMPT_VERSION
+
+    item = story()
+    repo, model = FakeRepository([item]), FakeSummarizer()
+    fetcher = SimpleNamespace(fetch=lambda _: "article")
+    assert process_story(item, repo, fetcher, model, prompt_version="v1") == "generated"
+    assert PROMPT_VERSION != "v1"
+    assert process_story(item, repo, fetcher, model) == "generated"
+    assert repo.saved[100]["summary"].sentiment == 0
+    assert process_story(item, repo, fetcher, model) == "unchanged"
+    assert model.calls == 2

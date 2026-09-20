@@ -183,3 +183,32 @@ test("fewer than ten eligible stories returns everything available", async () =>
   const { rows } = await db.query("SELECT hn_id FROM hacksnap_current_stories ORDER BY rank");
   assert.equal(rows.length, 3);
 });
+
+test("sentiment allows the three scale points and leaves legacy summaries unscored", async () => {
+  await db.query(`INSERT INTO hacksnap_summaries
+    (story_id,article_key_points,discussion_summary,discussion_points,overall_takeaway,
+     model,prompt_version,source_fingerprint,source_coverage)
+    VALUES (1,'[]','Discussion','[]','Takeaway','test','v1',$1,'{}')`, ["a".repeat(64)]);
+  assert.equal((await db.query("SELECT sentiment FROM hacksnap_summaries WHERE story_id=1")).rows[0].sentiment, null);
+  for (const sentiment of [-1, 0, 1, null]) {
+    await db.query("UPDATE hacksnap_summaries SET sentiment=$1 WHERE story_id=1", [sentiment]);
+    assert.equal((await db.query("SELECT sentiment FROM hacksnap_summaries WHERE story_id=1")).rows[0].sentiment, sentiment);
+  }
+  for (const sentiment of [-2, 2]) {
+    await assert.rejects(db.query("UPDATE hacksnap_summaries SET sentiment=$1 WHERE story_id=1", [sentiment]), /hacksnap_sentiment_range/);
+  }
+});
+
+test("web sentiment projection tolerates deployment before the migration", async () => {
+  const source = readFileSync(new URL("../lib/data.ts", import.meta.url), "utf8");
+  const fields = source.match(/const fields = `([\s\S]*?)`;/)[1];
+  const query = `SELECT ${fields} FROM hacker_news_threads t
+    LEFT JOIN hacksnap_summaries s ON s.story_id=t.hn_id WHERE t.hn_id=1`;
+  await db.exec("UPDATE hacksnap_summaries SET sentiment=1 WHERE story_id=1");
+  assert.equal((await db.query(query)).rows[0].summary.sentiment, 1);
+  await db.exec("BEGIN");
+  try {
+    await db.exec("ALTER TABLE hacksnap_summaries DROP COLUMN sentiment");
+    assert.equal((await db.query(query)).rows[0].summary.sentiment, null);
+  } finally { await db.exec("ROLLBACK"); }
+});

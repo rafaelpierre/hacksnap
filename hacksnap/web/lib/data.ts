@@ -10,6 +10,7 @@ export type Summary = {
   article_key_points: string[];
   discussion_summary: string;
   discussion_points: {title: string; summary: string; comment_ids: number[]}[];
+  sentiment: -1 | 0 | 1 | null;
   overall_takeaway: string;
   generated_at: string;
   model: string;
@@ -86,7 +87,7 @@ const fields = `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added
   CASE WHEN s.story_id IS NULL THEN NULL ELSE json_build_object(
     'article_summary', s.article_summary, 'article_key_points', s.article_key_points,
     'discussion_summary', s.discussion_summary, 'discussion_points', s.discussion_points,
-    'overall_takeaway', s.overall_takeaway, 'generated_at', s.generated_at,
+    'sentiment', (to_jsonb(s)->>'sentiment')::smallint, 'overall_takeaway', s.overall_takeaway, 'generated_at', s.generated_at,
     'model', s.model, 'source_coverage', s.source_coverage
   ) END AS summary`;
 
@@ -117,7 +118,7 @@ const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> =>
       ingestion: ingestion?.toISOString() ?? null,
     };
   });
-}, ["hacksnap-leaderboard-v6-activity"], {revalidate: 1800});
+}, ["hacksnap-leaderboard-v7-sentiment"], {revalidate: 1800});
 
 export async function getLeaderboard(): Promise<{stories: (Story & {activity_history: ActivityObservation[]})[]; ingestion: Date | null; observed_at: string}> {
   const {stories, ingestion, observed_at} = await cachedLeaderboard();
