@@ -35,17 +35,33 @@ insert records every eligible rank with a shared timestamp, including ranks belo
 manual refreshes also record observations. These are sampled positions, not every
 intermediate change to the live view. Failed rank writes fail the refresh.
 
-The sparkline shows the latest 168 saved observations of **our ranking**, plus
-the current rank from the same database read as the displayed leaderboard. This
-endpoint is labeled "Current rank" with the page-refresh timestamp; it is not
-written back as historical data. The rank and history share the ten-minute cache.
-Steps hold the last observed position until the next sample; the exact time of
-changes between samples is unknown. Better positions appear higher, on a shared
-scale from #1 to at least #10 (extended for lower historical ranks). Hovering or
-using arrow keys highlights the selected observation. A story without saved
-history shows only its current-rank point. Historical HN ranks cannot backfill
-our ranking. Apply the migration before deploying the worker and website; this
-migration does not fabricate historical data.
+### Hotness sparklines
+
+The feed labels the chart **Hotness** and plots **net HN points per hour** between saved thread snapshots
+within the past 24 hours (at most 168 observations per story). The existing
+`hn_thread_snapshots` metrics and `(hn_id, observed_at DESC)` index are sufficient;
+no schema migration or new collector is required. Rank recording remains intact.
+
+Each point represents `(next score - previous score) / elapsed hours`, plotted
+at the ending observation. Straight lines connect these averages as visual guides;
+intermediate rates are not measured. A flat lead-in extends the first available
+rate to the left edge, including when only one interval is available. This is a
+visual extension, not an extra observation; hover and accessible text explain it. Negative rates are preserved. The horizontal
+axis always covers 24 hours, and the line stops at the
+last observation. Page refreshes never create observations. Identical source
+snapshots may be deduplicated, so intervals can span multiple collection runs;
+these are interval averages, not live rates or exact hourly buckets.
+
+The vertical axis is scaled per story, includes zero, and has a minimum upper
+bound of 10 points/hour to avoid exaggerating tiny changes. Compare the numeric
+rates across stories, not line heights. Hover, focus, touch and arrow keys expose
+interval times and rates. At least two observations in the window are required;
+otherwise the card shows “Collecting history”.
+
+The card shows Hotness, the 24h window, and the latest signed rate without a unit
+suffix or trend/scale labels. Hover and keyboard details explain points/hour,
+observation times and the scale. The page's cached read timestamp anchors the
+window. Feed ranking remains recent-first, then points.
 
 An empty or failed new ingestion run does not clear previous stories. If there
 are fewer than ten eligible stories in the entire database, show all available

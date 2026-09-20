@@ -3,7 +3,7 @@ import path from "node:path";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { Pool, type PoolClient } from "pg";
-import { rankHistorySQL, withCurrentRank, type RankObservation } from "./rank-history";
+import { activityHistorySQL, type ActivityObservation } from "./activity-history";
 
 export type Summary = {
   article_summary: string | null;
@@ -92,8 +92,9 @@ const fields = `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added
 
 // Cache JSON-safe values: Next's persistent data cache does not preserve Dates.
 type CachedLeaderboard = {
-  stories: (Omit<Story, "date_added"> & {date_added: string; rank_history: RankObservation[]})[];
+  stories: (Omit<Story, "date_added"> & {date_added: string; activity_history: ActivityObservation[]})[];
   ingestion: string | null;
+  observed_at: string;
 };
 
 const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> => {
@@ -101,7 +102,7 @@ const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> =>
     const result = await client.query<{stories: CachedLeaderboard["stories"]; ingestion: Date | null; ranked_at: Date}>(`
       SELECT COALESCE((
         SELECT json_agg(story ORDER BY story.rank) FROM (
-          SELECT ${fields}, t.rank, t.is_recent, ${rankHistorySQL} AS rank_history
+          SELECT ${fields}, t.rank, t.is_recent, ${activityHistorySQL} AS activity_history
           FROM hacksnap_current_stories t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
         ) story
       ), '[]'::json) AS stories, (
@@ -111,19 +112,19 @@ const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> =>
       ) AS ingestion, CURRENT_TIMESTAMP AS ranked_at`);
     const {stories, ingestion, ranked_at} = result.rows[0];
     return {
-      stories: stories.map(story => ({...story,
-        rank_history: withCurrentRank(story.rank_history, Number(story.rank), ranked_at.toISOString()),
-      })),
+      stories,
+      observed_at: ranked_at.toISOString(),
       ingestion: ingestion?.toISOString() ?? null,
     };
   });
-}, ["hacksnap-leaderboard-v5"], {revalidate: 1800});
+}, ["hacksnap-leaderboard-v6-activity"], {revalidate: 1800});
 
-export async function getLeaderboard(): Promise<{stories: (Story & {rank_history: RankObservation[]})[]; ingestion: Date | null}> {
-  const {stories, ingestion} = await cachedLeaderboard();
+export async function getLeaderboard(): Promise<{stories: (Story & {activity_history: ActivityObservation[]})[]; ingestion: Date | null; observed_at: string}> {
+  const {stories, ingestion, observed_at} = await cachedLeaderboard();
   return {
     stories: stories.map(story => ({...story, date_added: new Date(story.date_added)})),
     ingestion: ingestion ? new Date(ingestion) : null,
+    observed_at,
   };
 }
 

@@ -28,12 +28,15 @@ for (let i = 0; i < titles.length; i++) {
     date_published,date_added,points,comment_count,last_seen_run_id)
     VALUES ($1,$2,$3,now(),now() - $4 * interval '1 hour',$5,$6,$7)`,
     [id,titles[i],i===9 ? `https://news.ycombinator.com/item?id=${id}` : "https://example.com", i<7 ? 1 : 30,487-i*37,162-i*12,run]);
-  // Include rising, falling, flat, single-observation and absent history states.
+  // Synthetic rising, cooling, quiet, negative, stale and insufficient-history states.
   const observations = i === 9 ? 0 : i === 8 ? 1 : 12;
+  let score = 30;
   for (let j = 0; j < observations; j++) {
-    const rank = i === 7 ? i + 1 : Math.max(1, Math.round(i + 1 + (observations-j-1) * (i % 2 ? -0.3 : 1.5)));
-    await db.query(`INSERT INTO hacksnap_rank_history(hn_id,rank,observed_at)
-      VALUES ($1,$2,now() - $3 * interval '1 hour')`, [id,rank,observations-j-1]);
+    score += i === 7 ? 0 : i === 6 ? -1 : i % 2 ? 24 - j * 2 : 2 + j * 2;
+    await db.query(`INSERT INTO hn_thread_snapshots(run_id,hn_id,content_hash,score,
+      descendants,top_story_rank,max_comment_depth,observed_at)
+      VALUES ($1,$2,$3,$4,10,1,1,now() - $5 * interval '1 hour')`,
+      [run,id,`demo-${i}-${j}`,score,observations-j-1 + (i===5 ? 5 : 0)]);
   }
   if (i === 8) continue; // pending-summary state
   await db.query(`INSERT INTO hacksnap_summaries(story_id,article_url,article_summary,article_key_points,

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeaderboard } from "../../lib/data";
 import { articleURL, domain, timestamp } from "../../lib/format";
-import { RankSparkline } from "../rank-sparkline";
+import { ActivitySparkline } from "../activity-sparkline";
 
 export const revalidate = 1800;
 
@@ -14,8 +14,7 @@ export async function generateStaticParams() {
 export default async function Home({params}: {params: Promise<{path?: string[]}>}) {
   // Only the root URL belongs to this page; unknown paths must remain 404s.
   if ((await params).path?.length) notFound();
-  const {stories, ingestion} = await getLeaderboard();
-  const maxRank = Math.max(10, ...stories.flatMap(story => story.rank_history.map(point => point.rank)));
+  const {stories, ingestion, observed_at} = await getLeaderboard();
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
   return <>
     <header className="feed-header">
@@ -38,10 +37,10 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
             <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a>{!story.summary && <span>Summary pending</span>}</div>
           </div>
-          <RankSparkline history={story.rank_history} title={story.title} maxRank={maxRank} />
+          <ActivitySparkline history={story.activity_history} title={story.title} asOf={observed_at} />
         </article>
       </li>)}</ol>}
-      <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Summaries updated hourly</p>
+      <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Sparklines show points/hour over the past 24h, scaled per story · Summaries updated hourly</p>
     </section>
   </>;
 }
