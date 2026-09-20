@@ -77,6 +77,13 @@ class FakeRepository:
     def get_current_top_stories(self, limit):
         return [s for s in self.stories if self.failures.get(s["hn_id"]) != s["url"]][:limit]
 
+    def cleanup_contents(self):
+        return {}
+
+    def mark_summarized_contents(self, story_id, fingerprint, content_hash):
+        if self.saved[story_id]["source_fingerprint"] == fingerprint:
+            self.saved[story_id]["summarized_content_hash"] = content_hash
+
     def record_rank_history(self):
         self.rank_observations.append([s["hn_id"] for s in self.stories
                                        if self.failures.get(s["hn_id"]) != s["url"]])
@@ -87,9 +94,10 @@ class FakeRepository:
     def get_summary(self, story_id):
         return self.saved.get(story_id)
 
-    def save_summary(self, story_id, article_url, summary, fingerprint, model, version, coverage):
+    def save_summary(self, story_id, article_url, summary, fingerprint, model, version, coverage, content_hash=None):
         self.saved[story_id] = {
             "source_fingerprint": fingerprint,
+            "summarized_content_hash": content_hash,
             "summary": summary,
             "coverage": coverage,
         }
@@ -171,7 +179,7 @@ def test_malformed_output_preserves_existing_summary_and_other_stories_continue(
             return StorySummary.model_validate(output())
 
     counts = refresh(repo, fetcher, BrokenOnce())
-    assert counts == {"failed": 1, "generated": 1, "unchanged": 0}
+    assert counts == {"failed": 1, "generated": 1, "unchanged": 0, "unavailable": 0}
     assert repo.saved[100] == previous
     assert 101 in repo.saved
 
@@ -321,11 +329,10 @@ def test_modal_session_affinity_is_shared_within_batch_and_rotates_between_batch
             repo = FakeRepository([story(100), story(101)])
             model = ModalSummarizer(client, "https://test.modal.run/v1", "test-model", "fake-key")
             counts = refresh(repo, SimpleNamespace(fetch=lambda url: "article"), model)
-            assert counts == {"generated": 2, "unchanged": 0, "failed": 0}
+            assert counts == {"generated": 2, "unchanged": 0, "failed": 0, "unavailable": 0}
             # A cached repeat skips inference regardless of the routing header.
             assert refresh(repo, SimpleNamespace(fetch=lambda url: "article"), model) == {
-                "generated": 0, "unchanged": 2, "failed": 0,
-            }
+                "generated": 0, "unchanged": 2, "failed": 0, "unavailable": 0}
 
     assert len(sessions) == 4
     assert sessions[0] == sessions[1]
@@ -346,10 +353,10 @@ def test_failed_article_is_replaced_in_same_refresh_and_not_retried():
         return "article"
 
     fetcher, model = SimpleNamespace(fetch=fetch), FakeSummarizer()
-    assert refresh(repo, fetcher, model) == {"generated": 10, "unchanged": 0, "failed": 2}
+    assert refresh(repo, fetcher, model) == {"generated": 10, "unchanged": 0, "failed": 2, "unavailable": 0}
     assert set(repo.saved) == set(range(1, 10)) | {11}
     calls.clear()
-    assert refresh(repo, fetcher, model) == {"generated": 0, "unchanged": 10, "failed": 0}
+    assert refresh(repo, fetcher, model) == {"generated": 0, "unchanged": 10, "failed": 0, "unavailable": 0}
     assert not any(url.endswith(("/0", "/10")) for url in calls)
     repo.stories[0]["url"] = "https://example.com/corrected"
     assert refresh(repo, fetcher, model)["generated"] == 1
@@ -362,7 +369,7 @@ def test_all_fetches_fail_without_looping_forever():
         raise FetchError("Kestrel timed out")
 
     counts = refresh(repo, SimpleNamespace(fetch=fail), FakeSummarizer())
-    assert counts == {"generated": 0, "unchanged": 0, "failed": 50}
+    assert counts == {"generated": 0, "unchanged": 0, "failed": 50, "unavailable": 0}
     assert len(repo.failures) == 50
 
 
@@ -405,7 +412,7 @@ def test_run_surfaces_inference_failure_even_with_cache_hits(monkeypatch, fail_i
         assert 100 in repo.saved
         assert 101 not in repo.saved
     else:
-        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0}
+        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0, "unavailable": 0}
 
 
 def test_refresh_records_all_ranks_after_fetch_failures_even_when_unchanged():
@@ -438,3 +445,44 @@ def test_rank_recording_failure_is_not_reported_as_success():
     repo.record_rank_history = fail
     with pytest.raises(RuntimeError, match="rank storage failed"):
         refresh(repo, SimpleNamespace(fetch=lambda url: "article"), FakeSummarizer())
+
+
+def test_missing_contents_skips_inference_and_reports_unavailable():
+    item = story()
+    item["full_raw_text_contents"] = None
+    repo, model = FakeRepository([item]), FakeSummarizer()
+    fetcher = SimpleNamespace(fetch=lambda _: pytest.fail("must not fetch without comments"))
+    assert process_story(item, repo, fetcher, model) == "unavailable"
+    repo.saved[100] = {"source_fingerprint": "old"}
+    assert process_story(item, repo, fetcher, model) == "unchanged"
+    assert model.calls == 0
+
+
+def test_successful_hash_is_not_advanced_by_failed_summary():
+    item = story()
+    item["content_hash"] = "a" * 64
+    repo = FakeRepository([item])
+    fetcher = SimpleNamespace(fetch=lambda _: "article")
+    assert process_story(item, repo, fetcher, FakeSummarizer()) == "generated"
+    assert repo.saved[100]["summarized_content_hash"] == "a" * 64
+    changed = payload()
+    changed["comments"][0]["item"]["text"] = "Changed argument"
+    item["full_raw_text_contents"] = json.dumps(changed)
+    item["content_hash"] = "b" * 64
+    def fail(_):
+        raise RuntimeError("inference unavailable")
+    assert process_story(item, repo, fetcher, SimpleNamespace(model="test-model", summarize=fail)) == "failed"
+    assert repo.saved[100]["summarized_content_hash"] == "a" * 64
+    assert process_story(item, repo, fetcher, FakeSummarizer()) == "generated"
+    assert repo.saved[100]["summarized_content_hash"] == "b" * 64
+
+
+def test_unchanged_summary_backfills_successful_hash():
+    item = story()
+    repo, model = FakeRepository([item]), FakeSummarizer()
+    fetcher = SimpleNamespace(fetch=lambda _: "article")
+    assert process_story(item, repo, fetcher, model) == "generated"
+    item["content_hash"] = "a" * 64
+    assert process_story(item, repo, fetcher, model) == "unchanged"
+    assert repo.saved[100]["summarized_content_hash"] == "a" * 64
+    assert model.calls == 1

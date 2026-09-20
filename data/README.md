@@ -31,7 +31,7 @@ At least one `--title-word` value must occur in a title, without regard to case.
 Stories are selected from the first `--limit` (default: 100) IDs returned by the official
 top-stories endpoint. Direct comments are depth 1; use depth 0 to persist only
 the story payload. The default maximum comment depth is 5.
-`full_raw_text_contents` stores a JSON document containing the raw official API
+`hn_thread_contents.full_raw_text_contents` stores a JSON document containing the raw official API
 payload for the story plus every retrieved comment and its depth.
 Use `--min-comment-descendants` to retain only comments with at least that many
 descendants inside the fetched depth, together with their ancestor comments for
@@ -61,14 +61,15 @@ The current-thread table also records each story's latest HN `points` and total
 `comment_count` values for fast filtering and display.
 
 The command upserts by `hn_id`, so it is safe to run on a schedule. It refreshes
-the story data and raw contents while retaining the original `date_added` value.
+the story metadata while retaining the original `date_added` value. Raw contents
+are retained only under the policy described below.
 Every invocation also creates an `hn_ingestion_runs` record. Each selected thread
-is written to the current-thread table and to `hn_thread_snapshots` in one
+is written to the metadata/content tables and to `hn_thread_snapshots` in one
 transaction; identical raw content is deduplicated per thread. The run records
 the filters, examined and matched counts, terminal status, and number of newly
 inserted snapshots. `hn_thread_summaries` is intentionally populated later by a
-separate LLM worker, which should read a snapshot (not the mutable current-thread
-row) as its source.
+separate LLM worker, which must check that a snapshot still has `raw_payload` before using it
+as its source.
 The command always connects through this project's IPv4-capable Supabase pooler
 with TLS. Its only required database setting is `SUPABASE_PASSWORD`.
 
@@ -139,3 +140,59 @@ For production cutover, verify a one-off Modal run, disable the old workflow wit
 workflow file is removed from this repository to prevent duplicate schedules once
 these changes are merged. To roll back, first stop the `hn-ingestion` Modal app,
 then restore and enable the old workflow and its required credentials.
+
+## Source-content retention (migration 0008)
+
+`hn_items` is the permanent HN identity registry. All story-ID foreign keys now
+reference it, including `hacker_news_threads`, which retains only metadata.
+`hn_thread_contents` holds the optional current raw story/comment document and
+its deterministic SHA-256 hash. Snapshot metadata remains durable; snapshot
+`raw_payload` is nullable and disposable. Deleting content never cascades into
+summaries, rank history, fetch failures or snapshot summary records.
+
+The hash covers story title/URL/text and comment IDs, parents, authors, text,
+deletion flags and depths, sorted by comment ID. Scores and API comment ordering
+do not affect it. Ingestion still fetches comments to detect changes. A committed
+summary stores `summarized_content_hash` independently of disposable content.
+Failed inference does not advance that hash. A changed payload is retained for
+retry; unchanged article-summary content is not stored again. Once the original
+`date_added` is older than seven days, ingestion stores metadata only, even if
+comments change. Changing a model/prompt alone does not restore purged inputs;
+regeneration requires an explicit refetch/retention override.
+
+The enrichment job calls `cleanup_hn_contents(500)` after each refresh. Each call
+deletes at most 500 current payloads and clears at most 500 snapshot payloads.
+Current content is eligible when its hash matches a saved **article** summary,
+or its story was first stored more than seven days ago. Changed content awaiting
+summarization survives until that age cutoff. Snapshot payloads are eligible when
+an article summary exists, the story is older than seven days, or the snapshot
+itself is older than seven days. Discussion-only summaries do not trigger early
+cleanup. Metadata, IDs and saved summaries are retained indefinitely.
+
+For a backlog, an operator can run `SELECT * FROM cleanup_hn_contents(500);`
+repeatedly, committing between calls, until both returned counts are zero.
+The function uses invoker permissions, bounds batch sizes and skips locked rows;
+it is not executable by PUBLIC, anon or authenticated. A dedicated maintenance
+role needs explicit function execution and the relevant table privileges/RLS
+access. The production jobs currently connect as the database owner.
+
+Deployment: pause ingestion and enrichment; take a backup; apply Alembic 0008;
+deploy the updated collector, enrichment worker and MCP; grant the MCP reader
+SELECT on `hn_thread_contents` with the same RLS access as its existing private
+reads; resume jobs. Existing web queries keep working, and view grants are
+preserved. Worker roles other than the owner also need access to `hn_items`,
+`hn_thread_contents`, and `hn_source_hash(jsonb)`. The migration backfills current
+payloads but does not run cleanup. Existing summary hashes start unknown and are
+populated after a successful refresh, never guessed from the latest comments.
+
+Purged inputs cannot be reconstructed, so downgrade requires restoring a backup.
+Deleting rows frees reusable space through vacuuming; physical file compaction
+is a separate maintenance decision.
+
+Local database regression checks (no production connection):
+
+```sh
+SUPABASE_PASSWORD=offline-only uv run alembic upgrade head --sql > /tmp/hn-schema.sql
+cd ../hacksnap/web
+HACKSNAP_SCHEMA_SQL=/tmp/hn-schema.sql npm run test:db
+```

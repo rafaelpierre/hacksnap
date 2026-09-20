@@ -51,6 +51,9 @@ def process_story(
 ) -> str:
     stage = "preprocess"
     try:
+        if story.get("full_raw_text_contents") is None:
+            log_event(story, stage, "contents_not_retained")
+            return "unchanged" if repository.get_summary(story["hn_id"]) else "unavailable"
         payload = json.loads(story["full_raw_text_contents"])
         comments, coverage = prepare_comments(payload, comment_budget)
         article_url = external_article_url(story.get("url"))
@@ -76,6 +79,7 @@ def process_story(
         fingerprint = source_fingerprint(source, summarizer.model, prompt_version)
         existing = repository.get_summary(story["hn_id"])
         if existing and existing["source_fingerprint"] == fingerprint:
+            repository.mark_summarized_contents(story["hn_id"], fingerprint, story.get("content_hash"))
             log_event(story, stage, "unchanged")
             return "unchanged"
         stage = "infer"
@@ -92,6 +96,7 @@ def process_story(
             summarizer.model,
             prompt_version,
             coverage,
+            story.get("content_hash"),
         )
         log_event(story, stage, "generated")
         return "generated"
@@ -101,7 +106,7 @@ def process_story(
 
 
 def refresh(repository, fetcher, summarizer, comment_budget: int = 48000) -> dict:
-    counts = {"generated": 0, "unchanged": 0, "failed": 0}
+    counts = {"generated": 0, "unchanged": 0, "failed": 0, "unavailable": 0}
     attempted = set()
     # Re-read the shared ranking after failures so replacements are processed now.
     # Bound work even if many articles are inaccessible or ingestion changes the queue.
@@ -145,6 +150,8 @@ def run() -> dict:
             settings.llm_reasoning_effort,
         )
         counts = refresh(repository, fetcher, summarizer, settings.comment_chars)
+        cleanup = repository.cleanup_contents()
+        logger.info(json.dumps({"event": "contents_cleanup", **cleanup}))
     # Finish isolated story work, but surface failures to the scheduler.
     if counts["failed"]:
         raise RuntimeError(

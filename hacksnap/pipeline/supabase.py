@@ -24,7 +24,10 @@ class Repository:
             raise ValueError("Leaderboard limit must be between 1 and 10")
         with self._connect() as connection:
             return connection.execute(
-                "SELECT * FROM hacksnap_current_stories ORDER BY rank LIMIT %s",
+                """SELECT t.hn_id, t.title, t.url, c.full_raw_text_contents, c.content_hash
+                   FROM hacksnap_current_stories t
+                   LEFT JOIN hn_thread_contents c USING (hn_id)
+                   ORDER BY t.rank LIMIT %s""",
                 (limit,),
             ).fetchall()
 
@@ -67,10 +70,12 @@ class Repository:
         model: str,
         prompt_version: str,
         coverage: dict,
+        content_hash: str | None = None,
     ) -> None:
         record = {
             **summary.model_dump(),
             "story_id": story_id,
+            "content_hash": content_hash,
             "article_url": article_url,
             "source_fingerprint": fingerprint,
             "model": model,
@@ -85,12 +90,13 @@ class Repository:
                 INSERT INTO hacksnap_summaries
                     (story_id, article_url, article_summary, article_key_points,
                      discussion_summary, discussion_points, overall_takeaway,
-                     source_fingerprint, model, prompt_version, source_coverage)
+                     source_fingerprint, model, prompt_version, source_coverage, summarized_content_hash)
                 VALUES (%(story_id)s, %(article_url)s, %(article_summary)s,
                         %(article_key_points)s, %(discussion_summary)s, %(discussion_points)s,
                         %(overall_takeaway)s, %(source_fingerprint)s, %(model)s,
-                        %(prompt_version)s, %(source_coverage)s)
+                        %(prompt_version)s, %(source_coverage)s, %(content_hash)s)
                 ON CONFLICT (story_id) DO UPDATE SET
+                    summarized_content_hash = EXCLUDED.summarized_content_hash,
                     article_url = EXCLUDED.article_url,
                     article_summary = EXCLUDED.article_summary,
                     article_key_points = EXCLUDED.article_key_points,
@@ -103,4 +109,16 @@ class Repository:
                     generated_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
             """,
                 record,
+            )
+
+    def cleanup_contents(self, batch_size: int = 500) -> dict:
+        with self._connect() as connection:
+            return connection.execute("SELECT * FROM cleanup_hn_contents(%s)", (batch_size,)).fetchone()
+
+    def mark_summarized_contents(self, story_id: int, fingerprint: str, content_hash: str | None) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """UPDATE hacksnap_summaries SET summarized_content_hash = %s
+                   WHERE story_id = %s AND source_fingerprint = %s""",
+                (content_hash, story_id, fingerprint),
             )
