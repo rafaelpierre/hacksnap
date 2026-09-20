@@ -1,0 +1,40 @@
+name: Purge Cloudflare after production deployment
+
+on:
+  deployment_status:
+
+permissions: {}
+
+jobs:
+  purge:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production' &&
+      github.event.deployment.creator.login == 'vercel[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Purge the Cloudflare zone cache
+        env:
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${CLOUDFLARE_ZONE_ID:?Add the CLOUDFLARE_ZONE_ID repository secret}"
+          : "${CLOUDFLARE_API_TOKEN:?Add the CLOUDFLARE_API_TOKEN repository secret}"
+
+          response=$(curl --fail-with-body --silent --show-error \
+            --connect-timeout 10 --max-time 30 --retry 2 \
+            --request POST \
+            "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
+            --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data '{"purge_everything":true}')
+
+          if ! jq -e '.success == true' <<< "$response" > /dev/null; then
+            echo '::error::Cloudflare rejected the cache purge.'
+            jq '.errors' <<< "$response"
+            exit 1
+          fi
+          echo 'Cloudflare cache purged after successful production deployment.'

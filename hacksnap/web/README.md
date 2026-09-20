@@ -57,6 +57,37 @@ described in the parent README; no production writes are needed.
 
 ## Page caching and Cloudflare
 
+### Automatic purge after production deployments
+
+The GitHub Actions workflow `.github/workflows/cloudflare-purge.yml` purges
+Cloudflare after Vercel reports a successful `Production` deployment. Preview
+and failed deployments are ignored. It uses the existing Vercel GitHub
+integration and does not require a Vercel function or build-hook changes.
+
+Add these **repository secrets** under GitHub → Settings → Secrets and variables
+→ Actions:
+
+- `CLOUDFLARE_ZONE_ID`: the zone ID from the Cloudflare dashboard for `hacksnap.live`.
+- `CLOUDFLARE_API_TOKEN`: a custom token with **Zone → Cache Purge → Purge**
+  permission, restricted to that zone.
+
+Merge the workflow into the default branch to enable it. After the next production
+deployment, check **Purge Cloudflare after production deployment** in GitHub
+Actions. Missing credentials or a rejected purge fail that workflow without
+rolling back the Vercel deployment. This purges the entire configured zone,
+including any other hostnames in it; it does not purge Vercel's own cache.
+
+The filter matches this repository's current Vercel deployment label, `Production`,
+and deployment creator, `vercel[bot]`. If the integration's environment name
+changes, update the filter. Deployments must emit a GitHub deployment status to
+trigger this workflow; CLI-only releases or dashboard promotions without that
+event are not covered. Keep the page bypass rules below in place.
+
+References: [Vercel GitHub integration](https://vercel.com/docs/git/vercel-for-github)
+and [Cloudflare purge API](https://developers.cloudflare.com/api/resources/cache/methods/purge/).
+
+### Page cache configuration
+
 The homepage and `/story/:id` export `revalidate = 1800`. Both pages are generated
 on their first visit through an empty `generateStaticParams`. The homepage uses
 an optional catch-all segment that accepts only `/`; all other unmatched paths
