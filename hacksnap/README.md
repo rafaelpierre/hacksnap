@@ -35,11 +35,17 @@ insert records every eligible rank with a shared timestamp, including ranks belo
 manual refreshes also record observations. These are sampled positions, not every
 intermediate change to the live view. Failed rank writes fail the refresh.
 
-The sparkline shows the latest 168 observations of **our ranking**, with better
-positions higher and lines passing through recorded observations. Historical HN
-ranks cannot backfill our ranking. Until observations accumulate, charts show an
-empty state or a single point. Apply the migration before deploying the worker
-and website; this migration does not fabricate historical data.
+The sparkline shows the latest 168 saved observations of **our ranking**, plus
+the current rank from the same database read as the displayed leaderboard. This
+endpoint is labeled "Current rank" with the page-refresh timestamp; it is not
+written back as historical data. The rank and history share the ten-minute cache.
+Steps hold the last observed position until the next sample; the exact time of
+changes between samples is unknown. Better positions appear higher, on a shared
+scale from #1 to at least #10 (extended for lower historical ranks). Hovering or
+using arrow keys highlights the selected observation. A story without saved
+history shows only its current-rank point. Historical HN ranks cannot backfill
+our ranking. Apply the migration before deploying the worker and website; this
+migration does not fabricate historical data.
 
 An empty or failed new ingestion run does not clear previous stories. If there
 are fewer than ten eligible stories in the entire database, show all available

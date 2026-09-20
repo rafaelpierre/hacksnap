@@ -9,6 +9,7 @@ export default async function Home() {
   // requiring a database connection during the production build.
   await connection();
   const {stories, ingestion} = await getLeaderboard();
+  const maxRank = Math.max(10, ...stories.flatMap(story => story.rank_history.map(point => point.rank)));
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
   return <>
     <header className="feed-header">
@@ -31,7 +32,7 @@ export default async function Home() {
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
             <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a>{!story.summary && <span>Summary pending</span>}</div>
           </div>
-          <RankSparkline history={story.rank_history} title={story.title} />
+          <RankSparkline history={story.rank_history} title={story.title} maxRank={maxRank} />
         </article>
       </li>)}</ol>}
       <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Summaries updated hourly</p>

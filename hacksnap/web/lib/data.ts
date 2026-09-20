@@ -3,7 +3,7 @@ import path from "node:path";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { Pool, type PoolClient } from "pg";
-import { rankHistorySQL, type RankObservation } from "./rank-history";
+import { rankHistorySQL, withCurrentRank, type RankObservation } from "./rank-history";
 
 export type Summary = {
   article_summary: string | null;
@@ -98,7 +98,7 @@ type CachedLeaderboard = {
 
 const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> => {
   return read(async client => {
-    const result = await client.query<{stories: CachedLeaderboard["stories"]; ingestion: Date | null}>(`
+    const result = await client.query<{stories: CachedLeaderboard["stories"]; ingestion: Date | null; ranked_at: Date}>(`
       SELECT COALESCE((
         SELECT json_agg(story ORDER BY story.rank) FROM (
           SELECT ${fields}, t.rank, t.is_recent, ${rankHistorySQL} AS rank_history
@@ -108,11 +108,16 @@ const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> =>
         SELECT finished_at FROM hn_ingestion_runs
         WHERE status = 'succeeded' AND filters @> '{"classify_topic": true}'::jsonb
         ORDER BY started_at DESC, run_id DESC LIMIT 1
-      ) AS ingestion`);
-    const {stories, ingestion} = result.rows[0];
-    return {stories, ingestion: ingestion?.toISOString() ?? null};
+      ) AS ingestion, CURRENT_TIMESTAMP AS ranked_at`);
+    const {stories, ingestion, ranked_at} = result.rows[0];
+    return {
+      stories: stories.map(story => ({...story,
+        rank_history: withCurrentRank(story.rank_history, Number(story.rank), ranked_at.toISOString()),
+      })),
+      ingestion: ingestion?.toISOString() ?? null,
+    };
   });
-}, ["hacksnap-leaderboard-v4"], {revalidate: 600});
+}, ["hacksnap-leaderboard-v5"], {revalidate: 600});
 
 export async function getLeaderboard(): Promise<{stories: (Story & {rank_history: RankObservation[]})[]; ingestion: Date | null}> {
   const {stories, ingestion} = await cachedLeaderboard();
