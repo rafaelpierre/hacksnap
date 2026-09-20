@@ -27,7 +27,7 @@ h1, h2, h3, p { margin-top: 0; }
 .story-list { list-style: none; margin: 0; padding: 0; }
 .story-row { display: flex; gap: 22px; padding: 24px 0; border-bottom: 1px solid var(--line); transition: background 120ms; }
 .story-row:hover { background: #151819; }
-.rank { display: inline-flex; align-items: center; justify-content: center; align-self: center; font: 600 26px/1 var(--mono); color: var(--muted); width: 36px; height: 36px; flex-shrink: 0; text-align: center; border-radius: 10px; }
+.rank { display: inline-flex; align-items: center; justify-content: center; align-self: center; font: 600 26px/1 var(--mono); color: var(--muted); width: 46px; height: 46px; padding: 6px; flex-shrink: 0; text-align: center; border-radius: 50%; }
 .rank[data-rank="1"] { background: #e2c56e; color: #665014; }
 .rank[data-rank="2"] { background: #bfc4c8; color: #41474b; }
 .rank[data-rank="3"] { background: #63412e; color: #edc1a0; }
@@ -95,7 +95,7 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
   .header-link { font-size: 10px; } .wordmark { font-size: 17px; }
   .feed-header { padding-top: 32px; padding-bottom: 25px; } .feed-header h1 { font-size: 27px; }
   .feed-bar { align-items: flex-start; flex-direction: column; gap: 10px; }
-  .story-row { gap: 12px; padding: 21px 0; } .rank { font-size: 20px; width: 32px; height: 32px; border-radius: 9px; }
+  .story-row { gap: 12px; padding: 21px 0; } .rank { font-size: 20px; width: 38px; height: 38px; }
   .activity-history { flex-basis: 80px; width: 80px; font-size: 9px; }
   .sentiment { font-size: 9px; }
   .story-row h3 { font-size: 17px; } .read-link { display: none; }
