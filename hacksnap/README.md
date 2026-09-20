@@ -279,11 +279,26 @@ Check that `checks.discovery.apiCatalog.status` is `"pass"`.
 
 ## Cache and failures
 
-The fingerprint includes the normalized extracted article, title, URL, HN post
-text, the selected comments with IDs/parents/authors, model, and prompt version.
-Points and comment-count changes alone do not trigger inference. The article is
-fetched each refresh to detect content changes, but unchanged model inputs skip
-inference. Bump `PROMPT_VERSION` when editing the prompt or preprocessing behavior.
+Existing summaries are retained without fetching the article or regenerating the
+summary. For current top-10 stories, sentiment is estimated separately when a
+score is missing or the prepared comment sample has changed. Sentiment uses a
+stable pseudorandom sample of at most 10 usable comments from the prepared
+discussion; fewer comments use all available ones. The sample is selected by a
+stable hash of comment IDs, so unchanged input never resamples randomly. Summary
+generation still uses the full prepared discussion, but its sentiment field is
+restricted to the separately supplied ten-comment sample. A fingerprint of
+only the selected, normalized comments is stored in
+`source_coverage.sentiment.comments_fingerprint`; unchanged scored comments skip
+inference, including a Neutral score of 0. A processed empty sample stores null
+and its fingerprint, so it also skips repeated inference. Missing retained source
+content is reported as unavailable and leaves saved data untouched.
+
+Legacy scored rows without a comment fingerprint reuse their score if the saved
+summary content hash matches the retained content; otherwise the first refresh
+establishes a separate comment fingerprint. New stories still receive a full,
+validated summary and sentiment together. Sentiment-only updates preserve summary
+text, generation time, source fingerprint, and summarized content hash, and keep
+sentiment sampling metadata separate from the original summary's coverage.
 
 Comment processing removes dead/deleted/empty entries, preserves ancestry, and
 prefers active branches within a deterministic character budget. The input caps
@@ -391,11 +406,10 @@ deployment or public web deployment is performed by local tests.
 ### Disposable source content
 
 After migration 0008, the worker reads raw inputs from `hn_thread_contents`.
-Saved summaries retain `summarized_content_hash`, and successful unchanged
-refreshes backfill it without another inference request. Absent content with an
-existing summary is counted as unchanged; absent content without a summary is
-counted as unavailable, rather than fabricated as an empty discussion. Each
-scheduled refresh runs one bounded retention batch, including snapshot payloads.
+Saved summaries retain `summarized_content_hash` for the content actually used
+to generate them. Sentiment-only refreshes do not advance that hash. Absent
+content is counted as unavailable, rather than fabricated as an empty discussion.
+Each scheduled refresh runs one bounded retention batch, including snapshot payloads.
 See [retention and deployment](../data/README.md#source-content-retention-migration-0008)
 for the seven-day cutoff, grants and coordinated deployment steps.
 
@@ -410,7 +424,7 @@ sample estimate, not a community vote.
 
 Apply Alembic migration `0009_sentiment` before deploying the web app and summary
 worker. It adds a nullable, constrained small integer to `hacksnap_summaries`;
-existing summaries remain unscored and display “Pending.” Prompt version
-`v2-sentiment` invalidates previous inference fingerprints so eligible stories
-with retained source content receive sentiment on their next successful refresh.
+existing summaries remain unscored and display “Pending.” Existing summaries with
+retained comments receive missing sentiment through a separate inference request
+on their next successful top-10 refresh.
 Older stories without retained comments remain unscored until ingested again.

@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from pipeline.kestrel import FetchError, KestrelFetcher, external_article_url
-from pipeline.models import StorySummary
+from pipeline.models import CommentSentiment, StorySummary
 from pipeline.preprocess import prepare_comments, source_fingerprint
 from pipeline.refresh import process_story, refresh
 from pipeline.summarise import ModalSummarizer
@@ -95,11 +95,17 @@ class FakeRepository:
     def get_summary(self, story_id):
         return self.saved.get(story_id)
 
+    def save_sentiment(self, story_id, sentiment, metadata):
+        self.saved[story_id]["sentiment"] = sentiment
+        self.saved[story_id]["source_coverage"]["sentiment"] = metadata
+
     def save_summary(self, story_id, article_url, summary, fingerprint, model, version, coverage, content_hash=None):
         self.saved[story_id] = {
             "source_fingerprint": fingerprint,
             "summarized_content_hash": content_hash,
             "summary": summary,
+            "sentiment": summary.sentiment,
+            "source_coverage": copy.deepcopy(coverage),
             "coverage": coverage,
         }
 
@@ -109,6 +115,11 @@ class FakeSummarizer:
 
     def __init__(self):
         self.calls = 0
+        self.sentiment_calls = 0
+
+    def estimate_sentiment(self, comments):
+        self.sentiment_calls += 1
+        return CommentSentiment(sentiment=-1)
 
     def summarize(self, source):
         self.calls += 1
@@ -154,48 +165,43 @@ def test_fingerprint_changes_for_every_material_input(change):
     assert source_fingerprint(modified, model, prompt) != before
 
 
-def test_unchanged_sources_skip_inference_but_article_is_refetched():
+def test_unchanged_sources_skip_summary_and_sentiment_and_fetch():
     repo, model = FakeRepository(), FakeSummarizer()
     fetches = []
     fetcher = SimpleNamespace(fetch=lambda url: fetches.append(url) or "article")
     assert process_story(story(), repo, fetcher, model) == "generated"
     assert process_story(story(), repo, fetcher, model) == "unchanged"
     assert model.calls == 1
-    assert len(fetches) == 2
+    assert len(fetches) == 1
+    assert model.sentiment_calls == 0
 
 
-def test_malformed_output_preserves_existing_summary_and_other_stories_continue():
+def test_failed_sentiment_preserves_existing_summary_and_other_stories_continue():
     repo, model = FakeRepository([story(), story(101)]), FakeSummarizer()
     fetcher = SimpleNamespace(fetch=lambda url: "article")
-    assert process_story(story(), repo, fetcher, model) == "generated"
+    process_story(story(), repo, fetcher, model)
+    repo.saved[100]["sentiment"] = None
     previous = copy.deepcopy(repo.saved[100])
 
-    class BrokenOnce(FakeSummarizer):
-        model = "changed-model"  # force regeneration
+    class BrokenSentiment(FakeSummarizer):
+        def estimate_sentiment(self, comments):
+            return {"sentiment": 2}
 
-        def summarize(self, source):
-            self.calls += 1
-            if self.calls == 1:
-                return {"not": "a summary"}
-            return StorySummary.model_validate(output())
-
-    counts = refresh(repo, fetcher, BrokenOnce())
-    assert counts == {"failed": 1, "generated": 1, "unchanged": 0, "unavailable": 0}
+    counts = refresh(repo, fetcher, BrokenSentiment())
+    assert counts["failed"] == 1 and counts["generated"] == 1
     assert repo.saved[100] == previous
     assert 101 in repo.saved
 
 
-def test_fetch_failure_does_not_replace_valid_summary():
+def test_existing_summary_does_not_refetch_article():
     repo, model = FakeRepository(), FakeSummarizer()
     process_story(story(), repo, SimpleNamespace(fetch=lambda url: "article"), model)
-    before = copy.deepcopy(repo.saved)
-
-    def fail(url):
-        raise FetchError("Kestrel timed out")
-
-    assert process_story(story(), repo, SimpleNamespace(fetch=fail), model) == "failed"
-    assert repo.saved == before
-    assert model.calls == 1
+    repo.saved[100]["sentiment"] = None
+    before = copy.deepcopy(repo.saved[100]["summary"])
+    fetcher = SimpleNamespace(fetch=lambda _: pytest.fail("must not refetch"))
+    assert process_story(story(), repo, fetcher, model) == "sentiment_updated"
+    assert repo.saved[100]["summary"] == before
+    assert model.calls == 1 and model.sentiment_calls == 1
 
 
 def test_new_story_with_failed_article_is_excluded_without_inference():
@@ -330,10 +336,10 @@ def test_modal_session_affinity_is_shared_within_batch_and_rotates_between_batch
             repo = FakeRepository([story(100), story(101)])
             model = ModalSummarizer(client, "https://test.modal.run/v1", "test-model", "fake-key")
             counts = refresh(repo, SimpleNamespace(fetch=lambda url: "article"), model)
-            assert counts == {"generated": 2, "unchanged": 0, "failed": 0, "unavailable": 0}
+            assert counts == {"generated": 2, "unchanged": 0, "failed": 0, "unavailable": 0, "sentiment_updated": 0}
             # A cached repeat skips inference regardless of the routing header.
             assert refresh(repo, SimpleNamespace(fetch=lambda url: "article"), model) == {
-                "generated": 0, "unchanged": 2, "failed": 0, "unavailable": 0}
+                "generated": 0, "unchanged": 2, "failed": 0, "unavailable": 0, "sentiment_updated": 0}
 
     assert len(sessions) == 4
     assert sessions[0] == sessions[1]
@@ -354,10 +360,10 @@ def test_failed_article_is_replaced_in_same_refresh_and_not_retried():
         return "article"
 
     fetcher, model = SimpleNamespace(fetch=fetch), FakeSummarizer()
-    assert refresh(repo, fetcher, model) == {"generated": 10, "unchanged": 0, "failed": 2, "unavailable": 0}
+    assert refresh(repo, fetcher, model) == {"generated": 10, "unchanged": 0, "failed": 2, "unavailable": 0, "sentiment_updated": 0}
     assert set(repo.saved) == set(range(1, 10)) | {11}
     calls.clear()
-    assert refresh(repo, fetcher, model) == {"generated": 0, "unchanged": 10, "failed": 0, "unavailable": 0}
+    assert refresh(repo, fetcher, model) == {"generated": 0, "unchanged": 10, "failed": 0, "unavailable": 0, "sentiment_updated": 0}
     assert not any(url.endswith(("/0", "/10")) for url in calls)
     repo.stories[0]["url"] = "https://example.com/corrected"
     assert refresh(repo, fetcher, model)["generated"] == 1
@@ -370,7 +376,7 @@ def test_all_fetches_fail_without_looping_forever():
         raise FetchError("Kestrel timed out")
 
     counts = refresh(repo, SimpleNamespace(fetch=fail), FakeSummarizer())
-    assert counts == {"generated": 0, "unchanged": 0, "failed": 50, "unavailable": 0}
+    assert counts == {"generated": 0, "unchanged": 0, "failed": 50, "unavailable": 0, "sentiment_updated": 0}
     assert len(repo.failures) == 50
 
 
@@ -413,7 +419,7 @@ def test_run_surfaces_inference_failure_even_with_cache_hits(monkeypatch, fail_i
         assert 100 in repo.saved
         assert 101 not in repo.saved
     else:
-        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0, "unavailable": 0}
+        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0, "unavailable": 0, "sentiment_updated": 0}
 
 
 def test_refresh_records_all_ranks_after_fetch_failures_even_when_unchanged():
@@ -455,38 +461,27 @@ def test_missing_contents_skips_inference_and_reports_unavailable():
     fetcher = SimpleNamespace(fetch=lambda _: pytest.fail("must not fetch without comments"))
     assert process_story(item, repo, fetcher, model) == "unavailable"
     repo.saved[100] = {"source_fingerprint": "old"}
-    assert process_story(item, repo, fetcher, model) == "unchanged"
+    assert process_story(item, repo, fetcher, model) == "unavailable"
     assert model.calls == 0
 
 
-def test_successful_hash_is_not_advanced_by_failed_summary():
+def test_changed_comments_refresh_sentiment_without_advancing_summary_hash():
     item = story()
     item["content_hash"] = "a" * 64
-    repo = FakeRepository([item])
+    repo, model = FakeRepository([item]), FakeSummarizer()
     fetcher = SimpleNamespace(fetch=lambda _: "article")
-    assert process_story(item, repo, fetcher, FakeSummarizer()) == "generated"
-    assert repo.saved[100]["summarized_content_hash"] == "a" * 64
+    assert process_story(item, repo, fetcher, model) == "generated"
+    previous = copy.deepcopy(repo.saved[100])
     changed = payload()
     changed["comments"][0]["item"]["text"] = "Changed argument"
     item["full_raw_text_contents"] = json.dumps(changed)
     item["content_hash"] = "b" * 64
-    def fail(_):
-        raise RuntimeError("inference unavailable")
-    assert process_story(item, repo, fetcher, SimpleNamespace(model="test-model", summarize=fail)) == "failed"
+    assert process_story(item, repo, fetcher, model) == "sentiment_updated"
     assert repo.saved[100]["summarized_content_hash"] == "a" * 64
-    assert process_story(item, repo, fetcher, FakeSummarizer()) == "generated"
-    assert repo.saved[100]["summarized_content_hash"] == "b" * 64
-
-
-def test_unchanged_summary_backfills_successful_hash():
-    item = story()
-    repo, model = FakeRepository([item]), FakeSummarizer()
-    fetcher = SimpleNamespace(fetch=lambda _: "article")
-    assert process_story(item, repo, fetcher, model) == "generated"
-    item["content_hash"] = "a" * 64
+    assert repo.saved[100]["summary"] == previous["summary"]
+    assert repo.saved[100]["sentiment"] == -1
     assert process_story(item, repo, fetcher, model) == "unchanged"
-    assert repo.saved[100]["summarized_content_hash"] == "a" * 64
-    assert model.calls == 1
+    assert model.calls == 1 and model.sentiment_calls == 1
 
 
 @pytest.mark.parametrize("sentiment", [-1, 0, 1])
@@ -514,15 +509,133 @@ def test_sentiment_requires_comments_and_cannot_be_omitted():
         result.validate_sources("article", [])
 
 
-def test_sentiment_prompt_refreshes_legacy_cache():
-    from pipeline.prompts import PROMPT_VERSION
-
+def test_existing_summary_survives_prompt_and_model_changes():
     item = story()
     repo, model = FakeRepository([item]), FakeSummarizer()
     fetcher = SimpleNamespace(fetch=lambda _: "article")
     assert process_story(item, repo, fetcher, model, prompt_version="v1") == "generated"
-    assert PROMPT_VERSION != "v1"
-    assert process_story(item, repo, fetcher, model) == "generated"
-    assert repo.saved[100]["summary"].sentiment == 0
+    model.model = "another-model"
+    item["title"] = "Changed title"
     assert process_story(item, repo, fetcher, model) == "unchanged"
-    assert model.calls == 2
+    assert model.calls == 1 and model.sentiment_calls == 0
+
+
+def test_missing_sentiment_is_backfilled_even_with_matching_comment_fingerprint():
+    repo, model = FakeRepository(), FakeSummarizer()
+    process_story(story(), repo, SimpleNamespace(fetch=lambda _: "article"), model)
+    repo.saved[100]["sentiment"] = None
+    assert process_story(story(), repo, None, model) == "sentiment_updated"
+    assert process_story(story(), repo, None, model) == "unchanged"
+    assert model.sentiment_calls == 1
+
+
+def test_scored_legacy_row_adopts_comment_cache_without_inference():
+    item = {**story(), "content_hash": "retained-hash"}
+    repo, model = FakeRepository(), FakeSummarizer()
+    process_story(item, repo, SimpleNamespace(fetch=lambda _: "article"), model)
+    del repo.saved[100]["source_coverage"]["sentiment"]
+    assert process_story(item, repo, None, model) == "unchanged"
+    assert process_story(item, repo, None, model) == "unchanged"
+    assert model.sentiment_calls == 0
+    assert repo.saved[100]["sentiment"] == 0
+
+
+def test_empty_comments_clear_score_without_inference_and_are_cached():
+    repo, model = FakeRepository(), FakeSummarizer()
+    process_story(story(), repo, SimpleNamespace(fetch=lambda _: "article"), model)
+    item = {**story(), "full_raw_text_contents": json.dumps({"comments": []})}
+    assert process_story(item, repo, None, model) == "sentiment_updated"
+    assert repo.saved[100]["sentiment"] is None
+    assert process_story(item, repo, None, model) == "unchanged"
+    assert model.sentiment_calls == 0
+
+
+def test_sentiment_backfill_only_processes_top_ten():
+    repo, model = FakeRepository([story(i) for i in range(11)]), FakeSummarizer()
+    for item in repo.stories:
+        process_story(item, repo, SimpleNamespace(fetch=lambda _: "article"), model)
+        repo.saved[item["hn_id"]]["sentiment"] = None
+    assert refresh(repo, None, model)["sentiment_updated"] == 10
+    assert model.sentiment_calls == 10
+    assert repo.saved[10]["sentiment"] is None
+
+
+@pytest.mark.parametrize("score", [-1, 0, 1, None, 2, True, "1"])
+def test_sentiment_endpoint_receives_only_comments_and_validates_score(score):
+    comments = prepare_comments(payload())[0]
+    def handler(request):
+        body = json.loads(request.content)
+        assert json.loads(body["messages"][1]["content"]) == {"comments": comments}
+        assert body["response_format"]["json_schema"]["name"] == "hacksnap_sentiment"
+        return httpx.Response(200, json={"choices": [{
+            "finish_reason": "stop", "message": {"content": json.dumps({"sentiment": score})}
+        }]})
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        model = ModalSummarizer(client, "https://test.modal.run/v1", "test-model", "fake-key")
+        if type(score) is int and -1 <= score <= 1:
+            assert model.estimate_sentiment(comments).sentiment == score
+        else:
+            with pytest.raises(ValueError):
+                model.estimate_sentiment(comments)
+
+
+def many_comments_payload():
+    return {"comments": [
+        {"depth": 1, "item": {"id": i, "parent": 100, "by": f"user{i}", "text": f"Opinion {i}"}}
+        for i in range(1, 31)
+    ]}
+
+
+def test_sentiment_sample_is_capped_stable_and_handles_small_discussions():
+    from pipeline.preprocess import sample_sentiment_comments
+    comments = prepare_comments(many_comments_payload())[0]
+    sample = sample_sentiment_comments(comments)
+    assert len(sample) == 10
+    assert sample == sample_sentiment_comments(list(reversed(comments)))
+    assert sample_sentiment_comments([]) == []
+    assert sample_sentiment_comments(comments[:4]) == comments[:4]
+
+
+def test_sentiment_cache_tracks_only_the_ten_comment_sample():
+    from pipeline.preprocess import sample_sentiment_comments
+    data = many_comments_payload()
+    item = {**story(), "full_raw_text_contents": json.dumps(data)}
+    repo, model = FakeRepository(), FakeSummarizer()
+    assert process_story(item, repo, SimpleNamespace(fetch=lambda _: "article"), model) == "generated"
+    metadata = repo.saved[100]["source_coverage"]["sentiment"]
+    assert metadata["included_comments"] == 10
+    assert metadata["comments_truncated"] is True
+    sampled_ids = {c["id"] for c in sample_sentiment_comments(prepare_comments(data)[0])}
+    outside = next(c for c in data["comments"] if c["item"]["id"] not in sampled_ids)
+    outside["item"]["text"] = "Changed outside the sample"
+    item["full_raw_text_contents"] = json.dumps(data)
+    assert process_story(item, repo, None, model) == "unchanged"
+    inside = next(c for c in data["comments"] if c["item"]["id"] in sampled_ids)
+    inside["item"]["text"] = "Changed inside the sample"
+    item["full_raw_text_contents"] = json.dumps(data)
+    assert process_story(item, repo, None, model) == "sentiment_updated"
+    assert model.calls == 1 and model.sentiment_calls == 1
+
+
+def test_both_endpoint_paths_use_ten_sentiment_comments_and_preserve_summary_input():
+    comments = prepare_comments(many_comments_payload())[0]
+    requests = []
+    def handler(request):
+        body = json.loads(request.content)
+        source = json.loads(body["messages"][1]["content"])
+        requests.append(source)
+        if body["response_format"]["json_schema"]["name"] == "hacksnap_summary":
+            assert len(source["comments"]) == 30
+            assert len(source["sentiment_comments"]) == 10
+            result = output()
+        else:
+            assert len(source["comments"]) == 10
+            result = {"sentiment": 0}
+        return httpx.Response(200, json={"choices": [{
+            "finish_reason": "stop", "message": {"content": json.dumps(result)}
+        }]})
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        model = ModalSummarizer(client, "https://test.modal.run/v1", "test-model", "fake-key")
+        model.summarize({"article": "article", "comments": comments})
+        model.estimate_sentiment(comments)
+    assert requests[0]["sentiment_comments"] == requests[1]["comments"]

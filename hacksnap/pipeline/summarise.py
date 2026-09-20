@@ -6,14 +6,17 @@ from uuid import uuid4
 
 import httpx
 
-from .models import StorySummary
-from .prompts import SYSTEM_PROMPT
+from .models import CommentSentiment, StorySummary
+from .preprocess import sample_sentiment_comments
+from .prompts import SENTIMENT_PROMPT, SYSTEM_PROMPT
 
 
 class Summarizer(Protocol):
     model: str
 
     def summarize(self, source: dict) -> StorySummary: ...
+
+    def estimate_sentiment(self, comments: list[dict]) -> CommentSentiment: ...
 
 
 class ModalSummarizer:
@@ -31,6 +34,22 @@ class ModalSummarizer:
         self.session_id = str(uuid4())
 
     def summarize(self, source: dict) -> StorySummary:
+        source = {**source, "sentiment_comments": sample_sentiment_comments(source["comments"])}
+        result = self._infer(source, SYSTEM_PROMPT, StorySummary, "hacksnap_summary")
+        result.validate_sources(source["article"], source["comments"])
+        return result
+
+    def estimate_sentiment(self, comments: list[dict]) -> CommentSentiment:
+        comments = sample_sentiment_comments(comments)
+        if not comments:
+            return CommentSentiment(sentiment=None)
+        result = self._infer(
+            {"comments": comments}, SENTIMENT_PROMPT, CommentSentiment, "hacksnap_sentiment"
+        )
+        result.validate_comments(comments)
+        return result
+
+    def _infer(self, source: dict, prompt: str, schema, name: str):
         response = self.client.post(
             f"{self.base_url}/chat/completions",
             headers={
@@ -43,15 +62,15 @@ class ModalSummarizer:
                 "reasoning_effort": self.reasoning_effort,
                 "max_tokens": 8000,
                 "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": prompt},
                     {"role": "user", "content": json.dumps(source, ensure_ascii=False)},
                 ],
                 "response_format": {
                     "type": "json_schema",
                     "json_schema": {
-                        "name": "hacksnap_summary",
+                        "name": name,
                         "strict": True,
-                        "schema": StorySummary.model_json_schema(),
+                        "schema": schema.model_json_schema(),
                     },
                 },
             },
@@ -60,6 +79,4 @@ class ModalSummarizer:
         choice = response.json()["choices"][0]
         if choice.get("finish_reason") != "stop":
             raise ValueError("Model response did not complete normally")
-        result = StorySummary.model_validate_json(choice["message"]["content"])
-        result.validate_sources(source["article"], source["comments"])
-        return result
+        return schema.model_validate_json(choice["message"]["content"])

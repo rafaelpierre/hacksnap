@@ -96,6 +96,15 @@ def prepare_comments(payload: dict, budget: int = 48000) -> tuple[list[dict], di
     }
 
 
+def sample_sentiment_comments(comments: list[dict]) -> list[dict]:
+    """Stable pseudorandom sample, independent of input order or Python hash seeds."""
+    selected = sorted(
+        comments,
+        key=lambda comment: hashlib.sha256(str(comment["id"]).encode()).digest(),
+    )[:10]
+    return sorted(selected, key=lambda comment: (comment["depth"], comment["id"]))
+
+
 def source_fingerprint(source: dict, model: str, prompt_version: str) -> str:
     encoded = json.dumps(
         {"source": source, "model": model, "prompt_version": prompt_version},

@@ -16,6 +16,16 @@ class DiscussionPoint(StrictModel):
     comment_ids: list[CommentID] = Field(min_length=1, max_length=12)
 
 
+class CommentSentiment(StrictModel):
+    sentiment: Annotated[int, Field(strict=True, ge=-1, le=1)] | None
+
+    def validate_comments(self, comments: list[dict]) -> None:
+        if not comments and self.sentiment is not None:
+            raise ValueError("Sentiment requires supplied comments")
+        if comments and self.sentiment is None:
+            raise ValueError("Summary omits discussion sentiment")
+
+
 class StorySummary(StrictModel):
     article_summary: Text | None
     article_key_points: list[Text] = Field(max_length=6)

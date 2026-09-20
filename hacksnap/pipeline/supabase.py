@@ -57,9 +57,21 @@ class Repository:
     def get_summary(self, story_id: int) -> dict | None:
         with self._connect() as connection:
             return connection.execute(
-                "SELECT source_fingerprint FROM hacksnap_summaries WHERE story_id = %s",
+                """SELECT source_fingerprint, sentiment, source_coverage, summarized_content_hash
+                   FROM hacksnap_summaries WHERE story_id = %s""",
                 (story_id,),
             ).fetchone()
+
+    def save_sentiment(self, story_id: int, sentiment: int | None, metadata: dict) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """UPDATE hacksnap_summaries
+                   SET sentiment = %s,
+                       source_coverage = source_coverage || %s,
+                       updated_at = CURRENT_TIMESTAMP
+                   WHERE story_id = %s""",
+                (sentiment, Jsonb({"sentiment": metadata}), story_id),
+            )
 
     def save_summary(
         self,

@@ -9,8 +9,8 @@ import httpx
 
 from .config import Settings
 from .kestrel import FetchError, KestrelFetcher, external_article_url
-from .models import StorySummary
-from .preprocess import plain_text, prepare_comments, source_fingerprint
+from .models import CommentSentiment, StorySummary
+from .preprocess import plain_text, prepare_comments, sample_sentiment_comments, source_fingerprint
 from .prompts import PROMPT_VERSION
 from .summarise import ModalSummarizer, Summarizer
 from .supabase import Repository
@@ -53,9 +53,43 @@ def process_story(
     try:
         if story.get("full_raw_text_contents") is None:
             log_event(story, stage, "contents_not_retained")
-            return "unchanged" if repository.get_summary(story["hn_id"]) else "unavailable"
+            return "unavailable"
         payload = json.loads(story["full_raw_text_contents"])
         comments, coverage = prepare_comments(payload, comment_budget)
+        sentiment_comments = sample_sentiment_comments(comments)
+        comments_fingerprint = source_fingerprint({"comments": sentiment_comments}, "", "")
+        sentiment_metadata = {
+            **coverage,
+            "included_comments": len(sentiment_comments),
+            "comments_truncated": len(sentiment_comments) < coverage["stored_comments"],
+            "comments_fingerprint": comments_fingerprint,
+        }
+        existing = repository.get_summary(story["hn_id"])
+        if existing:
+            stage = "sentiment_cache"
+            previous = (existing.get("source_coverage") or {}).get("sentiment", {})
+            same_comments = previous.get("comments_fingerprint") == comments_fingerprint
+            # Adopt the cache for already-scored legacy rows when their full inputs match.
+            legacy_unchanged = (
+                not previous and len(comments) <= 10 and story.get("content_hash") is not None
+                and existing.get("summarized_content_hash") == story["content_hash"]
+                and existing.get("sentiment") is not None
+            )
+            if legacy_unchanged:
+                repository.save_sentiment(story["hn_id"], existing["sentiment"], sentiment_metadata)
+                return "unchanged"
+            if same_comments and (existing.get("sentiment") is not None or not comments):
+                log_event(story, stage, "unchanged")
+                return "unchanged"
+            stage = "sentiment_infer"
+            result = (summarizer.estimate_sentiment(sentiment_comments) if sentiment_comments
+                      else CommentSentiment(sentiment=None))
+            result = CommentSentiment.model_validate(result)
+            result.validate_comments(sentiment_comments)
+            stage = "sentiment_persist"
+            repository.save_sentiment(story["hn_id"], result.sentiment, sentiment_metadata)
+            log_event(story, stage, "sentiment_updated")
+            return "sentiment_updated"
         article_url = external_article_url(story.get("url"))
         article = None
         stage = "fetch"
@@ -74,20 +108,17 @@ def process_story(
             "article": article,
             "story_text": plain_text(payload.get("story", {}).get("text") or "")[:8000],
             "comments": comments,
+            "sentiment_comments": sentiment_comments,
         }
         stage = "cache"
         fingerprint = source_fingerprint(source, summarizer.model, prompt_version)
-        existing = repository.get_summary(story["hn_id"])
-        if existing and existing["source_fingerprint"] == fingerprint:
-            repository.mark_summarized_contents(story["hn_id"], fingerprint, story.get("content_hash"))
-            log_event(story, stage, "unchanged")
-            return "unchanged"
         stage = "infer"
         summary = summarizer.summarize(source)
         stage = "validate"
         summary = StorySummary.model_validate(summary)
         summary.validate_sources(article, comments)
         stage = "persist"
+        coverage["sentiment"] = sentiment_metadata
         repository.save_summary(
             story["hn_id"],
             article_url,
@@ -106,7 +137,7 @@ def process_story(
 
 
 def refresh(repository, fetcher, summarizer, comment_budget: int = 48000) -> dict:
-    counts = {"generated": 0, "unchanged": 0, "failed": 0, "unavailable": 0}
+    counts = {"generated": 0, "unchanged": 0, "failed": 0, "unavailable": 0, "sentiment_updated": 0}
     attempted = set()
     # Re-read the shared ranking after failures so replacements are processed now.
     # Bound work even if many articles are inaccessible or ingestion changes the queue.
