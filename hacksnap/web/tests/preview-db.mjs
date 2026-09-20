@@ -23,9 +23,10 @@ const titles = [
 ];
 for (let i = 0; i < titles.length; i++) {
   const id = 90000001 + i;
-  await db.query(`INSERT INTO hacker_news_threads(hn_id,title,url,full_raw_text_contents,
+  await db.query("INSERT INTO hn_items VALUES ($1)", [id]);
+  await db.query(`INSERT INTO hacker_news_threads(hn_id,title,url,
     date_published,date_added,points,comment_count,last_seen_run_id)
-    VALUES ($1,$2,$3,'{}',now(),now() - $4 * interval '1 hour',$5,$6,$7)`,
+    VALUES ($1,$2,$3,now(),now() - $4 * interval '1 hour',$5,$6,$7)`,
     [id,titles[i],i===9 ? `https://news.ycombinator.com/item?id=${id}` : "https://example.com", i<7 ? 1 : 30,487-i*37,162-i*12,run]);
   // Include rising, falling, flat, single-observation and absent history states.
   const observations = i === 9 ? 0 : i === 8 ? 1 : 12;

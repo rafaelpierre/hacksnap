@@ -365,3 +365,14 @@ deployment gates. No frontend deployment is configured in these workflows.
 
 No production schema migration, persistent proxy token creation, scheduled
 deployment or public web deployment is performed by local tests.
+
+### Disposable source content
+
+After migration 0008, the worker reads raw inputs from `hn_thread_contents`.
+Saved summaries retain `summarized_content_hash`, and successful unchanged
+refreshes backfill it without another inference request. Absent content with an
+existing summary is counted as unchanged; absent content without a summary is
+counted as unavailable, rather than fabricated as an empty discussion. Each
+scheduled refresh runs one bounded retention batch, including snapshot payloads.
+See [retention and deployment](../data/README.md#source-content-retention-migration-0008)
+for the seven-day cutoff, grants and coordinated deployment steps.

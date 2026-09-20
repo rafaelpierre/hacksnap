@@ -13,17 +13,19 @@ from psycopg.types.json import Jsonb
 
 
 UPSERT_THREAD = """
+WITH identity AS (
+    INSERT INTO hn_items(hn_id) VALUES (%(hn_id)s) ON CONFLICT DO NOTHING
+)
 INSERT INTO hacker_news_threads
-    (hn_id, title, url, full_raw_text_contents, date_published, date_added, author,
+    (hn_id, title, url, date_published, date_added, author,
      points, comment_count, last_seen_run_id)
 VALUES
-    (%(hn_id)s, %(title)s, %(url)s, %(full_raw_text_contents)s,
+    (%(hn_id)s, %(title)s, %(url)s,
      %(date_published)s, %(date_added)s, %(author)s, %(points)s, %(comment_count)s,
      %(last_seen_run_id)s)
 ON CONFLICT (hn_id) DO UPDATE SET
     title = EXCLUDED.title,
     url = EXCLUDED.url,
-    full_raw_text_contents = EXCLUDED.full_raw_text_contents,
     date_published = EXCLUDED.date_published,
     author = EXCLUDED.author,
     points = EXCLUDED.points,
@@ -47,13 +49,40 @@ SET finished_at = CURRENT_TIMESTAMP,
 WHERE run_id = %s
 """
 
+UPSERT_CONTENTS = """
+INSERT INTO hn_thread_contents(hn_id, full_raw_text_contents, content_hash)
+SELECT t.hn_id, %(full_raw_text_contents)s::text, hn_source_hash(%(full_raw_text_contents)s::text::jsonb)
+FROM hacker_news_threads t
+WHERE t.hn_id = %(hn_id)s AND t.date_added >= now() - interval '7 days'
+  AND NOT EXISTS (SELECT 1 FROM hacksnap_summaries s WHERE s.story_id = t.hn_id
+    AND s.article_summary IS NOT NULL
+    AND s.summarized_content_hash = hn_source_hash(%(full_raw_text_contents)s::text::jsonb))
+ON CONFLICT (hn_id) DO UPDATE SET
+  full_raw_text_contents = EXCLUDED.full_raw_text_contents,
+  content_hash = EXCLUDED.content_hash, fetched_at = now()
+"""
+
+DISCARD_REDUNDANT_CONTENTS = """
+DELETE FROM hn_thread_contents c USING hacker_news_threads t
+WHERE c.hn_id = t.hn_id AND t.hn_id = %(hn_id)s AND (
+  t.date_added < now() - interval '7 days' OR EXISTS (
+    SELECT 1 FROM hacksnap_summaries s WHERE s.story_id = t.hn_id
+      AND s.article_summary IS NOT NULL
+      AND s.summarized_content_hash = hn_source_hash(%(full_raw_text_contents)s::text::jsonb)
+  ))
+"""
+
 INSERT_SNAPSHOT = """
 INSERT INTO hn_thread_snapshots
     (run_id, hn_id, raw_payload, content_hash, score, descendants,
      top_story_rank, max_comment_depth)
-VALUES
-    (%(run_id)s, %(hn_id)s, %(raw_payload)s, %(content_hash)s, %(score)s,
-     %(descendants)s, %(top_story_rank)s, %(max_comment_depth)s)
+SELECT %(run_id)s, t.hn_id,
+    CASE WHEN t.date_added >= now() - interval '7 days' AND NOT EXISTS (
+      SELECT 1 FROM hacksnap_summaries s WHERE s.story_id = t.hn_id
+        AND s.article_summary IS NOT NULL
+    ) THEN %(raw_payload)s::jsonb ELSE NULL END,
+    %(content_hash)s, %(score)s, %(descendants)s, %(top_story_rank)s, %(max_comment_depth)s
+FROM hacker_news_threads t WHERE t.hn_id = %(hn_id)s
 ON CONFLICT (hn_id, content_hash) DO NOTHING
 RETURNING snapshot_id
 """
@@ -123,6 +152,8 @@ def store_threads_and_snapshots(
         with connection.cursor() as cursor:
             for row in rows:
                 cursor.execute(UPSERT_THREAD, {**row, "last_seen_run_id": run_id})
+                cursor.execute(UPSERT_CONTENTS, row)
+                cursor.execute(DISCARD_REDUNDANT_CONTENTS, row)
                 cursor.execute(INSERT_SNAPSHOT, snapshot_row(row, run_id))
                 snapshots_inserted += int(cursor.fetchone() is not None)
         connection.commit()

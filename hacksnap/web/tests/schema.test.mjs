@@ -22,15 +22,17 @@ before(async () => {
       VALUES ($1,$2,now() - $3 * interval '1 hour',now(),$4)`, [id,status,age,JSON.stringify({classify_topic:ai})]);
   }
   for (let id = 1; id <= 15; id++) {
+    await db.query("INSERT INTO hn_items VALUES ($1)", [id]);
     await db.query(`INSERT INTO hacker_news_threads
-      (hn_id,title,url,full_raw_text_contents,date_published,date_added,points,comment_count,last_seen_run_id)
-      VALUES ($1,'Example','https://example.com','{}',now() - interval '2 days',
+      (hn_id,title,url,date_published,date_added,points,comment_count,last_seen_run_id)
+      VALUES ($1,'Example','https://example.com',now() - interval '2 days',
         now() - interval '1 hour',$2,$3,$4)`, [id, id * 10, 100 - id, current]);
   }
   for (const [id, age, run] of [[20,25,current], [21,1,older], [22,1,failed], [23,1,running], [24,1,nonAI], [25,-1,current]]) {
+    await db.query("INSERT INTO hn_items VALUES ($1)", [id]);
     await db.query(`INSERT INTO hacker_news_threads
-      (hn_id,title,url,full_raw_text_contents,date_published,date_added,points,comment_count,last_seen_run_id)
-      VALUES ($1,'Excluded','https://example.com','{}',now(),now() - $2 * interval '1 hour',9999,999,$3)`, [id,age,run]);
+      (hn_id,title,url,date_published,date_added,points,comment_count,last_seen_run_id)
+      VALUES ($1,'Excluded','https://example.com',now(),now() - $2 * interval '1 hour',9999,999,$3)`, [id,age,run]);
   }
 });
 

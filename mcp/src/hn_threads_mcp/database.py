@@ -83,7 +83,7 @@ def search_threads(
 
     sql = f"""
         SELECT hn_id, title, url, author, date_published, date_added, points, comment_count
-        FROM hacker_news_threads
+        FROM hacker_news_threads LEFT JOIN hn_thread_contents USING (hn_id)
         WHERE {' AND '.join(where_clauses)}
         ORDER BY
             CASE WHEN %(pattern)s::text IS NULL THEN 0
@@ -106,7 +106,7 @@ def get_thread(hn_id: int) -> dict[str, Any] | None:
             """
             SELECT hn_id, title, url, author, date_published, date_added, points,
                    comment_count, full_raw_text_contents
-            FROM hacker_news_threads
+            FROM hacker_news_threads LEFT JOIN hn_thread_contents USING (hn_id)
             WHERE hn_id = %s
             """,
             (hn_id,),

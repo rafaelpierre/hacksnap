@@ -50,10 +50,15 @@ def get_hn_thread(hn_id: int, include_comments: bool = True) -> dict[str, Any]:
     if row is None:
         return {"found": False, "hn_id": hn_id}
 
-    payload = json.loads(row.pop("full_raw_text_contents"))
+    raw = row.pop("full_raw_text_contents")
+    if raw is None:
+        return {"found": True, "thread": row, "comments_available": False,
+                "contents_status": "not_retained", "stored_comment_count": None}
+    payload = json.loads(raw)
     comments = payload.get("comments", [])
     response: dict[str, Any] = {
         "found": True,
+        "comments_available": True,
         "thread": row,
         "story": payload.get("story", {}),
         "stored_comment_count": len(comments),

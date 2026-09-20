@@ -46,3 +46,9 @@ angles that synthesize the strongest disagreements.”
 cd mcp
 uv run pytest
 ```
+
+After Alembic migration 0008, the read-only role also needs SELECT and equivalent
+RLS access on `hn_thread_contents`. Metadata remains searchable after raw content
+is purged. `get_hn_thread` returns `found: true`, `comments_available: false`,
+`contents_status: "not_retained"` and a null stored-comment count when content is
+absent. It does not reconstruct or automatically refetch expired comments.
