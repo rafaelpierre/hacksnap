@@ -8,7 +8,7 @@ A public, read-only JSON API for Hacker News stories and AI-generated summaries.
 
 \`GET https://hacksnap.live/api/stories\`
 
-Returns \`{stories: [...], ingestion: string | null}\`. Stories follow the homepage ranking, with the same selection and a shared 10-minute data cache. The ingestion timestamp records the last successful collection. No pagination or query parameters are supported.
+Returns \`{stories: [...], ingestion: string | null}\`. Stories follow the homepage ranking, with the same selection and a shared 30-minute data cache. The ingestion timestamp records the last successful collection. No pagination or query parameters are supported.
 
 ## Get a story
 
@@ -24,7 +24,7 @@ A summary contains \`article_summary\` (string or null), \`discussion_summary\`,
 
 ## Errors and freshness
 
-Errors return \`{error: string}\`: 400 for an invalid ID, 404 for an unknown story, and 503 when data is unavailable. Retry a 503 after 60 seconds. Cached lists may retain the last successful result during an outage. Poll the list no more frequently than every 10 minutes.
+Errors return \`{error: string}\`: 400 for an invalid ID, 404 for an unknown story, and 503 when data is unavailable. Retry a 503 after 60 seconds. Cached lists may retain the last successful result during an outage. Poll the list no more frequently than every 30 minutes.
 
 \`curl https://hacksnap.live/api/stories\`
 `;

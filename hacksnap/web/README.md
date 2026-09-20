@@ -15,10 +15,12 @@ curl -i -H 'Accept: text/markdown' https://hacksnap.live/story/12345678
 Markdown responses include `Vary: Accept` and use
 `Content-Type: text/markdown; charset=utf-8` and is generated directly from the
 same public data as the pages, including source links and summary coverage.
-Markdown responses use `Cache-Control: no-store`. Negotiated HTML pages are
-dynamic and uncacheable too, because Next.js replaces their `Vary` header with
-its own router headers. This prevents shared HTML caches from bypassing content
-negotiation. The existing leaderboard data cache is still shared.
+Markdown responses use `Cache-Control: no-store`. Homepage and story HTML use
+Vercel ISR with a 30-minute revalidation interval; `/docs/api` stays dynamic.
+Vercel runs the proxy before its cache lookup, so Markdown requests rewrite to
+the uncached Markdown handler before a cached HTML page can be served.
+Next.js replaces the HTML `Vary` header with its own router headers, so an
+external CDN must bypass caching for these negotiated page URLs.
 Missing stories return 404; data failures return a sanitized 503
 with `Retry-After: 60`. HEAD returns the same headers without a body. No token
 count is advertised because a tokenizer is not configured.
@@ -52,3 +54,38 @@ without rebuilding. HTML alternate links and the footer advertise the feed.
 Run `node --experimental-strip-types --test tests/rss.test.mjs` and `npm run build`
 from this directory. Local integration checks can use the synthetic database
 described in the parent README; no production writes are needed.
+
+## Page caching and Cloudflare
+
+The homepage and `/story/:id` export `revalidate = 1800`. Both pages are generated
+on their first visit through an empty `generateStaticParams`. The homepage uses
+an optional catch-all segment that accepts only `/`; all other unmatched paths
+return 404 before reading data. Builds need no database connection. Runtime
+requests require `HACKSNAP_WEB_DATABASE_URL` (or the existing credential fallback). The shared
+leaderboard data cache also revalidates after 1800 seconds, including API consumers.
+ISR serves a stale page while refreshing after the interval, and retains the last
+successful page if regeneration fails. This is not a strict 30-minute maximum age.
+
+In Cloudflare, create a **Bypass cache** rule for:
+
+```text
+(http.host eq "hacksnap.live" and
+ (http.request.uri.path eq "/" or
+  starts_with(http.request.uri.path, "/story/") or
+  http.request.uri.path eq "/docs/api"))
+```
+
+Ensure no later cache rule overrides this bypass. Keep static asset caching
+unchanged. Cloudflare page requests still reach Vercel, where warmed HTML pages
+should report `X-Vercel-Cache: HIT`. Cloudflare may report `DYNAMIC` or `BYPASS`;
+this does not mean Vercel rendered the page again. Preserve request headers and
+query strings, including Next.js `_rsc` navigation parameters.
+
+After deploying, request HTML, then Markdown, then HTML for both `/` and a valid
+story URL. Verify the content types remain distinct after warming the HTML cache,
+and check client-side story navigation. Do not force a shared Cloudflare HTML
+cache merely to improve its cache-hit metric.
+
+CI builds before starting the synthetic database, then runs production HTTP checks
+with `HACKSNAP_TEST_STORY_ID=90000001` to verify cache TTLs, HTML/Markdown
+separation, navigation payloads, and unknown-path 404s.

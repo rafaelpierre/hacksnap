@@ -1,13 +1,19 @@
 import Link from "next/link";
-import { connection } from "next/server";
-import { getLeaderboard } from "../lib/data";
-import { articleURL, domain, timestamp } from "../lib/format";
-import { RankSparkline } from "./rank-sparkline";
+import { notFound } from "next/navigation";
+import { getLeaderboard } from "../../lib/data";
+import { articleURL, domain, timestamp } from "../../lib/format";
+import { RankSparkline } from "../rank-sparkline";
 
-export default async function Home() {
-  // Render timestamps per request without disabling the shared data cache or
-  // requiring a database connection during the production build.
-  await connection();
+export const revalidate = 1800;
+
+// An optional segment lets / use on-demand ISR without querying data at build time.
+export async function generateStaticParams() {
+  return [];
+}
+
+export default async function Home({params}: {params: Promise<{path?: string[]}>}) {
+  // Only the root URL belongs to this page; unknown paths must remain 404s.
+  if ((await params).path?.length) notFound();
   const {stories, ingestion} = await getLeaderboard();
   const maxRank = Math.max(10, ...stories.flatMap(story => story.rank_history.map(point => point.rank)));
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;

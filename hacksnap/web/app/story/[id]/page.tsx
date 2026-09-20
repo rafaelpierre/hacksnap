@@ -4,7 +4,12 @@ import { notFound } from "next/navigation";
 import { getStory } from "../../../lib/data";
 import { articleURL, domain, timestamp } from "../../../lib/format";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 1800;
+
+// Generate stories on their first visit, then share the cached page.
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({params}: {params: Promise<{id: string}>}): Promise<Metadata> {
   const {id} = await params;

@@ -52,6 +52,38 @@ jobs:
           npm run test:history
           npm run test:api
           npm run build
+          export HACKSNAP_WEB_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/postgres
+          node tests/preview-db.mjs > "$RUNNER_TEMP/hacksnap-preview-db.log" 2>&1 &
+          preview_db_pid=$!
+          trap 'kill "$preview_db_pid" ${preview_web_pid:-} 2>/dev/null || true' EXIT
+          node --input-type=module <<'JS'
+          import { Pool } from 'pg';
+          const pool = new Pool({connectionString: process.env.HACKSNAP_WEB_DATABASE_URL});
+          try {
+            for (let attempt = 0; ; attempt++) {
+              try { await pool.query('SELECT 1'); break; }
+              catch (error) {
+                if (attempt >= 59) throw error;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            }
+          } finally { await pool.end(); }
+          JS
+          npm start -- --port 3100 > "$RUNNER_TEMP/hacksnap-preview-web.log" 2>&1 &
+          preview_web_pid=$!
+          node --input-type=module <<'JS'
+          for (let attempt = 0; ; attempt++) {
+            try {
+              const response = await fetch('http://127.0.0.1:3100/');
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              break;
+            } catch (error) {
+              if (attempt >= 59) throw error;
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+          JS
+          HACKSNAP_TEST_URL=http://127.0.0.1:3100 HACKSNAP_TEST_STORY_ID=90000001 node --test tests/markdown-http.test.mjs
 
   deploy:
     # Production changes require an explicit manual workflow run.

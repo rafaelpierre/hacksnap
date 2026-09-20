@@ -5,7 +5,7 @@ import { apiDocsMarkdown } from "../../lib/api-docs-markdown";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const page = new URL(request.url).searchParams.get("page");
+  const page = request.headers.get("x-hacksnap-markdown-page") ?? new URL(request.url).searchParams.get("page");
   try {
     if (page === "/") return markdownResponse(leaderboardMarkdown(await getLeaderboard()));
     if (page === "/docs/api") return markdownResponse(apiDocsMarkdown);

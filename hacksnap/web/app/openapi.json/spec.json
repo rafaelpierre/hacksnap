@@ -19,7 +19,7 @@
       "get": {
         "operationId": "listStories",
         "summary": "List the current ranked stories",
-        "description": "Uses the homepage selection and shared 10-minute data cache. May serve stale data during refresh failures. No pagination or query parameters.",
+        "description": "Uses the homepage selection and shared 30-minute data cache. May serve stale data during refresh failures. No pagination or query parameters.",
         "responses": {
           "200": {
             "description": "Current stories; the list may be empty.",

@@ -7,7 +7,10 @@ export function proxy(request: NextRequest) {
   url.search = "";
   url.searchParams.set("page", request.nextUrl.pathname);
   url.pathname = "/markdown";
-  const response = markdown ? NextResponse.rewrite(url) : NextResponse.next();
+  // Preserve the negotiated page independently of rewrite query normalization.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-hacksnap-markdown-page", request.nextUrl.pathname);
+  const response = markdown ? NextResponse.rewrite(url, {request: {headers: requestHeaders}}) : NextResponse.next();
   response.headers.append("Vary", "Accept");
   return response;
 }
