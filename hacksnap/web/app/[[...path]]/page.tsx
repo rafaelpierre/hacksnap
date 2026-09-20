@@ -31,7 +31,7 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
       {stories.length === 0 ? <div className="empty"><h2>No stories yet.</h2><p>Stories will appear after the next update.</p></div> :
       <ol className="story-list">{stories.map(story => <li key={story.hn_id}>
         <article className="story-row">
-          <span className="rank" aria-label={`Rank ${story.rank}`}>{String(story.rank).padStart(2, "0")}</span>
+          <span className="rank" data-rank={story.rank} aria-label={`Rank ${story.rank}`}>{String(story.rank).padStart(2, "0")}</span>
           <div className="story-content">
             <div className="story-domain">{articleURL(story.url) ? <a href={articleURL(story.url)!} aria-label={`Original article: ${story.title}`}>{domain(story.url)} <span aria-hidden="true">↗</span></a> : <span>Ask / Show HN</span>}{!story.is_recent && <span className="archive-label">Archive</span>}</div>
             <h3><Link href={`/story/${story.hn_id}`}>{story.title}</Link></h3>
