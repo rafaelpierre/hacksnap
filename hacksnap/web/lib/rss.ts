@@ -1,4 +1,5 @@
 import type { Story } from "./data";
+import { storyIndicators } from "./story-indicators.ts";
 
 function xml(value: string): string {
   return value
@@ -8,7 +9,7 @@ function xml(value: string): string {
     .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
 
-export function renderRSS(stories: Story[]): string {
+export function renderRSS(stories: Story[], asOf = new Date().toISOString()): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
 <channel>
@@ -28,7 +29,7 @@ ${stories.map(story => {
 <link>${xml(url)}</link>
 <guid isPermaLink="true">${xml(url)}</guid>
 <pubDate>${story.date_added.toUTCString()}</pubDate>
-<description>${xml(description)}</description>
+<description>${xml([description, `${story.points} points · ${story.comment_count} comments`, ...storyIndicators(story, story.observed_at ?? asOf)].join("\n\n"))}</description>
 </item>`;
   }).join("\n")}
 </channel>

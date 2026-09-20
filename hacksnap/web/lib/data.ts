@@ -32,6 +32,8 @@ export type Story = {
   is_recent?: boolean;
   date_added: Date;
   summary: Summary | null;
+  activity_history?: ActivityObservation[];
+  observed_at?: string;
 };
 
 const globalDB = globalThis as unknown as { hacksnapPool?: Pool };
@@ -149,7 +151,8 @@ export async function getSitemapStories(): Promise<{hn_id: string; modified_at: 
 
 export async function getFeedStories(): Promise<Story[]> {
   return read(async client => {
-    const result = await client.query<Story>(`SELECT ${fields}
+    const result = await client.query<Story>(`SELECT ${fields}, ${activityHistorySQL} AS activity_history,
+      to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       WHERE t.hn_id BETWEEN 1 AND 999999999999999
       ORDER BY t.date_added DESC, t.hn_id DESC LIMIT 50`);
@@ -162,7 +165,8 @@ export const getStory = cache(async (id: string): Promise<Story | null> => {
   // Bound the route before handing a bigint to PostgreSQL.
   if (!/^[1-9][0-9]{0,14}$/.test(id)) return null;
   return read(async client => {
-    const result = await client.query<Story>(`SELECT ${fields}
+    const result = await client.query<Story>(`SELECT ${fields}, ${activityHistorySQL} AS activity_history,
+      to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       WHERE t.hn_id = $1`, [id]);
     return result.rows[0] ?? null;

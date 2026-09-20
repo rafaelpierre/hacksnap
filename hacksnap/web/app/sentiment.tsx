@@ -1,7 +1,7 @@
-const labels = {"-1": "Skeptical", "0": "Neutral", "1": "Excited"} as const;
+import { sentimentLabel } from "../lib/sentiment";
 
 export function Sentiment({value, noComments = false}: {value: -1 | 0 | 1 | null; noComments?: boolean}) {
-  const label = value === null ? (noComments ? "No comments" : "Pending") : labels[value];
+  const label = sentimentLabel(value, noComments);
   const description = value === null
     ? (noComments ? "No usable comments available to estimate sentiment." : "Sentiment will appear after the summary refreshes.")
     : `${label}. Estimated from sampled thread comments; mixed or inconclusive reactions are Neutral. This is not a community vote.`;

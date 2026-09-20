@@ -1,4 +1,5 @@
 import type { Story } from "./data";
+import { storyIndicators } from "./story-indicators.ts";
 
 // Wildcards alone keep the browser default. An explicit Markdown preference
 // must be acceptable and at least as preferred as HTML.
@@ -38,6 +39,7 @@ export function storyMarkdown(story: Story): string {
   const lines = [`# ${text(story.title)}`, `${story.points} points · ${story.comment_count} comments`,
     link("Full discussion", `https://news.ycombinator.com/item?id=${story.hn_id}`)];
   if (article) lines.push(link("Read original", article));
+  lines.push(storyIndicators(story, story.observed_at ?? new Date().toISOString()).map(text).join("\n\n"));
   if (!summary) return [...lines, "## Summary pending", "Summaries update hourly. You can read the original sources above.", ""].join("\n\n");
   lines.push(text(summary.overall_takeaway), article ? "## The brief" : "## The post",
     summary.article_summary ? text(summary.article_summary) : summary.source_coverage.article_status === "unavailable"
@@ -56,7 +58,7 @@ export function storyMarkdown(story: Story): string {
   return lines.join("\n\n") + "\n";
 }
 
-export function leaderboardMarkdown({stories, ingestion}: {stories: Story[]; ingestion: Date | null}): string {
+export function leaderboardMarkdown({stories, ingestion, observed_at = new Date().toISOString()}: {stories: Story[]; ingestion: Date | null; observed_at?: string}): string {
   const lines = ["# AI on Hacker News", "The articles and the arguments worth reading.", `## Top stories (${stories.length})`,
     ingestion ? `Updated ${ingestion.toISOString()}` : "Waiting for stories"];
   if (ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000) lines.push("Updates are delayed. These are the latest saved stories.");
@@ -64,6 +66,7 @@ export function leaderboardMarkdown({stories, ingestion}: {stories: Story[]; ing
   for (const story of stories) {
     lines.push(`### ${story.rank ?? ""}. ${link(story.title, `https://hacksnap.live/story/${story.hn_id}`)}`,
       `${story.points} points · ${link(`${story.comment_count} comments`, `https://news.ycombinator.com/item?id=${story.hn_id}`)}${!story.is_recent ? " · Archive" : ""}`);
+    lines.push(storyIndicators(story, observed_at).map(text).join("\n\n"));
     const article = original(story);
     if (article) lines.push(link("Original article", article));
     lines.push(story.summary ? text(story.summary.overall_takeaway) : "Summary pending");
