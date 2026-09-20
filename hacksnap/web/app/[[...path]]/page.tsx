@@ -38,8 +38,10 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
             <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a>{!story.summary && <span>Summary pending</span>}</div>
           </div>
+          <div className="story-indicators">
           <Sentiment value={story.summary?.sentiment ?? null} noComments={story.summary?.source_coverage.included_comments === 0} />
           <ActivitySparkline history={story.activity_history} title={story.title} asOf={observed_at} />
+          </div>
         </article>
       </li>)}</ol>}
       <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Sparklines show points/hour over the past 24h, scaled per story · Sentiment estimates sampled comments: −1 Skeptical, 0 Neutral, +1 Excited · Summaries updated hourly</p>

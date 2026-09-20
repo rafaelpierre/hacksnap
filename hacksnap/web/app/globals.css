@@ -41,7 +41,7 @@ h1, h2, h3, p { margin-top: 0; }
 .points { color: var(--accent); }
 .read-link { align-self: center; padding: 12px; font-size: 20px; color: var(--muted); text-decoration: none; }
 .activity-history { position: relative; flex: 0 0 140px; width: 140px; align-self: center; margin: 0; color: var(--muted); font: 10px/1.5 var(--mono); }
-.activity-history figcaption { margin-bottom: 4px; }
+.activity-history figcaption, .sentiment figcaption { margin-bottom: 4px; }
 .activity-history svg { display: block; width: 100%; overflow: visible; cursor: crosshair; }
 .sparkline-baseline { stroke: var(--line); fill: none; }
 .sparkline-path { stroke: var(--accent); fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
@@ -94,6 +94,7 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
   .feed-bar { align-items: flex-start; flex-direction: column; gap: 10px; }
   .story-row { gap: 12px; padding: 21px 0; } .rank { font-size: 22px; }
   .activity-history { flex-basis: 80px; width: 80px; font-size: 9px; }
+  .sentiment { font-size: 9px; }
   .story-row h3 { font-size: 17px; } .read-link { display: none; }
   .feed-excerpt { font-size: 13px; } .story-meta { font-size: 10px; gap: 6px 14px; }
   .detail { padding-top: 20px; } .back-link { margin-bottom: 25px; }
@@ -111,6 +112,8 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
   .activity-rate { font-size: 15px; }
 }
 
+.story-indicators { display: flex; gap: 22px; align-self: center; flex-shrink: 0; }
+.story-indicators > figure { align-self: flex-start; }
 .sentiment { flex: 0 0 112px; width: 112px; align-self: center; margin: 0; color: var(--muted); font: 10px/1.5 var(--mono); }
 .sentiment-skeptical { --sentiment-color: #f09a93; }
 .sentiment-neutral { --sentiment-color: #d6c48f; }
@@ -122,6 +125,10 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
   .story-row { display: grid; grid-template-columns: 2ch minmax(0, 1fr) minmax(0, 1fr); gap: 16px 12px; }
   .story-row .rank { grid-column: 1; grid-row: 1; align-self: start; padding-top: 4px; }
   .story-content { grid-column: 2 / -1; }
-  .sentiment { grid-column: 2; }
-  .story-row .activity-history { grid-column: 3; justify-self: end; width: min(140px, 100%); }
+  .story-indicators { grid-column: 2 / -1; justify-content: space-between; gap: 12px; min-width: 0; }
+  .story-indicators .activity-history { flex: 0 1 140px; width: 140px; min-width: 0; }
+}
+
+@media (max-width: 640px) {
+  .story-indicators .sentiment { font-size: 9px; }
 }
