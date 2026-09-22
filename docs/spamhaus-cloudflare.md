@@ -22,9 +22,9 @@ the workflow must be on the default branch. It does not enable Bot Fight Mode.
    | Type | Name | Value |
    | --- | --- | --- |
    | Secret | `CLOUDFLARE_LISTS_API_TOKEN` | The dedicated token |
-   | Variable | `CLOUDFLARE_ACCOUNT_ID` | Account ID, not zone ID |
-   | Variable | `CLOUDFLARE_SPAMHAUS_LIST_ID` | Dedicated list's ID |
-   | Variable | `SPAMHAUS_SYNC_ENABLED` | `true` to enable scheduled updates |
+   | Secret | `CLOUDFLARE_ACCOUNT_ID` | Account ID, not zone ID |
+   | Secret | `CLOUDFLARE_SPAMHAUS_LIST_ID` | Dedicated list's ID |
+   | Secret | `SPAMHAUS_SYNC_ENABLED` | `true` to enable scheduled updates |
 
 4. Run the workflow manually with **dry_run checked**. Review additions and
    removals. Run again with it unchecked to populate the list.
