@@ -126,7 +126,7 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
 .sentiment-scale .selected { background: var(--sentiment-color); outline: 1px solid var(--sentiment-color); outline-offset: 2px; }
 @media (max-width: 760px) {
   .story-row { display: grid; grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr); gap: 16px 12px; }
-  .story-row .rank { grid-column: 1; grid-row: 1; align-self: start; }
+  .story-row .rank { grid-column: 1; grid-row: 1 / 3; }
   .story-content { grid-column: 2 / -1; }
   .story-indicators { grid-column: 2 / -1; justify-content: space-between; gap: 12px; min-width: 0; }
   .story-indicators .activity-history { flex: 0 1 140px; width: 140px; min-width: 0; }
