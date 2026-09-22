@@ -2,7 +2,8 @@ import { SummaryPending } from "../summary-pending";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeaderboard } from "../../lib/data";
-import { articleURL, domain, timestamp } from "../../lib/format";
+import { articleURL, domain } from "../../lib/format";
+import { LocalTime } from "../local-time";
 import { Sentiment } from "../sentiment";
 import { ActivitySparkline } from "../activity-sparkline";
 import { ShareLinks } from "../share-links";
@@ -27,7 +28,7 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
     </header>
     <section aria-labelledby="feed-heading">
       <div className="feed-bar"><h2 id="feed-heading">Top stories <span>{stories.length}</span></h2>
-        <p>{ingestion ? <>Updated <time dateTime={ingestion.toISOString()}>{timestamp(ingestion)}</time></> : "Waiting for stories"}</p>
+        <p>{ingestion ? <>Updated <LocalTime dateTime={ingestion.toISOString()} /></> : "Waiting for stories"}</p>
       </div>
       {stale && <p className="notice">Updates are delayed. These are the latest saved stories.</p>}
       {stories.length === 0 ? <div className="empty"><h2>No stories yet.</h2><p>Stories will appear after the next update.</p></div> :
