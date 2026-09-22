@@ -38,7 +38,7 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
             <h3><Link href={`/story/${story.hn_id}`}>{story.title}</Link></h3>
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
             <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a>{!story.summary && <span>Summary pending</span>}</div>
-            <ShareLinks id={story.hn_id} title={story.title} />
+            <ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} />
           </div>
           <div className="story-indicators">
           <Sentiment value={story.summary?.sentiment ?? null} noComments={story.summary?.source_coverage.included_comments === 0} />
