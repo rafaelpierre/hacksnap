@@ -12,5 +12,15 @@ export default async function Image({params}: {params: Promise<{id: string}>}) {
   const {id} = await params;
   const story = await getStory(id);
   if (!story) notFound();
-  return ogImage({title: story.title, source: domain(story.url)});
+  return ogImage({
+    title: story.title,
+    source: domain(story.url),
+    indicators: {
+      sentiment: story.summary?.sentiment ?? null,
+      noComments: story.summary?.source_coverage.included_comments === 0,
+      history: story.rank_history ?? [],
+      asOf: story.observed_at ?? new Date().toISOString(),
+      currentRank: story.rank,
+    },
+  });
 }
