@@ -131,7 +131,7 @@ The homepage and `/story/:id` export `revalidate = 1800`. Both pages are generat
 on their first visit through an empty `generateStaticParams`. The homepage uses
 an optional catch-all segment that accepts only `/`; all other unmatched paths
 return 404 before reading data. Builds need no database connection. Runtime
-requests require `HACKSNAP_WEB_DATABASE_URL` (or the existing credential fallback). The shared
+requests require `HACKSNAP_WEB_DATABASE_URL` with the dedicated `hacksnap_reader` login. The shared
 leaderboard data cache also revalidates after 1800 seconds, including API consumers.
 ISR serves a stale page while refreshing after the interval, and retains the last
 successful page if regeneration fails. This is not a strict 30-minute maximum age.

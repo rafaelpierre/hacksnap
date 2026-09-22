@@ -42,10 +42,7 @@ const globalDB = globalThis as unknown as { hacksnapPool?: Pool };
 function pool(): Pool {
   if (!globalDB.hacksnapPool) {
     let connectionString = process.env.HACKSNAP_WEB_DATABASE_URL;
-    if (!connectionString && process.env.SUPABASE_PASSWORD) {
-      connectionString = `postgresql://postgres.tbihbssiluihmnseuknk:${encodeURIComponent(process.env.SUPABASE_PASSWORD)}@aws-1-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=verify-full`;
-    }
-    if (!connectionString) throw new Error("Hacksnap database is not configured");
+    if (!connectionString) throw new Error("HACKSNAP_WEB_DATABASE_URL is required");
     // Bundle the public Supabase CA so hosted Node runtimes can verify TLS too.
     // Local preview databases and other providers retain their own SSL settings.
     let databaseURL: URL;
@@ -53,6 +50,9 @@ function pool(): Pool {
     catch { throw new Error("Hacksnap database URL is invalid"); }
     if (databaseURL.hostname.endsWith(".pooler.supabase.com") ||
         databaseURL.hostname.endsWith(".supabase.co")) {
+      if (decodeURIComponent(databaseURL.username).split(".")[0] !== "hacksnap_reader") {
+        throw new Error("Supabase web connections require the hacksnap_reader role");
+      }
       databaseURL.searchParams.set("sslmode", "verify-full");
       if (!databaseURL.searchParams.has("sslrootcert")) {
         databaseURL.searchParams.set("sslrootcert", path.join(process.cwd(), "certs", "supabase-ca.crt"));
@@ -90,7 +90,7 @@ const fields = `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added
   CASE WHEN s.story_id IS NULL THEN NULL ELSE json_build_object(
     'article_summary', s.article_summary, 'article_key_points', s.article_key_points,
     'discussion_summary', s.discussion_summary, 'discussion_points', s.discussion_points,
-    'sentiment', (to_jsonb(s)->>'sentiment')::smallint, 'overall_takeaway', s.overall_takeaway, 'generated_at', s.generated_at,
+    'sentiment', s.sentiment, 'overall_takeaway', s.overall_takeaway, 'generated_at', s.generated_at,
     'model', s.model, 'source_coverage', s.source_coverage
   ) END AS summary`;
 
