@@ -37,35 +37,27 @@ intermediate change to the live view. Failed rank writes fail the refresh.
 
 ### Hotness sparklines
 
-The feed labels the chart **Hotness** and plots **net HN points per hour** between saved thread snapshots
-within the past 24 hours (at most 168 observations per story). The existing
-`hn_thread_snapshots` metrics and `(hn_id, observed_at DESC)` index are sufficient;
-no schema migration or new collector is required. Rank recording remains intact.
+The feed keeps the **Hotness** label and plots observed **Hacksnap ranking positions**
+over the past 24 hours. Climbing from #8 to #3 moves the line upward and shows
+**+5** places; falling moves it downward; unchanged ranks stay flat. This follows
+the site's recent-first, then points ranking, not Hacker News front-page rank.
 
-Each point represents `(next score - previous score) / elapsed hours`, plotted
-at the ending observation. Straight lines connect these averages as visual guides;
-intermediate rates are not measured. A flat lead-in extends the first available
-rate to the left edge, including when only one interval is available. This is a
-visual extension, not an extra observation; hover and accessible text explain it. Negative rates are preserved. The horizontal
-axis always covers 24 hours, and the line stops at the
-last observation. Page refreshes never create observations. Identical source
-snapshots may be deduplicated, so intervals can span multiple collection runs;
-these are interval averages, not live rates or exact hourly buckets.
+History comes from `hacksnap_rank_history`, using its existing `(hn_id, observed_at)`
+primary-key index, with at most 168 observations per story. No migration is needed.
+The current queried rank is included at the shared read timestamp, so the chart's
+endpoint matches the displayed position even between scheduled history captures.
+The leaderboard cache key is bumped to discard the old point-velocity payloads.
 
-The vertical axis is scaled per story, includes zero, and has a minimum upper
-bound of 10 points/hour to avoid exaggerating tiny changes. Compare the numeric
-rates across stories, not line heights. Hover, focus, touch and arrow keys expose
-interval times and rates. At least two observations in the window are required;
-otherwise the card shows “Collecting history”.
-
-The card shows Hotness, the 24h window, and the signed change from the first
-measured rate to the latest measured rate, without a unit suffix or trend/scale
-labels. The line still plots activity rates: an endpoint below the first point
-produces a negative headline. A single measured rate shows “—”, since a change
-requires at least two rates (three snapshots). The decorative flat lead-in does
-not participate in the calculation. Hover and keyboard details explain points/hour,
-observation times and the scale. The page's cached read timestamp anchors the
-window. Feed ranking remains recent-first, then points.
+The horizontal axis fills the chart with available history from the past 24 hours,
+with elapsed-time spacing and a label showing the actual span (for example, 6h).
+Earlier history is not filled in. Rank #1 is at the top and #10 at the bottom,
+with the scale expanding for stories previously ranked below ten. Gentle curves pass through observations without overshooting; intermediate positions
+are unknown. Teal indicates a net climb, coral a fall, and gray no net change. Hover, focus, touch and arrow keys
+expose the observed rank, timestamp, and scale. A single observation shows a dot
+and “—” for change; no observations shows “Collecting history”. The headline is
+first observed rank minus latest observed rank within the window, not necessarily
+a full 24-hour change when history is sparse. Markdown and RSS use the same ranks
+and change calculation.
 
 An empty or failed new ingestion run does not clear previous stories. If there
 are fewer than ten eligible stories in the entire database, show all available

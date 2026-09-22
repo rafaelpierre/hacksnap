@@ -44,12 +44,12 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
           </div>
           <div className="story-indicators">
           <Sentiment value={story.summary?.sentiment ?? null} noComments={story.summary?.source_coverage.included_comments === 0} />
-          <ActivitySparkline history={story.activity_history} title={story.title} asOf={observed_at} />
+          <ActivitySparkline history={story.rank_history} currentRank={story.rank} title={story.title} asOf={observed_at} />
           </div>
         </article>
       </li>)}</ol>}
       <p className="archive-cta"><Link className="button" href="/archive">Explore the archive →</Link></p>
-      <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Sparklines show points/hour over the past 24h, scaled per story · Sentiment estimates sampled comments: −1 Skeptical, 0 Neutral, +1 Excited · Summaries updated hourly</p>
+      <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Hotness shows ranking movement over the past 24h · Higher means a better position · Sentiment estimates sampled comments: −1 Skeptical, 0 Neutral, +1 Excited · Summaries updated hourly</p>
     </section>
   </>;
 }

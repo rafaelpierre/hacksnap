@@ -1,24 +1,24 @@
 import type { Story } from "./data";
-import { activityIntervals, activityChange, formatRate } from "./activity-history.ts";
+import { rankSamples, rankChange, formatRankChange } from "./rank-history.ts";
 import { sentimentLabel } from "./sentiment.ts";
 
-// Shared plain text for Markdown and RSS, using the front page's measured rates.
+// Shared plain text for Markdown and RSS, using the front page's observed ranks.
 export function storyIndicators(story: Story, asOf: string): string[] {
   const sentiment = story.summary?.sentiment ?? null;
   const label = sentimentLabel(sentiment, story.summary?.source_coverage?.included_comments === 0);
   const lines = [`Sentiment: ${label}${sentiment === null ? "" : ` (${sentiment > 0 ? "+" : ""}${sentiment})`}. Estimated from sampled thread comments; mixed or inconclusive reactions are Neutral. This is not a community vote.`];
-  const intervals = activityIntervals(story.activity_history ?? [], asOf);
+  const samples = rankSamples(story.rank_history ?? [], asOf, story.rank);
   lines.push(`Hotness (past 24h; as of ${asOf})`);
-  if (!intervals.length) {
-    lines.push("Collecting history. At least two observations in the past 24 hours are needed.");
+  if (!samples.length) {
+    lines.push("Collecting history. No rank observations in the past 24 hours.");
     return lines;
   }
-  const change = activityChange(intervals);
-  lines.push(change === null ? "Not enough history to measure a change in activity."
-    : `${formatRate(change)} points/hour change from the first to the latest measured rate.`);
-  lines.push("Measured interval averages (earlier activity and activity between observations are unknown):");
-  for (const interval of intervals) {
-    lines.push(`${new Date(interval.start).toISOString()} to ${new Date(interval.end).toISOString()}: ${formatRate(interval.rate)} points/hour`);
+  const change = rankChange(samples);
+  lines.push(change === null ? "Not enough history to measure a change in rank."
+    : `${formatRankChange(change)} places changed from the first to the latest observed rank.`);
+  lines.push("Observed Hacksnap ranks (higher on the chart means a better position; movement between observations is unknown):");
+  for (const sample of samples) {
+    lines.push(`${new Date(sample.at).toISOString()}: rank #${sample.rank}`);
   }
   return lines;
 }

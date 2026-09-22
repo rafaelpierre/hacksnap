@@ -4,7 +4,7 @@ import path from "node:path";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { Pool, type PoolClient } from "pg";
-import { activityHistorySQL, type ActivityObservation } from "./activity-history";
+import { rankHistorySQL, type RankObservation } from "./rank-history";
 
 export type Summary = {
   article_summary: string | null;
@@ -33,7 +33,7 @@ export type Story = {
   is_recent?: boolean;
   date_added: Date;
   summary: Summary | null;
-  activity_history?: ActivityObservation[];
+  rank_history?: RankObservation[];
   observed_at?: string;
 };
 
@@ -96,18 +96,18 @@ const fields = `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added
 
 // Cache JSON-safe values: Next's persistent data cache does not preserve Dates.
 type CachedLeaderboard = {
-  stories: (Omit<Story, "date_added"> & {date_added: string; activity_history: ActivityObservation[]})[];
+  stories: (Omit<Story, "date_added"> & {date_added: string; rank_history: RankObservation[]})[];
   ingestion: string | null;
   observed_at: string;
 };
 
-// v8 invalidates the persistent pre-migration cache after the sentiment backfill.
+// Invalidate cached point-velocity payloads when switching to rank history.
 const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> => {
   return read(async client => {
     const result = await client.query<{stories: CachedLeaderboard["stories"]; ingestion: Date | null; ranked_at: Date}>(`
       SELECT COALESCE((
         SELECT json_agg(story ORDER BY story.rank) FROM (
-          SELECT ${fields}, t.rank, t.is_recent, ${activityHistorySQL} AS activity_history
+          SELECT ${fields}, t.rank, t.is_recent, ${rankHistorySQL} AS rank_history
           FROM hacksnap_current_stories t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
         ) story
       ), '[]'::json) AS stories, (
@@ -122,9 +122,9 @@ const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> =>
       ingestion: ingestion?.toISOString() ?? null,
     };
   });
-}, ["hacksnap-leaderboard-v8-sentiment-backfill"], {revalidate: 1800});
+}, ["hacksnap-leaderboard-v9-rank-hotness"], {revalidate: 1800});
 
-export async function getLeaderboard(): Promise<{stories: (Story & {activity_history: ActivityObservation[]})[]; ingestion: Date | null; observed_at: string}> {
+export async function getLeaderboard(): Promise<{stories: (Story & {rank_history: RankObservation[]})[]; ingestion: Date | null; observed_at: string}> {
   const {stories, ingestion, observed_at} = await cachedLeaderboard();
   return {
     stories: stories.map(story => ({...story, date_added: new Date(story.date_added)})),
@@ -152,9 +152,10 @@ export async function getSitemapStories(): Promise<{hn_id: string; modified_at: 
 
 export async function getFeedStories(): Promise<Story[]> {
   return read(async client => {
-    const result = await client.query<Story>(`SELECT ${fields}, ${activityHistorySQL} AS activity_history,
+    const result = await client.query<Story>(`SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+      LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
       WHERE t.hn_id BETWEEN 1 AND 999999999999999
       ORDER BY t.date_added DESC, t.hn_id DESC LIMIT 50`);
     return result.rows;
@@ -166,9 +167,10 @@ export const getStory = cache(async (id: string): Promise<Story | null> => {
   // Bound the route before handing a bigint to PostgreSQL.
   if (!/^[1-9][0-9]{0,14}$/.test(id)) return null;
   return read(async client => {
-    const result = await client.query<Story>(`SELECT ${fields}, ${activityHistorySQL} AS activity_history,
+    const result = await client.query<Story>(`SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+      LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
       WHERE t.hn_id = $1`, [id]);
     return result.rows[0] ?? null;
   });
