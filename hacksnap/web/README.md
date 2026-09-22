@@ -63,6 +63,39 @@ described in the parent README; no production writes are needed.
 
 ## Page caching and Cloudflare
 
+### Mobile loading performance
+
+`experimental.inlineCss` embeds the small shared stylesheet in production HTML,
+removing a blocking stylesheet round trip. This increases HTML size and gives up
+independent stylesheet caching on full page loads; reassess if the CSS grows.
+Google Analytics uses `lazyOnload` to fetch after the load event during browser
+idle time. Its configuration is queued after hydration. This delays analytics
+work rather than reducing the Google script's size, and very short visits may
+leave before analytics loads.
+
+In Cloudflare, disable **Email Address Obfuscation** for `hacksnap.live` (use a
+hostname-scoped configuration rule if the zone serves other sites). Cloudflare
+injects `email-decode.min.js`; changing app scripts or static-asset cache headers
+cannot remove that injected request. Purge cached HTML after changing the setting
+and verify that the public HTML no longer references `/cdn-cgi/` email decoding.
+This also removes the associated short-cache-lifetime warning. This setting is
+managed outside this repository.
+
+The legacy-JavaScript signatures in the report match Next.js's built-in runtime
+polyfills. Do not alias those internal modules to empty files: doing so bypasses
+the framework's browser compatibility behavior. A Browserslist change alone does
+not remove this already-built framework code.
+
+After deployment, rerun PageSpeed Insights in mobile mode for the homepage and a
+story. Check FCP, LCP, and total blocking time across several runs, verify there is
+no initial external stylesheet request or email-decoding script, and confirm GA
+still records visits and client-side navigation. Deferring GA does not guarantee
+that Lighthouse's unused-JavaScript warning disappears.
+
+References: [Next.js inline CSS](https://nextjs.org/docs/app/api-reference/config/next-config-js/inlineCss),
+[script loading](https://nextjs.org/docs/app/api-reference/components/script), and
+[Cloudflare email obfuscation](https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/).
+
 ### Automatic purge after production deployments
 
 The GitHub Actions workflow `.github/workflows/cloudflare-purge.yml` purges

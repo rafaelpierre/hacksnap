@@ -19,7 +19,8 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: {children: React.ReactNode}) {
   return <html lang="en"><body>
-    <Script src="https://www.googletagmanager.com/gtag/js?id=G-059PVYBN82" strategy="afterInteractive" />
+    <Script src="https://www.googletagmanager.com/gtag/js?id=G-059PVYBN82" strategy="lazyOnload" />
+    {/* Queue configuration early; download the analytics library after load, when idle. */}
     <Script id="google-analytics" strategy="afterInteractive">{`
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
