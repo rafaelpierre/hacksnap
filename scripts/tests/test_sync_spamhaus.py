@@ -48,6 +48,7 @@ class SyncTests(unittest.TestCase):
         api = self.api()
         sync(self.items, api, "list", apply=True)
         self.assertEqual(api.call_args_list[2].args, ("/lists/list/items", "PUT", self.items))
+        self.assertEqual(api.call_args_list[3].args, ("/lists/bulk_operations/operation",))
         self.assertEqual(api.call_count, 4)
 
     def test_empty_list_request_respects_cloudflare_page_limit(self):

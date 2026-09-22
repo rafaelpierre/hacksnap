@@ -94,7 +94,7 @@ def sync(items, api, list_id, apply=False):
         return
     operation = api(f"{target}/items", "PUT", items)["result"]["operation_id"]
     for _ in range(60):
-        result = api(f"/bulk_operations/{operation}")["result"]
+        result = api(f"/lists/bulk_operations/{operation}")["result"]
         if result["status"] == "completed":
             print("Cloudflare replacement completed")
             return
