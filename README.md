@@ -13,6 +13,9 @@ descending. A quiet ingestion run does not empty it.
 See [Hacksnap setup, tests and deployment](hacksnap/README.md),
 [ingestion documentation](data/README.md), and [MCP documentation](mcp/README.md).
 
+See [Spamhaus → Cloudflare setup](docs/spamhaus-cloudflare.md) for the weekly
+malicious-network list refresh workflow.
+
 Apply migration `0004_hacksnap` before running the updated collector. Configure
 the `hacksnap` Modal Secret before deploying its schedule. The website uses
 server-only database credentials; no service-role key is sent to browsers.
