@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:db": "node --test tests/schema.test.mjs tests/retention.test.mjs",
+    "test:archive": "node --experimental-strip-types --test tests/archive.test.mjs",
     "test:api": "node --experimental-strip-types --test tests/api.test.mjs",
     "test:history": "node --experimental-strip-types --test tests/activity-history.test.mjs"
   },

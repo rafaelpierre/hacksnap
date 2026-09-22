@@ -30,7 +30,8 @@ export default function Layout({ children }: {children: React.ReactNode}) {
     <header className="site-header"><div className="header-inner">
       <Link className="wordmark" href="/" aria-label="Hacksnap home"><span className="logo" aria-hidden="true">h/</span>hacksnap</Link>
       <span className="header-note">/ ai</span>
-      <a className="header-link" href="https://news.ycombinator.com/">Hacker News ↗</a>
+      <nav className="header-nav" aria-label="Main navigation"><Link className="header-link" href="/archive">Archive</Link>
+      <a className="header-link" href="https://news.ycombinator.com/">Hacker News ↗</a></nav>
     </div></header>
     <main id="main">{children}</main>
     <footer><Link className="footer-brand" href="/">hacksnap</Link><p>An independent reader for Hacker News. <a href="/feed.xml">RSS feed</a></p></footer>

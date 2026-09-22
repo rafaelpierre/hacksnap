@@ -1,4 +1,5 @@
 import "server-only";
+import { ARCHIVE_PAGE_SIZE, archiveMonthsSQL, archiveQuery } from "./archive";
 import path from "node:path";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
@@ -172,3 +173,12 @@ export const getStory = cache(async (id: string): Promise<Story | null> => {
     return result.rows[0] ?? null;
   });
 });
+
+export const getArchiveMonths = cache(async (): Promise<{month: string; count: number}[]> =>
+  read(async client => (await client.query<{month: string; count: number}>(archiveMonthsSQL)).rows));
+
+export const getArchiveStories = cache(async (month: string | null, page: number) =>
+  read(async client => {
+    const result = await client.query<Story>(archiveQuery(fields, month, page));
+    return {stories: result.rows.slice(0, ARCHIVE_PAGE_SIZE), hasNext: result.rows.length > ARCHIVE_PAGE_SIZE};
+  }));

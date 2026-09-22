@@ -126,3 +126,16 @@ cache merely to improve its cache-hit metric.
 CI builds before starting the synthetic database, then runs production HTTP checks
 with `HACKSNAP_TEST_STORY_ID=90000001` to verify cache TTLs, HTML/Markdown
 separation, navigation payloads, and unknown-path 404s.
+
+## Archive
+
+`/archive` lists all retained public stories, including the current Top 10, newest
+first. `/archive/YYYY/MM` filters by the UTC month in which a story was added to
+Hacksnap. Daily headings use that same date, not the summary update time.
+Each page shows up to 30 stories, with ordinary newer/older links and its own
+canonical URL. Year disclosures contain links only to populated months.
+Archive pages are rendered on request; no schema change is required. The sitemap
+includes the archive landing page and populated months. Story URLs stay unchanged.
+
+Run `npm run test:archive` for route validation, UTC boundaries and database
+pagination checks against synthetic data.

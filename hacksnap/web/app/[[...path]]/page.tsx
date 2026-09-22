@@ -44,6 +44,7 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
           </div>
         </article>
       </li>)}</ol>}
+      <p className="archive-cta"><Link className="button" href="/archive">Explore the archive →</Link></p>
       <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Sparklines show points/hour over the past 24h, scaled per story · Sentiment estimates sampled comments: −1 Skeptical, 0 Neutral, +1 Excited · Summaries updated hourly</p>
     </section>
   </>;
