@@ -124,15 +124,15 @@ https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1
 ```
 
 To use GLM 5.3 Flash instead, replace both settings in your local environment or
-set these variables in GitHub's `hacksnap-production` environment:
+set these values in Modal's `hacksnap` Secret for the scheduled worker:
 
 ```dotenv
 MODAL_LLM_BASE_URL=https://rafaelpierre--ep-glm-5-3-flash-server.us-west.modal.direct/v1
 MODAL_LLM_MODEL=zai-org/GLM-5.3-Flash
 ```
 
-DeepSeek remains the workflow default. GitHub variable changes take effect when
-you manually run the **Hacksnap** deployment workflow.
+Manage the scheduled worker's endpoint, model, and inference credentials in Modal's
+`hacksnap` Secret. GitHub Actions deploys the code without modifying that secret.
 
 Both replacement endpoints passed a live synthetic structured-summary smoke test
 on 2026-09-18 using the pipeline's exact request format: strict JSON-schema output,
@@ -142,8 +142,8 @@ small request per model, not a quality or latency benchmark on production storie
 The endpoint and model are configuration, not dependencies of the pipeline.
 
 The API key is a Modal proxy token ID and secret joined with a period, as described
-in the [Modal endpoint docs](https://modal.com/docs/guide/endpoints). Keep it in a
-GitHub environment secret for CI, or a local environment file for local runs. Do not commit it. An existing endpoint
+in the [Modal endpoint docs](https://modal.com/docs/guide/endpoints). Keep it in
+Modal's `hacksnap` Secret for the scheduled worker, or a local environment file for local runs. Do not commit it. An existing endpoint
 alone does not provide a persistent credential for the scheduled worker.
 
 For manual endpoint tests, `uv run modal curl` can authenticate using the existing
@@ -152,7 +152,7 @@ CLI credentials are distinct from proxy tokens. The scheduled worker still uses
 `MODAL_LLM_API_KEY` for its bearer-token authentication.
 
 For a local deployment, create the named Modal Secret from the filled environment
-file (GitHub Actions syncs this secret automatically):
+file if the secret does not already exist:
 
 ```sh
 cd hacksnap
@@ -380,23 +380,19 @@ Modal worker or apply database migrations.
 
 For a production rollout, manually run **Supabase schema** against `main` first
 and wait for it to succeed. Then manually run **Hacksnap** against `main`; after
-tests pass, it verifies the schema version, syncs the worker secret, and deploys
-the Modal function.
+tests pass, it verifies the schema version and deploys the Modal function using
+the existing `hacksnap` Secret in Modal.
 
 Configure these GitHub secrets in `hacksnap-production` (repository secrets are
 also inherited unless overridden):
 
 - `SUPABASE_PASSWORD`: database password.
 - `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`: deployment API token pair.
-- `MODAL_LLM_API_KEY`: inference proxy token ID and secret joined with a period.
 
-Optional GitHub environment variables `MODAL_LLM_BASE_URL`, `MODAL_LLM_MODEL`, and
-`MODAL_LLM_REASONING_EFFORT` override the endpoint, model, and `low` defaults shown
-above. The manual deployment creates or replaces Modal's `hacksnap` Secret with
-the database password, inference key, and model settings. GitHub is the source
-of truth; changes made directly to that Modal Secret are overwritten on the next
-deployment. Deployment API tokens are not copied into the worker secret.
-A private temporary JSON file transfers the values and is removed afterward.
+Worker configuration lives in Modal's `hacksnap` Secret: the database password,
+`MODAL_LLM_API_KEY`, `MODAL_LLM_BASE_URL`, `MODAL_LLM_MODEL`, and any
+`MODAL_LLM_REASONING_EFFORT` override. GitHub Actions does not require inference
+variables or credentials and does not create or overwrite this secret.
 
 The `supabase-production` environment supplies the migration credentials.
 No database writes are performed by the web build or deployment preflight.

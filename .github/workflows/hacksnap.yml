@@ -122,46 +122,11 @@ jobs:
               if versions != expected:
                   raise SystemExit("Run the existing Supabase schema workflow, then rerun Hacksnap deployment.")
           PY
-      - name: Sync worker configuration to Modal
-        working-directory: hacksnap
-        env:
-          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
-          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
-          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
-          MODAL_LLM_API_KEY: ${{ secrets.MODAL_LLM_API_KEY }}
-          MODAL_LLM_BASE_URL: ${{ vars.MODAL_LLM_BASE_URL || 'https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1' }}
-          MODAL_LLM_MODEL: ${{ vars.MODAL_LLM_MODEL || 'deepseek-ai/DeepSeek-V4.1-Flash' }}
-          MODAL_LLM_REASONING_EFFORT: ${{ vars.MODAL_LLM_REASONING_EFFORT || 'low' }}
-        run: |
-          uv sync --locked --no-dev
-          uv run python - <<'PYTHON'
-          import json
-          import os
-          import subprocess
-          import tempfile
-
-          keys = (
-              "SUPABASE_PASSWORD", "MODAL_LLM_API_KEY", "MODAL_LLM_BASE_URL",
-              "MODAL_LLM_MODEL", "MODAL_LLM_REASONING_EFFORT",
-          )
-          required = (*keys, "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET")
-          missing = [key for key in required if not os.environ.get(key, "").strip()]
-          if missing:
-              raise SystemExit("Missing GitHub configuration: " + ", ".join(missing))
-          # Private temporary file avoids putting secret values in command arguments.
-          # Only worker settings are copied; deployment tokens stay in GitHub.
-          with tempfile.NamedTemporaryFile(mode="w+", suffix=".json") as config:
-              json.dump({key: os.environ[key] for key in keys}, config)
-              config.flush()
-              subprocess.run(
-                  ["modal", "secret", "create", "hacksnap", "--force", "--from-json", config.name],
-                  check=True,
-              )
-          PYTHON
       - name: Deploy the scheduled Modal function
         working-directory: hacksnap
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: |
+          uv sync --locked --no-dev
           uv run modal deploy modal_app.py
