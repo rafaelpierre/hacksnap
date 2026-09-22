@@ -48,7 +48,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || env.SPAMHAUS_SYNC_ENABLED == 'true'
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_SPAMHAUS_LIST_ID: ${{ secrets.CLOUDFLARE_SPAMHAUS_LIST_ID }}
+          CLOUDFLARE_SPAMHAUS_LIST_ID: ${{ secrets.CLOUDFLARE_LIST_ID }}
           CLOUDFLARE_LISTS_API_TOKEN: ${{ secrets.CLOUDFLARE_LISTS_API_TOKEN }}
           APPLY: ${{ github.event_name == 'schedule' || !inputs.dry_run }}
         run: |
