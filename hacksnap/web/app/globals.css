@@ -48,12 +48,13 @@ h1, h2, h3, p { margin-top: 0; }
 .share-tooltip { position: absolute; z-index: 3; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); padding: 5px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font: 10px/1.5 var(--mono); white-space: nowrap; visibility: hidden; pointer-events: none; }
 .share-link:hover .share-tooltip, .share-link:focus-visible .share-tooltip { visibility: visible; }
 @media (pointer: coarse) { .share-link { height: 44px; } }
-.share-copy { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; flex-basis: 100%; min-width: 0; margin-top: 4px; }
-.share-copy-button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 6px 0; border: 0; background: transparent; color: var(--muted); font: 11px/1.6 var(--mono); }
-.share-copy-button:hover, .share-copy-button:focus-visible { color: var(--accent); }
-.share-copy-hint { color: var(--muted); font: 10px/1.6 var(--mono); }
+.share-copy-button { padding: 0; background: transparent; }
+.share-copy-hint { flex-basis: 100%; color: var(--muted); font: 10px/1.6 var(--mono); }
 .share-copy-fallback { flex-basis: 100%; width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font: 12px/1.6 var(--mono); resize: vertical; }
-@media (pointer: coarse) { .share-copy-button { min-height: 44px; } }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.summary-pending { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; margin-right: 6px; vertical-align: middle; color: var(--muted); cursor: help; }
+.summary-pending-tooltip { position: absolute; z-index: 3; bottom: 100%; left: 0; width: 220px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font: 11px/1.5 var(--mono); letter-spacing: normal; visibility: hidden; }
+.summary-pending:hover .summary-pending-tooltip, .summary-pending:focus .summary-pending-tooltip { visibility: visible; }
 .read-link { align-self: center; padding: 12px; font-size: 20px; color: var(--muted); text-decoration: none; }
 .activity-history { position: relative; flex: 0 0 140px; width: 140px; align-self: center; margin: 0; color: var(--muted); font: 10px/1.5 var(--mono); }
 .activity-history figcaption, .sentiment figcaption { margin-bottom: 4px; }

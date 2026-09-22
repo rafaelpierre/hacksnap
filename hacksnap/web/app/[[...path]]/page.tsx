@@ -1,3 +1,4 @@
+import { SummaryPending } from "../summary-pending";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeaderboard } from "../../lib/data";
@@ -22,7 +23,7 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
     <header className="feed-header">
       <div className="channel-path">hacksnap / <span>ai</span></div>
       <h1>AI on Hacker News</h1>
-      <p>The articles and the arguments worth reading.</p>
+      <p>The articles and the arguments worth reading 🍿</p>
     </header>
     <section aria-labelledby="feed-heading">
       <div className="feed-bar"><h2 id="feed-heading">Top stories <span>{stories.length}</span></h2>
@@ -35,9 +36,9 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
           <span className="rank" data-rank={story.rank} aria-label={`Rank ${story.rank}`}>{String(story.rank).padStart(2, "0")}</span>
           <div className="story-content">
             <div className="story-domain">{articleURL(story.url) ? <a href={articleURL(story.url)!} aria-label={`Original article: ${story.title}`}>{domain(story.url)} <span aria-hidden="true">↗</span></a> : <span>Ask / Show HN</span>}{!story.is_recent && <span className="archive-label">Archive</span>}</div>
-            <h3><Link href={`/story/${story.hn_id}`}>{story.title}</Link></h3>
+            <h3>{!story.summary && <SummaryPending />}<Link href={`/story/${story.hn_id}`}>{story.title}</Link></h3>
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
-            <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a>{!story.summary && <span>Summary pending</span>}</div>
+            <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a></div>
             <ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} />
           </div>
           <div className="story-indicators">

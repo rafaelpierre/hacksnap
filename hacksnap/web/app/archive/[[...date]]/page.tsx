@@ -1,3 +1,4 @@
+import { SummaryPending } from "../../summary-pending";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -60,9 +61,9 @@ export default async function Archive(props: Props) {
         <ul className="story-list">{items.map(story => <li key={story.hn_id}><article className="story-row archive-story">
           <div className="story-content">
             <div className="story-domain">{articleURL(story.url) ? <a href={articleURL(story.url)!} aria-label={`Original article: ${story.title}`}>{domain(story.url)} ↗</a> : <span>Ask / Show HN</span>}</div>
-            <h3><Link href={`/story/${story.hn_id}`}>{story.title}</Link></h3>
+            <h3>{!story.summary && <SummaryPending />}<Link href={`/story/${story.hn_id}`}>{story.title}</Link></h3>
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
-            <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments ↗</a>{!story.summary && <span>Summary pending</span>}</div>
+            <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments ↗</a></div>
             <ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} />
           </div>
         </article></li>)}</ul>
