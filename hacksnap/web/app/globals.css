@@ -121,22 +121,28 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 .activity-history figcaption { display: flex; justify-content: space-between; gap: 6px; }
-.activity-rate { color: var(--ink); font-size: 18px; font-weight: 600; }
 .sparkline-empty span { display: block; margin-top: 5px; font-size: 9px; }
 @media (max-width: 640px) {
   .activity-history { flex-basis: 96px; width: 96px; }
-  .activity-rate { font-size: 15px; }
 }
 
 .story-indicators { display: flex; gap: 22px; align-self: center; flex-shrink: 0; }
 .story-indicators > figure { align-self: stretch; }
-.sentiment { display: flex; flex-direction: column; flex: 0 0 112px; width: 112px; margin: 0; color: var(--muted); font: 10px/1.5 var(--mono); }
-.sentiment-skeptical { --sentiment-color: #f09a93; }
-.sentiment-neutral { --sentiment-color: #d6c48f; }
-.sentiment-excited { --sentiment-color: #86cdaa; }
-.sentiment-scale { display: flex; flex: 1; align-items: center; gap: 5px; margin: 0; padding: 12px 3px; }
-.sentiment-scale span { flex: 1; height: 5px; border-radius: 3px; background: var(--line); }
-.sentiment-scale .selected { background: var(--sentiment-color); outline: 1px solid var(--sentiment-color); outline-offset: 2px; }
+.sentiment { position: relative; display: flex; flex-direction: column; flex: 0 0 112px; width: 112px; margin: 0; color: var(--muted); font: 10px/1.5 var(--mono); }
+.sentiment figcaption { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.skepticism-info, .skepticism-scale { border: 0; background: transparent; color: inherit; padding: 0; cursor: help; }
+.skepticism-info { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex-shrink: 0; }
+.skepticism-scale { display: flex; flex: 1; align-items: center; width: 100%; min-height: 32px; padding: 12px 3px; }
+.skepticism-rail { position: relative; display: block; width: 100%; height: 5px; border-radius: 3px; background: linear-gradient(90deg, var(--muted), #d6c48f 55%, var(--accent)); }
+.skepticism-marker { position: absolute; top: -3px; width: 5px; height: 11px; border-radius: 2px; transform: translateX(-50%); background: var(--skepticism-color); box-shadow: 0 0 0 2px var(--bg); }
+.skepticism-low { --skepticism-color: var(--muted); }
+.skepticism-high { --skepticism-color: var(--accent); }
+.skepticism-pending .skepticism-rail { background: var(--line); }
+.skepticism-tooltip { position: absolute; z-index: 3; left: 0; bottom: 100%; width: 200px; max-width: calc(100vw - 80px); padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font: 10px/1.5 var(--mono); text-align: left; white-space: normal; box-shadow: 0 4px 16px #0005; }
+@media (pointer: coarse) {
+  .skepticism-info { min-height: 44px; }
+  .skepticism-scale { min-height: 44px; }
+}
 @media (max-width: 760px) {
   .story-row { display: grid; grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr); gap: 16px 12px; }
   .story-row .rank { grid-column: 1; grid-row: 1 / 3; }
@@ -165,5 +171,4 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
 
 .activity-history[data-trend="up"] { --sparkline-color: #72cbb7; }
 .activity-history[data-trend="down"] { --sparkline-color: #e49a91; }
-.activity-history .activity-rate { color: var(--sparkline-color); }
 .activity-history svg:focus-visible { outline: 2px solid var(--sparkline-color); outline-offset: 4px; border-radius: 3px; }

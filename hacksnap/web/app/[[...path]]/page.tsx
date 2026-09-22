@@ -49,7 +49,7 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
         </article>
       </li>)}</ol>}
       <p className="archive-cta"><Link className="button" href="/archive">Explore the archive →</Link></p>
-      <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Hotness shows ranking movement over the past 24h · Higher means a better position · Sentiment estimates sampled comments: −1 Skeptical, 0 Neutral, +1 Excited · Summaries updated hourly</p>
+      <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Hotness shows ranking movement over the past 24h · Higher means a better position · Skept-o-meter estimates skepticism in sampled comments: left is low, right is high · Summaries updated hourly</p>
     </section>
   </>;
 }
