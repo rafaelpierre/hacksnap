@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { getStory } from "../../../lib/data";
 import { articleURL, domain, timestamp } from "../../../lib/format";
 import { ShareLinks } from "../../share-links";
+import { LocalTime } from "../../local-time";
 
 export const revalidate = 1800;
 
@@ -32,7 +33,7 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
     <header className="story-header">
       <div className="channel-path">ai / <span>{domain(story.url)}</span></div>
       <h1>{!summary && <SummaryPending />}{story.title}</h1>
-      <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments on HN ↗</a></div>
+      <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments on HN ↗</a><span>Added <LocalTime dateTime={story.date_added.toISOString()} /></span></div>
       {summary && <p className="standfirst">{summary.overall_takeaway}</p>}
       <ShareLinks id={story.hn_id} title={story.title} takeaway={summary?.overall_takeaway} />
       <div className="source-links">{article && <a href={article}>Read original ↗</a>}<a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>Full discussion ↗</a></div>

@@ -39,7 +39,7 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
             <div className="story-domain">{articleURL(story.url) ? <a href={articleURL(story.url)!} aria-label={`Original article: ${story.title}`}>{domain(story.url)} <span aria-hidden="true">↗</span></a> : <span>Ask / Show HN</span>}{!story.is_recent && <span className="archive-label">Archive</span>}</div>
             <h3>{!story.summary && <SummaryPending />}<Link href={`/story/${story.hn_id}`}>{story.title}</Link></h3>
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
-            <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a></div>
+            <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a><span>Added <LocalTime dateTime={story.date_added.toISOString()} /></span></div>
             <ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} />
           </div>
           <div className="story-indicators">
