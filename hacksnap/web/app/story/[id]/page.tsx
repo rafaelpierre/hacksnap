@@ -26,7 +26,10 @@ export async function generateMetadata({params}: {params: Promise<{id: string}>}
       types: { "application/rss+xml": "https://hacksnap.live/feed.xml" },
     },
     openGraph: { title: story.title, description, url, type: "article" },
-    twitter: { card: "summary", title: story.title, description },
+    twitter: {
+      card: "summary_large_image", title: story.title, description,
+      images: [{url: `${url}/opengraph-image`, alt: story.title}],
+    },
   };
 }
 

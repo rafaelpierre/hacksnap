@@ -41,8 +41,14 @@ The homepage omits `lastmod` because its ranking can change with time without a
 database write. `changefreq` and `priority` are intentionally omitted.
 
 Story pages supply their own title, summary-based description, canonical URL,
-Open Graph metadata, and Twitter summary card. Pending summaries use a descriptive
+Open Graph metadata, and Twitter large-image card. Pending summaries use a descriptive
 fallback. The metadata and page share a request-scoped database read.
+
+Social previews use the shared 1200×630 template in `lib/og-image.tsx`.
+`/opengraph-image` renders the default brand card; `/story/:id/opengraph-image`
+renders the stored story title and source domain, revalidating every 30 minutes.
+Long headlines shrink and truncate to fit. Rendering uses the bundled font and
+needs no external image/font service or model call. Unknown story IDs return 404.
 
 `/feed.xml` returns RSS 2.0 for the latest 50 stored stories ordered by publication
 on Hacksnap (`date_added`, then ID). Entries contain titles, canonical links,

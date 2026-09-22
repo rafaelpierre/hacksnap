@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://hacksnap.live"),
   title: {default: "Hacksnap — AI on Hacker News", template: "%s | Hacksnap"},
   description: "AI stories from Hacker News, with article briefs and highlights from the discussion.",
+  openGraph: {
+    title: "Hacksnap — AI on Hacker News",
+    description: "AI stories from Hacker News, with article briefs and highlights from the discussion.",
+    siteName: "Hacksnap",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image", images: [{url: "/opengraph-image", alt: "Hacksnap — AI on Hacker News"}] },
   alternates: { types: { "application/rss+xml": "https://hacksnap.live/feed.xml" } },
 };
 
