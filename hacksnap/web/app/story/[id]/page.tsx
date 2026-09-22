@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getStory } from "../../../lib/data";
 import { articleURL, domain, timestamp } from "../../../lib/format";
+import { ShareLinks } from "../../share-links";
 
 export const revalidate = 1800;
 
@@ -32,6 +33,7 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
       <h1>{story.title}</h1>
       <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments on HN ↗</a></div>
       {summary && <p className="standfirst">{summary.overall_takeaway}</p>}
+      <ShareLinks id={story.hn_id} title={story.title} />
       <div className="source-links">{article && <a href={article}>Read original ↗</a>}<a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>Full discussion ↗</a></div>
     </header>
     {summary ? <div className="editorial">

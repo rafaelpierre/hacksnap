@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getArchiveMonths, getArchiveStories, type Story } from "../../../lib/data";
 import { archiveMonth, archivePage, archiveURL, monthLabel } from "../../../lib/archive";
 import { articleURL, domain } from "../../../lib/format";
+import { ShareLinks } from "../../share-links";
 
 type Props = {params: Promise<{date?: string[]}>; searchParams: Promise<{page?: string | string[]}>};
 
@@ -62,6 +63,7 @@ export default async function Archive(props: Props) {
             <h3><Link href={`/story/${story.hn_id}`}>{story.title}</Link></h3>
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
             <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments ↗</a>{!story.summary && <span>Summary pending</span>}</div>
+            <ShareLinks id={story.hn_id} title={story.title} />
           </div>
         </article></li>)}</ul>
       </section>)}
