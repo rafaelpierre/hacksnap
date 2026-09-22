@@ -3,6 +3,7 @@ import sys
 import unittest
 from pathlib import Path
 from unittest.mock import Mock
+from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sync_spamhaus import parse_feed, sync
@@ -49,6 +50,18 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(api.call_args_list[2].args, ("/lists/list/items", "PUT", self.items))
         self.assertEqual(api.call_count, 4)
 
+    def test_empty_list_request_respects_cloudflare_page_limit(self):
+        responses = self.api()
+
+        def checked_api(path, *args):
+            if "/items?" in path:
+                query = parse_qs(urlsplit(path).query)
+                self.assertLessEqual(int(query["per_page"][0]), 500)
+            return responses(path, *args)
+
+        sync(self.items, checked_api, "list", apply=True)
+        self.assertEqual(responses.call_args_list[2].args[1], "PUT")
+
     def test_noop(self):
         api = self.api(self.items)
         sync(self.items, api, "list", apply=True)
@@ -79,12 +92,14 @@ class SyncTests(unittest.TestCase):
     def test_pagination(self):
         api = Mock(side_effect=[
             {"result": {"name": "spamhaus", "kind": "ip"}},
-            {"result": self.items[:1], "result_info": {"cursors": {"after": "next"}}},
+            {"result": self.items[:1], "result_info": {"cursors": {"after": "next+/=&"}}},
             {"result": self.items[1:]},
         ])
         sync(self.items, api, "list", apply=True)
         self.assertEqual(api.call_count, 3)
-        self.assertIn("cursor=next", api.call_args.args[0])
+        query = parse_qs(urlsplit(api.call_args.args[0]).query)
+        self.assertEqual(query["cursor"], ["next+/=&"])
+        self.assertEqual(query["per_page"], ["500"])
 
 
 if __name__ == "__main__":

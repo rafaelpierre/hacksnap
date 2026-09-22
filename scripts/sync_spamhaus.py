@@ -6,6 +6,7 @@ import json
 import os
 import re
 import time
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
@@ -66,8 +67,11 @@ def sync(items, api, list_id, apply=False):
     current = set()
     cursor = None
     while True:
-        suffix = f"&cursor={cursor}" if cursor else ""
-        page = api(f"{target}/items?per_page=1000{suffix}")
+        # Cloudflare's list-items endpoint caps pages at 500 entries.
+        params = {"per_page": 500}
+        if cursor:
+            params["cursor"] = cursor
+        page = api(f"{target}/items?{urlencode(params)}")
         current.update(str(ipaddress.ip_network(item["ip"])) for item in page["result"])
         next_cursor = page.get("result_info", {}).get("cursors", {}).get("after")
         if not next_cursor:
