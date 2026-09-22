@@ -199,16 +199,33 @@ test("sentiment allows the three scale points and leaves legacy summaries unscor
   }
 });
 
-test("web sentiment projection tolerates deployment before the migration", async () => {
+test("website role reads public pages but cannot write or read private payloads", async () => {
   const source = readFileSync(new URL("../lib/data.ts", import.meta.url), "utf8");
   const fields = source.match(/const fields = `([\s\S]*?)`;/)[1];
-  const query = `SELECT ${fields} FROM hacker_news_threads t
-    LEFT JOIN hacksnap_summaries s ON s.story_id=t.hn_id WHERE t.hn_id=1`;
-  await db.exec("UPDATE hacksnap_summaries SET sentiment=1 WHERE story_id=1");
-  assert.equal((await db.query(query)).rows[0].summary.sentiment, 1);
-  await db.exec("BEGIN");
+  await db.exec("SET ROLE hacksnap_reader");
   try {
-    await db.exec("ALTER TABLE hacksnap_summaries DROP COLUMN sentiment");
-    assert.equal((await db.query(query)).rows[0].summary.sentiment, null);
-  } finally { await db.exec("ROLLBACK"); }
+    const {rows} = await db.query(`SELECT ${fields}, t.rank FROM hacksnap_current_stories t
+      LEFT JOIN hacksnap_summaries s ON s.story_id=t.hn_id ORDER BY t.rank`);
+    assert.ok(rows.length > 0, "RLS must expose actual rows");
+    assert.equal(rows.find(r => Number(r.hn_id) === 1).summary.discussion_summary, 'Discussion');
+    await db.query(`SELECT ${fields}, r.rank FROM hacker_news_threads t
+      LEFT JOIN hacksnap_summaries s ON s.story_id=t.hn_id
+      LEFT JOIN hacksnap_ranked_stories r ON r.hn_id=t.hn_id`);
+    await db.query(`SELECT finished_at FROM hn_ingestion_runs
+      WHERE status='succeeded' AND filters @> '{"classify_topic":true}'::jsonb
+      ORDER BY started_at DESC,run_id DESC LIMIT 1`);
+    await db.query('SELECT hn_id,observed_at FROM hn_thread_snapshots');
+    await db.query('SELECT hn_id,observed_at,rank FROM hacksnap_rank_history');
+    for (const query of [
+      "UPDATE hacker_news_threads SET title='forbidden' WHERE false",
+      "DELETE FROM hacksnap_summaries WHERE false",
+      "INSERT INTO hacksnap_rank_history(hn_id,rank) SELECT 1,1 WHERE false",
+      "TRUNCATE hacksnap_rank_history",
+      "SELECT * FROM hn_thread_contents",
+      "SELECT raw_payload FROM hn_thread_snapshots",
+      "SELECT source_fingerprint FROM hacksnap_summaries",
+      "SELECT * FROM hn_ingestion_runs",
+      "ALTER TABLE hacker_news_threads ADD COLUMN forbidden text",
+    ]) await assert.rejects(db.query(query), /permission denied|must be owner/, query);
+  } finally { await db.exec('RESET ROLE'); }
 });

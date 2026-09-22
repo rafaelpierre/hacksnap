@@ -227,3 +227,4 @@ playwright-report/
 test-results/
 !hacksnap/web/lib/
 !hacksnap/web/lib/**
+.vercel

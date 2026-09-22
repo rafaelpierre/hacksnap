@@ -178,7 +178,7 @@ to its executable, load `.env.local`, and run `uv run python -m pipeline.refresh
 cd hacksnap/web
 npm ci
 # Copy .env.example to .env.local and fill HACKSNAP_WEB_DATABASE_URL,
-# or use the existing SUPABASE_PASSWORD environment variable.
+# using the dedicated hacksnap_reader login.
 npm run dev
 ```
 
@@ -188,12 +188,16 @@ on a normal Node.js/Next.js host. No frontend hosting provider is assumed.
 Database access is server-only (`server-only` import, no public credentials), with
 read-only transactions and an explicit public-data projection. New database
 objects have RLS enabled or `security_invoker=true`, and no anonymous API access.
-For a dedicated web database role, grant SELECT on `hacker_news_threads`,
-`hn_ingestion_runs`, `hn_thread_snapshots`, `hacksnap_summaries`, `hacksnap_fetch_failures`, and
-`hacksnap_current_stories`, plus SELECT RLS policies for that role on the five
-base tables. Do not grant writes
-or give that role to browser clients. The existing pooler password remains a
-supported PoC fallback, kept only on the server.
+Migration `0010_web_reader` creates `hacksnap_reader` with SELECT-only column grants
+and role-specific SELECT policies on the six required base tables. It cannot
+read raw content, snapshot payloads, or ingestion diagnostics, and cannot write.
+Provision its password separately, then set `HACKSNAP_WEB_DATABASE_URL` using
+`hacksnap_reader.PROJECT_REF` as the pooler username. Supabase web connections
+reject other roles; there is no administrator-password fallback.
+
+The website, collector, enrichment worker, and MCP use direct Postgres. Keep the
+Supabase Data API disabled under Integrations → Data API → Overview. This
+setting is managed in Supabase, separately from Alembic migrations.
 
 ## Vercel frontend
 
@@ -201,7 +205,7 @@ Import the repository with root directory `hacksnap/web`, the Next.js preset,
 and Node.js 22 or newer. Set the server-only `HACKSNAP_WEB_DATABASE_URL` variable
 for the deployment environment. Copy the **Transaction pooler** URI from Supabase's
 Connect dialog (port 6543) and URL-encode the database password. A dedicated
-SELECT-only role with the grants and RLS policies described above is preferred.
+SELECT-only `hacksnap_reader` role is required.
 The frontend does not need Modal credentials.
 
 Supabase connections use `verify-full` TLS with the public CA in
