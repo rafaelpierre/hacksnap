@@ -32,7 +32,7 @@ class SyncTests(unittest.TestCase):
 
     def api(self, current=None):
         return Mock(side_effect=[
-            {"result": {"name": "spamhaus_drop", "kind": "ip"}},
+            {"result": {"name": "spamhaus", "kind": "ip"}},
             {"result": current or []},
             {"result": {"operation_id": "operation"}},
             {"result": {"status": "completed"}},
@@ -69,7 +69,7 @@ class SyncTests(unittest.TestCase):
     def test_failed_operation_fails_run(self):
         api = self.api()
         api.side_effect = [
-            {"result": {"name": "spamhaus_drop", "kind": "ip"}},
+            {"result": {"name": "spamhaus", "kind": "ip"}},
             {"result": []}, {"result": {"operation_id": "operation"}},
             {"result": {"status": "failed"}},
         ]
@@ -78,7 +78,7 @@ class SyncTests(unittest.TestCase):
 
     def test_pagination(self):
         api = Mock(side_effect=[
-            {"result": {"name": "spamhaus_drop", "kind": "ip"}},
+            {"result": {"name": "spamhaus", "kind": "ip"}},
             {"result": self.items[:1], "result_info": {"cursors": {"after": "next"}}},
             {"result": self.items[1:]},
         ])

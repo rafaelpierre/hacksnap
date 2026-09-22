@@ -61,8 +61,8 @@ def sync(items, api, list_id, apply=False):
         raise ValueError("Feed size outside Cloudflare Free limits")
     target = f"/lists/{list_id}"
     info = api(target)["result"]
-    if info["name"] != "spamhaus_drop" or info["kind"] != "ip":
-        raise ValueError("Target must be the dedicated spamhaus_drop IP list")
+    if info["name"] != "spamhaus" or info["kind"] != "ip":
+        raise ValueError("Target must be the dedicated spamhaus IP list")
     current = set()
     cursor = None
     while True:

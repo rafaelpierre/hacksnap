@@ -6,7 +6,7 @@ the workflow must be on the default branch. It does not enable Bot Fight Mode.
 
 ## One-time setup
 
-1. Create an account-level Cloudflare **IP list** named `spamhaus_drop`. It must
+1. Create an account-level Cloudflare **IP list** named `spamhaus`. It must
    be dedicated to this workflow: every apply replaces its entire contents.
    Free accounts normally have one custom list and 10,000 entries available.
    Do not repurpose a list containing manual blocks or exceptions.
@@ -28,7 +28,7 @@ the workflow must be on the default branch. It does not enable Bot Fight Mode.
 
 4. Run the workflow manually with **dry_run checked**. Review additions and
    removals. Run again with it unchecked to populate the list.
-5. Create a Cloudflare custom rule with `ip.src in $spamhaus_drop`, action
+5. Create a Cloudflare custom rule with `ip.src in $spamhaus`, action
    **Block**, before geographic challenges. The workflow manages list contents,
    not firewall rules. Keep GitHub Actions failure notifications enabled.
 
