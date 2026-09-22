@@ -35,7 +35,7 @@ export function ActivitySparkline({history, title, asOf, currentRank}: {history:
   return <figure className="activity-history" data-trend={trend} aria-label={`Ranking movement for ${title}`}>
     <figcaption>Hotness <span title="Span of available observations within the past 24 hours">{formatRankDuration(duration)}</span></figcaption>
     {last && selected ? <>
-      <svg viewBox="0 0 160 60" role="img" tabIndex={0} aria-label={description}
+      <svg viewBox="0 0 160 60" preserveAspectRatio="none" role="img" tabIndex={0} aria-label={description}
         onFocus={() => setActive(points.length - 1)} onBlur={() => setActive(null)}
         onPointerLeave={event => { if (event.pointerType === "mouse") setActive(null); }}
         onPointerDown={event => { event.currentTarget.focus(); selectAtPointer(event); }} onPointerMove={selectAtPointer}

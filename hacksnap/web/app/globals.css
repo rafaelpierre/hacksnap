@@ -148,8 +148,8 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
   .story-row h3 { position: relative; }
   .story-row .rank { left: calc(-1 * (var(--rank-size) + 12px)); top: 12.6px; }
   .story-content { grid-column: 2 / -1; }
-  .story-indicators { grid-column: 2 / -1; justify-content: space-between; gap: 12px; min-width: 0; }
-  .story-indicators .activity-history { flex: 0 1 140px; width: 140px; min-width: 0; }
+  .story-indicators { grid-column: 2 / -1; gap: 20px; min-width: 0; }
+  .story-indicators .sentiment, .story-indicators .activity-history { flex: 1 1 0; width: auto; min-width: 0; }
   .story-indicators > figure { display: grid; grid-template-rows: 44px 54px; row-gap: 4px; }
   .story-indicators figcaption { align-items: center; margin-bottom: 0; }
   .story-indicators .activity-history svg { height: 100%; }
