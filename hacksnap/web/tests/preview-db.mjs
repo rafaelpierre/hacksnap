@@ -30,6 +30,11 @@ for (let i = 0; i < titles.length; i++) {
     [id,titles[i],i===9 ? `https://news.ycombinator.com/item?id=${id}` : "https://example.com", i<7 ? 1 : 30,487-i*37,162-i*12,run]);
   // Synthetic rising, cooling, quiet, negative, stale and insufficient-history states.
   const observations = i === 9 ? 0 : i === 8 ? 1 : 12;
+  for (let j = 0; j < observations; j++) {
+    await db.query(`INSERT INTO hacksnap_rank_history(hn_id,rank,observed_at)
+      VALUES ($1,$2,now() - $3 * interval '1 hour')`,
+      [id, i % 2 ? j + 1 : Math.max(1, 12 - j), (observations - j) * 4 + (i === 5 ? 72 : 0)]);
+  }
   let score = 30;
   for (let j = 0; j < observations; j++) {
     score += i === 7 ? 0 : i === 6 ? -1 : i % 2 ? 24 - j * 2 : 2 + j * 2;
@@ -48,7 +53,7 @@ for (let i = 0; i < titles.length; i++) {
     "These synthetic preview comments focus on how to measure useful work. One side values cheap, fast attempts; the other argues that debugging and review erase those savings.",
     JSON.stringify([{title:"A cheap attempt is not a cheap result",summary:"The disagreement comes down to the denominator: cost per request looks attractive, but cost per accepted change includes failed attempts and review.",comment_ids:[90000101]},{title:"The workflow changes the outcome",summary:"A narrower task and better tests may explain more of the improvement than a larger model.",comment_ids:[90000102]}]),
     "The interesting number is cost per completed task, including the attempts that didn’t work.",
-    "0".repeat(64),JSON.stringify({stored_comments:42,included_comments:28,comments_truncated:true,article_status:i===9?"not_applicable":"fetched"}),i === 7 ? null : (i % 3) - 1]);
+    "0".repeat(64),JSON.stringify({stored_comments:42,included_comments:28,comments_truncated:true,article_status:i===9?"not_applicable":"fetched",sentiment:{included_comments:i===7?0:10}}),i === 7 ? null : (i % 3) - 1]);
 }
 const port = Number(process.env.HACKSNAP_PREVIEW_PORT || 55432);
 const server = new PGLiteSocketServer({db, port, host:"127.0.0.1"});

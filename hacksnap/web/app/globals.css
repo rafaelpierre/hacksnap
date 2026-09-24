@@ -179,3 +179,26 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
 .activity-history[data-trend="up"] { --sparkline-color: #72cbb7; }
 .activity-history[data-trend="down"] { --sparkline-color: #e49a91; }
 .activity-history svg:focus-visible { outline: 2px solid var(--sparkline-color); outline-offset: 4px; border-radius: 3px; }
+
+.story-metrics { margin-top: 32px; padding: 24px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.story-metrics h2 { font: 13px/1.6 var(--mono); color: var(--accent); margin: 0 0 24px; }
+.story-metrics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; margin: 0; }
+.story-metrics-grid dt { font: 11px/1.6 var(--mono); color: var(--muted); }
+.story-metrics-grid dd { font-size: 22px; line-height: 1.4; margin: 6px 0 8px; font-weight: 550; }
+.story-metrics-grid p, .story-rank-chart p, .story-metrics-empty { font-size: 12px; font-weight: 400; line-height: 1.7; color: var(--muted); margin: 8px 0 0; }
+.story-metrics-meter { max-width: 160px; padding: 6px 3px; margin: 2px 0 10px; }
+.story-metrics-meter .skepticism-marker { box-shadow: 0 0 0 2px var(--surface); }
+.story-rank-chart { --sparkline-color: var(--accent); margin: 26px 0 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.story-rank-chart figcaption { font: 12px/1.7 var(--mono); }
+.story-rank-chart figcaption > span { display: block; color: var(--muted); font-size: 10px; margin-top: 4px; }
+.story-rank-plot { display: flex; gap: 8px; margin: 14px 0 6px; }
+.story-rank-plot svg { display: block; width: 100%; min-width: 0; height: 120px; }
+.story-rank-scale { display: flex; flex-direction: column; justify-content: space-between; padding: 8px 0; color: var(--muted); font: 10px/1.6 var(--mono); }
+.story-rank-dates { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--muted); font: 10px/1.7 var(--mono); margin-bottom: 12px; }
+.story-metrics-method { font: 10px/1.9 var(--mono); color: var(--muted); margin: 16px 0 0; }
+.story-metrics-empty { margin-top: 24px; }
+@media (max-width: 480px) {
+  .story-metrics { padding: 20px 16px; }
+  .story-metrics-grid { gap: 22px 16px; }
+  .story-metrics-grid dd { font-size: 19px; }
+}

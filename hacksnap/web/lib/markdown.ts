@@ -1,5 +1,6 @@
 import type { Story } from "./data";
 import { storyIndicators } from "./story-indicators.ts";
+import { storyMetricsText } from "./story-metrics.ts";
 
 // Wildcards alone keep the browser default. An explicit Markdown preference
 // must be acceptable and at least as preferred as HTML.
@@ -39,7 +40,8 @@ export function storyMarkdown(story: Story): string {
   const lines = [`# ${text(story.title)}`, `${story.points} points · ${story.comment_count} comments`,
     link("Full discussion", `https://news.ycombinator.com/item?id=${story.hn_id}`)];
   if (article) lines.push(link("Read original", article));
-  lines.push(storyIndicators(story, story.observed_at ?? new Date().toISOString()).map(text).join("\n\n"));
+  if (!story.ranking_metrics) lines.push(storyIndicators(story, story.observed_at ?? new Date().toISOString()).map(text).join("\n\n"));
+  lines.push("## Skept-o-meter & Hotness", storyMetricsText(story).map(text).join("\n\n"));
   if (!summary) return [...lines, "## Summary pending", "Summaries update hourly. You can read the original sources above.", ""].join("\n\n");
   lines.push(text(summary.overall_takeaway), article ? "## The brief" : "## The post",
     summary.article_summary ? text(summary.article_summary) : summary.source_coverage.article_status === "unavailable"

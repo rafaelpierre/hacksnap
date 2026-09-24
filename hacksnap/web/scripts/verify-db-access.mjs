@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 import pg from 'pg';
 import {archiveMonthsSQL, archiveQuery} from '../lib/archive.ts';
 import {rankHistorySQL} from '../lib/rank-history.ts';
+import {storyMetricsSQL} from '../lib/story-metrics.ts';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const url = new URL(process.env.HACKSNAP_WEB_DATABASE_URL);
 url.searchParams.set('sslmode', 'verify-full');
@@ -21,7 +22,7 @@ try {
   const fields = source.match(/const fields = `([\s\S]*?)`;/)[1];
   let checked = 0;
   for (const match of source.matchAll(/client\.query[^\n]*\(`([\s\S]*?)`/g)) {
-    const query = match[1].replaceAll('${fields}',fields).replaceAll('${rankHistorySQL}',rankHistorySQL);
+    const query = match[1].replaceAll('${fields}',fields).replaceAll('${rankHistorySQL}',rankHistorySQL).replaceAll('${storyMetricsSQL}',storyMetricsSQL);
     const result = await client.query(query, query.includes('$1') ? [1] : []);
     if (query.includes('AS stories')) assert.ok(result.rows[0].stories.length > 0);
     checked++;

@@ -7,6 +7,7 @@ import { getStory } from "../../../lib/data";
 import { articleURL, domain, timestamp } from "../../../lib/format";
 import { ShareLinks } from "../../share-links";
 import { LocalTime } from "../../local-time";
+import { StoryMetrics } from "../../story-metrics";
 
 export const revalidate = 1800;
 
@@ -38,6 +39,7 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
       <ShareLinks id={story.hn_id} title={story.title} takeaway={summary?.overall_takeaway} />
       <div className="source-links">{article && <a href={article}>Read original ↗</a>}<a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>Full discussion ↗</a></div>
     </header>
+    <StoryMetrics story={story} />
     {summary ? <div className="editorial">
       <section aria-labelledby="article-heading">
         <h2 id="article-heading">{article ? "The brief" : "The post"}</h2>

@@ -32,16 +32,43 @@ to verify HTTP headers, HTML defaults, HEAD, and unaffected API formats.
 After deployment, validate with the
 scanner from the [Markdown negotiation skill](https://isitagentready.com/.well-known/agent-skills/markdown-negotiation/SKILL.md).
 
+## Persistent story metrics
+
+Story pages render a visible **Skept-o-meter & Hotness** section in the initial
+HTML, with the same metrics in negotiated Markdown. It includes the existing
+skepticism category, summary comment count, the separate skepticism sample count
+when recorded, peak observed **Hacksnap** rank, estimated time in its Top 10,
+and a ranking chart. Skepticism categories have no numeric score; meter positions
+are visual conventions. Hacksnap ranks are distinct from HN front-page ranks.
+
+Peak and duration use all retained `hacksnap_rank_history` observations, including
+those older than 24 hours. The chart shows at most the latest 168 saved positions,
+with its date range and truncation count visible. Current request-time ranks are
+not added to these historical statistics. Time in the Top 10 holds each rank
+until the next capture, excluding gaps over 13 hours (the scheduled overnight
+gap plus timing tolerance) and time after the final capture. It is a sampled
+estimate, not continuous tracking. Missing or insufficient history is shown
+explicitly. No schema change or additional collection job is required.
+
+Run `npm run test:history` for historical aggregation and coverage checks. The
+production HTTP checks also verify these metrics appear before JavaScript runs.
+
 ## Search metadata
 
 `/sitemap.xml` lists the homepage, archive pages, and stories with summaries. Story `lastmod`
-values use the latest stored publication, summary update, or snapshot observation
+values use the latest stored publication, summary update, content snapshot, or ranking observation
 timestamp. They remain stable between content writes; requests do not advance them.
 The homepage omits `lastmod` because its ranking can change with time without a
 database write. `changefreq` and `priority` are intentionally omitted.
 
-Story pages supply their own title, summary-based description, canonical URL,
-Open Graph metadata, and Twitter large-image card. Pending summaries use a descriptive
+Story SEO titles use `<headline> — Hacker News reactions | Hacksnap`, keeping the
+original article title as the H1. Only the headline is shortened (to 60 characters),
+so the reaction label and brand are retained. Open Graph and Twitter titles also
+include the reaction label. Descriptions use the actual sampled-comment count and
+up to three existing discussion-point titles, with 155-character search and
+125-character social targets. Discussion-only summaries do not claim article
+coverage, and zero-comment samples are identified explicitly. Each story also
+supplies its canonical URL and Twitter large-image card. Pending summaries use a descriptive
 fallback and `noindex, follow`, and are excluded from the sitemap. Once a summary is
 available, the story enters the sitemap and becomes indexable on the page's next
 revalidation (the existing cache interval is 30 minutes). The metadata and page

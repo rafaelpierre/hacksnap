@@ -5,6 +5,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { Pool, type PoolClient } from "pg";
 import { rankHistorySQL, type RankObservation } from "./rank-history";
+import { storyMetricsSQL, type RankingMetrics } from "./story-metrics";
 
 export type Summary = {
   article_summary: string | null;
@@ -20,6 +21,7 @@ export type Summary = {
     included_comments: number;
     comments_truncated: boolean;
     article_status: "fetched" | "unavailable" | "not_applicable";
+    sentiment?: { included_comments: number };
   };
 };
 
@@ -35,6 +37,7 @@ export type Story = {
   summary: Summary | null;
   rank_history?: RankObservation[];
   observed_at?: string;
+  ranking_metrics?: RankingMetrics;
 };
 
 const globalDB = globalThis as unknown as { hacksnapPool?: Pool };
@@ -141,6 +144,10 @@ export async function getSitemapStories(): Promise<{hn_id: string; modified_at: 
       SELECT t.hn_id, GREATEST(t.date_added, s.updated_at, (
         SELECT observed_at FROM hn_thread_snapshots
         WHERE hn_id = t.hn_id ORDER BY observed_at DESC LIMIT 1
+      ), (
+        SELECT observed_at FROM hacksnap_rank_history
+        WHERE hn_id = t.hn_id AND observed_at <= CURRENT_TIMESTAMP
+        ORDER BY observed_at DESC LIMIT 1
       )) AS modified_at
       FROM hacker_news_threads t
       INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
@@ -168,6 +175,7 @@ export const getStory = cache(async (id: string): Promise<Story | null> => {
   if (!/^[1-9][0-9]{0,14}$/.test(id)) return null;
   return read(async client => {
     const result = await client.query<Story>(`SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
+      ${storyMetricsSQL} AS ranking_metrics,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
