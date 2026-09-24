@@ -9,7 +9,10 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import psycopg
+from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
+
+from hn_trending.categories import CATEGORY_FIELDS
 
 
 UPSERT_THREAD = """
@@ -18,11 +21,13 @@ WITH identity AS (
 )
 INSERT INTO hacker_news_threads
     (hn_id, title, url, date_published, date_added, author,
-     points, comment_count, last_seen_run_id)
+     points, comment_count, last_seen_run_id,
+     category, category_version, category_model, categorized_at, category_title_hash)
 VALUES
     (%(hn_id)s, %(title)s, %(url)s,
      %(date_published)s, %(date_added)s, %(author)s, %(points)s, %(comment_count)s,
-     %(last_seen_run_id)s)
+     %(last_seen_run_id)s, %(category)s, %(category_version)s, %(category_model)s,
+     %(categorized_at)s, %(category_title_hash)s)
 ON CONFLICT (hn_id) DO UPDATE SET
     title = EXCLUDED.title,
     url = EXCLUDED.url,
@@ -30,8 +35,49 @@ ON CONFLICT (hn_id) DO UPDATE SET
     author = EXCLUDED.author,
     points = EXCLUDED.points,
     comment_count = EXCLUDED.comment_count,
-    last_seen_run_id = EXCLUDED.last_seen_run_id
+    last_seen_run_id = EXCLUDED.last_seen_run_id,
+    category = COALESCE(EXCLUDED.category, hacker_news_threads.category),
+    category_version = COALESCE(EXCLUDED.category_version, hacker_news_threads.category_version),
+    category_model = COALESCE(EXCLUDED.category_model, hacker_news_threads.category_model),
+    categorized_at = COALESCE(EXCLUDED.categorized_at, hacker_news_threads.categorized_at),
+    category_title_hash = COALESCE(EXCLUDED.category_title_hash, hacker_news_threads.category_title_hash)
 """
+
+
+def get_category_assignments(database_url: str, story_ids: list[int]) -> dict[int, dict]:
+    if not story_ids:
+        return {}
+    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+        connection.execute("SET TRANSACTION READ ONLY")
+        rows = connection.execute(
+            """SELECT hn_id, category, category_version, category_model, categorized_at, category_title_hash
+               FROM hacker_news_threads WHERE hn_id = ANY(%s)""", (story_ids,),
+        ).fetchall()
+        return {row["hn_id"]: row for row in rows}
+
+
+def category_backfill_batch(database_url: str, after_id: int, limit: int = 100) -> list[dict]:
+    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+        connection.execute("SET TRANSACTION READ ONLY")
+        return connection.execute(
+            """SELECT hn_id, title, category, category_version, category_model, categorized_at, category_title_hash
+               FROM hacker_news_threads WHERE hn_id > %s ORDER BY hn_id LIMIT %s""",
+            (after_id, limit),
+        ).fetchall()
+
+
+def save_category(database_url: str, story_id: int, title: str, metadata: dict) -> bool:
+    # A slow model response must not classify a newer title or overwrite a newer prediction.
+    with psycopg.connect(database_url) as connection:
+        result = connection.execute(
+            """UPDATE hacker_news_threads SET category = %(category)s,
+                 category_version = %(category_version)s, category_model = %(category_model)s,
+                 categorized_at = %(categorized_at)s, category_title_hash = %(category_title_hash)s
+               WHERE hn_id = %(hn_id)s AND title = %(title)s
+                 AND (categorized_at IS NULL OR categorized_at <= %(categorized_at)s)""",
+            {**metadata, "hn_id": story_id, "title": title},
+        )
+        return result.rowcount == 1
 
 INSERT_INGESTION_RUN = """
 INSERT INTO hn_ingestion_runs (run_id, status, filters)
@@ -166,11 +212,13 @@ def database_row(
     *,
     top_story_rank: int,
     max_comment_depth: int,
+    classification: dict | None = None,
 ) -> dict[str, Any]:
     """Map an official HN story payload to the database schema."""
     published = datetime.fromtimestamp(story["time"], tz=timezone.utc)
     fallback_url = f"https://news.ycombinator.com/item?id={story['id']}"
     return {
+        **{field: (classification or {}).get(field) for field in CATEGORY_FIELDS},
         "hn_id": story["id"],
         "title": story["title"],
         "url": story.get("url") or fallback_url,

@@ -1,7 +1,8 @@
 import { SummaryPending } from "../summary-pending";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getLeaderboard } from "../../lib/data";
+import { getLeaderboard, getCategoryCounts } from "../../lib/data";
+import { CategoryBadge, CategoryNav } from "../categories";
 import { articleURL, domain } from "../../lib/format";
 import { LocalTime } from "../local-time";
 import { Sentiment } from "../sentiment";
@@ -18,7 +19,7 @@ export async function generateStaticParams() {
 export default async function Home({params}: {params: Promise<{path?: string[]}>}) {
   // Only the root URL belongs to this page; unknown paths must remain 404s.
   if ((await params).path?.length) notFound();
-  const {stories, ingestion, observed_at} = await getLeaderboard();
+  const [{stories, ingestion, observed_at}, categoryCounts] = await Promise.all([getLeaderboard(), getCategoryCounts()]);
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
   return <>
     <header className="feed-header">
@@ -26,6 +27,7 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
       <h1>AI on Hacker News</h1>
       <p>The articles and the arguments worth reading 🍿</p>
     </header>
+    <CategoryNav counts={categoryCounts} />
     <section aria-labelledby="feed-heading">
       <div className="feed-bar"><h2 id="feed-heading">Top stories <span>{stories.length}</span></h2>
         <p>{ingestion ? <>Updated <LocalTime dateTime={ingestion.toISOString()} /></> : "Waiting for stories"}</p>
@@ -35,7 +37,7 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
       <ol className="story-list">{stories.map(story => <li key={story.hn_id}>
         <article className="story-row">
           <div className="story-content">
-            <div className="story-domain">{articleURL(story.url) ? <a href={articleURL(story.url)!} aria-label={`Original article: ${story.title}`}>{domain(story.url)} <span aria-hidden="true">↗</span></a> : <span>Ask / Show HN</span>}{!story.is_recent && <span className="archive-label">Archive</span>}</div>
+            <div className="story-domain">{articleURL(story.url) ? <a href={articleURL(story.url)!} aria-label={`Original article: ${story.title}`}>{domain(story.url)} <span aria-hidden="true">↗</span></a> : <span>Ask / Show HN</span>}{!story.is_recent && <span className="archive-label">Archive</span>}<CategoryBadge id={story.category} /></div>
             <h3><span className="rank" data-rank={story.rank} aria-label={`Rank ${story.rank}`}>{String(story.rank).padStart(2, "0")}</span><Link href={`/story/${story.hn_id}`}>{story.title}</Link>{!story.summary && <SummaryPending />}</h3>
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
             <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a><span>Added <LocalTime dateTime={story.date_added.toISOString()} /></span></div>

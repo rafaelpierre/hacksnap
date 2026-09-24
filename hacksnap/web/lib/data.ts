@@ -6,6 +6,7 @@ import { unstable_cache } from "next/cache";
 import { Pool, type PoolClient } from "pg";
 import { rankHistorySQL, type RankObservation } from "./rank-history";
 import { storyMetricsSQL, type RankingMetrics } from "./story-metrics";
+import { CATEGORY_PAGE_SIZE, categoryCountsSQL, categoryQuery, type CategoryId, type CategoryCounts } from "./categories";
 
 export type Summary = {
   article_summary: string | null;
@@ -28,6 +29,7 @@ export type Summary = {
 export type Story = {
   hn_id: string;
   title: string;
+  category: CategoryId | null;
   url: string;
   points: number;
   comment_count: number;
@@ -89,7 +91,7 @@ async function read<T>(query: (client: PoolClient) => Promise<T>): Promise<T> {
 
 // Explicit public projection: raw comments, ingestion configuration, credentials,
 // fingerprints and worker diagnostics never enter a React component.
-const fields = `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added,
+const fields = `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added, t.category,
   CASE WHEN s.story_id IS NULL THEN NULL ELSE json_build_object(
     'article_summary', s.article_summary, 'article_key_points', s.article_key_points,
     'discussion_summary', s.discussion_summary, 'discussion_points', s.discussion_points,
@@ -125,7 +127,7 @@ const cachedLeaderboard = unstable_cache(async (): Promise<CachedLeaderboard> =>
       ingestion: ingestion?.toISOString() ?? null,
     };
   });
-}, ["hacksnap-leaderboard-v9-rank-hotness"], {revalidate: 1800});
+}, ["hacksnap-leaderboard-v10-categories"], {revalidate: 1800});
 
 export async function getLeaderboard(): Promise<{stories: (Story & {rank_history: RankObservation[]})[]; ingestion: Date | null; observed_at: string}> {
   const {stories, ingestion, observed_at} = await cachedLeaderboard();
@@ -186,6 +188,16 @@ export const getStory = cache(async (id: string): Promise<Story | null> => {
 
 export const getArchiveMonths = cache(async (): Promise<{month: string; count: number}[]> =>
   read(async client => (await client.query<{month: string; count: number}>(archiveMonthsSQL)).rows));
+
+export const getCategoryCounts = cache(async (): Promise<CategoryCounts> => read(async client => {
+  const {rows} = await client.query<{category: CategoryId; count: number}>(categoryCountsSQL);
+  return Object.fromEntries(rows.map(row => [row.category, row.count]));
+}));
+
+export const getCategoryStories = cache(async (category: CategoryId, page: number) => read(async client => {
+  const {rows} = await client.query<Story>(categoryQuery(fields, category, page));
+  return {stories: rows.slice(0, CATEGORY_PAGE_SIZE), hasNext: rows.length > CATEGORY_PAGE_SIZE};
+}));
 
 export const getArchiveStories = cache(async (month: string | null, page: number) =>
   read(async client => {

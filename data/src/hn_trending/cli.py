@@ -11,8 +11,10 @@ import click
 import httpx
 
 from hn_trending.client import HackerNewsClient, retain_comments_with_descendants
+from hn_trending.categories import CATEGORY_VERSION, category_metadata, reusable_category
 from hn_trending.storage import (
     database_row,
+    get_category_assignments,
     finish_ingestion_run,
     start_ingestion_run,
     store_threads_and_snapshots,
@@ -110,6 +112,7 @@ def main(
         "max_comment_depth": max_comment_depth,
         "min_comment_descendants": min_comment_descendants,
         "classify_topic": classify_topic,
+        "category_version": CATEGORY_VERSION if classify_topic else None,
         "limit": limit,
     }
     run_id = start_ingestion_run(database_url, run_filters)
@@ -133,6 +136,7 @@ def main(
                 f"classify_topic={classify_topic}."
             )
             story_ids = hn.top_story_ids()[:limit]
+            saved_categories = get_category_assignments(database_url, story_ids) if classifier else {}
             click.echo(f"Received {len(story_ids)} top-story ID(s); fetching story metadata.")
 
             for position, story_id in enumerate(story_ids, start=1):
@@ -149,15 +153,20 @@ def main(
                 title = story.get("title", "")
                 score = story.get("score", 0)
                 descendants = story.get("descendants", 0)
+                classification = None
                 if classifier is not None:
-                    decision = classifier.classify(title)
+                    classification = reusable_category(saved_categories.get(story_id), title, classifier.model)
+                    decision = None if classification else classifier.classify(title)
                     click.echo(
-                        f"{prefix} Topic classification: relevant={decision.relevant}."
+                        f"{prefix} Topic classification: "
+                        f"{classification['category'] + ' (cached)' if classification else decision.model_dump()}."
                     )
-                    if not decision.relevant:
+                    if decision is not None and not decision.relevant:
                         filtered += 1
                         click.echo(f"{prefix} Filtered {title!r}: not relevant to the AI news feed.")
                         continue
+                    if decision is not None:
+                        classification = category_metadata(title, decision.category, classifier.model)
 
                 filter_failures: list[str] = []
                 if not title_matches(title, title_words):
@@ -199,6 +208,7 @@ def main(
                         raw_thread_contents(story, retained_comments),
                         top_story_rank=position,
                         max_comment_depth=max_comment_depth,
+                        classification=classification,
                     )
                 )
 

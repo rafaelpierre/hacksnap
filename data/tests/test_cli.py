@@ -109,7 +109,7 @@ def test_comment_subtree_filter_can_be_disabled() -> None:
 
 
 def test_topic_decision_parses_constrained_json() -> None:
-    decision = parse_topic_decision({"relevant": True})
+    decision = parse_topic_decision({"relevant": True, "category": "agents_coding"})
 
     assert decision.relevant is True
 
@@ -121,7 +121,7 @@ def test_topic_decision_rejects_invalid_output() -> None:
 
 def test_topic_decision_accepts_json_text_response() -> None:
     decision = topic_decision_from_response(
-        {"choices": [{"finish_reason": "stop", "message": {"content": '{"relevant": true}'}}]}
+        {"choices": [{"finish_reason": "stop", "message": {"content": '{"relevant": true, "category": "agents_coding"}'}}]}
     )
 
     assert decision.relevant is True
@@ -143,7 +143,7 @@ def test_title_classifier_uses_modal_structured_response() -> None:
         assert payload["response_format"] == TOPIC_DECISION_RESPONSE_FORMAT
         assert json.loads(payload["messages"][1]["content"]) == {"title": "New agent framework"}
         return httpx.Response(200, json={"choices": [{
-            "finish_reason": "stop", "message": {"content": '{"relevant": true}'}
+            "finish_reason": "stop", "message": {"content": '{"relevant": true, "category": "agents_coding"}'}
         }]})
 
     with httpx.Client(transport=httpx.MockTransport(respond)) as client:
@@ -155,7 +155,7 @@ def test_title_classifier_uses_modal_structured_response() -> None:
 
 @pytest.mark.parametrize("response", [
     {}, {"choices": []}, {"choices": None},
-    {"choices": [{"finish_reason": "length", "message": {"content": '{"relevant": true}'}}]},
+    {"choices": [{"finish_reason": "length", "message": {"content": '{"relevant": true, "category": "agents_coding"}'}}]},
     {"choices": [{"finish_reason": "stop", "message": {"content": None}}]},
     {"choices": [{"finish_reason": "stop", "message": {"content": '{"relevant": "yes"}'}}]},
 ])
@@ -192,7 +192,7 @@ def test_topic_prompt_includes_ai_coding_assistant_ecosystem() -> None:
 
 def test_topic_schema_requires_strict_boolean() -> None:
     schema = TOPIC_DECISION_RESPONSE_FORMAT["json_schema"]["schema"]
-    assert schema["required"] == ["relevant"]
+    assert schema["required"] == ["relevant", "category"]
     assert schema["properties"]["relevant"]["type"] == "boolean"
     assert schema["additionalProperties"] is False
 
@@ -258,7 +258,7 @@ def classifier_clock(monkeypatch):
 
 def successful_decision_response():
     return httpx.Response(200, json={"choices": [{
-        "finish_reason": "stop", "message": {"content": '{"relevant": true}'}
+        "finish_reason": "stop", "message": {"content": '{"relevant": true, "category": "agents_coding"}'}
     }]})
 
 

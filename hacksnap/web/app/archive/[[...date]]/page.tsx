@@ -6,6 +6,7 @@ import { getArchiveMonths, getArchiveStories, type Story } from "../../../lib/da
 import { archiveMonth, archivePage, archiveURL, monthLabel } from "../../../lib/archive";
 import { articleURL, domain } from "../../../lib/format";
 import { ShareLinks } from "../../share-links";
+import { CategoryBadge } from "../../categories";
 
 type Props = {params: Promise<{date?: string[]}>; searchParams: Promise<{page?: string | string[]}>};
 
@@ -60,7 +61,7 @@ export default async function Archive(props: Props) {
         <div className="feed-bar"><h2 id={`day-${day}`}><time dateTime={day}>{new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", {day: "numeric", month: "long", year: "numeric", timeZone: "UTC"})}</time></h2></div>
         <ul className="story-list">{items.map(story => <li key={story.hn_id}><article className="story-row archive-story">
           <div className="story-content">
-            <div className="story-domain">{articleURL(story.url) ? <a href={articleURL(story.url)!} aria-label={`Original article: ${story.title}`}>{domain(story.url)} ↗</a> : <span>Ask / Show HN</span>}</div>
+            <div className="story-domain">{articleURL(story.url) ? <a href={articleURL(story.url)!} aria-label={`Original article: ${story.title}`}>{domain(story.url)} ↗</a> : <span>Ask / Show HN</span>}<CategoryBadge id={story.category} /></div>
             <h3><Link href={`/story/${story.hn_id}`}>{story.title}</Link>{!story.summary && <SummaryPending />}</h3>
             {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
             <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments ↗</a></div>
