@@ -18,7 +18,7 @@ Returns one story, including archived stories. IDs are positive decimal strings 
 
 ## Story fields
 
-Each story contains \`hn_id\` (string), \`title\`, \`url\`, \`points\`, \`comment_count\`, \`date_added\` (UTC timestamp), and \`summary\`.
+Each story contains \`hn_id\` (string), \`title\`, \`category\` (topic identifier, or null while pending), \`url\`, \`points\`, \`comment_count\`, \`date_added\` (UTC timestamp), and \`summary\`.
 
 A summary contains \`article_summary\` (string or null), \`discussion_summary\`, and \`overall_takeaway\`. The entire summary is null while pending. Summaries are AI-generated from sampled source material and may contain errors; consult the original article and Hacker News discussion.
 

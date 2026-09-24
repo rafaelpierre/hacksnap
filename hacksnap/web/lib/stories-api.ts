@@ -5,6 +5,7 @@ export function publicStory(story: Story) {
   return {
     hn_id: String(story.hn_id),
     title: story.title,
+    category: story.category ?? null,
     url: story.url,
     points: story.points,
     comment_count: story.comment_count,

@@ -25,6 +25,7 @@ test("catalog advertises the actual API, spec and documentation; HEAD supports d
 
 const story = {
   hn_id: "123", title: "Example", url: "https://example.com", points: 2,
+  category: "agents_coding", category_model: "private-classifier",
   comment_count: 1, date_added: new Date("2026-09-19T12:00:00Z"),
   summary: {article_summary: null, discussion_summary: "Discussion", overall_takeaway: "Takeaway", model: "private-extra"},
   internal_diagnostics: "must never be exposed",
@@ -40,6 +41,8 @@ test("list and detail expose only documented fields and preserve pending summari
   assert.equal(list.stories[1].summary, null);
   assert.equal(list.stories[0].date_added, "2026-09-19T12:00:00.000Z");
   assert.equal(list.stories[0].internal_diagnostics, undefined);
+  assert.equal(list.stories[0].category, "agents_coding");
+  assert.equal(list.stories[0].category_model, undefined);
   assert.equal(list.stories[0].summary.model, undefined);
   assert.deepEqual(await (await api.detail("123")).json(), list.stories[0]);
 });

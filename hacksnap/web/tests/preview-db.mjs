@@ -21,6 +21,7 @@ const titles = [
   "[Demo] Who checks the code that checks the code?",
   "[Demo] Ask HN: What are you actually using AI for?",
 ];
+const categories = ["agents_coding", "models_products", "research_evaluation", "agents_coding", "research_evaluation", "infrastructure_efficiency", "industry_society", "research_evaluation", "safety_privacy", "industry_society"];
 for (let i = 0; i < titles.length; i++) {
   const id = 90000001 + i;
   await db.query("INSERT INTO hn_items VALUES ($1)", [id]);
@@ -28,6 +29,8 @@ for (let i = 0; i < titles.length; i++) {
     date_published,date_added,points,comment_count,last_seen_run_id)
     VALUES ($1,$2,$3,now(),now() - $4 * interval '1 hour',$5,$6,$7)`,
     [id,titles[i],i===9 ? `https://news.ycombinator.com/item?id=${id}` : "https://example.com", i<7 ? 1 : 30,487-i*37,162-i*12,run]);
+  await db.query(`UPDATE hacker_news_threads SET category=$2, category_version='v1',
+    category_model='demo', categorized_at=now(), category_title_hash=$3 WHERE hn_id=$1`, [id,categories[i],"a".repeat(64)]);
   // Synthetic rising, cooling, quiet, negative, stale and insufficient-history states.
   const observations = i === 9 ? 0 : i === 8 ? 1 : 12;
   for (let j = 0; j < observations; j++) {

@@ -4,7 +4,7 @@ import { storyPreviewMetadata } from "../../../lib/preview-metadata";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getStory } from "../../../lib/data";
-import { articleURL, domain, timestamp } from "../../../lib/format";
+import { articleURL, timestamp } from "../../../lib/format";
 import { ShareLinks } from "../../share-links";
 import { LocalTime } from "../../local-time";
 import { StoryMetrics } from "../../story-metrics";
@@ -33,9 +33,8 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
   return <article className="detail">
     <Link className="back-link" href="/">← All stories</Link>
     <header className="story-header">
-      <div className="story-category"><CategoryBadge id={story.category} /></div>
-      <div className="channel-path">ai / <span>{domain(story.url)}</span></div>
       <h1>{story.title}{!summary && <SummaryPending />}</h1>
+      {story.category && <div className="story-flair"><CategoryBadge id={story.category} /></div>}
       <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments on HN ↗</a><span>Added <LocalTime dateTime={story.date_added.toISOString()} /></span></div>
       {summary && <p className="standfirst">{summary.overall_takeaway}</p>}
       <ShareLinks id={story.hn_id} title={story.title} takeaway={summary?.overall_takeaway} />

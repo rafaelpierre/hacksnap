@@ -206,3 +206,25 @@ includes the archive landing page and populated months. Story URLs stay unchange
 
 Run `npm run test:archive` for route validation, UTC boundaries and database
 pagination checks against synthetic data.
+
+## Category flairs
+
+Stories display a compact category flair directly below their title on the
+homepage, article pages and archive. Clicking a flair opens
+`/category/<slug>`, with the topic description and all stored stories in that
+category, newest first. The homepage has no category directory or menu.
+
+The six category pages use stable slugs from `lib/categories.ts`, paginate at 30
+stories, include pending summaries, and return 404 for unknown slugs or invalid
+pages. They render on request and each pagination URL has its own canonical URL.
+The sitemap includes all six topic landing pages. API responses expose the
+nullable category identifier; homepage and article Markdown include category links.
+
+Deploy database migration `0011_categories` before this website version. Only the
+public category field is granted to the website role; model, version, timestamp
+and input hash remain private. Keep category IDs in the frontend and ingestion
+classifier aligned; the ingestion tests check that contract.
+
+Run `npm run test:categories` and `npm run test:db` (with `HACKSNAP_SCHEMA_SQL`)
+for routing, pagination, constraints and read-permission checks. Against a local
+preview, run `HACKSNAP_TEST_URL=http://127.0.0.1:3119 node --test tests/categories-http.test.mjs`.

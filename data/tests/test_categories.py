@@ -94,7 +94,7 @@ def test_backfill_resumes_and_dry_run_never_writes(monkeypatch):
     monkeypatch.setenv("SUPABASE_PASSWORD", "test")
     monkeypatch.setattr(backfill, "TitleTopicClassifier", Classifier)
     monkeypatch.setattr(backfill, "category_backfill_batch", lambda url, after: [row for row in rows if row["hn_id"] > after])
-    def save(url, id, title, metadata):
+    def save(url, id, title, metadata, expected_at):
         rows[id-1].update(metadata)
         return True
     monkeypatch.setattr(backfill, "save_category", save)

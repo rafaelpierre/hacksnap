@@ -1,6 +1,7 @@
 import type { Story } from "./data";
 import { storyIndicators } from "./story-indicators.ts";
 import { storyMetricsText } from "./story-metrics.ts";
+import { categoryById, categoryURL } from "./categories.ts";
 
 // Wildcards alone keep the browser default. An explicit Markdown preference
 // must be acceptable and at least as preferred as HTML.
@@ -37,9 +38,11 @@ function original(story: Story): string | null {
 export function storyMarkdown(story: Story): string {
   const article = original(story);
   const summary = story.summary;
+  const category = categoryById(story.category);
   const lines = [`# ${text(story.title)}`, `${story.points} points · ${story.comment_count} comments`,
     link("Full discussion", `https://news.ycombinator.com/item?id=${story.hn_id}`)];
   if (article) lines.push(link("Read original", article));
+  if (category) lines.push(`Category: ${link(category.label, `https://hacksnap.live${categoryURL(category)}`)}`);
   if (!story.ranking_metrics) lines.push(storyIndicators(story, story.observed_at ?? new Date().toISOString()).map(text).join("\n\n"));
   lines.push("## Skept-o-meter & Hotness", storyMetricsText(story).map(text).join("\n\n"));
   if (!summary) return [...lines, "## Summary pending", "Summaries update hourly. You can read the original sources above.", ""].join("\n\n");
@@ -66,9 +69,11 @@ export function leaderboardMarkdown({stories, ingestion, observed_at = new Date(
   if (ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000) lines.push("Updates are delayed. These are the latest saved stories.");
   if (!stories.length) lines.push("No stories yet. Stories will appear after the next update.");
   for (const story of stories) {
+    const category = categoryById(story.category);
     lines.push(`### ${story.rank ?? ""}. ${link(story.title, `https://hacksnap.live/story/${story.hn_id}`)}`,
       `${story.points} points · ${link(`${story.comment_count} comments`, `https://news.ycombinator.com/item?id=${story.hn_id}`)}${!story.is_recent ? " · Archive" : ""}`);
     lines.push(storyIndicators(story, observed_at).map(text).join("\n\n"));
+    if (category) lines.push(`Category: ${link(category.label, `https://hacksnap.live${categoryURL(category)}`)}`);
     const article = original(story);
     if (article) lines.push(link("Original article", article));
     lines.push(story.summary ? text(story.summary.overall_takeaway) : "Summary pending");

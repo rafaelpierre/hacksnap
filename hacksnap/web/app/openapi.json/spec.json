@@ -151,7 +151,8 @@
           "points",
           "comment_count",
           "date_added",
-          "summary"
+          "summary",
+          "category"
         ],
         "properties": {
           "hn_id": {
@@ -199,6 +200,22 @@
                 "type": "string"
               }
             }
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "models_products",
+              "agents_coding",
+              "research_evaluation",
+              "infrastructure_efficiency",
+              "safety_privacy",
+              "industry_society",
+              null
+            ],
+            "description": "Primary AI topic; null while awaiting classification."
           }
         }
       },

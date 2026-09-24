@@ -200,3 +200,41 @@ SUPABASE_PASSWORD=offline-only uv run alembic upgrade head --sql > /tmp/hn-schem
 cd ../hacksnap/web
 HACKSNAP_SCHEMA_SQL=/tmp/hn-schema.sql npm run test:db
 ```
+
+## Story categories
+
+The title classifier predicts one primary category in the same response as AI
+relevance: `models_products`, `agents_coding`, `research_evaluation`,
+`infrastructure_efficiency`, `safety_privacy`, or `industry_society`. Irrelevant
+stories must have a null category. The prompt assigns the main news angle, so a
+coding-agent data leak goes under safety/privacy rather than agents/coding.
+
+Migration `0011_categories` stores the category, classifier model, prompt/taxonomy
+version, timestamp and title hash on `hacker_news_threads`. Metadata must be
+complete or entirely null. The existing content-retention policy does not delete
+these fields. Website readers can read the category but not classifier metadata.
+An index supports category pages ordered by date added, then story ID.
+
+Scheduled ingestion reuses a saved prediction only when its title hash, model and
+version match. Bump `CATEGORY_VERSION` when changing the classification rules.
+Unclassified ingestion preserves prior category metadata; older cached predictions
+cannot overwrite newer assignments. Backfill updates are conditional on the title
+and previous classification timestamp still matching, preventing stale writes.
+
+After applying the migration, redeploy `data/modal_app.py` to update the scheduled
+collector. The separate `backfill_app.py` has no schedule and cannot start a second
+ingestion timer. Backfill existing titles with its existing Modal Secret:
+
+```sh
+cd data
+uv run modal run backfill_app.py::backfill_categories --limit 6 --dry-run
+uv run modal run backfill_app.py::backfill_categories
+```
+
+The backfill only reads titles and category metadata. It treats already stored
+stories as admitted to the collection, commits each successful prediction, and
+skips current assignments on reruns. It never changes rankings, run membership,
+raw content or summaries. An interrupted run can be resumed with the same command.
+For a local run with `SUPABASE_PASSWORD` and `MODAL_LLM_API_KEY` loaded, use
+`uv run python -m hn_trending.backfill_categories` with optional `--limit` or
+`--dry-run`. Apply the migration before deploying either the collector or website.

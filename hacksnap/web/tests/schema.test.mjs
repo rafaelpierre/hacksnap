@@ -38,6 +38,41 @@ before(async () => {
 
 after(async () => db.close());
 
+test("category metadata is constrained, projected to readers, and preserved by unclassified ingestion", async () => {
+  const python = readFileSync(new URL("../../../data/src/hn_trending/storage.py", import.meta.url), "utf8");
+  const original = python.match(/UPSERT_THREAD = """([\s\S]*?)"""/)[1];
+  const upsert = async record => {
+    const names = [];
+    const sql = original.replace(/%\((\w+)\)s/g, (_, name) => {names.push(name); return `$${names.length}`;});
+    return db.query(sql, names.map(name => record[name] ?? null));
+  };
+  await db.exec("BEGIN");
+  try {
+    const record = {hn_id: 100, title: 'AI agent', url: 'https://example.com', date_published: new Date(),
+      date_added: new Date(), author: 'test', points: 1, comment_count: 1, last_seen_run_id: current,
+      category: 'agents_coding', category_version: 'v1', category_model: 'test',
+      categorized_at: new Date('2026-01-01'), category_title_hash: 'a'.repeat(64)};
+    await upsert(record);
+    await upsert({...record, points: 2, category: null, category_version: null, category_model: null,
+      categorized_at: null, category_title_hash: null});
+    const saved = (await db.query('SELECT category,points FROM hacker_news_threads WHERE hn_id=100')).rows[0];
+    assert.deepEqual(saved, {category:'agents_coding', points:2});
+    await upsert({...record, category: 'safety_privacy', categorized_at: new Date('2026-02-01')});
+    await upsert(record); // An older cached prediction must not overwrite a newer classification.
+    assert.equal((await db.query('SELECT category FROM hacker_news_threads WHERE hn_id=100')).rows[0].category, 'safety_privacy');
+    await db.exec('SET LOCAL ROLE hacksnap_reader');
+    assert.equal((await db.query('SELECT category FROM hacksnap_ranked_stories WHERE hn_id=100')).rows[0].category, 'safety_privacy');
+    await db.query('SELECT category FROM hacksnap_current_stories');
+    await db.exec('RESET ROLE');
+  } finally {await db.exec('ROLLBACK');}
+  for (const assignment of ["category='other'", "category='agents_coding'", "category_title_hash='invalid'"]) {
+    await assert.rejects(db.query(`UPDATE hacker_news_threads SET ${assignment} WHERE hn_id=1`), /hn_category_/);
+  }
+  await db.exec('SET ROLE hacksnap_reader');
+  try {await assert.rejects(db.query('SELECT category_model FROM hacker_news_threads'), /permission denied/);}
+  finally {await db.exec('RESET ROLE');}
+});
+
 test("leaderboard prefers last 24h across successful AI runs, then sorts by points descending", async () => {
   const { rows } = await db.query("SELECT hn_id, points, rank FROM hacksnap_current_stories ORDER BY rank");
   assert.deepEqual(rows.map(r => Number(r.hn_id)), [21,15,14,13,12,11,10,9,8,7]);

@@ -36,11 +36,21 @@ ON CONFLICT (hn_id) DO UPDATE SET
     points = EXCLUDED.points,
     comment_count = EXCLUDED.comment_count,
     last_seen_run_id = EXCLUDED.last_seen_run_id,
-    category = COALESCE(EXCLUDED.category, hacker_news_threads.category),
-    category_version = COALESCE(EXCLUDED.category_version, hacker_news_threads.category_version),
-    category_model = COALESCE(EXCLUDED.category_model, hacker_news_threads.category_model),
-    categorized_at = COALESCE(EXCLUDED.categorized_at, hacker_news_threads.categorized_at),
-    category_title_hash = COALESCE(EXCLUDED.category_title_hash, hacker_news_threads.category_title_hash)
+    category = CASE WHEN EXCLUDED.category IS NOT NULL AND (hacker_news_threads.categorized_at IS NULL
+      OR EXCLUDED.categorized_at >= hacker_news_threads.categorized_at)
+      THEN EXCLUDED.category ELSE hacker_news_threads.category END,
+    category_version = CASE WHEN EXCLUDED.category IS NOT NULL AND (hacker_news_threads.categorized_at IS NULL
+      OR EXCLUDED.categorized_at >= hacker_news_threads.categorized_at)
+      THEN EXCLUDED.category_version ELSE hacker_news_threads.category_version END,
+    category_model = CASE WHEN EXCLUDED.category IS NOT NULL AND (hacker_news_threads.categorized_at IS NULL
+      OR EXCLUDED.categorized_at >= hacker_news_threads.categorized_at)
+      THEN EXCLUDED.category_model ELSE hacker_news_threads.category_model END,
+    categorized_at = CASE WHEN EXCLUDED.category IS NOT NULL AND (hacker_news_threads.categorized_at IS NULL
+      OR EXCLUDED.categorized_at >= hacker_news_threads.categorized_at)
+      THEN EXCLUDED.categorized_at ELSE hacker_news_threads.categorized_at END,
+    category_title_hash = CASE WHEN EXCLUDED.category IS NOT NULL AND (hacker_news_threads.categorized_at IS NULL
+      OR EXCLUDED.categorized_at >= hacker_news_threads.categorized_at)
+      THEN EXCLUDED.category_title_hash ELSE hacker_news_threads.category_title_hash END
 """
 
 
@@ -66,7 +76,8 @@ def category_backfill_batch(database_url: str, after_id: int, limit: int = 100) 
         ).fetchall()
 
 
-def save_category(database_url: str, story_id: int, title: str, metadata: dict) -> bool:
+def save_category(database_url: str, story_id: int, title: str, metadata: dict,
+                  expected_at: datetime | None = None) -> bool:
     # A slow model response must not classify a newer title or overwrite a newer prediction.
     with psycopg.connect(database_url) as connection:
         result = connection.execute(
@@ -74,8 +85,8 @@ def save_category(database_url: str, story_id: int, title: str, metadata: dict) 
                  category_version = %(category_version)s, category_model = %(category_model)s,
                  categorized_at = %(categorized_at)s, category_title_hash = %(category_title_hash)s
                WHERE hn_id = %(hn_id)s AND title = %(title)s
-                 AND (categorized_at IS NULL OR categorized_at <= %(categorized_at)s)""",
-            {**metadata, "hn_id": story_id, "title": title},
+                 AND categorized_at IS NOT DISTINCT FROM %(expected_at)s""",
+            {**metadata, "hn_id": story_id, "title": title, "expected_at": expected_at},
         )
         return result.rowcount == 1
 

@@ -32,7 +32,7 @@ def main(limit: int | None, dry_run: bool) -> None:
             if not decision.relevant:
                 raise click.ClickException(f"Classifier rejected an already admitted story {after_id}.")
             metadata = category_metadata(row["title"], decision.category, classifier.model)
-            written = False if dry_run else save_category(database_url, after_id, row["title"], metadata)
+            written = False if dry_run else save_category(database_url, after_id, row["title"], metadata, row.get("categorized_at"))
             processed += 1
             saved += int(written)
             click.echo(f"{after_id}\t{decision.category}\t{row['title']}" +
