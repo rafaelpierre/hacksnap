@@ -44,6 +44,16 @@ test('sparse history never invents a trend or a flat lead-in', () => {
   assert.equal(rankChart([]).path, '');
 });
 
+test('recorded-history mode retains archived ranks without changing the homepage window', () => {
+  const history = [{observed_at: '2020-01-01T00:00:00Z', rank: 8},
+    {observed_at: '2020-01-03T00:00:00Z', rank: 2}, sample(13, 1)];
+  assert.deepEqual(rankSamples(history, asOf), []);
+  const recorded = rankSamples(history, asOf, undefined, Infinity);
+  assert.deepEqual(recorded.map(point => point.rank), [8, 2]);
+  assert.equal(rankChange(recorded), 6);
+  assert.ok(rankChart(recorded).path.includes('C'));
+});
+
 test('rank query isolates stories, filters the 24h window, caps payload and returns chronological positions', async () => {
   const db = new PGlite();
   try {

@@ -40,6 +40,10 @@ skepticism category, summary comment count, the separate skepticism sample count
 when recorded, peak observed **Hacksnap** rank, estimated time in its Top 10,
 and a ranking chart. Skepticism categories have no numeric score; meter positions
 are visual conventions. Hacksnap ranks are distinct from HN front-page ranks.
+Metric explanations sit behind keyboard- and touch-accessible info disclosures;
+values and the chart stay visible. The disclosures work without JavaScript.
+The chart reuses the homepage's `ActivitySparkline`, including trend colours,
+curves, gradient fill and keyboard/touch exploration, in recorded-history mode.
 
 Peak and duration use all retained `hacksnap_rank_history` observations, including
 those older than 24 hours. The chart shows at most the latest 168 saved positions,

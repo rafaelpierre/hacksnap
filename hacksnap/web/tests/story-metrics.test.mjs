@@ -66,8 +66,8 @@ const story = {
 test('skepticism stays categorical and identifies its separate sample from summary coverage', () => {
   const metrics = storyMetrics(story);
   assert.equal(metrics.skepticism, 'High');
-  assert.equal(metrics.comments, '17 comments analysed');
-  assert.match(metrics.skepticismNote, /10 analysed comments/);
+  assert.equal(metrics.comments, '17 comments');
+  assert.match(metrics.skepticismNote, /10 comments/);
   assert.equal(metrics.peak, '#3');
   assert.equal(metrics.topTen, '7.9 hours');
   const legacy = storyMetrics({...story, summary: {...story.summary,
@@ -83,8 +83,8 @@ test('skepticism stays categorical and identifies its separate sample from summa
 
 test('story Markdown includes the same persistent metrics and historical chart observations', () => {
   const plain = storyMarkdown(story).replace(/\\([\\`*_{}\[\]<>#+.!|~-])/g, '$1');
-  for (const value of ['Skepticism: High', '17 comments analysed', '10 analysed comments',
-    'Peak observed Hacksnap rank: #3', 'Estimated time in Hacksnap Top 10: 7.9 hours',
+  for (const value of ['Skept-o-meter: High', '17 comments', '10 comments',
+    'Peak rank: #3', 'Time in Top 10: 7.9 hours',
     '2020-01-01T00:00Z: rank #3', 'gaps over 13 hours']) assert.ok(plain.includes(value), value);
   assert.doesNotMatch(storyMetricsText(story).join('\n'), /Peak HN rank|\d+\/100/);
 });

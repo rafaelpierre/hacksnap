@@ -15,12 +15,12 @@ export const rankHistorySQL = `COALESCE((
   ) observation
 ), '[]'::json)`;
 
-export function rankSamples(history: RankObservation[], asOf: string, currentRank?: string | number): RankSample[] {
+export function rankSamples(history: RankObservation[], asOf: string, currentRank?: string | number, windowMs = RANK_WINDOW): RankSample[] {
   const now = Date.parse(asOf);
   const samples = new Map<number, number>();
   for (const point of history) {
     const at = Date.parse(point.observed_at);
-    if (Number.isFinite(at) && Number.isSafeInteger(point.rank) && point.rank > 0 && at >= now - RANK_WINDOW && at <= now) samples.set(at, point.rank);
+    if (Number.isFinite(at) && Number.isSafeInteger(point.rank) && point.rank > 0 && at >= now - windowMs && at <= now) samples.set(at, point.rank);
   }
   // The position actually displayed is also an observation, at the shared cache timestamp.
   const rank = Number(currentRank);

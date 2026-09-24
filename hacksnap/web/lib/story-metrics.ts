@@ -49,8 +49,8 @@ export function storyMetrics(story: Story) {
     position,
     skepticismNote: position === null
       ? label === "No comments" ? "No usable comments available to estimate skepticism." : "Skepticism will appear after analysis."
-      : `${sentimentComments === undefined ? "Estimated from sampled comments" : `Estimated from ${sentimentComments} analysed ${sentimentComments === 1 ? "comment" : "comments"}`}.`,
-    comments: coverage ? `${coverage.included_comments.toLocaleString("en-GB")} ${coverage.included_comments === 1 ? "comment" : "comments"} analysed` : "Analysis pending",
+      : `${sentimentComments === undefined ? "Estimated from sampled comments" : `Estimated from ${sentimentComments} ${sentimentComments === 1 ? "comment" : "comments"}`}.`,
+    comments: coverage ? `${coverage.included_comments.toLocaleString("en-GB")} ${coverage.included_comments === 1 ? "comment" : "comments"}` : "Analysis pending",
     peak: ranking?.peak_rank == null ? "Not yet recorded" : `#${ranking.peak_rank.toLocaleString("en-GB")}`,
     topTen: hours == null ? "Not enough history" : hours > 0 && hours < 0.1 ? "<0.1 hours" : `${hours.toLocaleString("en-GB", {minimumFractionDigits: 1, maximumFractionDigits: 1})} hours`,
   };
@@ -58,11 +58,11 @@ export function storyMetrics(story: Story) {
 
 export function storyMetricsText(story: Story): string[] {
   const metrics = storyMetrics(story);
-  const lines = [`Skept-o-meter — Skepticism: ${metrics.skepticism}. ${metrics.skepticismNote}`,
+  const lines = [`Skept-o-meter: ${metrics.skepticism}. ${metrics.skepticismNote}`,
     `${metrics.comments} for the summary.`];
   if (story.ranking_metrics) {
-    lines.push(`Peak observed Hacksnap rank: ${metrics.peak}`,
-      `Estimated time in Hacksnap Top 10: ${metrics.topTen}`, RANKING_METHOD);
+    lines.push(`Peak rank: ${metrics.peak}`,
+      `Time in Top 10: ${metrics.topTen}`, RANKING_METHOD);
     const ranking = story.ranking_metrics;
     if (ranking.first_observed_at && ranking.last_observed_at) {
       lines.push(`${ranking.observation_count} recorded rank observations from ${ranking.first_observed_at} to ${ranking.last_observed_at}.`,

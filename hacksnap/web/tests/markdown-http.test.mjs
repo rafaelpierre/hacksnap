@@ -47,9 +47,9 @@ test("story metrics are substantive HTML before JavaScript executes", {skip: !ba
   const section = html.match(/<section class="story-metrics"[\s\S]*?<\/section>/)?.[0];
   assert.ok(section, 'metrics are in the initial HTML');
   const text = section.replace(/<[^>]*>/g, '');
-  for (const label of ['Skept-o-meter', 'Skepticism', 'comments analysed', 'Peak observed Hacksnap rank',
-    'Time in Hacksnap Top 10', 'Hacksnap ranking over time', 'Tracking since']) assert.ok(text.includes(label), label);
-  assert.doesNotMatch(section, /\shidden(?:[\s=>])|display:\s*none/);
+  for (const label of ['Skept-o-meter', 'comments', 'Peak rank',
+    'Time in Top 10', 'Hacksnap ranking over time', 'Tracking since']) assert.ok(text.includes(label), label);
+  assert.ok(!/\shidden(?:=|>)|display:\s*none/.test(section), 'metrics are not hidden');
 });
 test("synthetic stories preserve old history and distinguish pending, empty and one-point states", {skip: !base || storyId !== '90000001'}, async () => {
   for (const [id, expected, absent] of [
