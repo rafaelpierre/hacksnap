@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 REQUEST_PAUSE_SECONDS = 5.0
 MAX_ATTEMPTS = 5
 MAX_RETRY_DELAY_SECONDS = 120.0
+MAX_COMPLETION_TOKENS = 8192
 
 
 MODAL_LLM_BASE_URL = "https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1"
@@ -137,12 +138,27 @@ def parse_topic_decision(payload: object) -> TopicDecision:
         raise ValueError("The model did not return a valid relevance decision.") from error
 
 
+class IncompleteTopicResponseError(ValueError):
+    """An unfinished completion, with enough metadata to diagnose truncation."""
+
+    def __init__(self, finish_reason: object, usage: object) -> None:
+        details = [f"finish_reason={finish_reason!r}"]
+        if isinstance(usage, dict):
+            for name in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                if type(usage.get(name)) is int:
+                    details.append(f"{name}={usage[name]}")
+        super().__init__(
+            "The topic classifier response did not complete normally "
+            f"({', '.join(details)})."
+        )
+
+
 def topic_decision_from_response(response: dict[str, Any]) -> TopicDecision:
     """Reject incomplete, malformed, or unstructured inference responses."""
     try:
         choice = response["choices"][0]
         if choice.get("finish_reason") != "stop":
-            raise ValueError("The topic classifier response did not complete normally.")
+            raise IncompleteTopicResponseError(choice.get("finish_reason"), response.get("usage"))
         content = choice["message"]["content"]
     except (KeyError, IndexError, TypeError, AttributeError) as error:
         raise ValueError("The topic classifier returned an invalid response.") from error
@@ -206,7 +222,7 @@ class TitleTopicClassifier:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": json.dumps({"title": title})},
                     ],
-                    "max_tokens": 2048,
+                    "max_tokens": MAX_COMPLETION_TOKENS,
                     "temperature": 0,
                     "reasoning_effort": "low",
                     "response_format": TOPIC_DECISION_RESPONSE_FORMAT,
@@ -222,5 +238,11 @@ class TitleTopicClassifier:
                 )
                 continue
             response.raise_for_status()
-            return topic_decision_from_response(response.json())
+            try:
+                return topic_decision_from_response(response.json())
+            except IncompleteTopicResponseError as error:
+                raise ValueError(
+                    f"Topic classification failed for {title!r} after {attempt + 1} "
+                    f"attempt(s), max_tokens={MAX_COMPLETION_TOKENS}: {error}"
+                ) from error
         raise AssertionError("Unreachable retry state")

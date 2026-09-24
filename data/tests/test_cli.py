@@ -12,6 +12,7 @@ from hn_trending.topic_filter import (
     CLASSIFIER_SYSTEM_PROMPT,
     MODAL_LLM_MODEL,
     TOPIC_DECISION_RESPONSE_FORMAT,
+    IncompleteTopicResponseError,
     TitleTopicClassifier,
     parse_topic_decision,
     topic_decision_from_response,
@@ -140,6 +141,7 @@ def test_title_classifier_uses_modal_structured_response() -> None:
         assert request.headers["Authorization"] == "Bearer test-key"
         payload = json.loads(request.content)
         assert payload["model"] == MODAL_LLM_MODEL
+        assert payload["max_tokens"] == 8192
         assert payload["response_format"] == TOPIC_DECISION_RESPONSE_FORMAT
         assert json.loads(payload["messages"][1]["content"]) == {"title": "New agent framework"}
         return httpx.Response(200, json={"choices": [{
@@ -319,3 +321,62 @@ def test_classifier_does_not_retry_before_excessive_server_cooldown(classifier_c
             TitleTopicClassifier("key", client=client).classify("AI")
     assert len(requests) == 1
     assert classifier_clock.sleeps == []
+
+
+def truncated_decision_response(content=None, completion_tokens=8192):
+    return httpx.Response(200, json={
+        "choices": [{"finish_reason": "length", "message": {
+            "content": content, "reasoning_content": "Unfinished reasoning",
+        }}],
+        "usage": {"prompt_tokens": 1000, "completion_tokens": completion_tokens,
+                  "total_tokens": 1000 + completion_tokens},
+    })
+
+
+@pytest.mark.parametrize("content", [None, '{"relevant":', '{"relevant": false, "category": null}'])
+def test_classifier_rejects_truncation_without_retrying(classifier_clock, content):
+    requests = []
+
+    def respond(request):
+        requests.append(json.loads(request.content))
+        return truncated_decision_response(content)
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(ValueError) as error:
+            TitleTopicClassifier("key", client=client).classify("Difficult AI title")
+
+    assert len(requests) == 1
+    assert requests[0]["max_tokens"] == 8192
+    assert classifier_clock.sleeps == []
+    assert "Difficult AI title" in str(error.value)
+    assert "after 1 attempt(s), max_tokens=8192" in str(error.value)
+    assert "finish_reason='length'" in str(error.value)
+    assert "completion_tokens=8192" in str(error.value)
+    assert "Unfinished reasoning" not in str(error.value)
+
+
+@pytest.mark.parametrize("finish_reason", ["content_filter", "tool_calls", None])
+def test_classifier_does_not_retry_other_unfinished_responses(classifier_clock, finish_reason):
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, json={"choices": [{
+            "finish_reason": finish_reason, "message": {"content": None},
+        }]})
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(ValueError) as error:
+            TitleTopicClassifier("key", client=client).classify("AI")
+    assert f"finish_reason={finish_reason!r}" in str(error.value)
+    assert len(requests) == 1
+    assert classifier_clock.sleeps == []
+
+
+@pytest.mark.parametrize("usage", [None, [], "invalid", {"completion_tokens": "invalid"}])
+def test_truncation_diagnostics_tolerate_missing_or_invalid_usage(usage):
+    with pytest.raises(IncompleteTopicResponseError, match="finish_reason='length'"):
+        topic_decision_from_response({
+            "choices": [{"finish_reason": "length", "message": {"content": None}}],
+            "usage": usage,
+        })

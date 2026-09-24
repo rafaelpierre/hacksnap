@@ -49,14 +49,18 @@ coding-workflow changes alone do not establish AI relevance. Clearly unrelated
 technology is excluded. Set `MODAL_LLM_API_KEY`. `MODAL_LLM_BASE_URL` defaults to
 `https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1`
 and `MODAL_LLM_MODEL` defaults to `deepseek-ai/DeepSeek-V4.1-Flash`.
-The endpoint receives a strict Pydantic-derived JSON schema with one field,
-`relevant: bool`. Incomplete responses and invalid decisions fail the run. A valid decision can
+The endpoint receives a strict Pydantic-derived JSON schema with `relevant: bool`
+and a primary `category` (null for irrelevant titles). A valid decision can
 still misclassify a story because the classifier sees only its title.
-Classification requests have a minimum five-second pause after the previous response.
+Classification requests allow up to 8,192 completion tokens, including reasoning,
+and have a minimum five-second pause after the previous response.
 HTTP 429 responses retry up to four times with 15/30/60/120-second backoff,
 honoring longer `Retry-After` values (seconds or HTTP dates). A server cooldown
-above 120 seconds fails the run instead of retrying too early. Each retry is logged;
-other HTTP errors and invalid model output still fail immediately.
+above 120 seconds fails the run instead of retrying too early. Each retry is logged.
+Truncated or otherwise unfinished completions fail immediately with the title,
+finish reason, token budget, and reported token usage. Other HTTP errors and
+invalid model output also fail immediately.
+Partial decisions are never accepted or treated as irrelevant titles.
 The current-thread table also records each story's latest HN `points` and total
 `comment_count` values for fast filtering and display.
 
