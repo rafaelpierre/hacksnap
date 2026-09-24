@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "scanner-tax",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-24",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "hacksnap.live/*", "zone_name": "hacksnap.live" }
+  ]
+}

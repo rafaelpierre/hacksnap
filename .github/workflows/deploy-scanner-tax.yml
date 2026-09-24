@@ -1,0 +1,62 @@
+name: Deploy scanner-tax Worker
+
+on:
+  pull_request:
+    paths: ["cloudflare/scanner-tax/**", ".github/workflows/deploy-scanner-tax.yml"]
+  push:
+    branches: [main]
+    paths: ["cloudflare/scanner-tax/**", ".github/workflows/deploy-scanner-tax.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: cloudflare/scanner-tax
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: cloudflare/scanner-tax/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run check
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: scanner-tax-production
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: cloudflare/scanner-tax
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: cloudflare/scanner-tax/package-lock.json
+      - run: npm ci
+      - name: Deploy Worker and route
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_WORKERS_ACCOUNT_ID }}
+        run: |
+          : "${CLOUDFLARE_API_TOKEN:?Add the CLOUDFLARE_WORKERS_API_TOKEN repository secret}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?Add the CLOUDFLARE_WORKERS_ACCOUNT_ID repository secret}"
+          npm run deploy

@@ -16,6 +16,9 @@ See [Hacksnap setup, tests and deployment](hacksnap/README.md),
 See [Spamhaus → Cloudflare setup](docs/spamhaus-cloudflare.md) for the weekly
 malicious-network list refresh workflow.
 
+See [Scanner tax Worker setup](cloudflare/scanner-tax/README.md) for the HTTP 402
+response to secret-file and WordPress probes at the Cloudflare edge.
+
 Apply migration `0004_hacksnap` before running the updated collector. Configure
 the `hacksnap` Modal Secret before deploying its schedule. The website uses
 server-only database credentials; no service-role key is sent to browsers.
