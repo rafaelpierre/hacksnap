@@ -237,10 +237,12 @@ the homepage and a story detail page against real data.
 ### Sitemap
 
 `/sitemap.xml` serves a Next.js XML sitemap with canonical `https://hacksnap.live`
-URLs for the homepage and every accessible `/story/[id]` page, including archived
-stories and pending summaries. It reads story IDs in a server-only, read-only
-transaction on every request, so additions and deletions appear without a rebuild
-or cache purge. Builds do not require database access. `/robots.txt` advertises
+URLs for the homepage, archive pages, and `/story/[id]` pages with summaries,
+including archived stories. Pending stories are excluded and serve `noindex, follow`
+until their summary is available and the page revalidates (a 30-minute cache interval).
+The sitemap reads story IDs in a server-only, read-only transaction on every request,
+so additions and deletions appear without a rebuild or cache purge. Builds do not
+require database access. `/robots.txt` advertises
 `Sitemap: https://hacksnap.live/sitemap.xml`.
 
 After deploying, POST `{"url":"https://hacksnap.live"}` as JSON to

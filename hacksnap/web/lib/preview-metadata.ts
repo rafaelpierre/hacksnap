@@ -29,6 +29,7 @@ export function storyPreviewMetadata(story: {
   return {
     title: {absolute: pageTitle},
     description,
+    robots: {index: story.summary !== null, follow: true},
     alternates: {
       canonical: url,
       types: {"application/rss+xml": "https://hacksnap.live/feed.xml"},

@@ -135,15 +135,15 @@ export async function getLeaderboard(): Promise<{stories: (Story & {rank_history
 
 export async function getSitemapStories(): Promise<{hn_id: string; modified_at: Date}[]> {
   return read(async client => {
-    // Match getStory's public collection and supported route IDs, including
-    // archived stories and stories whose summaries are still pending.
+    // Include current and archived stories only once a summary is available,
+    // matching the indexing policy in storyPreviewMetadata.
     const result = await client.query<{hn_id: string; modified_at: Date}>(`
       SELECT t.hn_id, GREATEST(t.date_added, s.updated_at, (
         SELECT observed_at FROM hn_thread_snapshots
         WHERE hn_id = t.hn_id ORDER BY observed_at DESC LIMIT 1
       )) AS modified_at
       FROM hacker_news_threads t
-      LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+      INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       WHERE t.hn_id BETWEEN 1 AND 999999999999999
       ORDER BY t.hn_id`);
     return result.rows;

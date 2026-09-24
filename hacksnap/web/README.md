@@ -34,7 +34,7 @@ scanner from the [Markdown negotiation skill](https://isitagentready.com/.well-k
 
 ## Search metadata
 
-`/sitemap.xml` lists the homepage and all accessible story pages. Story `lastmod`
+`/sitemap.xml` lists the homepage, archive pages, and stories with summaries. Story `lastmod`
 values use the latest stored publication, summary update, or snapshot observation
 timestamp. They remain stable between content writes; requests do not advance them.
 The homepage omits `lastmod` because its ranking can change with time without a
@@ -42,7 +42,10 @@ database write. `changefreq` and `priority` are intentionally omitted.
 
 Story pages supply their own title, summary-based description, canonical URL,
 Open Graph metadata, and Twitter large-image card. Pending summaries use a descriptive
-fallback. The metadata and page share a request-scoped database read.
+fallback and `noindex, follow`, and are excluded from the sitemap. Once a summary is
+available, the story enters the sitemap and becomes indexable on the page's next
+revalidation (the existing cache interval is 30 minutes). The metadata and page
+share a request-scoped database read.
 
 Social previews use the shared 1200×630 template in `lib/og-image.tsx`.
 `/opengraph-image` renders the default brand card; `/story/:id/opengraph-image`
