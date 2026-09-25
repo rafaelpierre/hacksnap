@@ -186,12 +186,8 @@ def run() -> dict:
         counts = refresh(repository, fetcher, summarizer, settings.comment_chars)
         cleanup = repository.cleanup_contents()
         logger.info(json.dumps({"event": "contents_cleanup", **cleanup}))
-    # Article fetch skips are expected; surface operational failures to the scheduler.
-    if counts["failed"]:
-        raise RuntimeError(
-            f"Hacksnap refresh failed: {counts['failed']} failed, "
-            f"{counts['generated']} generated, {counts['unchanged']} unchanged."
-        )
+    # Individual stories are failure-isolated. Return their count for monitoring without
+    # failing the scheduled invocation after the remaining work and cleanup succeeded.
     return counts
 
 

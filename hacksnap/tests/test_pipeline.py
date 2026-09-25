@@ -406,7 +406,7 @@ def test_missing_kestrel_does_not_permanently_exclude_articles(monkeypatch):
 
 
 @pytest.mark.parametrize("outcome", ["generated", "inference_failure", "fetch_skipped"])
-def test_run_surfaces_only_operational_failures_with_cache_hits(monkeypatch, caplog, outcome):
+def test_run_returns_isolated_story_failures_with_cache_hits(monkeypatch, caplog, outcome):
     import importlib
     module = importlib.import_module("pipeline.refresh")
     repo = FakeRepository([story(), story(101)])
@@ -434,8 +434,10 @@ def test_run_surfaces_only_operational_failures_with_cache_hits(monkeypatch, cap
     monkeypatch.setattr(module, "KestrelFetcher", lambda *args: fetcher)
     monkeypatch.setattr(module, "ModalSummarizer", lambda *args: RateLimited() if outcome == "inference_failure" else model)
     if outcome == "inference_failure":
-        with pytest.raises(RuntimeError, match="1 failed, 0 generated, 1 unchanged"):
-            module.run()
+        counts = module.run()
+        assert counts["failed"] == 1
+        assert counts["generated"] == 0
+        assert counts["unchanged"] == 1
         assert 100 in repo.saved
         assert 101 not in repo.saved
     elif outcome == "fetch_skipped":
