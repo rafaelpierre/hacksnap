@@ -13,6 +13,8 @@ continue to the existing origin with their method, body, headers, and query inta
 - `AGENT.md`, `AGENTS.md`, `GEMINI.md`, and `QWEN.md`.
 - `wp-admin`, `wp-login`, and `wp-config`, optionally ending in `.php`,
   including `/wp-admin/` and its children.
+- `wp-includes/wlwmanifest.xml` and `xmlrpc.php`, including nested paths such as
+  `//sito/wp-includes/wlwmanifest.xml` and `/site/xmlrpc.php`.
 
 Matching ignores case, decodes URL escapes once, and collapses repeated slashes.
 Malformed escapes fall back to the original path. This is a small set of probe

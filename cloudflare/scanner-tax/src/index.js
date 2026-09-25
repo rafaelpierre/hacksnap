@@ -4,6 +4,8 @@ const PROBE_PATTERNS = [
   /(?:^|\/)\.(?:bashrc|zshrc|bash_profile|zprofile)(?:\/|$)/,
   /(?:^|\/)(?:agents?|gemini|qwen)\.md(?:\/|$)/,
   /(?:^|\/)wp-(?:admin|login|config)(?:\.php)?(?:\/|$)/,
+  /(?:^|\/)wp-includes\/wlwmanifest\.xml(?:\/|$)/,
+  /(?:^|\/)xmlrpc\.php(?:\/|$)/,
 ];
 
 function normalizePath(pathname) {

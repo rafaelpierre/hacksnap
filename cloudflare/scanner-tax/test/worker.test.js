@@ -12,6 +12,11 @@ test("scanner probes return 402 without contacting the origin", async t => {
     "/backend/.env", "/.env", "/.env.local", "/a/.env.production",
     "/wp-admin.php", "/wp-login.php", "/wp-config.php",
     "/wp-admin", "/wp-admin/", "/wp-admin/index.php", "/blog/wp-login.php",
+    "//wp-includes/wlwmanifest.xml", "//xmlrpc.php",
+    "//sito/wp-includes/wlwmanifest.xml", "/site/wp-admin/install.php",
+    "/wp-includes/wlwmanifest.xml", "/xmlrpc.php", "/site/xmlrpc.php",
+    "/SITE/WP-INCLUDES/WLWMANIFEST.XML", "/%78mlrpc.php",
+    "/xmlrpc.php?rsd", "/sito//wp-includes///wlwmanifest.xml",
     "/.%65nv", "/BACKEND/.ENV", "//backend///.env", "/backend%2f.env",
     "/%41GENT.md", "/GEMINI.md/", "/.env?download=1",
     "/.env/%invalid",
@@ -52,6 +57,8 @@ test("legitimate paths and query strings reach the origin unchanged", async t =>
     "/_next/static/app.js", "/category/ai", "/archive", "/llms.txt",
     "/search?path=/.env", "/environment", "/.environment", "/wp-administrator",
     "/docs/agent.md.html", "/about/%invalid",
+    "/xmlrpc.php.html", "/my-xmlrpc.php", "/wp-includes/wlwmanifest.xml.html",
+    "/wp-includes/other.xml", "/search?path=/xmlrpc.php",
   ];
   for (const path of paths) {
     const request = new Request(`https://hacksnap.live${path}`, {
