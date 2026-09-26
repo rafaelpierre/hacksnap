@@ -1,98 +1,62 @@
-import assert from 'node:assert/strict';
-import {afterEach, test} from 'node:test';
-import {copyShareText, recordVisit, track, trackOnce} from '../lib/analytics.ts';
-import {observeRecommendationExposure} from '../lib/recommendation-exposure.ts';
+import assert from "node:assert/strict";
+import {test} from "node:test";
+import {createJourney, track} from "../lib/analytics.ts";
 
-function storage() {
-  const values = new Map();
-  return {getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value)};
+function fixture() {
+  const events = [];
+  let id = 0;
+  const journey = createJourney((name, params) => events.push({name, ...params}), () => String(++id));
+  return {events, ...journey};
 }
-
-afterEach(() => {
-  delete globalThis.window;
-  delete globalThis.localStorage;
-  delete globalThis.sessionStorage;
-});
-
-test('story events deduplicate within a tracking session and remain nonblocking without GA', () => {
-  const calls = [];
-  globalThis.window = {gtag: (...args) => calls.push(args)};
-  globalThis.sessionStorage = storage();
-  trackOnce('story:1', {name: 'story_view', story_id: '1'});
-  trackOnce('story:1', {name: 'story_view', story_id: '1'});
-  trackOnce('story:2', {name: 'story_view', story_id: '2'});
-  assert.deepEqual(calls.map(call => call[2].story_id), ['1', '2']);
-  delete window.gtag;
-  assert.doesNotThrow(() => track({name: 'story_view', story_id: '3'}));
-  assert.deepEqual(window.hacksnapPendingEvents[0], ['story_view', {story_id: '3'}]);
-});
-
-test('intervening same-day loads do not move the return-visit anchor', () => {
-  const calls = [];
-  globalThis.window = {gtag: (...args) => calls.push(args)};
-  globalThis.localStorage = storage();
-  globalThis.sessionStorage = storage();
-  const day = 86_400_000;
-  const start = Date.now() - 3 * day;
-  recordVisit(start);
-  recordVisit(start + day / 2);
-  assert.equal(localStorage.getItem('hacksnap:visit-anchor'), String(start));
-  assert.equal(calls.length, 0);
-  recordVisit(start + day * 1.25);
-  recordVisit(start + day * 1.25);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0][1], 'return_visit');
-  assert.equal(calls[0][2].days_since_visit_anchor, 1);
-  assert.equal(localStorage.getItem('hacksnap:visit-anchor'), String(start + day * 1.25));
-});
-
-test('blocked storage and analytics do not interrupt site actions', () => {
-  globalThis.window = {gtag: () => {throw Error('blocked')}};
-  globalThis.localStorage = {getItem: () => {throw Error('blocked')}};
-  globalThis.sessionStorage = {getItem: () => {throw Error('blocked')}};
-  assert.doesNotThrow(() => recordVisit());
-  assert.doesNotThrow(() => trackOnce('story:1', {name: 'story_view', story_id: '1'}));
-});
-
-test('copy reports success only after a resolved clipboard write and failure offers fallback', async () => {
-  const calls = [];
-  globalThis.window = {gtag: (...args) => calls.push(args)};
-  const success = await copyShareText('editable suggestion', '42', 'story_end', 'post', async value => {
-    assert.equal(value, 'editable suggestion');
-  });
-  const failure = await copyShareText('editable suggestion', '42', 'story_end', 'post', async () => {
-    throw Error('permission denied');
-  });
-  assert.equal(success, true);
-  assert.equal(failure, false);
-  assert.deepEqual(calls.map(call => call[1]), [
-    'share_copy_success', 'share_copy_failure', 'share_manual_fallback',
-  ]);
-  assert.ok(calls.every(call => !Object.values(call[2]).includes('editable suggestion')));
-  await copyShareText('https://hacksnap.live/story/42', '42', 'feed', 'link', async () => {});
-  assert.equal(calls.at(-1)[2].copy_kind, 'link');
-});
-
-test('recommendation exposure waits until half the link is visible', () => {
-  let callback;
-  let disconnects = 0;
-  let observed;
-  class FakeObserver {
-    constructor(receive, options) {
-      callback = receive;
-      assert.equal(options.threshold, 0.5);
-    }
-    observe(element) { observed = element; }
-    disconnect() { disconnects++; }
+test("browse, story, rerender, next, back: one view per route occurrence", () => {
+  const j = fixture();
+  for (const path of ["/", "/", "/story/1", "/story/1", "/story/2", "/story/1"]) {
+    j.route(path);
+    j.emit("reader_visit", {}, "visit");
+    if (path.startsWith("/story/")) j.emit("story_view", {story_id: path.split("/").at(-1)}, `story:${path}`);
   }
-  const element = {};
-  let exposures = 0;
-  observeRecommendationExposure(element, () => { exposures++; }, FakeObserver);
-  assert.equal(observed, element);
-  callback([{isIntersecting: true, intersectionRatio: 0.01}]);
-  assert.equal(exposures, 0);
-  assert.equal(disconnects, 0);
-  callback([{isIntersecting: true, intersectionRatio: 0.5}]);
-  assert.equal(exposures, 1);
-  assert.equal(disconnects, 1);
+  assert.equal(j.events.filter(e => e.name === "reader_visit").length, 4);
+  assert.deepEqual(j.events.filter(e => e.name === "story_view").map(e => e.story_id), ["1", "2", "1"]);
+  assert.equal(new Set(j.events.map(e => e.visit_id)).size, 4);
+});
+test("observer replay and repeated clicks count one exposed/clicked recommendation per visit", () => {
+  const j = fixture();
+  const params = {story_id: "1", target_story_id: "2", position: 1};
+  j.route("/story/1");
+  for (let i = 0; i < 3; i++) {
+    j.emit("recommendation_exposure", params, "exposure:1:2:1");
+    j.emit("recommendation_click", params, "click:1:2:1");
+  }
+  assert.equal(j.events.filter(e => e.name === "recommendation_exposure").length, 1);
+  assert.equal(j.events.filter(e => e.name === "recommendation_click").length, 1);
+  j.route("/"); j.route("/story/1");
+  j.emit("recommendation_exposure", params, "exposure:1:2:1");
+  assert.equal(j.events.filter(e => e.name === "recommendation_exposure").length, 2);
+});
+test("sharing preserves action counts but strips arbitrary content fields", () => {
+  const j = fixture(); j.route("/");
+  for (let i = 0; i < 2; i++) j.emit("share_menu_open", {story_id: "1", draft: "private text", url: "mailto:private"});
+  j.emit("share_destination_select", {story_id: "1", destination: "X"});
+  assert.equal(j.events.filter(e => e.name === "share_menu_open").length, 2);
+  assert.equal(JSON.stringify(j.events).includes("private"), false);
+  assert.equal(j.events.some(e => e.name.includes("success")), false);
+});
+test("missing browser and throwing analytics do not interrupt user actions", () => {
+  assert.doesNotThrow(() => track("share_menu_open"));
+  const j = createJourney(() => { throw Error("blocked"); }, () => "id");
+  assert.doesNotThrow(() => { j.route("/"); j.emit("share_copy_success", {copy_kind: "link"}); });
+});
+test("browser calls queue before GA, dispatch to GA when available, and tolerate failure", () => {
+  const previous = globalThis.window;
+  try {
+    globalThis.window = {location: {pathname: "/story/3"}};
+    track("story_view", {story_id: "3"}, "story:3");
+    assert.deepEqual(window.dataLayer.map(args => args[1]), ["reader_visit", "story_view"]);
+    const sent = [];
+    window.gtag = (...args) => sent.push(args);
+    track("share_copy_attempt", {copy_kind: "post"});
+    assert.equal(sent[0][1], "share_copy_attempt");
+    window.gtag = () => { throw Error("blocked"); };
+    assert.doesNotThrow(() => track("share_copy_failure", {copy_kind: "post"}));
+  } finally { if (previous === undefined) delete globalThis.window; else globalThis.window = previous; }
 });

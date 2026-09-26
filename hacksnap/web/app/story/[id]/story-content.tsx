@@ -1,3 +1,4 @@
+import { StoryVisit } from "../../journey-analytics";
 import { MessageCircle } from "lucide-react";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById } from "../../../lib/categories";
@@ -36,6 +37,7 @@ export function StoryContent({story, relatedStories}: {story: Story; relatedStor
   const hasDiscussion = Boolean(summary?.discussion_summary?.trim() && summary.source_coverage.included_comments > 0);
 
   return <article className="detail">
+    <StoryVisit id={story.hn_id} />
     <div className="story-actions">
       <StoryReturnLink />
       <StoryShare story={story} placement="story_top" />

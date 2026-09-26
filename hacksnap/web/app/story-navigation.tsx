@@ -1,11 +1,10 @@
 "use client";
 
+import { track } from "../lib/analytics";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { browseLabel, validBrowseContext, type BrowseContext } from "../lib/navigation-context";
-import {track, trackOnce} from "../lib/analytics";
-import {observeRecommendationExposure} from "../lib/recommendation-exposure";
 
 const PREFIX = "hacksnap:journey:";
 const RESTORE_KEY = "hacksnap:pending-return";
@@ -59,27 +58,17 @@ export function BrowseStoryLink({id, children}: {id: string; children: ReactNode
   return <Link href={href} onClick={open}>{children}</Link>;
 }
 
-export function NextStoryLink({id, children, sourceId}: {id: string; children: ReactNode; sourceId?: string}) {
+export function NextStoryLink({id, children}: {id: string; children: ReactNode}) {
   const router = useRouter();
   const href = `/story/${id}`;
-  const ref = useRef<HTMLAnchorElement>(null);
-  useEffect(() => {
-    const element = ref.current;
-    if (!sourceId || !element || typeof IntersectionObserver === "undefined") return;
-    return observeRecommendationExposure(element, () =>
-      trackOnce(`recommendation:${sourceId}:${id}`, {name: "recommendation_exposure",
-        story_id: sourceId, target_story_id: id, placement: "read_next"}));
-  }, [sourceId, id]);
   function open(event: MouseEvent<HTMLAnchorElement>) {
-    if (sourceId) track({name: "recommendation_click", story_id: sourceId,
-      target_story_id: id, placement: "read_next"});
     if (!plainClick(event)) return;
     const token = journeyToken();
     if (!readJourney(token)) return;
     event.preventDefault();
     router.push(`${href}?journey=${token}`);
   }
-  return <Link ref={ref} href={href} onClick={open}>{children}</Link>;
+  return <Link href={href} onClick={open}>{children}</Link>;
 }
 
 export function StoryReturnLink() {
@@ -87,6 +76,7 @@ export function StoryReturnLink() {
   const [context, setContext] = useState<BrowseContext | null>(null);
   useEffect(() => { setContext(readJourney(journeyToken())); }, []);
   function rememberReturn(event: MouseEvent<HTMLAnchorElement>) {
+    track("story_return");
     if (!plainClick(event)) return;
     if (context && !validBrowseContext(context)) {
       event.preventDefault();

@@ -1,26 +1,55 @@
-"use client";
+/** Versioned, content-free engagement events. GA supplies user/session/device identity. */
+export type JourneyEvent = "reader_visit" | "story_view" | "recommendation_exposure" | "recommendation_click" | "share_menu_open" | "share_destination_select" | "share_copy_attempt" | "share_copy_success" | "share_copy_failure" | "share_manual_fallback" | "story_return" | "return_visit";
+type Params = {placement?: string; observation_window_days?: 30; days_since_visit_anchor?: number; story_id?: string; target_story_id?: string; position?: number; destination?: string; copy_kind?: "link" | "post"};
+type Sink = (name: JourneyEvent, params: Record<string, string | number>) => void;
 
-type Event =
-  | {name: "story_view"; story_id: string}
-  | {name: "recommendation_exposure" | "recommendation_click"; story_id: string; target_story_id: string; placement: "read_next"}
-  | {name: "share_menu_open"; story_id: string; placement: string}
-  | {name: "share_destination_select"; story_id: string; destination: string; placement: string}
-  | {name: "share_copy_success" | "share_copy_failure" | "share_manual_fallback"; story_id: string; copy_kind: "post" | "link"; placement: string}
-  | {name: "return_visit"; observation_window_days: 30; days_since_visit_anchor: number};
-
-declare global {
-  interface Window { gtag?: (...args: unknown[]) => void; hacksnapPendingEvents?: Array<[string, Record<string, string | number>]> }
+/** Injectable state machine lets controlled journeys exercise deduplication without GA. */
+export function createJourney(sink: Sink, makeId: () => string) {
+  let path: string | undefined;
+  let visitId = "";
+  let seen = new Set<string>();
+  function emit(name: JourneyEvent, params: Params = {}, once?: string) {
+    if (once && seen.has(once)) return;
+    if (once) seen.add(once);
+    // Runtime allowlist: never forward drafts, titles, URLs or arbitrary caller fields.
+    const safe: Record<string, string | number> = {contract_version: 2, visit_id: visitId};
+    for (const key of ["story_id", "target_story_id", "position", "destination", "copy_kind", "placement", "observation_window_days", "days_since_visit_anchor"] as const) {
+      const value = params[key];
+      if (value !== undefined) safe[key] = value;
+    }
+    try { sink(name, safe); } catch { /* Analytics never interrupts an interaction. */ }
+  }
+  function route(nextPath: string) {
+    if (path === nextPath) return;
+    path = nextPath;
+    visitId = makeId();
+    seen = new Set();
+    emit("reader_visit", {}, "visit");
+  }
+  return {route, emit};
 }
 
-export function track(event: Event): void {
+type AnalyticsWindow = Window & {dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void};
+const journey = createJourney((name, params) => {
+  const win = window as AnalyticsWindow;
+  // Preserve early events until the existing lazy GA script starts. No retry loop.
+  if (typeof win.gtag === "function") win.gtag("event", name, params);
+  else {
+    win.dataLayer ??= [];
+    function queue(..._args: unknown[]) { win.dataLayer!.push(arguments); }
+    queue("event", name, params);
+  }
+}, () => globalThis.crypto.randomUUID());
+
+type Event = Params & {name: JourneyEvent};
+
+export function track(event: JourneyEvent | Event, params: Params = {}, once?: string) {
+  const {name, ...fields} = typeof event === "string" ? {name: event, ...params} : event;
   if (typeof window === "undefined") return;
   try {
-    const {name, ...parameters} = event;
-    if (window.gtag) window.gtag("event", name, parameters);
-    else (window.hacksnapPendingEvents ??= []).push([name, parameters]);
-  } catch {
-    // Analytics must never interrupt reading, navigation, or sharing.
-  }
+    journey.route(window.location.pathname);
+    journey.emit(name, fields, once);
+  } catch { /* Includes unavailable browser APIs and blocked analytics. */ }
 }
 
 export function trackOnce(key: string, event: Event): void {
@@ -64,6 +93,7 @@ export function recordVisit(now = Date.now()): void {
 
 export async function copyShareText(text: string, storyId: string, placement: string, copyKind: "post" | "link",
   writeText: (value: string) => Promise<void> = value => navigator.clipboard.writeText(value)): Promise<boolean> {
+  track({name: "share_copy_attempt", story_id: storyId, copy_kind: copyKind, placement});
   try {
     await writeText(text);
     track({name: "share_copy_success", story_id: storyId, copy_kind: copyKind, placement});

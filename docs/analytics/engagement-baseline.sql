@@ -29,6 +29,7 @@ FROM (
   FROM `PROJECT.analytics_PROPERTY.events_*`
   WHERE _TABLE_SUFFIX BETWEEN FORMAT_DATE('%Y%m%d', cohort_start)
     AND FORMAT_DATE('%Y%m%d', DATE_ADD(cohort_end, INTERVAL 30 DAY))
+    AND COALESCE((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'contract_version'), 1) = 1
     AND event_name IN ('story_view', 'recommendation_exposure', 'recommendation_click',
       'share_menu_open', 'share_destination_select', 'share_copy_success',
       'share_copy_failure', 'share_manual_fallback', 'return_visit')

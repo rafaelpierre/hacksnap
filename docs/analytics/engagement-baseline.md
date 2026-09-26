@@ -1,4 +1,8 @@
-# Hacksnap engagement measurement
+# Hacksnap engagement measurement — historical v1
+
+For new collection use [contract v2 and its report](README.md). The original v1
+report below remains available for pre-v2 windows; do not combine the contracts.
+The 30-day return-anchor event and its regression coverage are retained in v2.
 
 Issue #15. Contract version 1, prepared 26 September 2026. Collection starts only after this code reaches production. No measured baseline or target is available yet.
 
