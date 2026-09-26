@@ -14,7 +14,7 @@
     "test:archive": "node --experimental-strip-types --test tests/archive.test.mjs",
     "test:api": "node --experimental-strip-types --test tests/api.test.mjs",
     "test:history": "node --experimental-strip-types --test tests/rank-history.test.mjs tests/story-metrics.test.mjs",
-    "test:categories": "node --experimental-strip-types --test tests/categories.test.mjs tests/related-stories.test.mjs"
+    "test:categories": "node --experimental-strip-types --test tests/categories.test.mjs tests/related-stories.test.mjs tests/navigation-context.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.47.0",
