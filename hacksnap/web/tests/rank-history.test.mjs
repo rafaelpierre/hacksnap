@@ -114,3 +114,15 @@ test('card movement compares only the last two distinct updates', () => {
   assert.equal(latestRankChange([sample(1, 3)]), null);
   assert.equal(latestRankChange([sample(1, 3), sample(2, 0), {observed_at: 'invalid', rank: 1}]), null);
 });
+
+test('card movement includes the displayed rank between worker captures', () => {
+  assert.equal(latestRankChange([sample(1, 2), sample(2, 2)], '1'), 1);
+  assert.equal(latestRankChange([sample(1, 8), sample(2, 3)], '1'), 2);
+  assert.equal(latestRankChange([sample(1, 8), sample(2, 3)], '6'), -3);
+  assert.equal(latestRankChange([sample(1, 3)], '1'), 2);
+  assert.equal(latestRankChange([], '1'), null);
+  assert.equal(latestRankChange([sample(1, 1)], '1'), null);
+  // Capturing the live position must not erase the move on the next page read.
+  assert.equal(latestRankChange([sample(1, 3), sample(2, 1)], '1'), 2);
+  assert.equal(latestRankChange([sample(1, 3), sample(2, 1), sample(3, 1)], '1'), 0);
+});

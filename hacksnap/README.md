@@ -48,6 +48,11 @@ The current queried rank is included at the shared read timestamp, so the chart'
 endpoint matches the displayed position even between scheduled history captures.
 The leaderboard cache key is bumped to discard the old point-velocity payloads.
 
+The card's places-change badge compares the displayed rank with the latest saved
+rank when they differ. Once the worker records that position, it compares the two
+latest captures, preserving the newly recorded move. A subsequent unchanged
+capture reports zero; missing comparison history displays a dash.
+
 The horizontal axis fills the chart with available history from the past 24 hours,
 with elapsed-time spacing and a label showing the actual span (for example, 6h).
 Earlier history is not filled in. Rank #1 is at the top and #10 at the bottom,

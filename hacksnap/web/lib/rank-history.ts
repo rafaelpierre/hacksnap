@@ -32,15 +32,21 @@ export function rankChange(samples: RankSample[]): number | null {
   return samples.length < 2 ? null : samples[0].rank - samples[samples.length - 1].rank;
 }
 
-// Compare consecutive worker updates, including unchanged ranks. Do not append
-// the page-read timestamp: that would turn a freshly captured move into zero.
-export function latestRankChange(history: RankObservation[]): number | null {
+// Include movement since the last worker capture. If that capture already
+// matches the displayed rank, compare it with the preceding capture so reading
+// the page does not erase a newly recorded move. Keep unchanged captures.
+export function latestRankChange(history: RankObservation[], currentRank?: string | number): number | null {
   const observations = new Map<number, number>();
   for (const point of history) {
     const at = Date.parse(point.observed_at);
     if (Number.isFinite(at) && Number.isSafeInteger(point.rank) && point.rank > 0) observations.set(at, point.rank);
   }
   const latest = [...observations].sort(([a], [b]) => a - b).slice(-2);
+  const current = Number(currentRank);
+  const last = latest.at(-1);
+  if (last && Number.isSafeInteger(current) && current > 0 && current !== last[1]) {
+    return last[1] - current;
+  }
   return latest.length < 2 ? null : latest[0][1] - latest[1][1];
 }
 

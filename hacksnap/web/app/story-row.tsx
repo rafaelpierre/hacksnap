@@ -9,7 +9,7 @@ import { BrowseStoryLink } from "./story-navigation";
 export function StoryRow({story, variant = "unranked"}: {story: Story; variant?: "ranked" | "unranked"}) {
   const rank = variant === "ranked" ? Number(story.rank) : null;
   const hasRank = rank !== null && Number.isInteger(rank) && rank > 0;
-  const movement = latestRankChange(story.rank_history ?? []);
+  const movement = latestRankChange(story.rank_history ?? [], story.rank);
   const MovementIcon = movement === null || movement === 0 ? Minus : movement > 0 ? ChevronsUp : ChevronsDown;
   const movementLabel = movement === null ? "Hacksnap rank movement unavailable: waiting for two updates"
     : movement === 0 ? "Hacksnap rank unchanged since the previous update"
