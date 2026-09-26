@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:theme": "node --experimental-strip-types --test tests/theme.test.mjs",
+    "test:analytics": "node --experimental-strip-types --test tests/analytics.test.mjs",
     "test:db": "node --test tests/schema.test.mjs tests/retention.test.mjs",
     "test:metadata": "node --experimental-strip-types --test tests/preview-metadata.test.mjs",
     "test:share": "node --experimental-strip-types --test tests/share-menu.test.mjs",

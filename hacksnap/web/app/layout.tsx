@@ -5,6 +5,7 @@ import localFont from "next/font/local";
 import { ThemeToggle } from "./theme-toggle";
 import { MainNavigation } from "./main-navigation";
 import { themeInitScript } from "../lib/theme";
+import { JourneyAnalytics } from "./journey-analytics";
 import "./globals.css";
 
 const headlines = localFont({
@@ -51,7 +52,10 @@ export default function Layout({ children }: {children: React.ReactNode}) {
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-059PVYBN82');
+      (window.hacksnapPendingEvents || []).forEach(function(event) { gtag('event', event[0], event[1]); });
+      window.hacksnapPendingEvents = [];
     `}</Script>
+    <JourneyAnalytics />
     <a className="skip-link" href="#main">Skip to content</a>
     <header className="site-header"><div className="header-inner">
       <Link className="wordmark" href="/" aria-label="Hacksnap home"><span className="logo" aria-hidden="true">h/</span>hacksnap</Link>

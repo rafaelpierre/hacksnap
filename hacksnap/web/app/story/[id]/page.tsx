@@ -23,8 +23,8 @@ export async function generateMetadata({params}: {params: Promise<{id: string}>}
   return storyPreviewMetadata(story);
 }
 
-function StoryShare({story}: {story: Story}) {
-  return <ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} />;
+function StoryShare({story, placement}: {story: Story; placement: "story_top" | "story_end"}) {
+  return <ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} placement={placement} />;
 }
 
 function SkepticismPill({story}: {story: Story}) {
@@ -56,7 +56,7 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
   return <article className="detail">
     <div className="story-actions">
       <StoryReturnLink />
-      <StoryShare story={story} />
+      <StoryShare story={story} placement="story_top" />
     </div>
     <header className="story-header">
       <div className="story-byline">{article ? <a href={article} aria-label={`Original article on ${domain(story.url)}`}>{domain(story.url)} ↗</a> : <a href={hnURL}>Hacker News ↗</a>}</div>
@@ -92,7 +92,7 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
       <h2 id="pending-heading">Summary pending</h2>
       <p>This story has not been summarized yet. {article ? <>Read the <a href={article}>original source ↗</a> or the <a href={hnURL}>HN discussion ↗</a>.</> : <>Read the <a href={hnURL}>HN post and discussion ↗</a>.</>}</p>
     </section>}
-    <div className="story-end-share"><StoryShare story={story} /></div>
+    <div className="story-end-share"><StoryShare story={story} placement="story_end" /></div>
     <RelatedStories category={category} stories={relatedStories} currentId={story.hn_id} />
   </article>;
 }
