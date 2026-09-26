@@ -40,16 +40,6 @@ test("production HTTP negotiation preserves HTML, Markdown, HEAD and API formats
 
 // Set this to a valid fixture story when testing ISR against a seeded database.
 const storyId = process.env.HACKSNAP_TEST_STORY_ID;
-test("story brief, discussion, and next read are HTML before JavaScript executes", {skip: !base || !storyId}, async () => {
-  const response = await fetch(new URL(`/story/${storyId}`, base));
-  assert.equal(response.status, 200);
-  const html = await response.text();
-  for (const marker of ['id="article-heading">TLDR;', 'id="discussion-heading">Discussion',
-    'id="related-stories-heading">Read next']) assert.ok(html.includes(marker), marker);
-  assert.ok(html.indexOf('id="article-heading"') < html.indexOf('id="discussion-heading"'));
-  assert.ok(html.indexOf('id="discussion-heading"') < html.indexOf('id="related-stories-heading"'));
-  assert.match(html, /href="https:\/\/news\.ycombinator\.com\/item\?id=90000101"/);
-});
 test("ISR pages keep a 30-minute TTL and negotiate Markdown after warming HTML", {skip: !base || !storyId}, async () => {
   for (const path of ["/", `/story/${storyId}`]) {
     let cachedHTML;

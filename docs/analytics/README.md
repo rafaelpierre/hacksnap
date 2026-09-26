@@ -1,25 +1,31 @@
 # Engagement measurement (issue #15)
 
-## Contract v1
+## Contract v2
 
-Custom GA4 events contain `contract_version=1` and a random `visit_id` for each
+This extends the event names and share placements merged in PR #21. Version 2
+changes story/recommendation deduplication from tab sessions to route occurrences and
+adds explicit visit IDs, copy attempts and recommendation positions. Do not pool
+v1 and v2 rates. [The v1 contract](engagement-baseline.md) remains a historical reference.
+
+Custom GA4 events contain `contract_version=2` and a random `visit_id` for each
 pathname occurrence. Re-rendering, Strict Mode effect replay, and query-only changes
 do not create visits. A → B → A and a hard reload each create a fresh visit. Browser
-Back counts as a visit. No custom browser identity or local-storage history is added.
+Back counts as a visit. The existing optional 30-day return anchor in local storage is retained.
 GA supplies pseudonymous reader/session IDs and device/acquisition dimensions.
 
 | Event | Trigger | Additional parameters |
 | --- | --- | --- |
 | reader_visit | Hydrated route occurrence | none |
-| story_visit | Existing story page mounts | story_id |
+| story_view | Existing story page mounts | story_id |
 | recommendation_exposure | At least 50% of a recommendation is visible, once per visit/source/target/position | story_id, target_story_id, position (1-based) |
 | recommendation_click | Recommendation link activated by primary/keyboard/middle click, once per opportunity | same as exposure |
-| share_open | Closed menu opens | story_id |
-| share_destination | Network/email destination selected | story_id, destination |
-| copy_attempt | Copy link/post requested | story_id, copy_kind (link/post) |
-| copy_success | Clipboard write resolves | same as attempt |
-| copy_failure | Clipboard unavailable or write rejected | same as attempt |
-| copy_manual_fallback | Failed attempt offers selectable text | same as attempt |
+| share_menu_open | Closed menu opens | story_id |
+| share_destination_select | Network/email destination selected | story_id, destination |
+| share_copy_attempt | Copy link/post requested | story_id, copy_kind (link/post) |
+| share_copy_success | Clipboard write resolves | same as attempt |
+| share_copy_failure | Clipboard unavailable or write rejected | same as attempt |
+| share_manual_fallback | Failed attempt offers selectable text | same as attempt |
+| return_visit | Existing anchor qualifies after 24 hours through 30 days; same-day loads preserve it | observation_window_days=30, days_since_visit_anchor |
 | story_return | Contextual return link activated | none |
 
 Clicks establish exposure if the observer has not fired. Without IntersectionObserver,
@@ -29,6 +35,9 @@ menu opening is not a click; context-menu navigation cannot be measured reliably
 Repeated intentional share/copy actions count independently. Destination selection
 is not evidence of publication. Manual fallback is not evidence of a completed copy.
 Pending-summary story pages count; missing/404 stories do not.
+
+Share events preserve placement=feed/story_top/story_end; recommendation events
+preserve placement=read_next. Destination values remain lowercase.
 
 The helper allowlists fields. Never pass editable drafts, titles, URLs, emails, or
 query strings. Destination controls open URLs on activation without putting edited
@@ -129,9 +138,23 @@ Before deployment, capture `dataLayer` or use GA DebugView on desktop and phone:
 Browser/DebugView checks and live BigQuery execution remain pending; local helper
 checks do not establish production delivery or replace the release checklist above.
 
-## Local validation — 2026-09-26
+## Original branch validation — 2026-09-26
 
 Analytics tests (6), share tests (6), category/recommendation/navigation tests (5),
 TypeScript checking and the production build passed. Category tests stalled on the
 local Node 23 runtime and passed on CI's Node 22 runtime. Test data is synthetic and
 provides no engagement baseline. Live GA/BigQuery verification remains pending.
+
+## Integration with main — 2026-09-26
+
+PR #21 landed before this branch. The merge retains its public event names, lowercase
+destinations, share placements, 30-day return-anchor fix, reusable copy helper,
+extracted StoryContent and UI tests. One recommendation wrapper owns exposure/click
+emissions; NextStoryLink handles navigation only. StoryContent owns story views, so
+missing stories do not generate a story event. Contract v2 distinguishes the changed
+route-level counting from historical v1 tab-session deduplication. The original
+baseline query explicitly excludes v2. The seven-day report is a distinct measure
+from the retained 30-day anchor diagnostic; do not compare those as the same rate.
+
+Merged validation: all 25 analytics, return-anchor, share, category/navigation and
+story UI tests passed on Node 22, along with typechecking and the production build.

@@ -1,14 +1,14 @@
 "use client";
 
 import {useEffect, useId, useRef, useState} from "react";
-import {track} from "../lib/analytics";
+import {copyShareText, track} from "../lib/analytics";
 import {Share2} from "lucide-react";
 import {canonicalStoryUrl, copyText, shareDestinations, suggestedPost, xPostStatus} from "../lib/share-text";
 
-type ShareProps = {id: string; title: string; takeaway?: string | null; label?: string};
+type ShareProps = {id: string; title: string; takeaway?: string | null; label?: string; placement?: string};
 
 /** A single disclosure for feed rows and both story-page placements. */
-export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
+export function ShareLinks({id, title, takeaway, label = "Share", placement = "feed"}: ShareProps) {
   const [open, setOpen] = useState(false);
   const [post, setPost] = useState(() => suggestedPost(id, title, takeaway));
   const [feedback, setFeedback] = useState("");
@@ -52,14 +52,12 @@ export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
   async function copy(value: string, kind: "link" | "post") {
     setManualText(null);
     setFeedback("");
-    track("copy_attempt", {story_id: id, copy_kind: kind});
-    const succeeded = await copyText(value, navigator.clipboard);
+    const succeeded = await copyShareText(value, id, placement, kind, async text => {
+      if (!await copyText(text, navigator.clipboard)) throw new Error("Clipboard write failed");
+    });
     if (succeeded) {
-      track("copy_success", {story_id: id, copy_kind: kind});
       setFeedback(kind === "link" ? "Link copied to clipboard." : "Suggested post copied to clipboard.");
     } else {
-      track("copy_failure", {story_id: id, copy_kind: kind});
-      track("copy_manual_fallback", {story_id: id, copy_kind: kind});
       setManualText(value);
       setFeedback("Couldn’t copy automatically. Select and copy the text below.");
     }
@@ -72,7 +70,7 @@ export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
     onBlur={event => { if (open && !event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
   >
     <button type="button" className="share-trigger" ref={trigger} aria-expanded={open} aria-controls={panelId}
-      aria-label={`${label}: ${title}`} onClick={() => { if (!open) track("share_open", {story_id: id}); setOpen(!open); setFeedback(""); setManualText(null); }}>
+      aria-label={`${label}: ${title}`} onClick={() => { if (!open) track("share_menu_open", {story_id: id, placement}); setOpen(!open); setFeedback(""); setManualText(null); }}>
       <Share2 size={16} aria-hidden="true" /> {label}
     </button>
     {open && <section className="share-panel" id={panelId} aria-label={`Share ${title}`}>
@@ -86,7 +84,7 @@ export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
             }}>X (edit first)</button>
           : <button key={destination.name} type="button"
               onClick={() => {
-                track("share_destination", {story_id: id, destination: destination.name});
+                track("share_destination_select", {story_id: id, destination: destination.name.toLowerCase(), placement});
                 // Keep edited drafts out of DOM URLs and GA automatic outbound-link events.
                 if (destination.name === "Email") window.location.assign(destination.href);
                 else window.open(destination.href, "_blank", "noopener,noreferrer");

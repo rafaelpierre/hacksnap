@@ -17,7 +17,7 @@ SELECT event_name, TIMESTAMP_MICROS(event_timestamp) AS ts, user_pseudo_id AS re
 FROM `YOUR_PROJECT.YOUR_DATASET.events_*`
 WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(cohort_start, INTERVAL 1 DAY))
   AND _TABLE_SUFFIX <= FORMAT_DATE('%Y%m%d', observation_end)
-  AND (SELECT value.int_value FROM UNNEST(event_params) WHERE key='contract_version') = 1;
+  AND (SELECT value.int_value FROM UNNEST(event_params) WHERE key='contract_version') = 2;
 
 -- Export lag and consent/identity exclusions: retain these counts with every report.
 SELECT MIN(ts) first_event, MAX(ts) last_event, COUNT(*) events,
@@ -28,7 +28,7 @@ FROM events;
 WITH sessions AS (
  SELECT reader, session_id, MIN(ts) first_story, COUNT(DISTINCT story_id) stories,
    ARRAY_AGG(STRUCT(device, acquisition_source) ORDER BY ts LIMIT 1)[OFFSET(0)] cohort
- FROM events WHERE event_name='story_visit' AND reader IS NOT NULL AND session_id IS NOT NULL
+ FROM events WHERE event_name='story_view' AND reader IS NOT NULL AND session_id IS NOT NULL
  GROUP BY reader, session_id
 )
 SELECT cohort.*, COUNT(*) reading_sessions, COUNTIF(stories >= 2) second_story_sessions,
@@ -53,20 +53,20 @@ FROM opportunities GROUP BY device, acquisition_source, position;
 -- Event counts include repeated intentional actions. No publication-success metric.
 SELECT device, acquisition_source, copy_kind, destination, event_name, COUNT(*) actions
 FROM events WHERE DATE(ts) >= cohort_start AND DATE(ts) < cohort_end
- AND event_name IN ('share_open','share_destination','copy_attempt','copy_success','copy_failure','copy_manual_fallback')
+ AND event_name IN ('share_menu_open','share_destination_select','share_copy_attempt','share_copy_success','share_copy_failure','share_manual_fallback')
 GROUP BY device, acquisition_source, copy_kind, destination, event_name;
 SELECT device, acquisition_source, copy_kind,
- COUNTIF(event_name='copy_attempt') attempts,
- COUNTIF(event_name='copy_success') successes,
- COUNTIF(event_name='copy_failure') failures,
- SAFE_DIVIDE(COUNTIF(event_name='copy_success'),COUNTIF(event_name='copy_attempt')) copy_success_rate
+ COUNTIF(event_name='share_copy_attempt') attempts,
+ COUNTIF(event_name='share_copy_success') successes,
+ COUNTIF(event_name='share_copy_failure') failures,
+ SAFE_DIVIDE(COUNTIF(event_name='share_copy_success'),COUNTIF(event_name='share_copy_attempt')) copy_success_rate
 FROM events WHERE DATE(ts) >= cohort_start AND DATE(ts) < cohort_end
- AND event_name IN ('copy_attempt','copy_success','copy_failure')
+ AND event_name IN ('share_copy_attempt','share_copy_success','share_copy_failure')
 GROUP BY device, acquisition_source, copy_kind;
 WITH visits AS (
  SELECT visit_id, device, acquisition_source,
- COUNTIF(event_name='share_open') > 0 opened,
- COUNTIF(event_name='share_destination') > 0 selected
+ COUNTIF(event_name='share_menu_open') > 0 opened,
+ COUNTIF(event_name='share_destination_select') > 0 selected
  FROM events WHERE DATE(ts) >= cohort_start AND DATE(ts) < cohort_end
  GROUP BY visit_id, device, acquisition_source
 )
