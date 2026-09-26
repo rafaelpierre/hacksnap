@@ -52,10 +52,10 @@ for (let i = 0; i < titles.length; i++) {
     VALUES ($1,$2,$3,$4,$5,$6,$7,'demo-fixture','v2-sentiment',$8,$9,$10)`, [id,
     i===9 ? null : "https://example.com",
     i===9 || i===7 ? null : "This synthetic preview article explores the difference between headline performance and the cost of using a model in production. Its central claim: the surrounding workflow matters as much as the model itself.",
-    JSON.stringify(i===9 ? [] : ["Repeated attempts can outweigh the advertised price per token.", "Measuring a completed task gives a different picture from measuring a single request.", "Human review time remains part of the overall cost."]),
-    "These synthetic preview comments focus on how to measure useful work. One side values cheap, fast attempts; the other argues that debugging and review erase those savings.",
-    JSON.stringify([{title:"A cheap attempt is not a cheap result",summary:"The disagreement comes down to the denominator: cost per request looks attractive, but cost per accepted change includes failed attempts and review.",comment_ids:[90000101]},{title:"The workflow changes the outcome",summary:"A narrower task and better tests may explain more of the improvement than a larger model.",comment_ids:[90000102]}]),
-    "The interesting number is cost per completed task, including the attempts that didn’t work.",
+    JSON.stringify(i===9 || i===7 ? [] : ["Repeated attempts can outweigh the advertised price per token.", "Measuring a completed task gives a different picture from measuring a single request.", "Human review time remains part of the overall cost."]),
+    i===7 ? "No usable comments were available for a discussion summary." : "These synthetic preview comments focus on how to measure useful work. One side values cheap, fast attempts; the other argues that debugging and review erase those savings.",
+    JSON.stringify(i===7 ? [] : [{title:"A cheap attempt is not a cheap result",summary:"The disagreement comes down to the denominator: cost per request looks attractive, but cost per accepted change includes failed attempts and review.",comment_ids:[90000101]},{title:"The workflow changes the outcome",summary:"A narrower task and better tests may explain more of the improvement than a larger model.",comment_ids:[90000102]}]),
+    i===7 ? "The source article was unavailable and no usable discussion was included." : "The interesting number is cost per completed task, including the attempts that didn’t work.",
     "0".repeat(64),JSON.stringify({stored_comments:42,included_comments:i===7?0:28,comments_truncated:true,article_status:i===9?"not_applicable":i===7?"unavailable":"fetched",sentiment:{included_comments:i===7?0:10}}),i === 7 ? null : (i % 3) - 1]);
 }
 const port = Number(process.env.HACKSNAP_PREVIEW_PORT || 55432);
