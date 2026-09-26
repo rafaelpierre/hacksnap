@@ -68,3 +68,9 @@ This is an implementation and substantial acceptance pass, **not a claim that #1
 No production summary regeneration was run. The tighter schema/prompt applies to newly generated summaries; the existing pipeline refreshes sentiment for already summarized stories, so historical takeaways retain the explicit excerpt/full-text treatment until separately regenerated. Live inference against the tighter schema remains a rollout check.
 
 Reader measurement baselines and targets from #16 have not been established. Instrumentation or these local checks must not be used as evidence that a production measurement baseline exists. No deployment, issue closure, or production data mutation was performed.
+
+## Integration with current main
+
+Merged `2f93273` from main after the engagement work landed. The visual changes now live in main's extracted `StoryContent` component; story visits, recommendation exposure/clicks, share placement, return tracking, and return-cohort fixes are preserved. CI runs both the brief and mocked story UI suites. Compact recommendation and legacy-caveat assertions also run in the database-free UI tests.
+
+Post-merge validation: production build and TypeScript pass; 5 story UI, 12 analytics, 3 brief, 6 share, and 10 production HTTP checks pass. Two former HTTP-only story checks were migrated on main to mocked UI coverage and were not restored as duplicate fixture-dependent tests.

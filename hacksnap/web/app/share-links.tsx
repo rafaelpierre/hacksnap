@@ -1,13 +1,14 @@
 "use client";
 
 import {useEffect, useId, useRef, useState} from "react";
+import {copyShareText, track} from "../lib/analytics";
 import {Share2} from "lucide-react";
 import {canonicalStoryUrl, copyText, shareDestinations, suggestedPost, xPostStatus} from "../lib/share-text";
 
-type ShareProps = {id: string; title: string; takeaway?: string | null; label?: string};
+type ShareProps = {id: string; title: string; takeaway?: string | null; label?: string; placement?: string};
 
 /** A single disclosure for feed rows and both story-page placements. */
-export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
+export function ShareLinks({id, title, takeaway, label = "Share", placement = "feed"}: ShareProps) {
   const [open, setOpen] = useState(false);
   const [post, setPost] = useState(() => suggestedPost(id, title, takeaway));
   const [feedback, setFeedback] = useState("");
@@ -51,7 +52,9 @@ export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
   async function copy(value: string, kind: "link" | "post") {
     setManualText(null);
     setFeedback("");
-    const succeeded = await copyText(value, navigator.clipboard);
+    const succeeded = await copyShareText(value, id, placement, kind, async text => {
+      if (!await copyText(text, navigator.clipboard)) throw new Error("Clipboard write failed");
+    });
     if (succeeded) {
       setFeedback(kind === "link" ? "Link copied to clipboard." : "Suggested post copied to clipboard.");
     } else {
@@ -67,7 +70,7 @@ export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
     onBlur={event => { if (open && !event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
   >
     <button type="button" className="share-trigger" ref={trigger} aria-expanded={open} aria-controls={panelId}
-      aria-label={`${label}: ${title}`} onClick={() => { setOpen(!open); setFeedback(""); setManualText(null); }}>
+      aria-label={`${label}: ${title}`} onClick={() => { if (!open) track("share_menu_open", {story_id: id, placement}); setOpen(!open); setFeedback(""); setManualText(null); }}>
       <Share2 size={16} aria-hidden="true" /> {label}
     </button>
     {open && <section className="share-panel" id={panelId} aria-label={`Share ${title}`}>
@@ -79,12 +82,16 @@ export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
               setFeedback(`X needs a shorter post (${xStatus.length}/${xStatus.limit}). Edit the suggested post to continue.`);
               draftField.current?.focus();
             }}>X (edit first)</button>
-          : <a key={destination.name} href={destination.href}
-              target={destination.name === "Email" ? undefined : "_blank"}
-              rel={destination.name === "Email" ? undefined : "noopener noreferrer"}
+          : <button key={destination.name} type="button"
+              onClick={() => {
+                track("share_destination_select", {story_id: id, destination: destination.name.toLowerCase(), placement});
+                // Keep edited drafts out of DOM URLs and GA automatic outbound-link events.
+                if (destination.name === "Email") window.location.assign(destination.href);
+                else window.open(destination.href, "_blank", "noopener,noreferrer");
+              }}
               aria-label={`${destination.name}${destination.name === "Email" ? "" : " (opens in a new tab)"}`}>
               {destination.name} {destination.name !== "Email" && <span aria-hidden="true">↗</span>}
-            </a>)}
+            </button>)}
       </div>
       <p id={xHintId} className="share-destination-hint">X post: {xStatus.length}/{xStatus.limit} weighted characters.{!xStatus.valid && " Shorten the draft before opening X."}</p>
       <p className="share-destination-hint">LinkedIn opens a link preview. Copy your post to paste edits there.</p>

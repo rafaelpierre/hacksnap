@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test:story-ui": "node --import tsx --test tests/story-content.test.tsx",
     "test:theme": "node --experimental-strip-types --test tests/theme.test.mjs",
+    "test:analytics": "node --experimental-strip-types --test tests/analytics.test.mjs tests/analytics-return.test.mjs tests/analytics-dom.test.mjs tests/analytics-report.test.mjs",
     "test:db": "node --test tests/schema.test.mjs tests/retention.test.mjs",
     "test:metadata": "node --experimental-strip-types --test tests/preview-metadata.test.mjs",
     "test:share": "node --experimental-strip-types --test tests/share-menu.test.mjs",
@@ -35,6 +37,8 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/twitter-text": "3.1.10",
-    "typescript": "^5.9.0"
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.0",
+    "jsdom": "^27.0.1"
   }
 }
