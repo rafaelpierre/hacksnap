@@ -1,6 +1,5 @@
 import { ChevronsDown, ChevronsUp, MessageCircle, Minus, Star } from "lucide-react";
 import type { Story } from "../lib/data";
-import { articleURL, domain } from "../lib/format";
 import { CategoryBadge } from "./categories";
 import { formatRankChange, latestRankChange } from "../lib/rank-history";
 import { briefExcerpt } from "../lib/brief";
@@ -8,7 +7,6 @@ import { ShareLinks } from "./share-links";
 import { BrowseStoryLink } from "./story-navigation";
 
 export function StoryRow({story, variant = "unranked"}: {story: Story; variant?: "ranked" | "unranked"}) {
-  const source = articleURL(story.url);
   const rank = variant === "ranked" ? Number(story.rank) : null;
   const hasRank = rank !== null && Number.isInteger(rank) && rank > 0;
   const movement = latestRankChange(story.rank_history ?? []);
@@ -23,8 +21,6 @@ export function StoryRow({story, variant = "unranked"}: {story: Story; variant?:
       <div className="story-domain story-context">
         {hasRank && <span className="rank" aria-label={`Rank ${rank}`}>{String(rank).padStart(2, "0")}</span>}
         {story.category && <CategoryBadge id={story.category} />}
-        {source ? <a href={source} aria-label={`Original article on ${domain(story.url)}`}>{domain(story.url)} <span aria-hidden="true">↗</span></a> :
-          <a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>Hacker News <span aria-hidden="true">↗</span></a>}
         {variant === "ranked" && story.is_recent === false && <span className="archive-label">Archive</span>}
       </div>
       <h3><BrowseStoryLink id={story.hn_id}>{story.title}</BrowseStoryLink></h3>

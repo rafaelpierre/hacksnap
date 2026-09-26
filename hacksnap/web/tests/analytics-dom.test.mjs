@@ -95,7 +95,7 @@ test("production components emit truthful, deduplicated events through a complet
     Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText: async () => {}}});
     const opened = [];
     window.open = (...args) => opened.push(args);
-    await click([...document.querySelectorAll("button")].find(el => el.textContent.trim().startsWith("X ")));
+    await click(document.querySelector('button[aria-label="X (opens in a new tab)"]'));
     assert.equal(count("share_destination_select"), 1);
     const selected = events.find(event => event.name === "share_destination_select");
     assert.equal(selected.destination, "x");

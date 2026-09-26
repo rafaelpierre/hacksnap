@@ -1,3 +1,4 @@
+import { ChevronRight, ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -65,9 +66,9 @@ export default async function Archive(props: Props) {
         <ul className="story-list">{items.map(story => <li key={story.hn_id}><StoryRow story={story} /></li>)}</ul>
       </section>)}
     {stories.length > 0 && <nav className="archive-pagination" aria-label="Archive pages">
-      {page > 1 && <Link className="button" href={archiveURL(month, page - 1)}>← Newer stories</Link>}
+      {page > 1 && <Link className="button" href={archiveURL(month, page - 1)}><ChevronLeft className="inline-icon" aria-hidden="true" /> Newer stories</Link>}
       <span>Page {page}</span>
-      {hasNext && <Link className="button" href={archiveURL(month, page + 1)}>Older stories →</Link>}
+      {hasNext && <Link className="button" href={archiveURL(month, page + 1)}>Older stories <ChevronRight className="inline-icon" aria-hidden="true" /></Link>}
     </nav>}
   </BrowseLayout>;
 }

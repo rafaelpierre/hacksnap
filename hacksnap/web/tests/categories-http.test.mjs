@@ -4,7 +4,7 @@ import {test} from 'node:test';
 const origin = process.env.HACKSNAP_TEST_URL;
 const options = {skip: !origin};
 
-test('homepage and story flairs lead to category pages without a category directory', options, async () => {
+test('homepage badges and story breadcrumbs lead to category pages', options, async () => {
   const home = await fetch(origin);
   assert.equal(home.status, 200);
   const html = await home.text();
@@ -17,7 +17,8 @@ test('homepage and story flairs lead to category pages without a category direct
   const article = await fetch(`${origin}/story/${story.hn_id}`);
   assert.equal(article.status, 200);
   const articleHTML = await article.text();
-  assert.match(articleHTML, new RegExp(`class="category-badge"[^>]*href="/category/${slug}"`));
+  const breadcrumbs = articleHTML.match(/<nav class="story-breadcrumbs"[^>]*>([\s\S]*?)<\/nav>/)?.[1] ?? '';
+  assert.match(breadcrumbs, new RegExp(`href="/category/${slug}"`));
   const category = await fetch(`${origin}/category/${slug}`);
   assert.equal(category.status, 200);
   const categoryHTML = await category.text();

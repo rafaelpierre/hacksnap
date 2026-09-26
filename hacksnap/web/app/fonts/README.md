@@ -15,3 +15,9 @@ Characters outside these subsets use the system fallback fonts.
 Headlines and the wordmark use Bricolage Grotesque at weight 600. Reading text,
 navigation and labels use Source Sans 3. Code, ranks, points and timestamps use
 the existing system monospace stack.
+
+Open Graph images use local static TTF instances of these same fonts because
+Next.js's image renderer does not support WOFF2. The `*-og-*.ttf` files were
+converted from the bundled fonts with FontTools: Bricolage Grotesque at weight
+600, optical size 96, width 100; Source Sans 3 at weight 400. They retain the
+same licenses above and need no runtime font service.

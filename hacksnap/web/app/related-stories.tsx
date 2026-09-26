@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import { Recommendation } from "./journey-analytics";
 import Link from "next/link";
 import { categoryURL, type Category } from "../lib/categories";
@@ -14,11 +15,11 @@ export function RelatedStories({category, stories, currentId}: {category?: Categ
       <Recommendation source={currentId} target={story.hn_id} position={index + 1}><article>
         {category && <span className="related-topic">{category.label}</span>}
         <h3><NextStoryLink id={story.hn_id}>{story.title}</NextStoryLink></h3>
-        <span className="related-story-meta">{domain(story.url)} <span aria-hidden="true">→</span></span>
+        <span className="related-story-meta">{domain(story.url)} <ChevronRight className="inline-icon" aria-hidden="true" /></span>
       </article></Recommendation>
     </li>)}</ul>}
-    <Link className="button" href={category ? categoryURL(category) : "/archive"}>
-      {category ? `More in ${category.label} →` : "Browse latest stories →"}
+    <Link className="browse-latest-link" href={category ? categoryURL(category) : "/archive"}>
+      {category ? `More in ${category.label}` : "Browse latest stories"} <ChevronRight className="inline-icon" aria-hidden="true" />
     </Link>
   </section>;
 }

@@ -78,8 +78,15 @@ test("mocked feed row preserves a story link, category and shared Share control"
 test("compact header and recommendations preserve the new story component and tracking", () => {
   const html = render(createElement(StoryContent, {story, relatedStories}));
   const header = html.match(/<header class="story-header">([\s\S]*?)<\/header>/)?.[1] ?? "";
-  assert.ok(header.indexOf("category-badge") < header.indexOf("<h1>"));
-  assert.doesNotMatch(header, /skepticism-pill|Added |points/);
+  assert.ok(header.indexOf("story-breadcrumbs") < header.indexOf("<h1>"));
+  assert.doesNotMatch(header, /skepticism-pill|points/);
+  assert.match(header, /aria-label="Breadcrumb"/);
+  assert.match(header, /href="\/">[^<]*Top Stories/);
+  assert.match(header, /href="\/category\/agents-coding"/);
+  assert.match(header, /class="story-metadata"/);
+  assert.match(header, /Added <time dateTime="2026-09-26T10:00:00.000Z"/);
+  assert.match(header, /Original article on example.com/);
+  assert.match(header, /aria-label="Share: A mocked story title"/);
   assert.match(html, /id="discussion-heading">Discussion<\/h2><span class="skepticism-pill/);
   const next = html.match(/<ul class="related-story-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
   assert.match(next, /related-topic/);
