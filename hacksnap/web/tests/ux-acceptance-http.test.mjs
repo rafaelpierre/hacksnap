@@ -96,3 +96,19 @@ test('legacy long takeaways keep their complete caveats in TLDR', options, async
   const tldr = page.match(/<section class="tldr-section"[\s\S]*?<\/section>/)?.[0] ?? '';
   assert.match(tldr, /The evaluation does not measure maintainability after deployment\./);
 });
+
+
+test('All stories is current only on home, including dated archive routes', options, async () => {
+  const archive = await html('/archive');
+  const datedPath = archive.match(/href="(\/archive\/\d{4}\/\d{2})"/)?.[1];
+  assert.ok(datedPath, 'Preview must expose a dated archive route');
+  for (const [path, expected] of [['/', ['/']], ['/archive', []], [datedPath, []], ['/category/agents-coding', ['/category/agents-coding']]]) {
+    const page = path === '/archive' ? archive : await html(path);
+    const sidebar = page.match(/<aside class="topic-sidebar"[\s\S]*?<\/aside>/)?.[0];
+    assert.ok(sidebar, path);
+    const current = [...sidebar.matchAll(/<a\b([^>]*)>/g)]
+      .filter(([, attributes]) => attributes.includes('aria-current="page"'))
+      .map(([, attributes]) => attributes.match(/href="([^"]+)"/)?.[1]);
+    assert.deepEqual(current, expected, path);
+  }
+});

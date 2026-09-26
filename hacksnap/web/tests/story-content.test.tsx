@@ -5,6 +5,7 @@ import {renderToStaticMarkup} from "react-dom/server";
 import {AppRouterContext} from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import {StoryContent} from "../app/story/[id]/story-content";
 import {StoryRow} from "../app/story-row";
+import {BrowseLayout} from "../app/topic-sidebar";
 import type {Story, RelatedStory} from "../lib/data";
 
 const story: Story = {
@@ -95,3 +96,14 @@ test("legacy takeaway caveats remain visible after the compact deck", () => {
   const tldr = html.match(/<section class="tldr-section"[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.ok(tldr.includes(takeaway.trim()));
 });
+
+
+for (const [active, expected] of [["home", ["/"]], [undefined, []], ["agents_coding", ["/category/agents-coding"]]] as const) {
+  test(`topic sidebar current destination is explicit: ${active ?? "archive"}`, () => {
+    const html = render(createElement(BrowseLayout, {active, children: "Feed"}));
+    const current = [...html.matchAll(/<a\b([^>]*)>/g)]
+      .filter(([, attributes]) => attributes.includes('aria-current="page"'))
+      .map(([, attributes]) => attributes.match(/href="([^"]+)"/)?.[1]);
+    assert.deepEqual(current, expected);
+  });
+}
