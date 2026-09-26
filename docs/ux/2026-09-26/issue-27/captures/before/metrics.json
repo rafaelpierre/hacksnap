@@ -1,0 +1,122 @@
+[
+  {
+    "page": "home",
+    "width": 1280,
+    "theme": "dark",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"title\":\"Top AI stories on Hacker News\",\"lead\":200,\"sidebar\":944}"
+  },
+  {
+    "page": "latest",
+    "width": 1280,
+    "theme": "dark",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"title\":\"Latest stories\",\"lead\":140,\"sidebar\":944}"
+  },
+  {
+    "page": "topic",
+    "width": 1280,
+    "theme": "dark",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"title\":\"Agents & Coding\",\"lead\":140,\"sidebar\":944}"
+  },
+  {
+    "page": "topics",
+    "width": 1280,
+    "theme": "dark",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"title\":\"Topics\",\"topicsBottom\":855.1875}"
+  },
+  {
+    "page": "story",
+    "width": 1280,
+    "theme": "dark",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"title\":\"[Demo] The hidden cost of running an AI coding agent\",\"tldr\":547.4375}"
+  },
+  {
+    "page": "home",
+    "width": 1280,
+    "theme": "light",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"title\":\"Top AI stories on Hacker News\",\"lead\":200,\"sidebar\":944}"
+  },
+  {
+    "page": "latest",
+    "width": 1280,
+    "theme": "light",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"title\":\"Latest stories\",\"lead\":140,\"sidebar\":944}"
+  },
+  {
+    "page": "topic",
+    "width": 1280,
+    "theme": "light",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"title\":\"Agents & Coding\",\"lead\":140,\"sidebar\":944}"
+  },
+  {
+    "page": "topics",
+    "width": 1280,
+    "theme": "light",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"title\":\"Topics\",\"topicsBottom\":855.1875}"
+  },
+  {
+    "page": "story",
+    "width": 1280,
+    "theme": "light",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"title\":\"[Demo] The hidden cost of running an AI coding agent\",\"tldr\":547.4375}"
+  },
+  {
+    "page": "home",
+    "width": 320,
+    "theme": "dark",
+    "metrics": "{\"width\":320,\"scroll\":320,\"title\":\"Top AI stories on Hacker News\",\"lead\":64,\"sidebar\":0}"
+  },
+  {
+    "page": "latest",
+    "width": 320,
+    "theme": "dark",
+    "metrics": "{\"width\":320,\"scroll\":320,\"title\":\"Latest stories\",\"lead\":16,\"sidebar\":0}"
+  },
+  {
+    "page": "topic",
+    "width": 320,
+    "theme": "dark",
+    "metrics": "{\"width\":320,\"scroll\":320,\"title\":\"Agents & Coding\",\"lead\":16,\"sidebar\":0}"
+  },
+  {
+    "page": "topics",
+    "width": 320,
+    "theme": "dark",
+    "metrics": "{\"width\":320,\"scroll\":320,\"title\":\"Topics\",\"topicsBottom\":1516.984375}"
+  },
+  {
+    "page": "story",
+    "width": 320,
+    "theme": "dark",
+    "metrics": "{\"width\":320,\"scroll\":320,\"title\":\"[Demo] The hidden cost of running an AI coding agent\",\"tldr\":622.28125}"
+  },
+  {
+    "page": "home",
+    "width": 320,
+    "theme": "light",
+    "metrics": "{\"width\":320,\"scroll\":320,\"title\":\"Top AI stories on Hacker News\",\"lead\":64,\"sidebar\":0}"
+  },
+  {
+    "page": "latest",
+    "width": 320,
+    "theme": "light",
+    "metrics": "{\"width\":320,\"scroll\":320,\"title\":\"Latest stories\",\"lead\":16,\"sidebar\":0}"
+  },
+  {
+    "page": "topic",
+    "width": 320,
+    "theme": "light",
+    "metrics": "{\"width\":320,\"scroll\":320,\"title\":\"Agents & Coding\",\"lead\":16,\"sidebar\":0}"
+  },
+  {
+    "page": "topics",
+    "width": 320,
+    "theme": "light",
+    "metrics": "{\"width\":320,\"scroll\":320,\"title\":\"Topics\",\"topicsBottom\":1516.984375}"
+  },
+  {
+    "page": "story",
+    "width": 320,
+    "theme": "light",
+    "metrics": "{\"width\":320,\"scroll\":320,\"title\":\"[Demo] The hidden cost of running an AI coding agent\",\"tldr\":622.28125}"
+  }
+]

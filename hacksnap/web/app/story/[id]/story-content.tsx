@@ -5,7 +5,7 @@ import { categoryById } from "../../../lib/categories";
 import { articleURL, domain } from "../../../lib/format";
 import { skepticismDisplay } from "../../../lib/sentiment";
 import { ShareLinks } from "../../share-links";
-import { LocalTime } from "../../local-time";
+import { briefExcerpt } from "../../../lib/brief";
 import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
 import { StoryReturnLink } from "../../story-navigation";
@@ -31,6 +31,8 @@ function SkepticismPill({story}: {story: Story}) {
 
 export function StoryContent({story, relatedStories}: {story: Story; relatedStories: RelatedStory[]}) {
   const summary = story.summary;
+  const deck = briefExcerpt(summary?.overall_takeaway);
+  const fullTakeaway = summary?.overall_takeaway?.trim().replace(/\s+/g, " ");
   const article = articleURL(story.url);
   const hnURL = `https://news.ycombinator.com/item?id=${story.hn_id}`;
   const category = categoryById(story.category);
@@ -43,16 +45,14 @@ export function StoryContent({story, relatedStories}: {story: Story; relatedStor
       <StoryShare story={story} placement="story_top" />
     </div>
     <header className="story-header">
-      <div className="story-byline">{article ? <a href={article} aria-label={`Original article on ${domain(story.url)}`}>{domain(story.url)} ↗</a> : <a href={hnURL}>Hacker News ↗</a>}</div>
+      <div className="story-byline story-context">{story.category && <CategoryBadge id={story.category} />}{article ? <a href={article} aria-label={`Original article on ${domain(story.url)}`}>{domain(story.url)} ↗</a> : <a href={hnURL}>Hacker News ↗</a>}</div>
       <h1>{story.title}</h1>
-      {story.category && <div className="story-flair"><CategoryBadge id={story.category} /></div>}
-      <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={hnURL}>{story.comment_count.toLocaleString("en-GB")} comments on HN ↗</a><span>Added <LocalTime dateTime={story.date_added.toISOString()} /></span></div>
-      <SkepticismPill story={story} />
-      {summary?.overall_takeaway && <p className="standfirst">{summary.overall_takeaway}</p>}
+      {deck && <p className="standfirst">{deck}</p>}
     </header>
     {summary ? <div className="editorial">
       <section className="tldr-section" aria-labelledby="article-heading">
         <h2 id="article-heading">TLDR;</h2>
+        {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
         {summary.article_summary ? <>
           <p>{summary.article_summary}</p>
           {summary.article_key_points.length > 0 && <ul className="key-points">{summary.article_key_points.map((point, i) => <li key={i}>{point}</li>)}</ul>}
@@ -63,7 +63,7 @@ export function StoryContent({story, relatedStories}: {story: Story; relatedStor
         {article && !summary.article_summary && <p><a href={article}>Open the original source ↗</a></p>}
       </section>
       <section className="discussion-section" aria-labelledby="discussion-heading">
-        <h2 id="discussion-heading">Discussion</h2>
+        <div className="discussion-heading"><h2 id="discussion-heading">Discussion</h2><SkepticismPill story={story} /></div>
         {hasDiscussion ? <>
           <p>{summary.discussion_summary}</p>
           <div className="discussion-points">{summary.discussion_points.map((point, i) => <section className="discussion-point" key={i}>

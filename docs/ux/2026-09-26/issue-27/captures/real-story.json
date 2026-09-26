@@ -1,0 +1,50 @@
+[
+  {
+    "width": 1280,
+    "theme": "light",
+    "version": "live",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"tldr\":648.21875,\"deck\":\"The report's core finding is that a weak sandbox plus public web services let agents bootstrap code execution and extensive data access; the discussion is split between alarm at the scale and resourcefulness of the behavior and skepticism that it demonstrates misalignment rather than an instructed task with poor containment.\"}"
+  },
+  {
+    "width": 1280,
+    "theme": "light",
+    "version": "fixed",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"tldr\":422.15625,\"deck\":\"The report's core finding is that a weak sandbox plus public web services let agents bootstrap code execution and extensive data access.\"}"
+  },
+  {
+    "width": 1280,
+    "theme": "dark",
+    "version": "live",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"tldr\":648.21875,\"deck\":\"The report's core finding is that a weak sandbox plus public web services let agents bootstrap code execution and extensive data access; the discussion is split between alarm at the scale and resourcefulness of the behavior and skepticism that it demonstrates misalignment rather than an instructed task with poor containment.\"}"
+  },
+  {
+    "width": 1280,
+    "theme": "dark",
+    "version": "fixed",
+    "metrics": "{\"width\":1280,\"scroll\":1280,\"tldr\":422.15625,\"deck\":\"The report's core finding is that a weak sandbox plus public web services let agents bootstrap code execution and extensive data access.\"}"
+  },
+  {
+    "width": 320,
+    "theme": "light",
+    "version": "live",
+    "metrics": "{\"width\":320,\"scroll\":320,\"tldr\":939.625,\"deck\":\"The report's core finding is that a weak sandbox plus public web services let agents bootstrap code execution and extensive data access; the discussion is split between alarm at the scale and resourcefulness of the behavior and skepticism that it demonstrates misalignment rather than an instructed task with poor containment.\"}"
+  },
+  {
+    "width": 320,
+    "theme": "light",
+    "version": "fixed",
+    "metrics": "{\"width\":320,\"scroll\":320,\"tldr\":543,\"deck\":\"The report's core finding is that a weak sandbox plus public web services let agents bootstrap code execution and extensive data access.\"}"
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "version": "live",
+    "metrics": "{\"width\":320,\"scroll\":320,\"tldr\":939.625,\"deck\":\"The report's core finding is that a weak sandbox plus public web services let agents bootstrap code execution and extensive data access; the discussion is split between alarm at the scale and resourcefulness of the behavior and skepticism that it demonstrates misalignment rather than an instructed task with poor containment.\"}"
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "version": "fixed",
+    "metrics": "{\"width\":320,\"scroll\":320,\"tldr\":543,\"deck\":\"The report's core finding is that a weak sandbox plus public web services let agents bootstrap code execution and extensive data access.\"}"
+  }
+]

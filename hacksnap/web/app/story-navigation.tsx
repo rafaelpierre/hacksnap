@@ -3,7 +3,7 @@
 import { track } from "../lib/analytics";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type MouseEvent, type ReactNode } from "react";
 import { browseLabel, validBrowseContext, type BrowseContext } from "../lib/navigation-context";
 
 const PREFIX = "hacksnap:journey:";
@@ -39,36 +39,43 @@ function plainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
 
 export function BrowseStoryLink({id, children}: {id: string; children: ReactNode}) {
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const href = `/story/${id}`;
   function open(event: MouseEvent<HTMLAnchorElement>) {
     if (!plainClick(event)) return;
+    let destination = href;
     const store = storage();
     const url = window.location.pathname + window.location.search;
     const label = browseLabel(url);
-    if (!store || !label || !window.crypto?.randomUUID) return;
-    try {
-      if (!currentTabId()) window.name = TAB_PREFIX + crypto.randomUUID();
-      const token = crypto.randomUUID();
-      const context: BrowseContext = {url, label, scrollY: window.scrollY, savedAt: Date.now()};
-      store.setItem(PREFIX + token, JSON.stringify({tabId: currentTabId(), context}));
-      event.preventDefault();
-      router.push(`${href}?journey=${token}`);
-    } catch { /* The canonical link still works when storage is unavailable. */ }
+    if (store && label && typeof window.crypto?.randomUUID === "function") {
+      try {
+        if (!currentTabId()) window.name = TAB_PREFIX + crypto.randomUUID();
+        const token = crypto.randomUUID();
+        const context: BrowseContext = {url, label, scrollY: window.scrollY, savedAt: Date.now()};
+        store.setItem(PREFIX + token, JSON.stringify({tabId: currentTabId(), context}));
+        destination = `${href}?journey=${token}`;
+      } catch { /* Use the canonical destination when storage is unavailable. */ }
+    }
+    event.preventDefault();
+    startTransition(() => router.push(destination));
   }
-  return <Link href={href} onClick={open}>{children}</Link>;
+  return <><Link href={href} onClick={open} aria-busy={pending || undefined}>{children}</Link>
+    {pending && <span className="navigation-pending" role="status">Opening story…</span>}</>;
 }
 
 export function NextStoryLink({id, children}: {id: string; children: ReactNode}) {
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const href = `/story/${id}`;
   function open(event: MouseEvent<HTMLAnchorElement>) {
     if (!plainClick(event)) return;
     const token = journeyToken();
-    if (!readJourney(token)) return;
+    const destination = readJourney(token) ? `${href}?journey=${token}` : href;
     event.preventDefault();
-    router.push(`${href}?journey=${token}`);
+    startTransition(() => router.push(destination));
   }
-  return <Link href={href} onClick={open}>{children}</Link>;
+  return <><Link href={href} onClick={open} aria-busy={pending || undefined}>{children}</Link>
+    {pending && <span className="navigation-pending" role="status">Opening story…</span>}</>;
 }
 
 export function StoryReturnLink() {

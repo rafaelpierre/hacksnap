@@ -2,7 +2,8 @@ import { Recommendation } from "./journey-analytics";
 import Link from "next/link";
 import { categoryURL, type Category } from "../lib/categories";
 import type { RelatedStory } from "../lib/data";
-import { LocalTime } from "./local-time";
+
+import { domain } from "../lib/format";
 import { NextStoryLink } from "./story-navigation";
 
 export function RelatedStories({category, stories, currentId}: {category?: Category; stories: RelatedStory[]; currentId: string}) {
@@ -11,9 +12,9 @@ export function RelatedStories({category, stories, currentId}: {category?: Categ
     <h2 id="related-stories-heading">Read next</h2>
     {next.length > 0 && <ul className="related-story-list">{next.map((story, index) => <li key={story.hn_id}>
       <Recommendation source={currentId} target={story.hn_id} position={index + 1}><article>
+        {category && <span className="related-topic">{category.label}</span>}
         <h3><NextStoryLink id={story.hn_id}>{story.title}</NextStoryLink></h3>
-        <p className="feed-excerpt">{story.takeaway}</p>
-        <p className="related-story-date">Added <LocalTime dateTime={story.date_added.toISOString()} /></p>
+        <span className="related-story-meta">{domain(story.url)} <span aria-hidden="true">→</span></span>
       </article></Recommendation>
     </li>)}</ul>}
     <Link className="button" href={category ? categoryURL(category) : "/archive"}>

@@ -19,7 +19,8 @@ test('next reads select the newest available briefs across the whole category', 
         (8,'Uncategorized',now(),NULL),
         (0,'Invalid public ID',now(),'agents_coding');
       INSERT INTO hacksnap_summaries SELECT hn_id, 'Takeaway for ' || title FROM hacker_news_threads;
-      INSERT INTO hacker_news_threads SELECT n, 'Pending', now(), 'agents_coding' FROM generate_series(10,45) n;`);
+      INSERT INTO hacker_news_threads SELECT n, 'Pending', now(), 'agents_coding' FROM generate_series(10,45) n;
+      ALTER TABLE hacker_news_threads ADD COLUMN url text DEFAULT 'https://example.com/article';`);
     const run = async (category, id) => {
       const query = relatedStoriesQuery(category, id);
       return (await db.query(query.text, query.values)).rows;
@@ -29,6 +30,7 @@ test('next reads select the newest available briefs across the whole category', 
     assert.equal(stories[0].title, 'Newest ready brief');
     assert.equal(stories[0].takeaway, 'Takeaway for Newest ready brief');
     assert.ok(stories[0].date_added);
+    assert.equal(stories[0].url, 'https://example.com/article');
     assert.deepEqual((await run('models_products', '1')).map(story => story.hn_id), [6]);
     assert.deepEqual(await run('models_products', '6'), []);
     assert.deepEqual(await run('safety_privacy', '1'), []);

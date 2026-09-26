@@ -18,11 +18,11 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
   if ((await params).path?.length) notFound();
   const {stories, ingestion} = await getLeaderboard();
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
-  return <BrowseLayout>
+  return <BrowseLayout active="home">
     <ListPositionRestorer />
-    <header className="feed-header">
-      <div className="channel-path">hacksnap / <span>top stories</span></div>
-      <h1>Top AI stories on Hacker News</h1>
+    <header className="feed-header home-intro">
+      <div className="reading-list-kicker">{(ingestion ?? new Date()).toLocaleDateString("en-GB", {weekday: "long", day: "numeric", month: "long", timeZone: "UTC"})} · The reading list</div>
+      <h1>AI news for people who build.</h1>
       <p>AI stories and highlights from Hacker News discussions.</p>
     </header>
     <section aria-labelledby="feed-heading">
