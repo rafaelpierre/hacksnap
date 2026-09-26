@@ -217,6 +217,17 @@ pagination checks against synthetic data.
 
 ## Category flairs
 
+Story pages show up to three **More in [category]** next reads after the discussion,
+before the ranking metrics. They exclude
+the current story, pending briefs, future-dated stories and invalid public IDs,
+and sort by date added descending, then story ID descending. Each shows its
+headline, takeaway and date added, followed by a link to browse the category.
+Stories with no qualifying next reads or no category link to the latest archive
+instead. The section is server-rendered and shares the story page's existing
+30-minute revalidation. It uses the existing category/date index and requires no
+migration. `npm run test:categories` covers selection, and the local preview's
+category HTTP tests check the rendered links and fallback.
+
 Stories display a compact category flair directly below their title on the
 homepage, article pages and archive. Clicking a flair opens
 `/category/<slug>`, with the topic description and all stored stories in that

@@ -6,7 +6,7 @@ import { unstable_cache } from "next/cache";
 import { Pool, type PoolClient } from "pg";
 import { rankHistorySQL, type RankObservation } from "./rank-history";
 import { storyMetricsSQL, type RankingMetrics } from "./story-metrics";
-import { CATEGORY_PAGE_SIZE, categoryCountsSQL, categoryQuery, type CategoryId, type CategoryCounts } from "./categories";
+import { CATEGORY_PAGE_SIZE, categoryCountsSQL, categoryQuery, relatedStoriesQuery, type CategoryId, type CategoryCounts } from "./categories";
 
 export type Summary = {
   article_summary: string | null;
@@ -198,6 +198,11 @@ export const getCategoryStories = cache(async (category: CategoryId, page: numbe
   const {rows} = await client.query<Story>(categoryQuery(fields, category, page));
   return {stories: rows.slice(0, CATEGORY_PAGE_SIZE), hasNext: rows.length > CATEGORY_PAGE_SIZE};
 }));
+
+export type RelatedStory = Pick<Story, "hn_id" | "title" | "date_added"> & {takeaway: string};
+
+export const getRelatedStories = cache(async (category: CategoryId, currentStoryId: string): Promise<RelatedStory[]> =>
+  read(async client => (await client.query<RelatedStory>(relatedStoriesQuery(category, currentStoryId))).rows));
 
 export const getArchiveStories = cache(async (month: string | null, page: number) =>
   read(async client => {
