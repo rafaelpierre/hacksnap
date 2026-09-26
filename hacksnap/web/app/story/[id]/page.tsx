@@ -3,12 +3,14 @@ import Link from "next/link";
 import { storyPreviewMetadata } from "../../../lib/preview-metadata";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getStory } from "../../../lib/data";
+import { getRelatedStories, getStory } from "../../../lib/data";
+import { categoryById } from "../../../lib/categories";
 import { articleURL, timestamp } from "../../../lib/format";
 import { ShareLinks } from "../../share-links";
 import { LocalTime } from "../../local-time";
 import { StoryMetrics } from "../../story-metrics";
 import { CategoryBadge } from "../../categories";
+import { RelatedStories } from "../../related-stories";
 
 export const revalidate = 1800;
 
@@ -30,6 +32,8 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
   if (!story) notFound();
   const summary = story.summary;
   const article = articleURL(story.url);
+  const category = categoryById(story.category);
+  const relatedStories = category ? await getRelatedStories(category.id, story.hn_id) : [];
   return <article className="detail">
     <Link className="back-link" href="/">← All stories</Link>
     <header className="story-header">
@@ -65,5 +69,6 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
         </details>
       </aside>
     </div> : <section className="empty"><h2>Summary pending.</h2><p>Summaries update hourly. You can read the original sources above.</p></section>}
+    <RelatedStories category={category} stories={relatedStories} />
   </article>;
 }

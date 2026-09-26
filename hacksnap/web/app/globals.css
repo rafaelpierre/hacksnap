@@ -112,6 +112,14 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
 .source-note p { margin: 0 0 8px; }
 .source-note summary { cursor: pointer; padding: 5px 0; }
 .source-note details p { margin-top: 14px; }
+.related-stories { margin-top: 40px; padding-top: 28px; border-top: 1px solid var(--line); }
+.related-stories h2 { font-size: 22px; font-weight: 600; line-height: 1.4; margin-bottom: 16px; }
+.related-story-list { list-style: none; padding: 0; margin: 0 0 24px; }
+.related-story-list li { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.related-story-list h3 { font-size: 18px; font-weight: 600; line-height: 1.5; margin: 0 0 6px; overflow-wrap: anywhere; }
+.related-story-list h3 a { display: block; min-height: 44px; padding: 8px 0; text-decoration: none; }
+.related-stories .feed-excerpt { font-size: 15px; margin-bottom: 10px; }
+.related-story-date { color: var(--muted); font: 12px/1.7 var(--mono); margin: 0; }
 .notice { border-left: 2px solid var(--accent); background: var(--surface); color: var(--ink); padding: 14px 18px; font-size: 13px; line-height: 1.6; }
 .empty { padding: 65px 20px; text-align: center; }
 .empty h1, .empty h2 { font-size: 25px; font-weight: 500; }
