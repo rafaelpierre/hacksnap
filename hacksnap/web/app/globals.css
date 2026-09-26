@@ -389,7 +389,7 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
 .feed-story .story-content { min-width: 0; width: 100%; }
 .feed-story .story-domain { margin-bottom: 7px; }
 .feed-story h3 { margin: 0 0 8px; overflow-wrap: anywhere; }
-.feed-story .feed-excerpt { display: block; overflow: visible; max-width: 65ch; margin: 0 0 10px; color: var(--prose); overflow-wrap: anywhere; }
+.feed-story .feed-excerpt { display: block; overflow: visible; margin: 0 0 10px; color: var(--prose); overflow-wrap: anywhere; }
 .feed-story .feed-pending { color: var(--muted); font-style: italic; }
 .feed-story-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 18px; }
 .feed-story-footer .share-menu { display: flex; align-items: center; margin-left: auto; }
