@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {afterEach, test} from 'node:test';
 import {copyShareText, recordVisit, track, trackOnce} from '../lib/analytics.ts';
+import {observeRecommendationExposure} from '../lib/recommendation-exposure.ts';
 
 function storage() {
   const values = new Map();
@@ -66,4 +67,28 @@ test('copy reports success only after a resolved clipboard write and failure off
   assert.ok(calls.every(call => !Object.values(call[2]).includes('editable suggestion')));
   await copyShareText('https://hacksnap.live/story/42', '42', 'feed', 'link', async () => {});
   assert.equal(calls.at(-1)[2].copy_kind, 'link');
+});
+
+test('recommendation exposure waits until half the link is visible', () => {
+  let callback;
+  let disconnects = 0;
+  let observed;
+  class FakeObserver {
+    constructor(receive, options) {
+      callback = receive;
+      assert.equal(options.threshold, 0.5);
+    }
+    observe(element) { observed = element; }
+    disconnect() { disconnects++; }
+  }
+  const element = {};
+  let exposures = 0;
+  observeRecommendationExposure(element, () => { exposures++; }, FakeObserver);
+  assert.equal(observed, element);
+  callback([{isIntersecting: true, intersectionRatio: 0.01}]);
+  assert.equal(exposures, 0);
+  assert.equal(disconnects, 0);
+  callback([{isIntersecting: true, intersectionRatio: 0.5}]);
+  assert.equal(exposures, 1);
+  assert.equal(disconnects, 1);
 });
