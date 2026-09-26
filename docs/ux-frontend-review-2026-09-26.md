@@ -2,6 +2,8 @@
 
 Reviewed 26 September 2026. Scope: live homepage, a populated story, a topic listing and archive; desktop and narrow layouts; dark and light appearance; frontend source and shared styles. This is a heuristic review, not a user study. Engagement improvements below are hypotheses to validate. No product code was changed.
 
+> **Implementation reference:** The [final prototype decisions](ux/2026-09-26/README.md) supersede the preliminary recommendations below where they differ. In particular, the final prototype removes duplicate actions, the introductory coverage strip, the collapsible Topics menu, and per-story methodology details.
+
 ## Recommendation
 
 Build the experience around a clear promise: **understand what changed in AI, why it matters to people building software, and where the evidence is contested.**
@@ -45,7 +47,7 @@ Candidate homepage copy, subject to the coverage decision:
 
 **Change:** Put a short takeaway and the brief first. Follow with the discussion and its sources. Keep a compact skepticism label and coverage statement near the introduction; put ranking history lower down or behind a clearly labeled disclosure. Offer “Brief” and “Discussion” anchor links where the page is long.
 
-Source: [story page](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksnap/web/app/story/[id]/page.tsx:39), [metrics styling](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksnap/web/app/globals.css:211).
+Source: [story page](../hacksnap/web/app/story/[id]/page.tsx), [metrics styling](../hacksnap/web/app/globals.css).
 
 ### B. Finishing a story is a dead end — high priority
 
@@ -55,7 +57,7 @@ Source: [story page](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksna
 
 **Later:** Connect stories about the same model, tool or ongoing event. That requires reliable relationship data; category membership alone does not establish a shared story.
 
-Source: [story navigation and ending](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksnap/web/app/story/[id]/page.tsx:34).
+Source: [story navigation and ending](../hacksnap/web/app/story/[id]/page.tsx).
 
 ### C. Discovery is hidden — high priority
 
@@ -65,7 +67,7 @@ Source: [story navigation and ending](/Users/rafaelpierre/projects/lighthouse-ha
 
 **Next:** Search titles and available brief text, with topic and date filters. Return useful empty states and retain search state when opening a story. Avoid presenting a newly added story as newly published unless that timestamp is actually known.
 
-Source: [navigation](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksnap/web/app/layout.tsx:44), [topic page](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksnap/web/app/category/[slug]/page.tsx:34), [archive controls](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksnap/web/app/archive/[[...date]]/page.tsx:48).
+Source: [navigation](../hacksnap/web/app/layout.tsx), [topic page](../hacksnap/web/app/category/[slug]/page.tsx), [archive controls](../hacksnap/web/app/archive/[[...date]]/page.tsx).
 
 ### D. Sharing consumes attention before the reader has a reason to share — high priority
 
@@ -75,7 +77,7 @@ Source: [navigation](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksna
 
 Keep the current canonical story URLs and social preview cards. A compact, complete takeaway is a better starting point for a suggested post than a mechanically clipped paragraph. Let readers inspect and edit the text before copying it. Measure destination choice before deciding which networks deserve permanent prominence.
 
-Source: [share controls](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksnap/web/app/share-links.tsx:6), [share text](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksnap/web/lib/share-text.ts:5).
+Source: [share controls](../hacksnap/web/app/share-links.tsx), [share text](../hacksnap/web/lib/share-text.ts).
 
 ### E. The distinctive features need clearer meaning — high priority
 
@@ -85,7 +87,7 @@ Source: [share controls](/Users/rafaelpierre/projects/lighthouse-hacker-news/hac
 
 Bring “AI-generated brief” and a concise coverage statement near the introduction. Clearly distinguish total HN comments, comments used in the brief, and comments used for skepticism. Richer labels such as mixed or positive would require changing the underlying classification, not simply relabeling the existing binary display.
 
-Source: [skepticism display](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksnap/web/app/sentiment.tsx:7), [metric explanations](/Users/rafaelpierre/projects/lighthouse-hacker-news/hacksnap/web/app/story-metrics.tsx:31).
+Source: [skepticism display](../hacksnap/web/app/sentiment.tsx), [metric explanations](../hacksnap/web/app/story-metrics.tsx).
 
 ## 3. Look and feel
 
@@ -125,7 +127,7 @@ The larger readability issue is very small type and muted emphasis across most s
 | Meter labels | 9–10px on mobile | 12–13px with explicit values |
 | Article title | 30–44px | Keep a similar responsive range |
 
-Retain the system sans-serif initially. Reserve monospace for the wordmark, timestamps and small numeric details. Font replacement has less likely value than correcting the hierarchy.
+**Updated typography decision:** Preserve the fonts added on `main` in `eba6efb`: Bricolage Grotesque at weight 600 for headings and the wordmark, Source Sans 3 for body text and controls, and the existing monospace stack for code, ranks, points and timestamps. Use automatic optical sizing for headings. The mockups embed the same font files.
 
 Use a consistent spacing scale such as 4, 8, 12, 16, 24, 32 and 48px. Keep reading paragraphs near 60–72 characters per line. Use roughly 16–20px page gutters on phones and 32–40px on larger screens. Put more space between ideas and less between a headline and its evidence.
 
