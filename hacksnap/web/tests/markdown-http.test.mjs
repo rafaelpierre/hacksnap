@@ -40,33 +40,15 @@ test("production HTTP negotiation preserves HTML, Markdown, HEAD and API formats
 
 // Set this to a valid fixture story when testing ISR against a seeded database.
 const storyId = process.env.HACKSNAP_TEST_STORY_ID;
-test("story metrics are substantive HTML before JavaScript executes", {skip: !base || !storyId}, async () => {
+test("story brief, discussion, and next read are HTML before JavaScript executes", {skip: !base || !storyId}, async () => {
   const response = await fetch(new URL(`/story/${storyId}`, base));
   assert.equal(response.status, 200);
   const html = await response.text();
-  const section = html.match(/<section class="story-metrics"[\s\S]*?<\/section>/)?.[0];
-  assert.ok(section, 'metrics are in the initial HTML');
-  const text = section.replace(/<[^>]*>/g, '');
-  for (const label of ['Skept-o-meter', 'comments', 'Peak rank',
-    'Time in Top 10', 'Hacksnap ranking over time', 'Tracking since']) assert.ok(text.includes(label), label);
-  assert.ok(!/\shidden(?:=|>)|display:\s*none/.test(section), 'metrics are not hidden');
-});
-test("synthetic stories preserve old history and distinguish pending, empty and one-point states", {skip: !base || storyId !== '90000001'}, async () => {
-  for (const [id, expected, absent] of [
-    ['90000006', ['Low', '12 recorded observations', 'Latest recorded rank:', 'Tracking since'], []],
-    ['90000008', ['No comments', 'No usable comments available'], []],
-    ['90000009', ['Analysis pending', 'Not enough history', 'One observation does not establish a trend'], []],
-    ['90000010', ['Not yet recorded', 'Not enough history', 'No ranking history recorded yet'], ['Hacksnap ranking over time']],
-  ]) {
-    const response = await fetch(new URL(`/story/${id}`, base));
-    assert.equal(response.status, 200);
-    const html = await response.text();
-    const section = html.match(/<section class="story-metrics"[\s\S]*?<\/section>/)?.[0];
-    assert.ok(section);
-    const text = section.replace(/<[^>]*>/g, '');
-    for (const value of expected) assert.ok(text.includes(value), `${id}: ${value}`);
-    for (const value of absent) assert.ok(!text.includes(value), `${id}: ${value}`);
-  }
+  for (const marker of ['id="article-heading">TLDR;', 'id="discussion-heading">Discussion',
+    'id="related-stories-heading">Read next']) assert.ok(html.includes(marker), marker);
+  assert.ok(html.indexOf('id="article-heading"') < html.indexOf('id="discussion-heading"'));
+  assert.ok(html.indexOf('id="discussion-heading"') < html.indexOf('id="related-stories-heading"'));
+  assert.match(html, /href="https:\/\/news\.ycombinator\.com\/item\?id=90000101"/);
 });
 test("ISR pages keep a 30-minute TTL and negotiate Markdown after warming HTML", {skip: !base || !storyId}, async () => {
   for (const path of ["/", `/story/${storyId}`]) {

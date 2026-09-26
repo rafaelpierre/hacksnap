@@ -59,7 +59,7 @@
 [data-color="rose"] { --category-color: light-dark(#98465c, #e6a2b1); }
 [data-color="sand"] { --category-color: light-dark(#71632f, #ccc39f); }
 .category-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--category-color, var(--accent)); flex-shrink: 0; display: inline-block; }
-.category-badge { display: inline-flex; align-items: center; max-width: 100%; min-height: 24px; padding: 3px 10px; border: 1px solid transparent; border-radius: 999px; color: var(--category-color); background: color-mix(in srgb, var(--category-color) 12%, var(--bg)); font: 500 var(--text-xs)/1.4 var(--sans); text-decoration: none; }
+.category-badge { display: inline-flex; align-items: center; max-width: 100%; min-height: var(--touch-target); padding: 10px; border: 1px solid transparent; border-radius: 999px; color: var(--category-color); background: color-mix(in srgb, var(--category-color) 12%, var(--bg)); font: 500 var(--text-xs)/1.4 var(--sans); text-decoration: none; }
 .category-badge:hover { color: var(--category-color); background: color-mix(in srgb, var(--category-color) 16%, var(--bg)); border-color: var(--category-color); }
 .story-flair { margin: var(--space-2) 0 10px; }
 .category-header h1 { display: flex; align-items: center; gap: var(--space-3); }
