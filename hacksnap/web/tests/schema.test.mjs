@@ -49,7 +49,8 @@ test("category metadata is constrained, projected to readers, and preserved by u
   await db.exec("BEGIN");
   try {
     const record = {hn_id: 100, title: 'AI agent', url: 'https://example.com', date_published: new Date(),
-      date_added: new Date(), author: 'test', points: 1, comment_count: 1, last_seen_run_id: current,
+      // CURRENT_TIMESTAMP is fixed at BEGIN; keep this story safely before that instant.
+      date_added: new Date(Date.now() - 60 * 60 * 1000), author: 'test', points: 1, comment_count: 1, last_seen_run_id: current,
       category: 'agents_coding', category_version: 'v1', category_model: 'test',
       categorized_at: new Date('2026-01-01'), category_title_hash: 'a'.repeat(64)};
     await upsert(record);
