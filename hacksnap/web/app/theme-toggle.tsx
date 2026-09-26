@@ -9,7 +9,16 @@ export function ThemeToggle() {
   const [systemDark, setSystemDark] = useState(false);
 
   useEffect(() => {
-    setPreference(themePreference(document.documentElement.dataset.theme));
+    // Hydration can replace the attribute set by the early head script.
+    // Read the persisted choice again instead of trusting the server default.
+    let restored = themePreference(document.documentElement.dataset.theme);
+    try {
+      restored = themePreference(window.localStorage.getItem(THEME_STORAGE_KEY));
+    } catch {
+      // Preserve the early script's choice when storage is unavailable.
+    }
+    document.documentElement.dataset.theme = restored;
+    setPreference(restored);
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const syncSystem = () => setSystemDark(media.matches);
     syncSystem();
