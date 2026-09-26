@@ -1,8 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Script from "next/script";
+import localFont from "next/font/local";
 import { ThemeToggle } from "./theme-toggle";
 import "./globals.css";
+
+const headlines = localFont({
+  src: "./fonts/bricolage-grotesque-latin-variable.woff2",
+  variable: "--font-heading",
+  weight: "200 800",
+  style: "normal",
+  display: "swap",
+  fallback: ["Arial", "sans-serif"],
+});
+
+const reading = localFont({
+  src: "./fonts/source-sans-3-latin-variable.woff2",
+  variable: "--font-body",
+  weight: "200 900",
+  style: "normal",
+  display: "swap",
+  fallback: ["Arial", "sans-serif"],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://hacksnap.live"),
@@ -19,7 +38,7 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: {children: React.ReactNode}) {
-  return <html lang="en" data-theme="dark" suppressHydrationWarning><head>
+  return <html lang="en" data-theme="dark" className={`${headlines.variable} ${reading.variable}`} suppressHydrationWarning><head>
     {/* Apply the saved theme before paint, including on cached HTML pages. */}
     <script dangerouslySetInnerHTML={{__html: `
       try {
