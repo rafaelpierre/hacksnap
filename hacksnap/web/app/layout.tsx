@@ -3,6 +3,7 @@ import Link from "next/link";
 import Script from "next/script";
 import localFont from "next/font/local";
 import { ThemeToggle } from "./theme-toggle";
+import { MainNavigation } from "./main-navigation";
 import "./globals.css";
 
 const headlines = localFont({
@@ -59,12 +60,9 @@ export default function Layout({ children }: {children: React.ReactNode}) {
     <a className="skip-link" href="#main">Skip to content</a>
     <header className="site-header"><div className="header-inner">
       <Link className="wordmark" href="/" aria-label="Hacksnap home"><span className="logo" aria-hidden="true">h/</span>hacksnap</Link>
-      <span className="header-note">/ ai</span>
-      <nav className="header-nav" aria-label="Main navigation"><Link className="header-link" href="/archive">Archive</Link>
-      <a className="header-link" href="https://news.ycombinator.com/">Hacker News ↗</a>
-      <ThemeToggle /></nav>
+      <div className="header-nav"><MainNavigation /><ThemeToggle /></div>
     </div></header>
     <main id="main">{children}</main>
-    <footer><Link className="footer-brand" href="/">hacksnap</Link><p>An independent reader for Hacker News. <a href="/feed.xml">RSS feed</a></p></footer>
+    <footer><Link className="footer-brand" href="/">hacksnap</Link><p>AI stories and discussions from Hacker News. <a href="/feed.xml">RSS feed</a></p></footer>
   </body></html>;
 }
