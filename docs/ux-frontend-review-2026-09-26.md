@@ -127,7 +127,7 @@ The larger readability issue is very small type and muted emphasis across most s
 | Meter labels | 9–10px on mobile | 12–13px with explicit values |
 | Article title | 30–44px | Keep a similar responsive range |
 
-Retain the system sans-serif initially. Reserve monospace for the wordmark, timestamps and small numeric details. Font replacement has less likely value than correcting the hierarchy.
+**Updated typography decision:** Preserve the fonts added on `main` in `eba6efb`: Bricolage Grotesque at weight 600 for headings and the wordmark, Source Sans 3 for body text and controls, and the existing monospace stack for code, ranks, points and timestamps. Use automatic optical sizing for headings. The mockups embed the same font files.
 
 Use a consistent spacing scale such as 4, 8, 12, 16, 24, 32 and 48px. Keep reading paragraphs near 60–72 characters per line. Use roughly 16–20px page gutters on phones and 32–40px on larger screens. Put more space between ideas and less between a headline and its evidence.
 

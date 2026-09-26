@@ -25,7 +25,9 @@ The mockup includes Top stories, Latest, Topics, topic-filtered feeds, story pag
 ### Look and feel
 
 - Keep the charcoal and warm off-white palette, copper accent and restrained green details.
+- Preserve the typography on `main` (commit `eba6efb`): **Bricolage Grotesque** at weight 600 with automatic optical sizing for headings and the wordmark; **Source Sans 3** for body text, navigation and labels; the existing system monospace stack for code, ranks, points and timestamps. Keep Arial/sans-serif fallbacks and `font-display: swap`.
 - Use readable body text, stronger headline hierarchy, consistent spacing and compact metadata.
+- The HTML embeds the exact variable WOFF2 files from `hacksnap/web/app/fonts`, with their SIL Open Font License notices, so the typography works without external font requests.
 - Add small, muted icons for points and comments while retaining readable labels.
 - Make skepticism a clear High/Low pill with a subtle color and discussion icon. Preserve the classification's actual meaning.
 - Support light, dark and system appearance, plus layouts down to 320px.
