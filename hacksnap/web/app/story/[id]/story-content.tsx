@@ -1,13 +1,13 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
 import { MessageCircle } from "lucide-react";
 import type { RelatedStory, Story } from "../../../lib/data";
-import { categoryById } from "../../../lib/categories";
+import { categoryById, categoryURL } from "../../../lib/categories";
 import { articleURL, domain } from "../../../lib/format";
 import { skepticismDisplay } from "../../../lib/sentiment";
 import { ShareLinks } from "../../share-links";
 import { briefExcerpt } from "../../../lib/brief";
-import { CategoryBadge } from "../../categories";
+import { StoryAddedTime } from "../../story-added-time";
 import { RelatedStories } from "../../related-stories";
 import { StoryReturnLink } from "../../story-navigation";
 
@@ -41,14 +41,22 @@ export function StoryContent({story, relatedStories}: {story: Story; relatedStor
 
   return <article className="detail">
     <StoryVisit id={story.hn_id} />
-    <div className="story-actions">
-      <StoryReturnLink />
-      <StoryShare story={story} placement="story_top" />
-    </div>
     <header className="story-header">
-      <div className="story-byline story-context">{story.category && <CategoryBadge id={story.category} />}{article ? <a href={article} aria-label={`Original article on ${domain(story.url)}`}>{domain(story.url)} <ArrowUpRight className="inline-icon" aria-hidden="true" /></a> : <a href={hnURL}>Hacker News <ArrowUpRight className="inline-icon" aria-hidden="true" /></a>}</div>
+      <nav className="story-breadcrumbs" aria-label="Breadcrumb">
+        <ol>
+          <li><StoryReturnLink destination={{href: "/", label: "Top Stories"}} /></li>
+          {category && <li><ChevronRight size={14} aria-hidden="true" /><StoryReturnLink destination={{href: categoryURL(category), label: category.label}} /></li>}
+        </ol>
+      </nav>
       <h1>{story.title}</h1>
       {deck && <p className="standfirst">{deck}</p>}
+      <div className="story-metadata">
+        <div className="story-source-date">
+          {article ? <a className="story-source" href={article} aria-label={`Original article on ${domain(story.url)}`}>{domain(story.url)} <ArrowUpRight className="inline-icon" aria-hidden="true" /></a> : <a className="story-source" href={hnURL}>Hacker News <ArrowUpRight className="inline-icon" aria-hidden="true" /></a>}
+          <span className="story-added">Added <StoryAddedTime dateTime={new Date(story.date_added).toISOString()} /></span>
+        </div>
+        <StoryShare story={story} placement="story_top" />
+      </div>
     </header>
     {summary ? <div className="editorial">
       <section className="tldr-section" aria-labelledby="article-heading">

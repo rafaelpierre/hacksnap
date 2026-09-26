@@ -79,25 +79,28 @@ export function NextStoryLink({id, children}: {id: string; children: ReactNode})
     {pending && <span className="navigation-pending" role="status">Opening story…</span>}</>;
 }
 
-export function StoryReturnLink() {
+export function StoryReturnLink({destination}: {destination?: {href: string; label: string}} = {}) {
   const router = useRouter();
   const [context, setContext] = useState<BrowseContext | null>(null);
-  useEffect(() => { setContext(readJourney(journeyToken())); }, []);
+  useEffect(() => {
+    const saved = readJourney(journeyToken());
+    setContext(saved && (!destination || saved.url.split("?")[0] === destination.href) ? saved : null);
+  }, [destination?.href]);
   function rememberReturn(event: MouseEvent<HTMLAnchorElement>) {
     track("story_return");
     if (!plainClick(event)) return;
     if (context && !validBrowseContext(context)) {
       event.preventDefault();
       setContext(null);
-      router.push("/");
+      router.push(destination?.href ?? "/");
       return;
     }
     const store = storage();
     if (!context || !store) return;
     try { store.setItem(RESTORE_KEY, JSON.stringify({tabId: currentTabId(), context})); } catch { /* The link still returns to the list. */ }
   }
-  return <Link className="back-link" href={context?.url ?? "/"} scroll={!context} onClick={rememberReturn}>
-    <ChevronLeft className="inline-icon" aria-hidden="true" /> {context ? context.label : "Top stories"}
+  return <Link className={destination ? "breadcrumb-link" : "back-link"} href={context?.url ?? destination?.href ?? "/"} scroll={!context} onClick={rememberReturn}>
+    {!destination && <ChevronLeft className="inline-icon" aria-hidden="true" />} {destination?.label ?? context?.label ?? "Top stories"}
   </Link>;
 }
 
