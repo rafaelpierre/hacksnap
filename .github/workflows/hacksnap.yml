@@ -52,6 +52,8 @@ jobs:
           npm run test:history
           npm run test:api
           npm run test:categories
+          npm run test:share
+          npm run test:analytics
           npm run test:archive
           npm run test:metadata
           npm run test:theme

@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "../lib/analytics";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
@@ -75,6 +76,7 @@ export function StoryReturnLink() {
   const [context, setContext] = useState<BrowseContext | null>(null);
   useEffect(() => { setContext(readJourney(journeyToken())); }, []);
   function rememberReturn(event: MouseEvent<HTMLAnchorElement>) {
+    track("story_return");
     if (!plainClick(event)) return;
     if (context && !validBrowseContext(context)) {
       event.preventDefault();

@@ -6,6 +6,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { MainNavigation } from "./main-navigation";
 import { themeInitScript } from "../lib/theme";
 import "./globals.css";
+import { ReaderVisit } from "./journey-analytics";
 
 const headlines = localFont({
   src: "./fonts/bricolage-grotesque-latin-variable.woff2",
@@ -46,12 +47,13 @@ export default function Layout({ children }: {children: React.ReactNode}) {
   </head><body>
     <Script src="https://www.googletagmanager.com/gtag/js?id=G-059PVYBN82" strategy="lazyOnload" />
     {/* Queue configuration early; download the analytics library after load, when idle. */}
-    <Script id="google-analytics" strategy="afterInteractive">{`
+    <Script id="google-analytics" strategy="beforeInteractive">{`
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-059PVYBN82');
     `}</Script>
+    <ReaderVisit />
     <a className="skip-link" href="#main">Skip to content</a>
     <header className="site-header"><div className="header-inner">
       <Link className="wordmark" href="/" aria-label="Hacksnap home"><span className="logo" aria-hidden="true">h/</span>hacksnap</Link>

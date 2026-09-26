@@ -10,6 +10,7 @@ import { ShareLinks } from "../../share-links";
 import { LocalTime } from "../../local-time";
 import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
+import { StoryVisit } from "../../journey-analytics";
 import { StoryReturnLink } from "../../story-navigation";
 
 export const revalidate = 1800;
@@ -54,6 +55,7 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
   const hasDiscussion = Boolean(summary?.discussion_summary?.trim() && summary.source_coverage.included_comments > 0);
 
   return <article className="detail">
+    <StoryVisit id={story.hn_id} />
     <div className="story-actions">
       <StoryReturnLink />
       <StoryShare story={story} />
