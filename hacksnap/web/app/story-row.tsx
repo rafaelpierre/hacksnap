@@ -2,7 +2,6 @@ import { ChevronsDown, ChevronsUp, MessageCircle, Minus, Star } from "lucide-rea
 import type { Story } from "../lib/data";
 import { CategoryBadge } from "./categories";
 import { formatRankChange, latestRankChange } from "../lib/rank-history";
-import { briefExcerpt } from "../lib/brief";
 import { ShareLinks } from "./share-links";
 import { BrowseStoryLink } from "./story-navigation";
 
@@ -24,7 +23,7 @@ export function StoryRow({story, variant = "unranked"}: {story: Story; variant?:
         {variant === "ranked" && story.is_recent === false && <span className="archive-label">Archive</span>}
       </div>
       <h3><BrowseStoryLink id={story.hn_id}>{story.title}</BrowseStoryLink></h3>
-      {takeaway ? <p className="feed-excerpt">{briefExcerpt(takeaway)}</p> : <p className="feed-excerpt feed-pending">Brief pending. Check back after the next summary update.</p>}
+      {takeaway ? <p className="feed-excerpt">{takeaway}</p> : <p className="feed-excerpt feed-pending">Brief pending. Check back after the next summary update.</p>}
       <div className="feed-story-footer">
         <div className="story-meta">
           <span className="points"><Star size={14} aria-hidden="true" />{story.points.toLocaleString("en-GB")} points</span>
