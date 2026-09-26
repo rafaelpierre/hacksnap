@@ -2,7 +2,7 @@
 
 import {useEffect, useId, useRef, useState} from "react";
 import {Share2} from "lucide-react";
-import {canonicalStoryUrl, copyText, shareDestinations, suggestedPost} from "../lib/share-text";
+import {canonicalStoryUrl, copyText, shareDestinations, suggestedPost, xPostStatus} from "../lib/share-text";
 
 type ShareProps = {id: string; title: string; takeaway?: string | null; label?: string};
 
@@ -16,8 +16,11 @@ export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
   const trigger = useRef<HTMLButtonElement>(null);
   const firstAction = useRef<HTMLButtonElement>(null);
   const manualField = useRef<HTMLTextAreaElement>(null);
+  const draftField = useRef<HTMLTextAreaElement>(null);
   const panelId = useId();
   const draftId = useId();
+  const xHintId = useId();
+  const xStatus = xPostStatus(post);
   const url = canonicalStoryUrl(id);
 
   useEffect(() => {
@@ -71,16 +74,22 @@ export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
       <div className="share-panel-heading"><strong>Share story</strong><button type="button" className="share-close" onClick={() => close(true)} aria-label="Close share menu">×</button></div>
       <div className="share-actions">
         <button type="button" ref={firstAction} onClick={() => void copy(url, "link")}>Copy link</button>
-        {shareDestinations(post, url, title).map(destination => <a key={destination.name} href={destination.href}
-          target={destination.name === "Email" ? undefined : "_blank"}
-          rel={destination.name === "Email" ? undefined : "noopener noreferrer"}
-          aria-label={`${destination.name}${destination.name === "Email" ? "" : " (opens in a new tab)"}`}>
-          {destination.name} {destination.name !== "Email" && <span aria-hidden="true">↗</span>}
-        </a>)}
+        {shareDestinations(post, url, title).map(destination => destination.name === "X" && !xStatus.valid
+          ? <button key="X" type="button" aria-describedby={xHintId} onClick={() => {
+              setFeedback(`X needs a shorter post (${xStatus.length}/${xStatus.limit}). Edit the suggested post to continue.`);
+              draftField.current?.focus();
+            }}>X (edit first)</button>
+          : <a key={destination.name} href={destination.href}
+              target={destination.name === "Email" ? undefined : "_blank"}
+              rel={destination.name === "Email" ? undefined : "noopener noreferrer"}
+              aria-label={`${destination.name}${destination.name === "Email" ? "" : " (opens in a new tab)"}`}>
+              {destination.name} {destination.name !== "Email" && <span aria-hidden="true">↗</span>}
+            </a>)}
       </div>
+      <p id={xHintId} className="share-destination-hint">X post: {xStatus.length}/{xStatus.limit} weighted characters.{!xStatus.valid && " Shorten the draft before opening X."}</p>
       <p className="share-destination-hint">LinkedIn opens a link preview. Copy your post to paste edits there.</p>
       <label htmlFor={draftId}>Suggested post</label>
-      <textarea id={draftId} className="share-draft" value={post} rows={5} onChange={event => { setPost(event.target.value); setFeedback(""); setManualText(null); }} />
+      <textarea id={draftId} ref={draftField} className="share-draft" value={post} rows={5} onChange={event => { setPost(event.target.value); setFeedback(""); setManualText(null); }} />
       <button type="button" className="share-copy-post" onClick={() => void copy(post, "post")}>Copy suggested post</button>
       <p className="share-feedback" role="status" aria-live="polite">{feedback}</p>
       {manualText !== null && <textarea ref={manualField} className="share-manual" readOnly value={manualText} rows={4}

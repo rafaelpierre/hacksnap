@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {canonicalStoryUrl, copyText, shareDestinations, suggestedPost} from '../lib/share-text.ts';
+import {canonicalStoryUrl, copyText, shareDestinations, suggestedPost, xPostStatus} from '../lib/share-text.ts';
 
 test('copy link uses the canonical address and reports success only after writeText resolves', async () => {
   const url = canonicalStoryUrl('123');
@@ -49,4 +49,15 @@ test('copying a revised post writes the exact reader-authored text', async () =>
   let written;
   assert.equal(await copyText(edited, {writeText: async text => { written = text; }}), true);
   assert.equal(written, edited);
+});
+
+test('X validation accounts for transformed links and weighted Unicode without changing the draft', () => {
+  const url = canonicalStoryUrl('123');
+  const fitting = `${'a'.repeat(256)} ${url}`;
+  assert.deepEqual(xPostStatus(fitting), {length: 280, limit: 280, valid: true});
+  assert.deepEqual(xPostStatus(`${'a'.repeat(257)} ${url}`), {length: 281, limit: 280, valid: false});
+  assert.equal(xPostStatus('😀').length, 2);
+  const longDraft = suggestedPost('123', 'Headline', 'takeaway '.repeat(400));
+  assert.equal(xPostStatus(longDraft).valid, false);
+  assert.ok(longDraft.includes('takeaway '.repeat(400).trim()));
 });

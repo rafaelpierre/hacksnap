@@ -1,3 +1,5 @@
+import twitter from "twitter-text";
+
 /** The public story address is also the address used by canonical and social metadata. */
 export function canonicalStoryUrl(id: string): string {
   return `https://hacksnap.live/story/${id}`;
@@ -9,6 +11,12 @@ export function suggestedPost(id: string, title: string, takeaway?: string | nul
   return summary
     ? `${title.trim()}\n\n${summary}\n\n${url}`
     : `${title.trim()}\n\nSummary pending. Read the story and Hacker News discussion: ${url}`;
+}
+
+/** X counts URLs as 23 characters and weights some Unicode characters differently. */
+export function xPostStatus(post: string) {
+  const parsed = twitter.parseTweet(post);
+  return {length: parsed.weightedLength, limit: 280, valid: parsed.valid};
 }
 
 /** Destinations are navigation only. None of these URLs publishes a post. */
