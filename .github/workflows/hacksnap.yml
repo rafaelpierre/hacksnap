@@ -90,6 +90,7 @@ jobs:
           JS
           HACKSNAP_TEST_URL=http://127.0.0.1:3100 HACKSNAP_TEST_STORY_ID=90000001 node --test tests/markdown-http.test.mjs
           HACKSNAP_TEST_URL=http://127.0.0.1:3100 node --test tests/categories-http.test.mjs
+          HACKSNAP_TEST_URL=http://127.0.0.1:3100 node --test tests/ux-acceptance-http.test.mjs
 
   deploy:
     # Production changes require an explicit manual workflow run.
