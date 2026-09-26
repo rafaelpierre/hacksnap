@@ -1,29 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { THEME_STORAGE_KEY, themePreference, type ThemePreference } from "../lib/theme";
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState("dark");
+  const [preference, setPreference] = useState<ThemePreference>("system");
 
   useEffect(() => {
-    setTheme(document.documentElement.dataset.theme === "light" ? "light" : "dark");
+    setPreference(themePreference(document.documentElement.dataset.theme));
+
+    function syncPreference(event: StorageEvent) {
+      if (event.key !== THEME_STORAGE_KEY && event.key !== null) return;
+      try {
+        if (event.storageArea !== window.localStorage) return;
+      } catch {
+        return;
+      }
+      const next = themePreference(event.newValue);
+      document.documentElement.dataset.theme = next;
+      setPreference(next);
+    }
+    window.addEventListener("storage", syncPreference);
+    return () => window.removeEventListener("storage", syncPreference);
   }, []);
 
-  function toggleTheme() {
-    const nextTheme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
-    document.documentElement.dataset.theme = nextTheme;
-    setTheme(nextTheme);
+  function changePreference(value: string) {
+    const next = themePreference(value);
+    document.documentElement.dataset.theme = next;
+    setPreference(next);
     try {
-      localStorage.setItem("hacksnap-theme", nextTheme);
+      localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch {
-      // Switching still works when the browser blocks persistent storage.
+      // Keep the selection for this page session when storage is unavailable.
     }
   }
 
-  const label = `Switch to ${theme === "dark" ? "light" : "dark"} mode`;
-  return <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label={label} title={label}>
-    <Sun className="theme-icon-light" size={18} aria-hidden="true" />
-    <Moon className="theme-icon-dark" size={18} aria-hidden="true" />
-  </button>;
+  return <label className="theme-control">
+    <span className="sr-only">Appearance</span>
+    <select className="theme-toggle" value={preference}
+      onChange={event => changePreference(event.target.value)}>
+      <option value="system">System</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
+  </label>;
 }

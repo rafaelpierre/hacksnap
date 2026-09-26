@@ -13,10 +13,28 @@ builds and visits do not need an external font service.
 
 ## Color theme
 
-The sun/moon button in the header switches between light and dark mode on every
-page. Dark is the default. The selection is saved in local storage under
-`hacksnap-theme` and applied before paint on subsequent visits. If storage is
-blocked, switching still works for the current page session.
+The Appearance select in the header offers System, Light and Dark. System is the
+default and follows OS changes immediately through CSS `color-scheme` and
+`light-dark()`, including before hydration and when JavaScript is disabled.
+Explicit choices are stored under `hacksnap-theme`; an inline head script applies
+them before paint, including on cached pages. Existing light/dark preferences
+continue to work. Invalid values fall back to System. If storage is blocked,
+switching still works for the current page session. Other tabs follow saved
+preference changes and reset to System when the preference is cleared.
+
+## Shared design foundations
+
+`app/globals.css` owns the semantic theme colors, relative type scale, spacing,
+page/reading widths, responsive gutters and 44px (2.75rem) control target. Use
+`--ink` for headlines, `--prose` for reading, `--muted` for metadata, `--accent`
+for copper emphasis and `--positive` for restrained green details. Use `--line`
+for separators and `--control-line` for visible control boundaries. Both themes
+share the type, space and layout tokens; future component work should reuse them.
+Text uses rem units and wrapping layouts to respect enlarged browser text.
+
+Run `npm run test:theme`, `npm run typecheck` and `npm run build`. Check the shell,
+feeds and story at 320px and desktop widths in both themes, including 200% text,
+keyboard focus, OS appearance changes, saved preferences and blocked storage.
 
 ## Markdown content negotiation
 

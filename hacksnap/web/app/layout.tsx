@@ -4,6 +4,7 @@ import Script from "next/script";
 import localFont from "next/font/local";
 import { ThemeToggle } from "./theme-toggle";
 import { MainNavigation } from "./main-navigation";
+import { themeInitScript } from "../lib/theme";
 import "./globals.css";
 
 const headlines = localFont({
@@ -39,15 +40,9 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: {children: React.ReactNode}) {
-  return <html lang="en" data-theme="dark" className={`${headlines.variable} ${reading.variable}`} suppressHydrationWarning><head>
-    {/* Apply the saved theme before paint, including on cached HTML pages. */}
-    <script dangerouslySetInnerHTML={{__html: `
-      try {
-        if (localStorage.getItem('hacksnap-theme') === 'light') {
-          document.documentElement.dataset.theme = 'light';
-        }
-      } catch {}
-    `}} />
+  return <html lang="en" data-theme="system" className={`${headlines.variable} ${reading.variable}`} suppressHydrationWarning><head>
+    {/* Apply the appearance preference before paint, including on cached pages. */}
+    <script dangerouslySetInnerHTML={{__html: themeInitScript}} />
   </head><body>
     <Script src="https://www.googletagmanager.com/gtag/js?id=G-059PVYBN82" strategy="lazyOnload" />
     {/* Queue configuration early; download the analytics library after load, when idle. */}
