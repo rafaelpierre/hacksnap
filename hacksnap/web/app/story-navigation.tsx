@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeft } from "lucide-react";
 import { track } from "../lib/analytics";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -96,7 +97,7 @@ export function StoryReturnLink() {
     try { store.setItem(RESTORE_KEY, JSON.stringify({tabId: currentTabId(), context})); } catch { /* The link still returns to the list. */ }
   }
   return <Link className="back-link" href={context?.url ?? "/"} scroll={!context} onClick={rememberReturn}>
-    ← {context ? context.label : "Top stories"}
+    <ChevronLeft className="inline-icon" aria-hidden="true" /> {context ? context.label : "Top stories"}
   </Link>;
 }
 

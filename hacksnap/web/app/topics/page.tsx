@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CATEGORIES, categoryURL } from "../../lib/categories";
@@ -21,7 +22,7 @@ export default async function TopicsPage() {
     <ul className="topic-directory">
       {CATEGORIES.map(category => <li key={category.id}>
         <Link href={categoryURL(category)} data-color={category.color}>
-          <strong>{category.label}<span aria-hidden="true">↗</span></strong>
+          <strong>{category.label}<ArrowUpRight className="inline-icon" aria-hidden="true" /></strong>
           <span className="topic-description">{category.description}</span>
           <span className="topic-count">{counts[category.id] ?? 0} {counts[category.id] === 1 ? "story" : "stories"}</span>
         </Link>

@@ -59,7 +59,7 @@ test('pending, unavailable, and discussion-only stories give an honest next acti
   assert.match(unavailable, /Read the HN thread/);
 
   const discussionOnly = await html('/story/90000010');
-  assert.match(discussionOnly, /Hacker News ↗/);
+  assert.match(discussionOnly, /Hacker News <svg[^>]*class="[^"]*lucide-arrow-up-right/);
   assert.match(discussionOnly, /This is an HN post/);
   assert.doesNotMatch(discussionOnly, /Original article on example\.com/);
 });

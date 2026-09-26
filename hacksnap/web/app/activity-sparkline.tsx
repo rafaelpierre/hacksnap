@@ -59,7 +59,7 @@ export function ActivitySparkline({history, title, asOf, currentRank, scope = "2
         <circle className="sparkline-endpoint" cx={last.x} cy={last.y} r="3" />
         {active !== null && <circle className="sparkline-endpoint" cx={selected.x} cy={selected.y} r="3" />}
       </svg>
-      {active !== null && <div className="sparkline-tooltip"><strong>#{points[0].rank} → #{last.rank} · {journey}</strong><br />{time(points[0].at)}–{time(last.at)} UTC<br /><br />Rank #{selected.rank}<br />{time(selected.at)} UTC<br />Hacksnap ranking · higher is better<br />Scale: #1 to #{max}<br />Movement between observations is unknown.</div>}
+      {active !== null && <div className="sparkline-tooltip"><strong>#{points[0].rank} to #{last.rank} · {journey}</strong><br />{time(points[0].at)}–{time(last.at)} UTC<br /><br />Rank #{selected.rank}<br />{time(selected.at)} UTC<br />Hacksnap ranking · higher is better<br />Scale: #1 to #{max}<br />Movement between observations is unknown.</div>}
     </> : <div className="sparkline-empty">Collecting history</div>}
   </figure>;
 }
