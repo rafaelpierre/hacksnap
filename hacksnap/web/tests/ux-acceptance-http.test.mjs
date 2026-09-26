@@ -80,8 +80,10 @@ test('long headlines, route recovery, and canonical archive/category pages survi
 test('compact story header keeps skepticism beside Discussion and next reads concise', options, async () => {
   const page = await html('/story/90000001');
   const header = page.match(/<header class="story-header">([\s\S]*?)<\/header>/)?.[1] ?? '';
-  assert.ok(header.indexOf('category-badge') < header.indexOf('<h1>'));
-  assert.doesNotMatch(header, /skepticism-pill|Added |points/);
+  assert.match(header, /aria-label="Breadcrumb"/);
+  assert.ok(header.indexOf('story-breadcrumbs') < header.indexOf('<h1>'));
+  assert.match(header, /class="story-metadata"/);
+  assert.doesNotMatch(header, /skepticism-pill|points/);
   assert.match(page, /id="discussion-heading">Discussion<\/h2><span class="skepticism-pill/);
   const next = page.match(/<ul class="related-story-list">([\s\S]*?)<\/ul>/)?.[1] ?? '';
   assert.match(next, /related-topic/);
