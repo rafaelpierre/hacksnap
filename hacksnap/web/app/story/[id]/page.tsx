@@ -24,10 +24,7 @@ export async function generateMetadata({params}: {params: Promise<{id: string}>}
 }
 
 function StoryShare({story}: {story: Story}) {
-  return <details className="story-share">
-    <summary>Share</summary>
-    <div className="story-share-actions"><ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} /></div>
-  </details>;
+  return <ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} />;
 }
 
 function SkepticismPill({story}: {story: Story}) {
