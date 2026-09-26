@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Script from "next/script";
+import { ThemeToggle } from "./theme-toggle";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,7 +19,16 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: {children: React.ReactNode}) {
-  return <html lang="en"><body>
+  return <html lang="en" data-theme="dark" suppressHydrationWarning><head>
+    {/* Apply the saved theme before paint, including on cached HTML pages. */}
+    <script dangerouslySetInnerHTML={{__html: `
+      try {
+        if (localStorage.getItem('hacksnap-theme') === 'light') {
+          document.documentElement.dataset.theme = 'light';
+        }
+      } catch {}
+    `}} />
+  </head><body>
     <Script src="https://www.googletagmanager.com/gtag/js?id=G-059PVYBN82" strategy="lazyOnload" />
     {/* Queue configuration early; download the analytics library after load, when idle. */}
     <Script id="google-analytics" strategy="afterInteractive">{`
@@ -32,7 +42,8 @@ export default function Layout({ children }: {children: React.ReactNode}) {
       <Link className="wordmark" href="/" aria-label="Hacksnap home"><span className="logo" aria-hidden="true">h/</span>hacksnap</Link>
       <span className="header-note">/ ai</span>
       <nav className="header-nav" aria-label="Main navigation"><Link className="header-link" href="/archive">Archive</Link>
-      <a className="header-link" href="https://news.ycombinator.com/">Hacker News ↗</a></nav>
+      <a className="header-link" href="https://news.ycombinator.com/">Hacker News ↗</a>
+      <ThemeToggle /></nav>
     </div></header>
     <main id="main">{children}</main>
     <footer><Link className="footer-brand" href="/">hacksnap</Link><p>An independent reader for Hacker News. <a href="/feed.xml">RSS feed</a></p></footer>

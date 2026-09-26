@@ -1,5 +1,12 @@
 # Search metadata and RSS
 
+## Color theme
+
+The sun/moon button in the header switches between light and dark mode on every
+page. Dark is the default. The selection is saved in local storage under
+`hacksnap-theme` and applied before paint on subsequent visits. If storage is
+blocked, switching still works for the current page session.
+
 ## Markdown content negotiation
 
 The homepage, `/story/:id`, and `/docs/api` return Markdown when requested with
