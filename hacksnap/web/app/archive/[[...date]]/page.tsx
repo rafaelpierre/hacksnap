@@ -7,6 +7,7 @@ import { archiveMonth, archivePage, archiveURL, monthLabel } from "../../../lib/
 import { articleURL, domain } from "../../../lib/format";
 import { ShareLinks } from "../../share-links";
 import { CategoryBadge } from "../../categories";
+import { BrowseLayout } from "../../topic-sidebar";
 
 type Props = {params: Promise<{date?: string[]}>; searchParams: Promise<{page?: string | string[]}>};
 
@@ -21,7 +22,7 @@ async function selection({params, searchParams}: Props) {
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const {month, page} = await selection(props);
   return {
-    title: `${month ? monthLabel(month) + " archive" : "Archive"}${page > 1 ? ` — Page ${page}` : ""}`,
+    title: `${month ? monthLabel(month) + " archive" : "Latest stories"}${page > 1 ? ` — Page ${page}` : ""}`,
     description: "Browse past Hacker News stories and discussion summaries by the date they were added to Hacksnap.",
     alternates: {canonical: archiveURL(month, page)},
   };
@@ -39,22 +40,25 @@ export default async function Archive(props: Props) {
     groups.set(day, [...(groups.get(day) ?? []), story]);
   }
   const years = [...new Set(months.map(item => item.month.slice(0, 4)))];
-  return <>
+  return <BrowseLayout>
     <header className="feed-header">
-      <div className="channel-path"><Link href="/">hacksnap</Link> / <span>archive</span></div>
-      <h1>{month ? monthLabel(month) : "Archive"}</h1>
-      <p>Stories beyond the Top 10. Newest first, grouped by the date added to Hacksnap (UTC).</p>
+      <div className="channel-path"><Link href="/">hacksnap</Link> / {month ? <><Link href="/archive">latest</Link> / <span>{monthLabel(month)}</span></> : <span>latest</span>}</div>
+      <h1>{month ? monthLabel(month) : "Latest stories"}</h1>
+      <p>AI stories from Hacker News, newest first. Browse by month below.</p>
     </header>
     <nav className="archive-months" aria-label="Browse archive by month">
       <Link className="button" href="/archive" aria-current={!month ? "page" : undefined}>All stories</Link>
-      {years.map(year => <details key={year} open={year === (month?.slice(0, 4) ?? years[0])}>
-        <summary>{year}</summary>
-        <ul>{months.filter(item => item.month.startsWith(year)).map(item => <li key={item.month}>
-          <Link href={archiveURL(item.month)} aria-current={month === item.month ? "page" : undefined}>
-            {monthLabel(item.month).replace(` ${year}`, "")} <span>({item.count})</span>
-          </Link>
-        </li>)}</ul>
-      </details>)}
+      {years.length > 0 && <details className="archive-date-control" open={Boolean(month)}>
+        <summary>Browse by month</summary>
+        {years.map(year => <details key={year} open={year === month?.slice(0, 4)}>
+          <summary>{year}</summary>
+          <ul>{months.filter(item => item.month.startsWith(year)).map(item => <li key={item.month}>
+            <Link href={archiveURL(item.month)} aria-current={month === item.month ? "page" : undefined}>
+              {monthLabel(item.month).replace(` ${year}`, "")} <span>({item.count})</span>
+            </Link>
+          </li>)}</ul>
+        </details>)}
+      </details>}
     </nav>
     {stories.length === 0 ? <div className="empty"><h2>No stories yet.</h2><p>Stories will appear here after the next update.</p></div> :
       [...groups].map(([day, items]) => <section key={day} aria-labelledby={`day-${day}`}>
@@ -75,5 +79,5 @@ export default async function Archive(props: Props) {
       <span>Page {page}</span>
       {hasNext && <Link className="button" href={archiveURL(month, page + 1)}>Older stories →</Link>}
     </nav>}
-  </>;
+  </BrowseLayout>;
 }

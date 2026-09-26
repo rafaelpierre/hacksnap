@@ -7,6 +7,7 @@ import { LocalTime } from "../local-time";
 import { Sentiment } from "../sentiment";
 import { ActivitySparkline } from "../activity-sparkline";
 import { ShareLinks } from "../share-links";
+import { BrowseLayout } from "../topic-sidebar";
 
 export const revalidate = 1800;
 
@@ -20,11 +21,11 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
   if ((await params).path?.length) notFound();
   const {stories, ingestion, observed_at} = await getLeaderboard();
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
-  return <>
+  return <BrowseLayout>
     <header className="feed-header">
-      <div className="channel-path">hacksnap / <span>ai</span></div>
-      <h1>AI on Hacker News</h1>
-      <p>The articles and the arguments worth reading 🍿</p>
+      <div className="channel-path">hacksnap / <span>top stories</span></div>
+      <h1>Top AI stories on Hacker News</h1>
+      <p>AI stories and highlights from Hacker News discussions.</p>
     </header>
     <section aria-labelledby="feed-heading">
       <div className="feed-bar"><h2 id="feed-heading">Top stories <span>{stories.length}</span></h2>
@@ -48,8 +49,8 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
           </div>
         </article>
       </li>)}</ol>}
-      <p className="archive-cta"><Link className="button" href="/archive">Explore the archive →</Link></p>
+      <p className="archive-cta"><Link className="button" href="/archive">Browse latest stories →</Link></p>
       <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Hotness shows ranking movement over the past 24h · Higher means a better position · Skept-o-meter estimates skepticism in sampled comments: left is low, right is high · Summaries updated hourly</p>
     </section>
-  </>;
+  </BrowseLayout>;
 }
