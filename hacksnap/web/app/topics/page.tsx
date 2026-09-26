@@ -15,16 +15,15 @@ export default async function TopicsPage() {
   const counts = await getCategoryCounts();
   return <>
     <header className="feed-header">
-      <div className="channel-path"><Link href="/">hacksnap</Link> / <span>topics</span></div>
-      <h1>Topics</h1>
+      <h1>Browse topics</h1>
       <p>Browse AI stories and Hacker News discussions by subject.</p>
     </header>
     <ul className="topic-directory">
       {CATEGORIES.map(category => <li key={category.id}>
         <Link href={categoryURL(category)} data-color={category.color}>
-          <strong><span className="category-dot" aria-hidden="true" />{category.label}</strong>
+          <strong>{category.label}<span aria-hidden="true">↗</span></strong>
           <span className="topic-description">{category.description}</span>
-          <span className="topic-count">{counts[category.id] ?? 0} {counts[category.id] === 1 ? "story" : "stories"} →</span>
+          <span className="topic-count">{counts[category.id] ?? 0} {counts[category.id] === 1 ? "story" : "stories"}</span>
         </Link>
       </li>)}
     </ul>

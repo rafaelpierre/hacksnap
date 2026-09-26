@@ -54,6 +54,7 @@ jobs:
           npm run test:categories
           npm run test:archive
           npm run test:metadata
+          npm run test:brief
           npm run test:theme
           npm run typecheck
           npm run build

@@ -199,7 +199,7 @@ export const getCategoryStories = cache(async (category: CategoryId, page: numbe
   return {stories: rows.slice(0, CATEGORY_PAGE_SIZE), hasNext: rows.length > CATEGORY_PAGE_SIZE};
 }));
 
-export type RelatedStory = Pick<Story, "hn_id" | "title" | "date_added"> & {takeaway: string};
+export type RelatedStory = Pick<Story, "hn_id" | "title" | "url" | "date_added"> & {takeaway: string};
 
 export const getRelatedStories = cache(async (category: CategoryId, currentStoryId: string): Promise<RelatedStory[]> =>
   read(async client => (await client.query<RelatedStory>(relatedStoriesQuery(category, currentStoryId))).rows));

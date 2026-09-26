@@ -22,7 +22,7 @@ const titles = [
   "[Demo] Ask HN: What are you actually using AI for?",
 ];
 const categories = ["agents_coding", "models_products", "research_evaluation", "agents_coding", "research_evaluation", "infrastructure_efficiency", "industry_society", "research_evaluation", "safety_privacy", "industry_society"];
-for (let i = 0; i < titles.length; i++) {
+for (let i = 0; i < (process.env.HACKSNAP_PREVIEW_EMPTY ? 0 : titles.length); i++) {
   const id = 90000001 + i;
   await db.query("INSERT INTO hn_items VALUES ($1)", [id]);
   await db.query(`INSERT INTO hacker_news_threads(hn_id,title,url,
@@ -55,8 +55,24 @@ for (let i = 0; i < titles.length; i++) {
     JSON.stringify(i===9 || i===7 ? [] : ["Repeated attempts can outweigh the advertised price per token.", "Measuring a completed task gives a different picture from measuring a single request.", "Human review time remains part of the overall cost."]),
     i===7 ? "No usable comments were available for a discussion summary." : "These synthetic preview comments focus on how to measure useful work. One side values cheap, fast attempts; the other argues that debugging and review erase those savings.",
     JSON.stringify(i===7 ? [] : [{title:"A cheap attempt is not a cheap result",summary:"The disagreement comes down to the denominator: cost per request looks attractive, but cost per accepted change includes failed attempts and review.",comment_ids:[90000101]},{title:"The workflow changes the outcome",summary:"A narrower task and better tests may explain more of the improvement than a larger model.",comment_ids:[90000102]}]),
-    i===7 ? "The source article was unavailable and no usable discussion was included." : "The interesting number is cost per completed task, including the attempts that didn’t work.",
+    i===6 ? "Repeated attempts increase the cost of coding agents; the reported benchmark excludes human review, failed deployments, and maintenance, so a lower request price does not establish a lower cost per accepted change. The evaluation does not measure maintainability after deployment." : i===7 ? "The source article was unavailable and no usable discussion was included." : "The interesting number is cost per completed task, including the attempts that didn’t work.",
     "0".repeat(64),JSON.stringify({stored_comments:42,included_comments:i===7?0:28,comments_truncated:true,article_status:i===9?"not_applicable":i===7?"unavailable":"fetched",sentiment:{included_comments:i===7?0:10}}),i === 7 ? null : (i % 3) - 1]);
+}
+// Optional public snapshot for reproducing issue #27 with production-length copy.
+// Kept separate from the default synthetic acceptance fixtures.
+if (process.env.HACKSNAP_PUBLIC_STORY_FIXTURE) {
+  const story = JSON.parse(readFileSync(process.env.HACKSNAP_PUBLIC_STORY_FIXTURE, "utf8"));
+  await db.query("INSERT INTO hn_items VALUES ($1)", [story.hn_id]);
+  await db.query(`INSERT INTO hacker_news_threads(hn_id,title,url,date_published,date_added,
+    points,comment_count,category,category_version,category_model,categorized_at,category_title_hash,last_seen_run_id)
+    VALUES ($1,$2,$3,now(),now(),$4,$5,$6,'v1','public-api-fixture',now(),$7,$8)`,
+    [story.hn_id,story.title,story.url,story.points,story.comment_count,story.category,"a".repeat(64),run]);
+  await db.query(`INSERT INTO hacksnap_summaries(story_id,article_url,article_summary,article_key_points,
+    discussion_summary,discussion_points,overall_takeaway,model,prompt_version,source_fingerprint,source_coverage,sentiment)
+    VALUES ($1,$2,$3,'[]',$4,'[]',$5,'public-api-fixture','legacy',$6,$7,null)`,
+    [story.hn_id,story.url,story.summary.article_summary,story.summary.discussion_summary,
+      story.summary.overall_takeaway,"0".repeat(64),JSON.stringify({article_status:"fetched",
+        included_comments:1,stored_comments:1,comments_truncated:true})]);
 }
 const port = Number(process.env.HACKSNAP_PREVIEW_PORT || 55432);
 const server = new PGLiteSocketServer({db, port, host:"127.0.0.1"});

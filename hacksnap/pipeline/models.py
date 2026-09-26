@@ -32,7 +32,7 @@ class StorySummary(StrictModel):
     discussion_summary: Text
     discussion_points: list[DiscussionPoint] = Field(max_length=6)
     sentiment: Annotated[int, Field(strict=True, ge=-1, le=1)] | None
-    overall_takeaway: Text
+    overall_takeaway: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=220)]
 
     def validate_sources(self, article: str | None, comments: list[dict]) -> None:
         if not comments and self.sentiment is not None:

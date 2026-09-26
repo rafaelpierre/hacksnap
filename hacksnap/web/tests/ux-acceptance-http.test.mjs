@@ -75,3 +75,24 @@ test('long headlines, route recovery, and canonical archive/category pages survi
   assert.match(missingPage, /Story not found/);
   assert.match(missingPage, /Back to stories/);
 });
+
+
+test('compact story header keeps skepticism beside Discussion and next reads concise', options, async () => {
+  const page = await html('/story/90000001');
+  const header = page.match(/<header class="story-header">([\s\S]*?)<\/header>/)?.[1] ?? '';
+  assert.ok(header.indexOf('category-badge') < header.indexOf('<h1>'));
+  assert.doesNotMatch(header, /skepticism-pill|Added |points/);
+  assert.match(page, /id="discussion-heading">Discussion<\/h2><span class="skepticism-pill/);
+  const next = page.match(/<ul class="related-story-list">([\s\S]*?)<\/ul>/)?.[1] ?? '';
+  assert.match(next, /related-topic/);
+  assert.doesNotMatch(next, /feed-excerpt|Added /);
+});
+
+
+test('legacy long takeaways keep their complete caveats in TLDR', options, async () => {
+  const page = await html('/story/90000007');
+  const deck = page.match(/<p class="standfirst">([\s\S]*?)<\/p>/)?.[1] ?? '';
+  assert.ok(deck.length > 0 && deck.length <= 220);
+  const tldr = page.match(/<section class="tldr-section"[\s\S]*?<\/section>/)?.[0] ?? '';
+  assert.match(tldr, /The evaluation does not measure maintainability after deployment\./);
+});

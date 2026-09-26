@@ -46,8 +46,9 @@ test('story pages render category next reads and topic continuation without reco
   assert.match(section, /href="\/story\/90000004"/);
   assert.doesNotMatch(section, /href="\/story\/90000001"/);
   assert.match(section, /href="\/category\/agents-coding"/);
-  assert.match(section, /class="feed-excerpt"/);
-  assert.match(section, /<time dateTime=/);
+  assert.match(section, /class="related-topic"/);
+  assert.doesNotMatch(section, /class="feed-excerpt"/);
+  assert.doesNotMatch(section, /Added |<time dateTime=/);
   assert.ok(html.indexOf('class="related-stories"') > html.indexOf('id="discussion-heading"'));
 
   const pending = await (await fetch(`${origin}/story/90000009`)).text();

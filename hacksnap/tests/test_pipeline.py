@@ -672,3 +672,14 @@ def test_both_endpoint_paths_use_ten_sentiment_comments_and_preserve_summary_inp
         model.summarize({"article": "article", "comments": comments})
         model.estimate_sentiment(comments)
     assert requests[0]["sentiment_comments"] == requests[1]["comments"]
+
+
+def test_takeaway_schema_bounds_new_decks_without_truncating_claims():
+    from pydantic import ValidationError
+
+    result = output()
+    result["overall_takeaway"] = "x" * 220
+    assert StorySummary.model_validate(result).overall_takeaway == "x" * 220
+    result["overall_takeaway"] += "x"
+    with pytest.raises(ValidationError, match="overall_takeaway"):
+        StorySummary.model_validate(result)
