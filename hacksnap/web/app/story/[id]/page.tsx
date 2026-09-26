@@ -1,23 +1,20 @@
-import { SummaryPending } from "../../summary-pending";
 import Link from "next/link";
-import { storyPreviewMetadata } from "../../../lib/preview-metadata";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getRelatedStories, getStory } from "../../../lib/data";
+import { MessageCircle } from "lucide-react";
+import { storyPreviewMetadata } from "../../../lib/preview-metadata";
+import { getRelatedStories, getStory, type Story } from "../../../lib/data";
 import { categoryById } from "../../../lib/categories";
-import { articleURL, timestamp } from "../../../lib/format";
+import { articleURL, domain } from "../../../lib/format";
+import { skepticismDisplay } from "../../../lib/sentiment";
 import { ShareLinks } from "../../share-links";
 import { LocalTime } from "../../local-time";
-import { StoryMetrics } from "../../story-metrics";
 import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
 
 export const revalidate = 1800;
 
-// Generate stories on their first visit, then share the cached page.
-export async function generateStaticParams() {
-  return [];
-}
+export async function generateStaticParams() { return []; }
 
 export async function generateMetadata({params}: {params: Promise<{id: string}>}): Promise<Metadata> {
   const {id} = await params;
@@ -26,49 +23,79 @@ export async function generateMetadata({params}: {params: Promise<{id: string}>}
   return storyPreviewMetadata(story);
 }
 
+function StoryShare({story}: {story: Story}) {
+  return <details className="story-share">
+    <summary>Share</summary>
+    <div className="story-share-actions"><ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} /></div>
+  </details>;
+}
+
+function SkepticismPill({story}: {story: Story}) {
+  const coverage = story.summary?.source_coverage;
+  const count = coverage?.sentiment?.included_comments ?? coverage?.included_comments;
+  const {label} = skepticismDisplay(story.summary?.sentiment ?? null, count === 0);
+  const explanation = label === "No comments"
+    ? "No usable comments were available to estimate skepticism."
+    : label === "Pending"
+      ? "Skepticism is unavailable until the comments are analyzed."
+      : `${label} skepticism in a sample of thread comments. Mixed, neutral and positive reactions are grouped as Low.`;
+  const display = label === "No comments" ? "No comment evidence" : label === "Pending" ? "Skepticism pending" : `${label} skepticism`;
+  return <span className={`skepticism-pill skepticism-${label.toLowerCase().replace(" ", "-")}`} title={explanation} aria-label={explanation}>
+    <MessageCircle size={14} aria-hidden="true" /> {display}
+  </span>;
+}
+
 export default async function StoryPage({params}: {params: Promise<{id: string}>}) {
   const {id} = await params;
   const story = await getStory(id);
   if (!story) notFound();
   const summary = story.summary;
   const article = articleURL(story.url);
+  const hnURL = `https://news.ycombinator.com/item?id=${story.hn_id}`;
   const category = categoryById(story.category);
   const relatedStories = category ? await getRelatedStories(category.id, story.hn_id) : [];
+  const hasDiscussion = Boolean(summary?.discussion_summary?.trim() && summary.source_coverage.included_comments > 0);
+
   return <article className="detail">
-    <Link className="back-link" href="/">← All stories</Link>
+    <div className="story-actions">
+      <Link className="back-link" href="/">← All stories</Link>
+      <StoryShare story={story} />
+    </div>
     <header className="story-header">
-      <h1>{story.title}{!summary && <SummaryPending />}</h1>
+      <div className="story-byline">{article ? <a href={article} aria-label={`Original article on ${domain(story.url)}`}>{domain(story.url)} ↗</a> : <a href={hnURL}>Hacker News ↗</a>}</div>
+      <h1>{story.title}</h1>
       {story.category && <div className="story-flair"><CategoryBadge id={story.category} /></div>}
-      <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments on HN ↗</a><span>Added <LocalTime dateTime={story.date_added.toISOString()} /></span></div>
-      {summary && <p className="standfirst">{summary.overall_takeaway}</p>}
-      <ShareLinks id={story.hn_id} title={story.title} takeaway={summary?.overall_takeaway} />
-      <div className="source-links">{article && <a href={article}>Read original ↗</a>}<a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>Full discussion ↗</a></div>
+      <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={hnURL}>{story.comment_count.toLocaleString("en-GB")} comments on HN ↗</a><span>Added <LocalTime dateTime={story.date_added.toISOString()} /></span></div>
+      <SkepticismPill story={story} />
+      {summary?.overall_takeaway && <p className="standfirst">{summary.overall_takeaway}</p>}
     </header>
     {summary ? <div className="editorial">
-      <section aria-labelledby="article-heading">
-        <h2 id="article-heading">{article ? "The brief" : "The post"}</h2>
+      <section className="tldr-section" aria-labelledby="article-heading">
+        <h2 id="article-heading">TLDR;</h2>
         {summary.article_summary ? <>
           <p>{summary.article_summary}</p>
           {summary.article_key_points.length > 0 && <ul className="key-points">{summary.article_key_points.map((point, i) => <li key={i}>{point}</li>)}</ul>}
-        </> : <p className="muted">{summary.source_coverage.article_status === "unavailable" ? "The original article couldn’t be retrieved. This brief covers the discussion only." : "An HN text post. The discussion is summarized below."}</p>}
+        </> : <p className="muted">{summary.source_coverage.article_status === "unavailable"
+          ? "The original article was unavailable to summarize. You can still read the source and the discussion."
+          : article ? "No article brief is available. You can read the original source and the discussion."
+            : "This is an HN post. The discussion is summarized below."}</p>}
+        {article && !summary.article_summary && <p><a href={article}>Open the original source ↗</a></p>}
       </section>
       <section className="discussion-section" aria-labelledby="discussion-heading">
-        <h2 id="discussion-heading">In the discussion</h2>
-        <p>{summary.discussion_summary}</p>
-        <div className="discussion-points">{summary.discussion_points.map((point, i) => <section className="discussion-point" key={i}>
-          <h3>{point.title}</h3><p>{point.summary}</p>
-          {point.comment_ids.length > 0 && <div className="comment-links"><span>Sources</span>{point.comment_ids.map((comment, index) => <a key={comment} href={`https://news.ycombinator.com/item?id=${comment}`} aria-label={`Source comment ${comment} for ${point.title}`}>[{index + 1}] ↗</a>)}</div>}
-        </section>)}</div>
+        <h2 id="discussion-heading">Discussion</h2>
+        {hasDiscussion ? <>
+          <p>{summary.discussion_summary}</p>
+          <div className="discussion-points">{summary.discussion_points.map((point, i) => <section className="discussion-point" key={i}>
+            <h3>{point.title}</h3><p>{point.summary}</p>
+            {point.comment_ids.length > 0 && <div className="comment-links"><span>Source comments</span>{point.comment_ids.map((comment, index) => <a key={comment} href={`https://news.ycombinator.com/item?id=${comment}`} aria-label={`Source comment ${comment} for ${point.title}`}>[{index + 1}] ↗</a>)}</div>}
+          </section>)}</div>
+        </> : <p className="muted">No usable discussion was available for this summary. <a href={hnURL}>Read the HN thread ↗</a></p>}
       </section>
-      <aside className="source-note">
-        <p>AI-generated summary · <time dateTime={summary.generated_at}>{timestamp(summary.generated_at)}</time></p>
-        <details><summary>Sources &amp; coverage · {summary.source_coverage.included_comments} comments sampled</summary>
-          <p>Based on {summary.source_coverage.included_comments} of {summary.source_coverage.stored_comments} usable stored comments, selected by depth and branch activity. This is a sample of the discussion.{summary.source_coverage.comments_truncated ? " The model input was further shortened to fit its context limit." : ""} Article text may also be shortened.</p>
-          <p>Generated using {summary.model}. Check the linked sources for full context.</p>
-        </details>
-      </aside>
-    </div> : <section className="empty"><h2>Summary pending.</h2><p>Summaries update hourly. You can read the original sources above.</p></section>}
+    </div> : <section className="story-pending" aria-labelledby="pending-heading">
+      <h2 id="pending-heading">Summary pending</h2>
+      <p>This story has not been summarized yet. {article ? <>Read the <a href={article}>original source ↗</a> or the <a href={hnURL}>HN discussion ↗</a>.</> : <>Read the <a href={hnURL}>HN post and discussion ↗</a>.</>}</p>
+    </section>}
+    <div className="story-end-share"><StoryShare story={story} /></div>
     <RelatedStories category={category} stories={relatedStories} />
-    <StoryMetrics story={story} />
   </article>;
 }

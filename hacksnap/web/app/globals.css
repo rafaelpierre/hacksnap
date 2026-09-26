@@ -297,3 +297,36 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
   .wordmark { font-size: 16px; }
   .wordmark .logo { display: none; }
 }
+
+.story-actions { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.story-actions .back-link { margin: 0; min-height: 44px; }
+.story-share { position: relative; font: 14px/1.5 var(--sans); }
+.story-share > summary { display: inline-flex; align-items: center; justify-content: center; min-width: 78px; min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; list-style: none; }
+.story-share > summary::-webkit-details-marker { display: none; }
+.story-share > summary:hover { border-color: var(--accent); color: var(--accent); }
+.story-share-actions { position: absolute; right: 0; z-index: 4; min-width: 276px; max-width: calc(100vw - 40px); padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: 0 8px 24px #0005; }
+.story-share-actions .share-links { margin: 0; }
+.story-byline { color: var(--muted); font: 14px/1.5 var(--sans); overflow-wrap: anywhere; }
+.story-byline a { text-decoration: none; }
+.story-header h1 { margin-top: 12px; }
+.skepticism-pill { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font: 600 12px/1.5 var(--sans); }
+.skepticism-pill.skepticism-high { border-color: var(--accent); color: var(--accent); }
+.skepticism-pill.skepticism-low { border-color: var(--chart-up); color: var(--chart-up); }
+.story-header .standfirst { margin: 18px 0 0; }
+.editorial > .tldr-section { margin-top: 24px; }
+.story-pending { margin-top: 32px; padding: 24px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.story-pending h2 { font-size: 20px; }
+.story-pending p { color: var(--prose); margin: 0; }
+.story-end-share { display: flex; justify-content: flex-start; margin-top: 36px; }
+.story-end-share .story-share-actions { left: 0; right: auto; }
+.about-page { max-width: 720px; padding: 44px 0 72px; }
+.about-page h1 { font-size: clamp(30px, 4vw, 44px); line-height: 1.2; margin: 12px 0 22px; }
+.about-page > p, .about-page section p { color: var(--prose); font-size: 18px; line-height: 1.7; }
+.about-page section { border-top: 1px solid var(--line); padding-top: 26px; margin-top: 30px; }
+.about-page h2 { font-size: 22px; margin-bottom: 12px; }
+@media (max-width: 640px) {
+  .story-actions { margin-bottom: 20px; }
+  .story-header .standfirst { font-size: 19px; }
+  .about-page { padding-top: 28px; }
+  .about-page > p, .about-page section p { font-size: 17px; }
+}

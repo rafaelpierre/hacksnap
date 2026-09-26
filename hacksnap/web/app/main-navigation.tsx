@@ -7,6 +7,7 @@ const destinations = [
   {href: "/", label: "Top stories", active: (path: string) => path === "/"},
   {href: "/archive", label: "Latest", active: (path: string) => path === "/archive" || path.startsWith("/archive/")},
   {href: "/topics", label: "Topics", active: (path: string) => path === "/topics" || path.startsWith("/category/")},
+  {href: "/about", label: "About", active: (path: string) => path === "/about"},
 ];
 
 export function MainNavigation() {

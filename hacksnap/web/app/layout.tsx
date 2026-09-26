@@ -63,6 +63,6 @@ export default function Layout({ children }: {children: React.ReactNode}) {
       <div className="header-nav"><MainNavigation /><ThemeToggle /></div>
     </div></header>
     <main id="main">{children}</main>
-    <footer><Link className="footer-brand" href="/">hacksnap</Link><p>AI stories and discussions from Hacker News. <a href="/feed.xml">RSS feed</a></p></footer>
+    <footer><Link className="footer-brand" href="/">hacksnap</Link><p>AI stories and discussions from Hacker News. <Link href="/about">About</Link> · <a href="/feed.xml">RSS feed</a></p></footer>
   </body></html>;
 }
