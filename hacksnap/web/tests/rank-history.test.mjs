@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
-import { rankHistorySQL, rankSamples, rankChange, rankChart, formatRankDuration, formatRankChange } from '../lib/rank-history.ts';
+import { rankHistorySQL, latestRankChange, rankSamples, rankChange, rankChart, formatRankDuration, formatRankChange } from '../lib/rank-history.ts';
 const asOf = '2026-09-20T12:00:00Z';
 const sample = (hour, rank) => ({observed_at: `2026-09-20T${String(hour).padStart(2, '0')}:00:00Z`, rank});
 
@@ -102,4 +102,15 @@ test('curves pass through observations and cannot overshoot peaks or flat interv
       assert.ok(y >= Math.min(a.y,b.y)-1e-9 && y <= Math.max(a.y,b.y)+1e-9);
     }
   });
+});
+
+
+test('card movement compares only the last two distinct updates', () => {
+  assert.equal(latestRankChange([sample(1, 12), sample(2, 8), sample(3, 3)]), 5);
+  assert.equal(latestRankChange([sample(3, 8), sample(1, 12), sample(2, 3)]), -5);
+  assert.equal(latestRankChange([sample(1, 12), sample(2, 3), sample(3, 3)]), 0);
+  assert.equal(latestRankChange([sample(1, 12), sample(2, 3), sample(2, 3)]), 9);
+  assert.equal(latestRankChange([]), null);
+  assert.equal(latestRankChange([sample(1, 3)]), null);
+  assert.equal(latestRankChange([sample(1, 3), sample(2, 0), {observed_at: 'invalid', rank: 1}]), null);
 });

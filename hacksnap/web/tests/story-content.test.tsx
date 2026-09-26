@@ -107,3 +107,22 @@ for (const [active, expected] of [["home", ["/"]], [undefined, []], ["agents_cod
     assert.deepEqual(current, expected);
   });
 }
+
+
+test("ranked card footer separates points, comments and movement between updates", () => {
+  const history = (ranks: number[]) => ranks.map((rank, i) => ({rank, observed_at: `2026-09-26T${10 + i}:00:00Z`}));
+  for (const [ranks, label, value] of [
+    [[9, 7, 3], "Climbed 4 positions", "+4"],
+    [[2, 3, 6], "Dropped 3 positions", "−3"],
+    [[2, 3, 3], "Hacksnap rank unchanged", "0"],
+    [[3], "Hacksnap rank movement unavailable", "—"],
+  ] as const) {
+    const ranked = {...story, rank: String(ranks.at(-1)), rank_history: history([...ranks])};
+    const html = render(createElement(StoryRow, {story: ranked, variant: "ranked"}));
+    assert.ok(html.includes(label));
+    assert.ok(html.includes(`${value} places`));
+    assert.match(html, /lucide-star/);
+    assert.match(html, /12 comments<\/a>/);
+    assert.doesNotMatch(render(createElement(StoryRow, {story: ranked})), /rank-movement/);
+  }
+});

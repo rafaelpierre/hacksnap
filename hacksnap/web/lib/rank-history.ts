@@ -32,6 +32,18 @@ export function rankChange(samples: RankSample[]): number | null {
   return samples.length < 2 ? null : samples[0].rank - samples[samples.length - 1].rank;
 }
 
+// Compare consecutive worker updates, including unchanged ranks. Do not append
+// the page-read timestamp: that would turn a freshly captured move into zero.
+export function latestRankChange(history: RankObservation[]): number | null {
+  const observations = new Map<number, number>();
+  for (const point of history) {
+    const at = Date.parse(point.observed_at);
+    if (Number.isFinite(at) && Number.isSafeInteger(point.rank) && point.rank > 0) observations.set(at, point.rank);
+  }
+  const latest = [...observations].sort(([a], [b]) => a - b).slice(-2);
+  return latest.length < 2 ? null : latest[0][1] - latest[1][1];
+}
+
 export function rankChart(samples: RankSample[]) {
   // Rank 1 is always at the top; expand to include positions outside the top ten.
   const max = Math.max(10, ...samples.map(p => p.rank));

@@ -375,7 +375,8 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
 .feed-story-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 18px; }
 .feed-story-footer .share-menu { margin-left: auto; }
 .feed-story .story-meta { display: flex; align-items: center; gap: 8px 16px; min-width: 0; }
-.feed-story .story-meta .points, .feed-story .story-meta a:not(.category-badge) { display: inline-flex; align-items: center; gap: 5px; }
+.feed-story .story-meta .rank-movement, .feed-story .story-meta .points, .feed-story .story-meta a:not(.category-badge) { display: inline-flex; align-items: center; gap: 5px; }
+.feed-story .story-meta .rank-movement { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .feed-story .story-meta .points { color: var(--muted); }
 .feed-story .story-meta .category-badge { margin-right: 2px; }
 .feed-story .story-meta time { font-family: var(--mono); }
