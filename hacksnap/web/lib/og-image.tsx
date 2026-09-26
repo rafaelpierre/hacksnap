@@ -1,65 +1,62 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { skepticismDisplay } from "./sentiment";
-import { rankChart, rankSamples, formatRankDuration, type RankObservation } from "./rank-history";
 
 export const ogImageSize = { width: 1200, height: 630 };
 
-/** Shared, self-contained artwork: no remote images, fonts, or model calls. */
-type Indicators = {
-  sentiment: -1 | 0 | 1 | null;
-  noComments: boolean;
-  history: RankObservation[];
-  asOf: string;
-  currentRank?: string;
-};
+// Bundle local, static TTFs: the OG renderer cannot use the site's variable WOFF2s.
+// Cache asset reads across requests; the fixed random grain keeps previews stable.
+let assets: Promise<[Buffer, Buffer, Buffer]> | undefined;
+function loadAssets() {
+  return assets ??= Promise.all([
+    readFile(join(process.cwd(), "app/fonts/bricolage-grotesque-og-600.ttf")),
+    readFile(join(process.cwd(), "app/fonts/source-sans-3-og-400.ttf")),
+    readFile(join(process.cwd(), "lib/assets/og-grain.png")),
+  ]).catch((error) => {
+    assets = undefined;
+    throw error;
+  });
+}
 
-export function ogImage({title = "AI on Hacker News", source, indicators}: {title?: string; source?: string; indicators?: Indicators} = {}) {
+/** Shared artwork for home and story previews, with no remote asset requests. */
+export async function ogImage({title = "AI on Hacker News", source}: {title?: string; source?: string} = {}) {
+  const [heading, body, grain] = await loadAssets();
   const cleanTitle = title.replace(/\s+/g, " ").trim() || "AI on Hacker News";
   const characters = Array.from(cleanTitle);
   const headline = characters.length > 180 ? characters.slice(0, 177).join("").trimEnd() + "…" : cleanTitle;
-  const fontSize = indicators ? (headline.length > 120 ? 44 : headline.length > 75 ? 52 : 64)
-    : headline.length > 120 ? 52 : headline.length > 75 ? 62 : 76;
-  const skepticism = indicators ? skepticismDisplay(indicators.sentiment, indicators.noComments) : null;
-  const chart = indicators ? rankChart(rankSamples(indicators.history, indicators.asOf, indicators.currentRank)) : null;
-  const last = chart?.points.at(-1);
+  const fontSize = headline.length > 120 ? 54 : headline.length > 75 ? 64 : 80;
 
   return new ImageResponse(
-    <div style={{width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#111314", color: "#e6e8e7", padding: "48px 64px", fontFamily: "sans-serif", borderTop: "8px solid #efaa7b"}}>
-      <div style={{display: "flex", alignItems: "center", justifyContent: "space-between"}}>
-        <div style={{display: "flex", alignItems: "center", gap: 16, fontSize: 32, fontWeight: 700, letterSpacing: -1}}>
-          <span style={{color: "#efaa7b", fontSize: 42}}>h/</span><span>hacksnap</span>
-        </div>
-        <div style={{display: "flex", color: "#9a9fa0", fontSize: 22}}>AI / HACKER NEWS</div>
-      </div>
-      <div style={{display: "flex", flex: 1, flexDirection: "column", justifyContent: "center", padding: "24px 0"}}>
-        {source && <div style={{display: "flex", color: "#efaa7b", fontSize: 22, marginBottom: 18}}>{source.slice(0, 70)}</div>}
-        <div style={{display: "block", fontSize, fontWeight: 700, letterSpacing: -2, lineHeight: 1.12, wordBreak: "break-word", lineClamp: 4, overflow: "hidden", maxHeight: fontSize * 1.12 * 4}}>{headline}</div>
-        {!source && !indicators && <div style={{display: "flex", fontSize: 28, color: "#9a9fa0", marginTop: 24}}>The articles and the arguments worth reading.</div>}
-      </div>
-      {skepticism && chart && <div style={{display: "flex", alignItems: "center", gap: 64, height: 116, flexShrink: 0, borderTop: "1px solid #2b3032", marginBottom: 20}}>
-        <div style={{display: "flex", flexDirection: "column", width: 400, gap: 18}}>
-          <div style={{display: "flex", justifyContent: "space-between", fontSize: 22}}><span>Skept-o-meter</span><span style={{color: "#efaa7b"}}>{skepticism.label}</span></div>
-          <div style={{display: "flex", position: "relative", height: 8, borderRadius: 4, background: skepticism.position === null ? "#2b3032" : "linear-gradient(90deg, #9a9fa0, #d6c48f 55%, #efaa7b)"}}>
-            {skepticism.position !== null && <div style={{position: "absolute", left: `${skepticism.position}%`, top: -6, width: 8, height: 20, borderRadius: 3, background: "#e6e8e7", border: "2px solid #111314"}} />}
+    <div style={{width: "100%", height: "100%", position: "relative", display: "flex", background: "#111314", color: "#e6e8e7", fontFamily: "Source Sans 3"}}>
+      <img alt="" src={`data:image/png;base64,${grain.toString("base64")}`} width={1200} height={630} style={{position: "absolute", top: 0, left: 0, width: "100%", height: "100%"}} />
+      <div style={{position: "absolute", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(5, 5, 5, 0.2784)"}} />
+      <div style={{position: "relative", display: "flex", flexDirection: "column", width: "100%", height: "100%", padding: "48px 64px"}}>
+        <div style={{display: "flex", alignItems: "center", justifyContent: "space-between"}}>
+          <div style={{display: "flex", alignItems: "center", gap: 14, fontFamily: "Bricolage Grotesque", fontSize: 32, fontWeight: 600, letterSpacing: -1}}>
+            <span style={{color: "#efaa7b", fontSize: 40}}>h/</span><span>hacksnap</span>
           </div>
-          <div style={{display: "flex", justifyContent: "space-between", fontSize: 16, color: "#9a9fa0"}}><span>Low</span><span>High</span></div>
+          <div style={{display: "flex", color: "#9a9fa0", fontSize: 18, letterSpacing: 2}}>AI / HACKER NEWS</div>
         </div>
-        <div style={{display: "flex", flex: 1, alignItems: "center", justifyContent: "space-between", gap: 24}}>
-          <div style={{display: "flex", flexDirection: "column", gap: 8, fontSize: 22}}><span>Hotness</span><span style={{fontSize: 16, color: "#9a9fa0"}}>{last ? `${formatRankDuration(chart.duration)} · Rank #${last.rank}` : "Collecting history"}</span></div>
-          {last && <svg width="256" height="96" viewBox="0 0 160 60">
-            <path d={`M6 ${chart.baseline}H154`} stroke="#2b3032" strokeWidth="1" />
-            <path d={`${chart.path} L${last.x},${chart.baseline} L${chart.points[0].x},${chart.baseline} Z`} fill="#efaa7b" fillOpacity="0.1" />
-            <path d={chart.path} fill="none" stroke="#efaa7b" strokeWidth="2.5" strokeLinecap="round" />
-            <circle cx={last.x} cy={last.y} r="5" fill="#efaa7b" fillOpacity="0.2" />
-            <circle cx={last.x} cy={last.y} r="2.5" fill="#efaa7b" />
-          </svg>}
+        <div style={{display: "flex", flex: 1, minHeight: 0, flexDirection: "column", justifyContent: "center", padding: "28px 0"}}>
+          <div style={{display: "flex", alignItems: "center", gap: 12, color: "#efaa7b", fontSize: 22, marginBottom: 18}}>
+            <span style={{width: 24, height: 2, background: "#efaa7b"}} />
+            <span>{source ? source.slice(0, 70) : "Your AI reading list"}</span>
+          </div>
+          <div style={{display: "block", fontFamily: "Bricolage Grotesque", fontSize, fontWeight: 600, letterSpacing: -2, lineHeight: 1.1, wordBreak: "break-word", lineClamp: 4, overflow: "hidden", maxHeight: fontSize * 1.1 * 4}}>{headline}</div>
+          {!source && <div style={{display: "flex", fontSize: 28, color: "#9a9fa0", marginTop: 22}}>The articles and the arguments worth reading.</div>}
         </div>
-      </div>}
-      <div style={{display: "flex", justifyContent: "space-between", borderTop: "1px solid #2b3032", paddingTop: 24, fontSize: 22}}>
-        <span style={{color: "#9a9fa0"}}>Article briefs + discussion highlights</span>
-        <span style={{color: "#efaa7b"}}>hacksnap.live</span>
+        <div style={{display: "flex", flexShrink: 0, justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #383c3d", paddingTop: 22, fontSize: 22}}>
+          <span style={{color: "#9a9fa0"}}>Article briefs + discussion highlights</span>
+          <span style={{color: "#efaa7b"}}>hacksnap.live</span>
+        </div>
       </div>
     </div>,
-    ogImageSize,
+    {
+      ...ogImageSize,
+      fonts: [
+        {name: "Bricolage Grotesque", data: heading, weight: 600, style: "normal"},
+        {name: "Source Sans 3", data: body, weight: 400, style: "normal"},
+      ],
+    },
   );
 }
