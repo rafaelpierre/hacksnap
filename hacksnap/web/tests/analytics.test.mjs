@@ -27,7 +27,7 @@ test('story events deduplicate within a tracking session and remain nonblocking 
   assert.deepEqual(window.hacksnapPendingEvents[0], ['story_view', {story_id: '3'}]);
 });
 
-test('return event requires a previous visit 1 to 30 days earlier and fires once', () => {
+test('intervening same-day loads do not move the return-visit anchor', () => {
   const calls = [];
   globalThis.window = {gtag: (...args) => calls.push(args)};
   globalThis.localStorage = storage();
@@ -35,11 +35,15 @@ test('return event requires a previous visit 1 to 30 days earlier and fires once
   const day = 86_400_000;
   const start = Date.now() - 3 * day;
   recordVisit(start);
-  recordVisit(start + 2 * day);
-  recordVisit(start + 2 * day);
+  recordVisit(start + day / 2);
+  assert.equal(localStorage.getItem('hacksnap:visit-anchor'), String(start));
+  assert.equal(calls.length, 0);
+  recordVisit(start + day * 1.25);
+  recordVisit(start + day * 1.25);
   assert.equal(calls.length, 1);
   assert.equal(calls[0][1], 'return_visit');
-  assert.equal(calls[0][2].days_since_previous_visit, 2);
+  assert.equal(calls[0][2].days_since_visit_anchor, 1);
+  assert.equal(localStorage.getItem('hacksnap:visit-anchor'), String(start + day * 1.25));
 });
 
 test('blocked storage and analytics do not interrupt site actions', () => {

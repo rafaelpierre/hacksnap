@@ -16,7 +16,7 @@ Events use GA4 via the existing `gtag` setup. All IDs are public HN story IDs. N
 | `share_copy_success` | Clipboard API resolves successfully | `story_id`, `copy_kind=post\|link`, `placement` |
 | `share_copy_failure` | Clipboard API rejects or is unavailable | Same as success |
 | `share_manual_fallback` | Selectable fallback text is offered after a copy failure | Same as success |
-| `return_visit` | A new page load finds a previous visit at least 24 hours and at most 30 days earlier in the same browser storage | `observation_window_days=30`, `days_since_previous_visit` |
+| `return_visit` | A new page load is at least 24 hours and at most 30 days after the stored visit anchor; intervening loads under 24 hours leave the anchor intact | `observation_window_days=30`, `days_since_visit_anchor` |
 
 `placement` on feed Share actions is `feed`; story actions use `story_top` or `story_end`. A destination selection means only that the destination was opened. A manual fallback means the text was offered; it cannot establish that the reader copied it. Copy link and Copy suggested post use the same outcome distinctions.
 
@@ -27,7 +27,7 @@ Run [engagement-baseline.sql](engagement-baseline.sql) against the GA4 BigQuery 
 1. **Second-story visit rate:** GA sessions with at least two distinct `story_view.story_id` values divided by GA sessions with at least one. A repeat visit to the same story does not count.
 2. **Recommendation click-through:** distinct visible source/target story pairs clicked in the same GA session divided by distinct visible source/target story pairs exposed in cohort dates. Clicks without exposure are excluded. `IntersectionObserver` unavailable browsers cannot contribute exposures and should be reported separately if material.
 3. **Sharing and copy outcomes:** report menu opens, destination selections, successful clipboard writes, failed writes, and manual fallbacks as separate action counts and distinct sessions. Do not call an outbound selection a share publication or a fallback a successful copy. For a copy-success rate, use successful writes divided by successful plus failed writes for the same `copy_kind` and placement.
-4. **Observed 30-day return rate:** distinct readers with a `return_visit` 1–30 days after their first cohort story divided by distinct readers with a cohort story view. Requires 30 days of follow-up. The browser event requires working local storage and GA identity; this is an observed, consented-browser rate, not a person-level retention estimate.
+4. **Observed 30-day return rate:** distinct readers with a `return_visit` 1–30 days after their first cohort story divided by distinct readers with a cohort story view. The client retains its visit anchor through same-day loads, advances it when a return qualifies, and resets it after 30 days without a qualifying return. Requires 30 days of follow-up. The browser event requires working local storage and GA identity; this is an observed, consented-browser rate, not a person-level retention estimate.
 
 For every result record the cohort start/end, export cutoff, device/source segment, numerator, denominator, rate, release version, and any missing data. Suppression by consent, ad blocking, deleted cookies, cross-device use, and GA export gaps bias the observed rates. `traffic_source.source` represents first acquisition source, not session attribution.
 

@@ -6,7 +6,7 @@ type Event =
   | {name: "share_menu_open"; story_id: string; placement: string}
   | {name: "share_destination_select"; story_id: string; destination: string; placement: string}
   | {name: "share_copy_success" | "share_copy_failure" | "share_manual_fallback"; story_id: string; copy_kind: "post" | "link"; placement: string}
-  | {name: "return_visit"; observation_window_days: 30; days_since_previous_visit: number};
+  | {name: "return_visit"; observation_window_days: 30; days_since_visit_anchor: number};
 
 declare global {
   interface Window { gtag?: (...args: unknown[]) => void; hacksnapPendingEvents?: Array<[string, Record<string, string | number>]> }
@@ -46,12 +46,17 @@ export function trackOnce(key: string, event: Event): void {
 export function recordVisit(now = Date.now()): void {
   if (typeof window === "undefined") return;
   try {
-    const previous = Number(localStorage.getItem("hacksnap:last-visit"));
-    if (previous > 0 && now - previous >= 86_400_000 && now - previous <= 30 * 86_400_000) {
+    const key = "hacksnap:visit-anchor";
+    const anchor = Number(localStorage.getItem(key));
+    const elapsed = now - anchor;
+    if (anchor > 0 && elapsed >= 86_400_000 && elapsed <= 30 * 86_400_000) {
       trackOnce("return-visit", {name: "return_visit", observation_window_days: 30,
-        days_since_previous_visit: Math.floor((now - previous) / 86_400_000)});
+        days_since_visit_anchor: Math.floor(elapsed / 86_400_000)});
+      localStorage.setItem(key, String(now));
+    } else if (!anchor || elapsed < 0 || elapsed > 30 * 86_400_000) {
+      // Keep the anchor across same-day loads; reset stale or invalid anchors.
+      localStorage.setItem(key, String(now));
     }
-    localStorage.setItem("hacksnap:last-visit", String(now));
   } catch {
     // Private browsing and blocked storage are supported.
   }
