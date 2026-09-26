@@ -1,12 +1,8 @@
-import { SummaryPending } from "../summary-pending";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeaderboard } from "../../lib/data";
-import { CategoryBadge } from "../categories";
 import { LocalTime } from "../local-time";
-import { Sentiment } from "../sentiment";
-import { ActivitySparkline } from "../activity-sparkline";
-import { ShareLinks } from "../share-links";
+import { StoryRow } from "../story-row";
 import { BrowseLayout } from "../topic-sidebar";
 
 export const revalidate = 1800;
@@ -19,7 +15,7 @@ export async function generateStaticParams() {
 export default async function Home({params}: {params: Promise<{path?: string[]}>}) {
   // Only the root URL belongs to this page; unknown paths must remain 404s.
   if ((await params).path?.length) notFound();
-  const {stories, ingestion, observed_at} = await getLeaderboard();
+  const {stories, ingestion} = await getLeaderboard();
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
   return <BrowseLayout>
     <header className="feed-header">
@@ -33,24 +29,9 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
       </div>
       {stale && <p className="notice">Updates are delayed. These are the latest saved stories.</p>}
       {stories.length === 0 ? <div className="empty"><h2>No stories yet.</h2><p>Stories will appear after the next update.</p></div> :
-      <ol className="story-list">{stories.map(story => <li key={story.hn_id}>
-        <article className="story-row">
-          <div className="story-content">
-            {!story.is_recent && <div className="story-domain"><span className="archive-label">Archive</span></div>}
-            <h3><span className="rank" data-rank={story.rank} aria-label={`Rank ${story.rank}`}>{String(story.rank).padStart(2, "0")}</span><Link href={`/story/${story.hn_id}`}>{story.title}</Link>{!story.summary && <SummaryPending />}</h3>
-            {story.category && <div className="story-flair"><CategoryBadge id={story.category} /></div>}
-            {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
-            <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments <span aria-hidden="true">↗</span></a><span>Added <LocalTime dateTime={story.date_added.toISOString()} /></span></div>
-            <ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} />
-          </div>
-          <div className="story-indicators">
-          <Sentiment value={story.summary?.sentiment ?? null} noComments={story.summary?.source_coverage.included_comments === 0} />
-          <ActivitySparkline history={story.rank_history} currentRank={story.rank} title={story.title} asOf={observed_at} />
-          </div>
-        </article>
-      </li>)}</ol>}
+      <ol className="story-list">{stories.map(story => <li key={story.hn_id}><StoryRow story={story} variant="ranked" /></li>)}</ol>}
       <p className="archive-cta"><Link className="button" href="/archive">Browse latest stories →</Link></p>
-      <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Hotness shows ranking movement over the past 24h · Higher means a better position · Skept-o-meter estimates skepticism in sampled comments: left is low, right is high · Summaries updated hourly</p>
+      <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Summaries updated hourly</p>
     </section>
   </BrowseLayout>;
 }
