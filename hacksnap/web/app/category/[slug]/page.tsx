@@ -4,10 +4,7 @@ import { notFound } from "next/navigation";
 import { getCategoryCounts, getCategoryStories } from "../../../lib/data";
 import { categoryBySlug, categoryURL } from "../../../lib/categories";
 import { archivePage } from "../../../lib/archive";
-import { articleURL, domain } from "../../../lib/format";
-import { CategoryBadge } from "../../categories";
-import { LocalTime } from "../../local-time";
-import { SummaryPending } from "../../summary-pending";
+import { StoryRow } from "../../story-row";
 import { BrowseLayout } from "../../topic-sidebar";
 
 type Props = {params: Promise<{slug: string}>; searchParams: Promise<{page?: string | string[]}>};
@@ -39,17 +36,7 @@ export default async function CategoryPage(props: Props) {
     <section aria-labelledby="category-stories-heading">
       <div className="feed-bar"><h2 id="category-stories-heading">Latest stories <span>{counts[category.id] ?? 0}</span></h2><p>Newest first</p></div>
       {!stories.length ? <div className="empty"><h2>No stories in this topic yet.</h2><p>New stories will appear here as they’re added.</p><Link className="button" href="/">Browse top stories →</Link></div> :
-        <ul className="story-list">{stories.map(story => <li key={story.hn_id}>
-          <article className="story-row archive-story">
-            <div className="story-content">
-              <div className="story-domain">{articleURL(story.url) ? <a href={articleURL(story.url)!} aria-label={`Original article: ${story.title}`}>{domain(story.url)} ↗</a> : <span>Ask / Show HN</span>}</div>
-              <h3><Link href={`/story/${story.hn_id}`}>{story.title}</Link>{!story.summary && <SummaryPending />}</h3>
-              {story.category && <div className="story-flair"><CategoryBadge id={story.category} /></div>}
-              {story.summary && <p className="feed-excerpt">{story.summary.overall_takeaway}</p>}
-              <div className="story-meta"><span className="points">{story.points.toLocaleString("en-GB")} points</span><a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>{story.comment_count.toLocaleString("en-GB")} comments ↗</a><span>Added <LocalTime dateTime={story.date_added.toISOString()} /></span></div>
-            </div>
-          </article>
-        </li>)}</ul>}
+        <ul className="story-list">{stories.map(story => <li key={story.hn_id}><StoryRow story={story} /></li>)}</ul>}
       {!!stories.length && <nav className="archive-pagination" aria-label="Category pages">
         {page > 1 && <Link className="button" href={categoryURL(category, page - 1)}>← Newer stories</Link>}
         <span>Page {page}</span>

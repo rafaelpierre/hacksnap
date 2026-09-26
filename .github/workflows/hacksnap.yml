@@ -54,6 +54,8 @@ jobs:
           npm run test:categories
           npm run test:archive
           npm run test:metadata
+          npm run test:theme
+          npm run typecheck
           npm run build
           export HACKSNAP_WEB_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/postgres
           node tests/preview-db.mjs > "$RUNNER_TEMP/hacksnap-preview-db.log" 2>&1 &
