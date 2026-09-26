@@ -47,6 +47,7 @@ export function StoryContent({story, relatedStories}: {story: Story; relatedStor
           <li><StoryReturnLink destination={{href: "/", label: "Top Stories"}} /></li>
           {category && <li><ChevronRight size={14} aria-hidden="true" /><StoryReturnLink destination={{href: categoryURL(category), label: category.label}} /></li>}
         </ol>
+        <StoryReturnLink archiveOnly />
       </nav>
       <h1>{story.title}</h1>
       {deck && <p className="standfirst">{deck}</p>}
