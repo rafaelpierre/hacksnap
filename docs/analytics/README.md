@@ -70,7 +70,10 @@ for daily tables to settle and save query text, job ID, export range, and result
 4. **Seven-day return rate:** readers with a visit in a different GA session within
    seven elapsed days after their first observed visit in the cohort / identifiable
    readers first observed in the cohort. This is first observed in this collection,
-   not first-ever or GA's new-user classification. Allow seven full days of follow-up
+   not first-ever or GA's new-user classification. Compute the first visit across
+   the entire scanned range, including the lead-in day, before applying cohort
+   boundaries. Readers first seen on that lead-in day are excluded; activity
+   before the scanned range remains unknown. Allow seven full days of follow-up
    for every reader. Same-session repeat visits are not returns.
 
 Split results by device and GA first-user acquisition source, as in the SQL; that

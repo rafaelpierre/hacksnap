@@ -75,18 +75,18 @@ SELECT device, acquisition_source, COUNTIF(opened) menu_visits,
  SAFE_DIVIDE(COUNTIF(opened AND selected), COUNTIF(opened)) destination_selection_rate
 FROM visits GROUP BY device, acquisition_source;
 
--- Seven-day return: a distinct GA session after the first observed cohort visit.
+-- Seven-day return: find the first visit across the full scan (including lead-in),
+-- then admit only readers whose first observed timestamp falls inside the cohort.
 WITH firsts AS (
  SELECT reader, ARRAY_AGG(STRUCT(ts, session_id, device, acquisition_source) ORDER BY ts LIMIT 1)[OFFSET(0)] first
  FROM events WHERE event_name='reader_visit' AND reader IS NOT NULL AND session_id IS NOT NULL
-   AND DATE(ts) >= cohort_start
  GROUP BY reader
 ), returns AS (
  SELECT f.reader, f.first,
  COUNTIF(e.session_id != f.first.session_id AND e.ts > f.first.ts
    AND e.ts <= TIMESTAMP_ADD(f.first.ts, INTERVAL 7 DAY)) > 0 returned
  FROM firsts f LEFT JOIN events e ON e.reader=f.reader AND e.event_name='reader_visit'
- WHERE DATE(f.first.ts) < cohort_end
+ WHERE DATE(f.first.ts) >= cohort_start AND DATE(f.first.ts) < cohort_end
  GROUP BY f.reader, f.first
 )
 SELECT first.device, first.acquisition_source, COUNT(*) eligible_readers,
