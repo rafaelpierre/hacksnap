@@ -41,7 +41,8 @@ test('story pages render category next reads and an empty-category fallback', op
   const html = await response.text();
   const section = html.match(/<section class="related-stories"[\s\S]*?<\/section>/)?.[0];
   assert.ok(section, 'Next reads must be in the initial HTML');
-  assert.match(section, /More in .*Agents &amp; Coding/);
+  assert.match(section, /id="related-stories-heading">Read next/);
+  assert.match(section, /Browse all .*Agents &amp; Coding/);
   assert.match(section, /href="\/story\/90000004"/);
   assert.doesNotMatch(section, /href="\/story\/90000001"/);
   assert.match(section, /href="\/category\/agents-coding"/);
@@ -52,6 +53,6 @@ test('story pages render category next reads and an empty-category fallback', op
   const pending = await (await fetch(`${origin}/story/90000009`)).text();
   const fallback = pending.match(/<section class="related-stories"[\s\S]*?<\/section>/)?.[0];
   assert.ok(fallback);
-  assert.match(fallback, /Keep reading/);
+  assert.match(fallback, /id="related-stories-heading">Read next/);
   assert.match(fallback, /href="\/archive"[^>]*>Browse latest stories/);
 });

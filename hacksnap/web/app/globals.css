@@ -13,7 +13,7 @@
 [data-theme="light"] [data-color="rose"] { --category-color: #98465c; }
 [data-theme="light"] [data-color="sand"] { --category-color: #71632f; }
 .category-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--category-color, var(--accent)); flex-shrink: 0; display: inline-block; }
-.category-badge { display: inline-flex; align-items: center; max-width: 100%; min-height: 24px; padding: 3px 10px; border: 1px solid transparent; border-radius: 999px; color: var(--category-color); background: color-mix(in srgb, var(--category-color) 12%, var(--bg)); font: 500 12px/1.4 var(--sans); text-decoration: none; }
+.category-badge { display: inline-flex; align-items: center; max-width: 100%; min-height: 44px; padding: 10px; border: 1px solid transparent; border-radius: 999px; color: var(--category-color); background: color-mix(in srgb, var(--category-color) 12%, var(--bg)); font: 500 12px/1.4 var(--sans); text-decoration: none; }
 .category-badge:hover { color: var(--category-color); background: color-mix(in srgb, var(--category-color) 20%, var(--bg)); border-color: var(--category-color); }
 .story-flair { margin: 8px 0 10px; }
 .category-header h1 { display: flex; align-items: center; gap: 12px; }
