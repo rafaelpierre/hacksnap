@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { ArrowUp, MessageCircle } from "lucide-react";
 import type { Story } from "../lib/data";
 import { articleURL, domain } from "../lib/format";
 import { CategoryBadge } from "./categories";
 import { LocalTime } from "./local-time";
 import { ShareLinks } from "./share-links";
+import { BrowseStoryLink } from "./story-navigation";
 
 export function StoryRow({story, variant = "unranked"}: {story: Story; variant?: "ranked" | "unranked"}) {
   const source = articleURL(story.url);
@@ -20,7 +20,7 @@ export function StoryRow({story, variant = "unranked"}: {story: Story; variant?:
           <a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>Hacker News <span aria-hidden="true">↗</span></a>}
         {variant === "ranked" && story.is_recent === false && <span className="archive-label">Archive</span>}
       </div>
-      <h3><Link href={`/story/${story.hn_id}`}>{story.title}</Link></h3>
+      <h3><BrowseStoryLink id={story.hn_id}>{story.title}</BrowseStoryLink></h3>
       {takeaway ? <p className="feed-excerpt">{takeaway}</p> : <p className="feed-excerpt feed-pending">Brief pending. Check back after the next summary update.</p>}
       <div className="feed-story-footer">
         <div className="story-meta">

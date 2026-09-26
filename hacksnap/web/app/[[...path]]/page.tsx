@@ -4,6 +4,7 @@ import { getLeaderboard } from "../../lib/data";
 import { LocalTime } from "../local-time";
 import { StoryRow } from "../story-row";
 import { BrowseLayout } from "../topic-sidebar";
+import { ListPositionRestorer } from "../story-navigation";
 
 export const revalidate = 1800;
 
@@ -18,6 +19,7 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
   const {stories, ingestion} = await getLeaderboard();
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
   return <BrowseLayout>
+    <ListPositionRestorer />
     <header className="feed-header">
       <div className="channel-path">hacksnap / <span>top stories</span></div>
       <h1>Top AI stories on Hacker News</h1>

@@ -6,6 +6,7 @@ import { categoryBySlug, categoryURL } from "../../../lib/categories";
 import { archivePage } from "../../../lib/archive";
 import { StoryRow } from "../../story-row";
 import { BrowseLayout } from "../../topic-sidebar";
+import { ListPositionRestorer } from "../../story-navigation";
 
 type Props = {params: Promise<{slug: string}>; searchParams: Promise<{page?: string | string[]}>};
 
@@ -28,6 +29,7 @@ export default async function CategoryPage(props: Props) {
   const [counts, {stories, hasNext}] = await Promise.all([getCategoryCounts(), getCategoryStories(category.id, page)]);
   if (page > 1 && !stories.length) notFound();
   return <BrowseLayout active={category.id}>
+    <ListPositionRestorer />
     <header className="feed-header category-header" data-color={category.color}>
       <div className="channel-path"><Link href="/">hacksnap</Link> / <Link href="/topics">topics</Link> / <span>{category.label}</span></div>
       <h1><span className="category-dot" aria-hidden="true" />{category.label}</h1>
