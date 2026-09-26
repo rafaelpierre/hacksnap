@@ -40,7 +40,6 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
       <ShareLinks id={story.hn_id} title={story.title} takeaway={summary?.overall_takeaway} />
       <div className="source-links">{article && <a href={article}>Read original ↗</a>}<a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}>Full discussion ↗</a></div>
     </header>
-    <StoryMetrics story={story} />
     {summary ? <div className="editorial">
       <section aria-labelledby="article-heading">
         <h2 id="article-heading">{article ? "The brief" : "The post"}</h2>
@@ -65,5 +64,6 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
         </details>
       </aside>
     </div> : <section className="empty"><h2>Summary pending.</h2><p>Summaries update hourly. You can read the original sources above.</p></section>}
+    <StoryMetrics story={story} />
   </article>;
 }
