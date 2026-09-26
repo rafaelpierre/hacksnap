@@ -111,14 +111,6 @@ time, .points, .rank { font-variant-numeric: tabular-nums; }
 .story-meta a { text-decoration: none; }
 .story-meta a:hover { text-decoration: underline; }
 .points { color: var(--accent); }
-.share-links { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-3); }
-.share-link { position: relative; display: inline-flex; align-items: center; justify-content: center; width: var(--touch-target); height: var(--touch-target); flex: 0 0 var(--touch-target); border: 1px solid var(--control-line); border-radius: 6px; color: var(--muted); text-decoration: none; transition: color 120ms, border-color 120ms, background 120ms; }
-.share-link:hover, .share-link:focus-visible { color: var(--accent); border-color: var(--accent); background: var(--surface); }
-.share-tooltip { position: absolute; z-index: 3; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); padding: 5px var(--space-2); border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font: var(--text-xs)/1.5 var(--sans); white-space: nowrap; visibility: hidden; pointer-events: none; }
-.share-link:hover .share-tooltip, .share-link:focus-visible .share-tooltip { visibility: visible; }
-.share-copy-button { padding: 0; background: transparent; }
-.share-copy-hint { flex-basis: 100%; color: var(--muted); font: var(--text-xs)/1.6 var(--sans); }
-.share-copy-fallback { flex-basis: 100%; width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--control-line); border-radius: 4px; background: var(--surface); color: var(--ink); font: var(--text-xs)/1.6 var(--sans); resize: vertical; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .summary-pending { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; margin-left: 6px; vertical-align: middle; color: var(--muted); cursor: help; }
 .summary-pending-tooltip { position: absolute; z-index: 3; bottom: 100%; right: 0; width: 220px; padding: var(--space-2) 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font: var(--text-xs)/1.5 var(--sans); letter-spacing: normal; visibility: hidden; }
@@ -355,7 +347,7 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
 .story-pending h2 { font-size: 20px; }
 .story-pending p { color: var(--prose); margin: 0; }
 .story-end-share { display: flex; justify-content: flex-start; margin-top: 36px; }
-.story-end-share .share-menu-panel { left: 0; right: auto; }
+.story-end-share .share-panel { left: 0; right: auto; }
 .about-page { max-width: 720px; padding: 44px 0 72px; }
 .about-page h1 { font-size: clamp(30px, 4vw, 44px); line-height: 1.2; margin: 12px 0 22px; }
 .about-page > p, .about-page section p { color: var(--prose); font-size: 18px; line-height: 1.7; }
@@ -386,19 +378,22 @@ footer p { margin: 0; } footer > span { margin-left: auto; }
 .feed-story .story-meta .points { color: var(--muted); }
 .feed-story .story-meta .category-badge { margin-right: 2px; }
 .feed-story .story-meta time { font-family: var(--mono); }
-.share-menu { position: relative; flex: 0 0 auto; }
-.share-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font-size: 13px; }
+.share-menu { position: relative; flex: 0 0 auto; max-width: 100%; font: var(--text-label)/1.5 var(--sans); }
+.share-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--touch-target); padding: 8px 12px; border: 1px solid var(--control-line); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); }
 .share-trigger:hover, .share-trigger[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
-.share-menu-panel { position: absolute; z-index: 5; right: 0; top: calc(100% + 5px); width: min(310px, calc(100vw - 40px)); padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 12px 28px #0005; font-size: 13px; }
-.share-menu-panel > label { display: block; margin: 12px 0 5px; font-weight: 600; }
-.share-menu-panel button, .share-menu-destinations a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--ink); text-decoration: none; text-align: left; }
-.share-menu-panel button:hover, .share-menu-destinations a:hover { border-color: var(--accent); color: var(--accent); }
-.share-menu-panel textarea { display: block; width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); font: 13px/1.5 var(--sans); resize: vertical; overflow-wrap: anywhere; }
-.share-menu-panel > textarea + button { margin-top: 8px; }
-.share-menu-destinations { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.share-feedback { min-height: 1em; margin: 8px 0 0; color: var(--muted); }
-.share-feedback:empty { display: none; }
-.share-feedback + textarea { margin-top: 8px; }
+.share-panel { position: absolute; z-index: 5; top: calc(100% + 6px); right: 0; width: min(22.5rem, calc(100vw - 2rem)); padding: var(--space-4); border: 1px solid var(--control-line); border-radius: 7px; background: var(--surface); color: var(--ink); box-shadow: 0 8px 24px #0005; }
+.share-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
+.share-panel-heading strong { font-weight: 600; }
+.share-close { display: inline-flex; align-items: center; justify-content: center; width: var(--touch-target); height: var(--touch-target); border: 0; background: transparent; color: var(--ink); font-size: 24px; line-height: 1; }
+.share-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.share-actions button, .share-actions a, .share-copy-post { display: inline-flex; align-items: center; justify-content: center; min-height: var(--touch-target); padding: 8px 12px; border: 1px solid var(--control-line); border-radius: var(--radius-control); background: var(--bg); color: var(--ink); text-decoration: none; font: var(--text-label)/1.4 var(--sans); }
+.share-actions button:hover, .share-actions a:hover, .share-copy-post:hover { border-color: var(--accent); color: var(--accent); }
+.share-destination-hint { margin: var(--space-2) 0 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
+.share-panel label { display: block; margin: var(--space-4) 0 6px; color: var(--muted); font-size: var(--text-sm); }
+.share-draft, .share-manual { display: block; width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--control-line); border-radius: 5px; background: var(--bg); color: var(--ink); font: var(--text-base)/1.5 var(--sans); resize: vertical; overflow-wrap: anywhere; }
+.share-copy-post { margin-top: 10px; }
+.share-feedback { min-height: 20px; margin: var(--space-2) 0 0; color: var(--prose); font-size: var(--text-sm); }
+.share-manual { margin-top: var(--space-2); }
 @media (max-width: 640px) {
   .story-row.feed-story { padding-top: 20px; padding-bottom: 20px; }
   .story-row.feed-story-ranked { padding-left: 48px; }

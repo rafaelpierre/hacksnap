@@ -1,70 +1,99 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { Share2 } from "lucide-react";
-import { shareText } from "../lib/share-text";
+import {useEffect, useId, useRef, useState} from "react";
+import {Share2} from "lucide-react";
+import {canonicalStoryUrl, copyText, shareDestinations, suggestedPost, xPostStatus} from "../lib/share-text";
 
-// This interface is shared by feed rows and the story page.
-export function ShareLinks({id, title, takeaway}: {id: string; title: string; takeaway?: string | null}) {
-  const canonical = shareText(id, title, takeaway);
-  const instanceId = useId();
+type ShareProps = {id: string; title: string; takeaway?: string | null; label?: string};
+
+/** A single disclosure for feed rows and both story-page placements. */
+export function ShareLinks({id, title, takeaway, label = "Share"}: ShareProps) {
   const [open, setOpen] = useState(false);
-  const [post, setPost] = useState(canonical.post);
+  const [post, setPost] = useState(() => suggestedPost(id, title, takeaway));
   const [feedback, setFeedback] = useState("");
-  const [manual, setManual] = useState("");
+  const [manualText, setManualText] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
-  const manualText = useRef<HTMLTextAreaElement>(null);
+  const firstAction = useRef<HTMLButtonElement>(null);
+  const manualField = useRef<HTMLTextAreaElement>(null);
+  const draftField = useRef<HTMLTextAreaElement>(null);
+  const panelId = useId();
+  const draftId = useId();
+  const xHintId = useId();
+  const xStatus = xPostStatus(post);
+  const url = canonicalStoryUrl(id);
 
-  useEffect(() => { setPost(canonical.post); }, [id, title, takeaway]);
+  useEffect(() => {
+    if (open) firstAction.current?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const dismiss = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      if (event.target instanceof Node && !root.current?.contains(event.target)) setOpen(false);
     };
     document.addEventListener("pointerdown", dismiss);
     return () => document.removeEventListener("pointerdown", dismiss);
   }, [open]);
 
-  useEffect(() => { if (manual) manualText.current?.select(); }, [manual]);
+  useEffect(() => {
+    if (manualText !== null) {
+      manualField.current?.focus();
+      manualField.current?.select();
+    }
+  }, [manualText]);
 
-  async function copy(value: string, label: string) {
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
-      await navigator.clipboard.writeText(value);
-      setFeedback(`${label} copied.`);
-      setManual("");
-    } catch {
-      setFeedback(`Couldn’t copy ${label.toLowerCase()}. Select the text below to copy it manually.`);
-      setManual(value);
+  function close(returnFocus: boolean) {
+    setOpen(false);
+    if (returnFocus) trigger.current?.focus();
+  }
+
+  async function copy(value: string, kind: "link" | "post") {
+    setManualText(null);
+    setFeedback("");
+    const succeeded = await copyText(value, navigator.clipboard);
+    if (succeeded) {
+      setFeedback(kind === "link" ? "Link copied to clipboard." : "Suggested post copied to clipboard.");
+    } else {
+      setManualText(value);
+      setFeedback("Couldn’t copy automatically. Select and copy the text below.");
     }
   }
 
-  const xURL = `https://twitter.com/intent/tweet?text=${encodeURIComponent(post)}`;
-  const emailURL = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(post.replaceAll("\n", "\r\n"))}`;
-  return <div className="share-menu" ref={root} onKeyDown={event => {
-    if (event.key === "Escape" && open) {
-      event.preventDefault();
-      setOpen(false);
-      trigger.current?.focus();
-    }
-  }}>
-    <button className="share-trigger" type="button" ref={trigger} aria-expanded={open} aria-controls={`share-menu-${instanceId}`}
-      aria-label={`Share ${title}`} onClick={() => { setOpen(!open); setFeedback(""); setManual(""); }}>
-      <Share2 size={15} aria-hidden="true" /> Share
+  return <div
+    className="share-menu"
+    ref={root}
+    onKeyDown={event => { if (event.key === "Escape" && open) { event.stopPropagation(); close(true); } }}
+    onBlur={event => { if (open && !event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
+  >
+    <button type="button" className="share-trigger" ref={trigger} aria-expanded={open} aria-controls={panelId}
+      aria-label={`${label}: ${title}`} onClick={() => { setOpen(!open); setFeedback(""); setManualText(null); }}>
+      <Share2 size={16} aria-hidden="true" /> {label}
     </button>
-    {open && <div className="share-menu-panel" id={`share-menu-${instanceId}`}>
-      <button type="button" onClick={() => copy(canonical.url, "Link")}>Copy link</button>
-      <label htmlFor={`share-post-${instanceId}`}>Suggested post</label>
-      <textarea id={`share-post-${instanceId}`} value={post} onChange={event => setPost(event.target.value)} rows={4} />
-      <button type="button" onClick={() => copy(post, "Suggested post")}>Copy suggested post</button>
-      <div className="share-menu-destinations">
-        <a href={xURL} target="_blank" rel="noopener noreferrer">Post on X ↗</a>
-        <a href={emailURL}>Email ↗</a>
+    {open && <section className="share-panel" id={panelId} aria-label={`Share ${title}`}>
+      <div className="share-panel-heading"><strong>Share story</strong><button type="button" className="share-close" onClick={() => close(true)} aria-label="Close share menu">×</button></div>
+      <div className="share-actions">
+        <button type="button" ref={firstAction} onClick={() => void copy(url, "link")}>Copy link</button>
+        {shareDestinations(post, url, title).map(destination => destination.name === "X" && !xStatus.valid
+          ? <button key="X" type="button" aria-describedby={xHintId} onClick={() => {
+              setFeedback(`X needs a shorter post (${xStatus.length}/${xStatus.limit}). Edit the suggested post to continue.`);
+              draftField.current?.focus();
+            }}>X (edit first)</button>
+          : <a key={destination.name} href={destination.href}
+              target={destination.name === "Email" ? undefined : "_blank"}
+              rel={destination.name === "Email" ? undefined : "noopener noreferrer"}
+              aria-label={`${destination.name}${destination.name === "Email" ? "" : " (opens in a new tab)"}`}>
+              {destination.name} {destination.name !== "Email" && <span aria-hidden="true">↗</span>}
+            </a>)}
       </div>
-      <p role="status" className="share-feedback">{feedback}</p>
-      {manual && <textarea ref={manualText} readOnly value={manual} aria-label="Text to copy manually" rows={4} />}
-    </div>}
+      <p id={xHintId} className="share-destination-hint">X post: {xStatus.length}/{xStatus.limit} weighted characters.{!xStatus.valid && " Shorten the draft before opening X."}</p>
+      <p className="share-destination-hint">LinkedIn opens a link preview. Copy your post to paste edits there.</p>
+      <label htmlFor={draftId}>Suggested post</label>
+      <textarea id={draftId} ref={draftField} className="share-draft" value={post} rows={5} onChange={event => { setPost(event.target.value); setFeedback(""); setManualText(null); }} />
+      <button type="button" className="share-copy-post" onClick={() => void copy(post, "post")}>Copy suggested post</button>
+      <p className="share-feedback" role="status" aria-live="polite">{feedback}</p>
+      {manualText !== null && <textarea ref={manualField} className="share-manual" readOnly value={manualText} rows={4}
+        aria-label="Text for manual copy" onFocus={event => event.currentTarget.select()} />}
+    </section>}
   </div>;
 }
