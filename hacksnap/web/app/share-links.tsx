@@ -1,8 +1,9 @@
 "use client";
 
+import { Copy, Link2, Mail, Share2, X } from "lucide-react";
+import { FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
 import {useEffect, useId, useRef, useState} from "react";
 import {copyShareText, track} from "../lib/analytics";
-import {Share2} from "lucide-react";
 import {canonicalStoryUrl, copyText, shareDestinations, suggestedPost, xPostStatus} from "../lib/share-text";
 
 type ShareProps = {id: string; title: string; takeaway?: string | null; label?: string; placement?: string};
@@ -74,14 +75,16 @@ export function ShareLinks({id, title, takeaway, label = "Share", placement = "f
       <Share2 size={16} aria-hidden="true" /> {label}
     </button>
     {open && <section className="share-panel" id={panelId} aria-label={`Share ${title}`}>
-      <div className="share-panel-heading"><strong>Share story</strong><button type="button" className="share-close" onClick={() => close(true)} aria-label="Close share menu">×</button></div>
+      <div className="share-panel-heading"><strong>Share story</strong><button type="button" className="share-close" onClick={() => close(true)} aria-label="Close share menu"><X size={18} aria-hidden="true" /></button></div>
       <div className="share-actions">
-        <button type="button" ref={firstAction} onClick={() => void copy(url, "link")}>Copy link</button>
-        {shareDestinations(post, url, title).map(destination => destination.name === "X" && !xStatus.valid
+        <button type="button" ref={firstAction} onClick={() => void copy(url, "link")}><Link2 size={20} aria-hidden="true" /><span>Copy link</span></button>
+        {shareDestinations(post, url, title).map(destination => {
+          const Icon = destination.name === "X" ? FaXTwitter : destination.name === "LinkedIn" ? FaLinkedinIn : Mail;
+          return destination.name === "X" && !xStatus.valid
           ? <button key="X" type="button" aria-describedby={xHintId} onClick={() => {
               setFeedback(`X needs a shorter post (${xStatus.length}/${xStatus.limit}). Edit the suggested post to continue.`);
               draftField.current?.focus();
-            }}>X (edit first)</button>
+            }}><Icon size={20} aria-hidden="true" /><span>X <small>(edit first)</small></span></button>
           : <button key={destination.name} type="button"
               onClick={() => {
                 track("share_destination_select", {story_id: id, destination: destination.name.toLowerCase(), placement});
@@ -90,14 +93,13 @@ export function ShareLinks({id, title, takeaway, label = "Share", placement = "f
                 else window.open(destination.href, "_blank", "noopener,noreferrer");
               }}
               aria-label={`${destination.name}${destination.name === "Email" ? "" : " (opens in a new tab)"}`}>
-              {destination.name} {destination.name !== "Email" && <span aria-hidden="true">↗</span>}
-            </button>)}
+              <Icon size={20} aria-hidden="true" /><span>{destination.name}</span>
+            </button>; })}
       </div>
-      <p id={xHintId} className="share-destination-hint">X post: {xStatus.length}/{xStatus.limit} weighted characters.{!xStatus.valid && " Shorten the draft before opening X."}</p>
-      <p className="share-destination-hint">LinkedIn opens a link preview. Copy your post to paste edits there.</p>
-      <label htmlFor={draftId}>Suggested post</label>
-      <textarea id={draftId} ref={draftField} className="share-draft" value={post} rows={5} onChange={event => { setPost(event.target.value); setFeedback(""); setManualText(null); }} />
-      <button type="button" className="share-copy-post" onClick={() => void copy(post, "post")}>Copy suggested post</button>
+      <div className="share-draft-heading"><label htmlFor={draftId}>Suggested post</label><span className="share-count" data-over-limit={!xStatus.valid}>{xStatus.length}/{xStatus.limit} on X</span></div>
+      <textarea id={draftId} ref={draftField} className="share-draft" aria-describedby={xHintId} value={post} rows={5} onChange={event => { setPost(event.target.value); setFeedback(""); setManualText(null); }} />
+      <p id={xHintId} className="share-destination-hint">{!xStatus.valid ? "Shorten the draft to share on X. " : ""}LinkedIn shares the link; paste your copied post there.</p>
+      <button type="button" className="share-copy-post" onClick={() => void copy(post, "post")}><Copy size={16} aria-hidden="true" />Copy suggested post</button>
       <p className="share-feedback" role="status" aria-live="polite">{feedback}</p>
       {manualText !== null && <textarea ref={manualField} className="share-manual" readOnly value={manualText} rows={4}
         aria-label="Text for manual copy" onFocus={event => event.currentTarget.select()} />}

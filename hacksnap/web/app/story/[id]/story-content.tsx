@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
 import { MessageCircle } from "lucide-react";
 import type { RelatedStory, Story } from "../../../lib/data";
@@ -45,7 +46,7 @@ export function StoryContent({story, relatedStories}: {story: Story; relatedStor
       <StoryShare story={story} placement="story_top" />
     </div>
     <header className="story-header">
-      <div className="story-byline story-context">{story.category && <CategoryBadge id={story.category} />}{article ? <a href={article} aria-label={`Original article on ${domain(story.url)}`}>{domain(story.url)} ↗</a> : <a href={hnURL}>Hacker News ↗</a>}</div>
+      <div className="story-byline story-context">{story.category && <CategoryBadge id={story.category} />}{article ? <a href={article} aria-label={`Original article on ${domain(story.url)}`}>{domain(story.url)} <ArrowUpRight className="inline-icon" aria-hidden="true" /></a> : <a href={hnURL}>Hacker News <ArrowUpRight className="inline-icon" aria-hidden="true" /></a>}</div>
       <h1>{story.title}</h1>
       {deck && <p className="standfirst">{deck}</p>}
     </header>
@@ -60,7 +61,7 @@ export function StoryContent({story, relatedStories}: {story: Story; relatedStor
           ? "The original article was unavailable to summarize. You can still read the source and the discussion."
           : article ? "No article brief is available. You can read the original source and the discussion."
             : "This is an HN post. The discussion is summarized below."}</p>}
-        {article && !summary.article_summary && <p><a href={article}>Open the original source ↗</a></p>}
+        {article && !summary.article_summary && <p><a href={article}>Open the original source <ArrowUpRight className="inline-icon" aria-hidden="true" /></a></p>}
       </section>
       <section className="discussion-section" aria-labelledby="discussion-heading">
         <div className="discussion-heading"><h2 id="discussion-heading">Discussion</h2><SkepticismPill story={story} /></div>
@@ -68,13 +69,13 @@ export function StoryContent({story, relatedStories}: {story: Story; relatedStor
           <p>{summary.discussion_summary}</p>
           <div className="discussion-points">{summary.discussion_points.map((point, i) => <section className="discussion-point" key={i}>
             <h3>{point.title}</h3><p>{point.summary}</p>
-            {point.comment_ids.length > 0 && <div className="comment-links"><span>Source comments</span>{point.comment_ids.map((comment, index) => <a key={comment} href={`https://news.ycombinator.com/item?id=${comment}`} aria-label={`Source comment ${comment} for ${point.title}`}>[{index + 1}] ↗</a>)}</div>}
+            {point.comment_ids.length > 0 && <div className="comment-links"><span>Source comments</span>{point.comment_ids.map((comment, index) => <a key={comment} href={`https://news.ycombinator.com/item?id=${comment}`} aria-label={`Source comment ${comment} for ${point.title}`}>[{index + 1}] <ArrowUpRight className="inline-icon" aria-hidden="true" /></a>)}</div>}
           </section>)}</div>
-        </> : <p className="muted">No usable discussion was available for this summary. <a href={hnURL}>Read the HN thread ↗</a></p>}
+        </> : <p className="muted">No usable discussion was available for this summary. <a href={hnURL}>Read the HN thread <ArrowUpRight className="inline-icon" aria-hidden="true" /></a></p>}
       </section>
     </div> : <section className="story-pending" aria-labelledby="pending-heading">
       <h2 id="pending-heading">Summary pending</h2>
-      <p>This story has not been summarized yet. {article ? <>Read the <a href={article}>original source ↗</a> or the <a href={hnURL}>HN discussion ↗</a>.</> : <>Read the <a href={hnURL}>HN post and discussion ↗</a>.</>}</p>
+      <p>This story has not been summarized yet. {article ? <>Read the <a href={article}>original source <ArrowUpRight className="inline-icon" aria-hidden="true" /></a> or the <a href={hnURL}>HN discussion <ArrowUpRight className="inline-icon" aria-hidden="true" /></a>.</> : <>Read the <a href={hnURL}>HN post and discussion <ArrowUpRight className="inline-icon" aria-hidden="true" /></a>.</>}</p>
     </section>}
     <div className="story-end-share"><StoryShare story={story} placement="story_end" /></div>
     <RelatedStories category={category} stories={relatedStories} currentId={story.hn_id} />

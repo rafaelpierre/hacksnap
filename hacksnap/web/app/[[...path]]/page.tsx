@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeaderboard } from "../../lib/data";
@@ -21,19 +22,17 @@ export default async function Home({params}: {params: Promise<{path?: string[]}>
   return <BrowseLayout active="home">
     <ListPositionRestorer />
     <header className="feed-header home-intro">
-      <div className="reading-list-kicker">{(ingestion ?? new Date()).toLocaleDateString("en-GB", {weekday: "long", day: "numeric", month: "long", timeZone: "UTC"})} · The reading list</div>
       <h1>AI news for people who build.</h1>
       <p>AI stories and highlights from Hacker News discussions.</p>
     </header>
-    <section aria-labelledby="feed-heading">
-      <div className="feed-bar"><h2 id="feed-heading">Top stories <span>{stories.length}</span></h2>
+    <section aria-label="Top stories">
+      <div className="feed-bar">
         <p>{ingestion ? <>Updated <LocalTime dateTime={ingestion.toISOString()} /></> : "Waiting for stories"}</p>
       </div>
       {stale && <p className="notice">Updates are delayed. These are the latest saved stories.</p>}
       {stories.length === 0 ? <div className="empty"><h2>No stories yet.</h2><p>Stories will appear after the next update.</p></div> :
       <ol className="story-list">{stories.map(story => <li key={story.hn_id}><StoryRow story={story} variant="ranked" /></li>)}</ol>}
-      <p className="archive-cta"><Link className="button" href="/archive">Browse latest stories →</Link></p>
-      <p className="method-note">Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Summaries updated hourly</p>
+      <p className="archive-cta"><Link className="browse-latest-link" href="/archive">Browse latest stories <ChevronRight className="inline-icon" aria-hidden="true" /></Link></p>
     </section>
   </BrowseLayout>;
 }

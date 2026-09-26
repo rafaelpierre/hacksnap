@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Rss } from "lucide-react";
 import Script from "next/script";
 import localFont from "next/font/local";
 import { ThemeToggle } from "./theme-toggle";
@@ -57,9 +58,9 @@ export default function Layout({ children }: {children: React.ReactNode}) {
     <a className="skip-link" href="#main">Skip to content</a>
     <header className="site-header"><div className="header-inner">
       <Link className="wordmark" href="/" aria-label="Hacksnap home"><span className="logo" aria-hidden="true">h/</span>hacksnap</Link>
-      <div className="header-nav"><MainNavigation /><ThemeToggle /></div>
+      <div className="header-nav"><MainNavigation /><div className="header-actions"><a className="rss-link" href="/feed.xml" aria-label="RSS feed" title="RSS feed"><Rss size={18} strokeWidth={1.75} aria-hidden="true" /></a><ThemeToggle /></div></div>
     </div></header>
     <main id="main">{children}</main>
-    <footer><Link className="footer-brand" href="/">hacksnap</Link><p>AI stories and discussions from Hacker News. <Link href="/about">About</Link> · <a href="/feed.xml">RSS feed</a></p></footer>
+    <footer><Link className="footer-brand" href="/">hacksnap</Link><p>AI stories and discussions from Hacker News.</p></footer>
   </body></html>;
 }

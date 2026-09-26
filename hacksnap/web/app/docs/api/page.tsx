@@ -1,3 +1,4 @@
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {title: "Stories API"};
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default function ApiDocs() {
   return <article className="detail" style={{overflowWrap: "anywhere"}}>
-    <Link className="back-link" href="/">← All stories</Link>
+    <Link className="back-link" href="/"><ChevronLeft className="inline-icon" aria-hidden="true" /> All stories</Link>
     <h1>Hacksnap Stories API</h1>
     <p>A public, read-only JSON API for Hacker News stories and AI-generated summaries. No authentication is required.</p>
     <p><a href="/openapi.json">OpenAPI specification</a> · <a href="/.well-known/api-catalog">API catalog</a></p>

@@ -1,3 +1,4 @@
+import { ChevronRight, ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -37,12 +38,12 @@ export default async function CategoryPage(props: Props) {
     </header>
     <section aria-labelledby="category-stories-heading">
       <div className="feed-bar"><h2 id="category-stories-heading">Latest stories <span>{counts[category.id] ?? 0}</span></h2><p>Newest first</p></div>
-      {!stories.length ? <div className="empty"><h2>No stories in this topic yet.</h2><p>New stories will appear here as they’re added.</p><Link className="button" href="/">Browse top stories →</Link></div> :
+      {!stories.length ? <div className="empty"><h2>No stories in this topic yet.</h2><p>New stories will appear here as they’re added.</p><Link className="button" href="/">Browse top stories <ChevronRight className="inline-icon" aria-hidden="true" /></Link></div> :
         <ul className="story-list">{stories.map(story => <li key={story.hn_id}><StoryRow story={story} /></li>)}</ul>}
       {!!stories.length && <nav className="archive-pagination" aria-label="Category pages">
-        {page > 1 && <Link className="button" href={categoryURL(category, page - 1)}>← Newer stories</Link>}
+        {page > 1 && <Link className="button" href={categoryURL(category, page - 1)}><ChevronLeft className="inline-icon" aria-hidden="true" /> Newer stories</Link>}
         <span>Page {page}</span>
-        {hasNext && <Link className="button" href={categoryURL(category, page + 1)}>Older stories →</Link>}
+        {hasNext && <Link className="button" href={categoryURL(category, page + 1)}>Older stories <ChevronRight className="inline-icon" aria-hidden="true" /></Link>}
       </nav>}
     </section>
   </BrowseLayout>;

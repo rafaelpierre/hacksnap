@@ -1,3 +1,4 @@
+import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -32,6 +33,6 @@ export default function AboutPage() {
       <h2 id="skepticism-heading">Skepticism</h2>
       <p>High means the sampled comments lean doubtful, critical or concerned about the story’s subject. Low includes mixed, neutral and positive reactions. This is a qualitative AI estimate from at most ten selected comments, separate from the broader sample used for the discussion brief. It is not a numeric score or a claim of consensus. When no usable comments are available, Hacksnap shows that instead of guessing.</p>
     </section>
-    <p><Link href="/">← Back to stories</Link></p>
+    <p><Link href="/"><ChevronLeft className="inline-icon" aria-hidden="true" /> Back to stories</Link></p>
   </article>;
 }
