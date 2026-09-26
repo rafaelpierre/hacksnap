@@ -1,5 +1,16 @@
 # Search metadata and RSS
 
+## Typography
+
+Bricolage Grotesque at weight 600 is used for headlines and the wordmark. Source
+Sans 3 is used for reading text, navigation and labels. Article copy is 18px on
+desktop and 17px on phones, with a 1.7 line height. Monospace is reserved for
+code and compact numeric details.
+
+The variable WOFF2 files and their licenses live in `app/fonts`. `next/font/local`
+serves and preloads the fonts with `font-display: swap` and adjusted fallbacks;
+builds and visits do not need an external font service.
+
 ## Color theme
 
 The sun/moon button in the header switches between light and dark mode on every

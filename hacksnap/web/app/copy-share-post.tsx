@@ -16,7 +16,7 @@ export function CopySharePost({text}: {text: string}) {
   return <>
     <button type="button" className="share-link share-copy-button" onClick={copy} aria-label="Copy suggested post">
       {status === "copied" ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
-      <span className="share-tooltip" aria-hidden="true">{status === "copied" ? "Copied!" : "Copy suggested post"}</span>
+      <span className="share-tooltip" aria-hidden="true">{status === "copied" ? "Copied!" : "Copy post"}</span>
     </button>
     <span className={status === "failed" ? "share-copy-hint" : "sr-only"} role="status">
       {status === "copied" ? "Post copied to clipboard." :
