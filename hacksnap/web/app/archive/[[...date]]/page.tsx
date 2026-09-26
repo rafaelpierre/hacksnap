@@ -5,6 +5,7 @@ import { getArchiveMonths, getArchiveStories, type Story } from "../../../lib/da
 import { archiveMonth, archivePage, archiveURL, monthLabel } from "../../../lib/archive";
 import { StoryRow } from "../../story-row";
 import { BrowseLayout } from "../../topic-sidebar";
+import { ListPositionRestorer } from "../../story-navigation";
 
 type Props = {params: Promise<{date?: string[]}>; searchParams: Promise<{page?: string | string[]}>};
 
@@ -38,6 +39,7 @@ export default async function Archive(props: Props) {
   }
   const years = [...new Set(months.map(item => item.month.slice(0, 4)))];
   return <BrowseLayout>
+    <ListPositionRestorer />
     <header className="feed-header">
       <div className="channel-path"><Link href="/">hacksnap</Link> / {month ? <><Link href="/archive">latest</Link> / <span>{monthLabel(month)}</span></> : <span>latest</span>}</div>
       <h1>{month ? monthLabel(month) : "Latest stories"}</h1>

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MessageCircle } from "lucide-react";
@@ -11,6 +10,7 @@ import { ShareLinks } from "../../share-links";
 import { LocalTime } from "../../local-time";
 import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
+import { StoryReturnLink } from "../../story-navigation";
 
 export const revalidate = 1800;
 
@@ -55,7 +55,7 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
 
   return <article className="detail">
     <div className="story-actions">
-      <Link className="back-link" href="/">← All stories</Link>
+      <StoryReturnLink />
       <StoryShare story={story} />
     </div>
     <header className="story-header">
@@ -93,6 +93,6 @@ export default async function StoryPage({params}: {params: Promise<{id: string}>
       <p>This story has not been summarized yet. {article ? <>Read the <a href={article}>original source ↗</a> or the <a href={hnURL}>HN discussion ↗</a>.</> : <>Read the <a href={hnURL}>HN post and discussion ↗</a>.</>}</p>
     </section>}
     <div className="story-end-share"><StoryShare story={story} /></div>
-    <RelatedStories category={category} stories={relatedStories} />
+    <RelatedStories category={category} stories={relatedStories} currentId={story.hn_id} />
   </article>;
 }
