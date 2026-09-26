@@ -42,7 +42,8 @@ scanner from the [Markdown negotiation skill](https://isitagentready.com/.well-k
 ## Persistent story metrics
 
 Story pages render a visible **Skept-o-meter & Hotness** section in the initial
-HTML, with the same metrics in negotiated Markdown. It includes the existing
+HTML after the brief, discussion, and source notes, with the same metrics in
+negotiated Markdown. It includes the existing
 skepticism category, summary comment count, the separate skepticism sample count
 when recorded, peak observed **Hacksnap** rank, estimated time in its Top 10,
 and a ranking chart. Skepticism categories have no numeric score; meter positions
