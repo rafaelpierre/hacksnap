@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ListTree, ThumbsDown, ThumbsUp } from "lucide-react";
 import type {
   CriticalCommentHighlight,
   SupportiveCommentHighlight,
@@ -35,9 +35,13 @@ function HighlightGroup({
   claims: Analysis["reference_claims"];
 }) {
   const title = kind === "critical" ? "Most critical" : "Most supportive";
+  const Icon = kind === "critical" ? ThumbsDown : ThumbsUp;
   return (
     <section className="analysis-group" aria-labelledby={`most-${kind}`}>
-      <h3 id={`most-${kind}`}>{title}</h3>
+      <h3 id={`most-${kind}`} className="analysis-group-heading">
+        <Icon className="analysis-group-icon" aria-hidden="true" />
+        <span>{title}</span>
+      </h3>
       {highlights.length ? (
         <ul className="analysis-highlights">
           {highlights.map((highlight) => {
@@ -129,10 +133,16 @@ export function DiscussionAnalysis({
         <>
           {analysis.topics.length > 0 && (
             <section className="analysis-themes" aria-labelledby="discussion-themes-heading">
-              <h3 id="discussion-themes-heading">Discussion themes</h3>
+              <h3 id="discussion-themes-heading" className="discussion-title">
+                <ListTree className="discussion-title-icon" aria-hidden="true" />
+                <span>Discussion themes</span>
+              </h3>
               {analysis.topics.map((topic) => (
                 <details className="analysis-theme" key={topic.key}>
-                  <summary>{topic.title}</summary>
+                  <summary>
+                    <span>{topic.title}</span>
+                    <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
+                  </summary>
                   <div className="analysis-theme-body">
                     <p>{topic.summary}</p>
                     <ul

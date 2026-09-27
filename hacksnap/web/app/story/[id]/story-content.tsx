@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronRight } from "lucide-react";
+import { ArrowUpRight, ChevronRight, MessagesSquare } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById, categoryURL } from "../../../lib/categories";
@@ -123,7 +123,10 @@ export function StoryContent({
             aria-labelledby="discussion-heading"
           >
             <div className="discussion-heading">
-              <h2 id="discussion-heading">Discussion</h2>
+              <h2 id="discussion-heading" className="discussion-title">
+                <MessagesSquare className="discussion-title-icon" aria-hidden="true" />
+                <span>Discussion</span>
+              </h2>
               {!summary.discussion_analysis && <SkepticismPill story={story} />}
             </div>
             {summary.discussion_analysis ? (

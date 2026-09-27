@@ -58,7 +58,7 @@ test("mocked story renders the reading journey and recommendations without a dat
   assert.match(html, /<h1>A mocked story title<\/h1>/);
   assert.match(html, /id="article-heading"[^>]*>TLDR;/);
   assert.match(html, /The mocked article brief/);
-  assert.match(html, /id="discussion-heading"[^>]*>Discussion/);
+  assert.match(html, /id="discussion-heading"[^>]*>.*?<span>Discussion<\/span><\/h2>/);
   assert.match(html, /The mocked discussion brief/);
   assert.match(html, /Low skepticism/);
   assert.match(html, /href="\/story\/90000004"/);
@@ -108,7 +108,10 @@ test("compact header and recommendations preserve the new story component and tr
   assert.match(header, /Added <time dateTime="2026-09-26T10:00:00.000Z"/);
   assert.match(header, /Original article on example.com/);
   assert.match(header, /aria-label="Share: A mocked story title"/);
-  assert.match(html, /id="discussion-heading">Discussion<\/h2><span class="skepticism-pill/);
+  assert.match(
+    html,
+    /id="discussion-heading"[^>]*>.*?<span>Discussion<\/span><\/h2><span class="skepticism-pill/,
+  );
   const next = html.match(/<ul class="related-story-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
   assert.match(next, /related-topic/);
   assert.match(next, /example.org/);
