@@ -2,9 +2,9 @@
 export function briefExcerpt(value: string | null | undefined): string {
   const text = value?.trim().replace(/\s+/g, " ") ?? "";
   if (text.length <= 220) return text;
-  const sentences = [...new Intl.Segmenter("en", {granularity: "sentence"}).segment(text)];
+  const sentences = [...new Intl.Segmenter("en", { granularity: "sentence" }).segment(text)];
   let excerpt = "";
-  for (const {segment} of sentences) {
+  for (const { segment } of sentences) {
     const candidate = (excerpt + segment).trimEnd();
     if (candidate.length > 220) break;
     excerpt += segment;

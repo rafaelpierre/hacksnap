@@ -9,12 +9,19 @@ export function LocalTime({ dateTime }: { dateTime: string }) {
   useEffect(() => {
     // Omit locale and timeZone to use the visitor's browser preferences.
     const label = new Intl.DateTimeFormat(undefined, {
-      day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
       timeZoneName: "short",
     }).format(new Date(dateTime));
     setLocal({ dateTime, label });
   }, [dateTime]);
 
   // Match the server HTML until mounted, and retain UTC without JavaScript.
-  return <time dateTime={dateTime}>{local?.dateTime === dateTime ? local.label : timestamp(dateTime)}</time>;
+  return (
+    <time dateTime={dateTime}>
+      {local?.dateTime === dateTime ? local.label : timestamp(dateTime)}
+    </time>
+  );
 }

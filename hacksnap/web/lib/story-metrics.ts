@@ -35,38 +35,57 @@ SELECT json_build_object(
   ) point), '[]'::json)
 ) FROM intervals)`;
 
-export const RANKING_METHOD = "Hacksnap ranks recent stories first, then orders each group by points. Peak rank uses all retained observations. Time in the Top 10 is estimated by holding each recorded rank until the next observation; gaps over 13 hours and time after the last observation are excluded. Movement between observations is unknown.";
+export const RANKING_METHOD =
+  "Hacksnap ranks recent stories first, then orders each group by points. Peak rank uses all retained observations. Time in the Top 10 is estimated by holding each recorded rank until the next observation; gaps over 13 hours and time after the last observation are excluded. Movement between observations is unknown.";
 
 export function storyMetrics(story: Story) {
   const coverage = story.summary?.source_coverage;
   const sentimentComments = coverage?.sentiment?.included_comments;
-  const {label, position} = skepticismDisplay(story.summary?.sentiment ?? null,
-    (sentimentComments ?? coverage?.included_comments) === 0);
+  const { label, position } = skepticismDisplay(
+    story.summary?.sentiment ?? null,
+    (sentimentComments ?? coverage?.included_comments) === 0,
+  );
   const ranking = story.ranking_metrics;
   const hours = ranking?.top_ten_hours;
   return {
     skepticism: label,
     position,
-    skepticismNote: position === null
-      ? label === "No comments" ? "No usable comments available to estimate skepticism." : "Skepticism will appear after analysis."
-      : `${sentimentComments === undefined ? "Estimated from sampled comments" : `Estimated from ${sentimentComments} ${sentimentComments === 1 ? "comment" : "comments"}`}.`,
-    comments: coverage ? `${coverage.included_comments.toLocaleString("en-GB")} ${coverage.included_comments === 1 ? "comment" : "comments"}` : "Analysis pending",
-    peak: ranking?.peak_rank == null ? "Not yet recorded" : `#${ranking.peak_rank.toLocaleString("en-GB")}`,
-    topTen: hours == null ? "Not enough history" : hours > 0 && hours < 0.1 ? "<0.1 hours" : `${hours.toLocaleString("en-GB", {minimumFractionDigits: 1, maximumFractionDigits: 1})} hours`,
+    skepticismNote:
+      position === null
+        ? label === "No comments"
+          ? "No usable comments available to estimate skepticism."
+          : "Skepticism will appear after analysis."
+        : `${sentimentComments === undefined ? "Estimated from sampled comments" : `Estimated from ${sentimentComments} ${sentimentComments === 1 ? "comment" : "comments"}`}.`,
+    comments: coverage
+      ? `${coverage.included_comments.toLocaleString("en-GB")} ${coverage.included_comments === 1 ? "comment" : "comments"}`
+      : "Analysis pending",
+    peak:
+      ranking?.peak_rank == null
+        ? "Not yet recorded"
+        : `#${ranking.peak_rank.toLocaleString("en-GB")}`,
+    topTen:
+      hours == null
+        ? "Not enough history"
+        : hours > 0 && hours < 0.1
+          ? "<0.1 hours"
+          : `${hours.toLocaleString("en-GB", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} hours`,
   };
 }
 
 export function storyMetricsText(story: Story): string[] {
   const metrics = storyMetrics(story);
-  const lines = [`Skept-o-meter: ${metrics.skepticism}. ${metrics.skepticismNote}`,
-    `${metrics.comments} for the summary.`];
+  const lines = [
+    `Skept-o-meter: ${metrics.skepticism}. ${metrics.skepticismNote}`,
+    `${metrics.comments} for the summary.`,
+  ];
   if (story.ranking_metrics) {
-    lines.push(`Peak rank: ${metrics.peak}`,
-      `Time in Top 10: ${metrics.topTen}`, RANKING_METHOD);
+    lines.push(`Peak rank: ${metrics.peak}`, `Time in Top 10: ${metrics.topTen}`, RANKING_METHOD);
     const ranking = story.ranking_metrics;
     if (ranking.first_observed_at && ranking.last_observed_at) {
-      lines.push(`${ranking.observation_count} recorded rank observations from ${ranking.first_observed_at} to ${ranking.last_observed_at}.`,
-        `Hotness — latest ${ranking.history.length} recorded Hacksnap ranks:`);
+      lines.push(
+        `${ranking.observation_count} recorded rank observations from ${ranking.first_observed_at} to ${ranking.last_observed_at}.`,
+        `Hotness — latest ${ranking.history.length} recorded Hacksnap ranks:`,
+      );
       for (const point of ranking.history) lines.push(`${point.observed_at}: rank #${point.rank}`);
     }
   }
