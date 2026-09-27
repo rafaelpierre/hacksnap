@@ -10,3 +10,12 @@ fixture and repository CSS in the in-app browser. Verified light/dark appearance
 320px and desktop layouts, 200% text, visible focus, Enter/Space toggling, and no
 horizontal overflow at 320px. Screenshots use a temporary fixture page with system
 fonts, not the complete production shell. No new dependency is added.
+
+## Stance heading icons
+
+Most critical and Most supportive use small Lucide ThumbsDown/ThumbsUp outlines.
+Their 1em sizing follows the existing heading scale, muted color keeps the text
+prominent, and aria-hidden avoids repeating the label for screen readers. Icons
+are decorative, with no voting or button affordance. Checked both themes at desktop
+and 320px, including 200% text and wrapped headings without horizontal overflow.
+The thumbs screenshots use the shared reply-to-a-critic fixture with both groups.

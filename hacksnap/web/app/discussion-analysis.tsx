@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ThumbsDown, ThumbsUp } from "lucide-react";
 import type {
   CriticalCommentHighlight,
   SupportiveCommentHighlight,
@@ -35,9 +35,13 @@ function HighlightGroup({
   claims: Analysis["reference_claims"];
 }) {
   const title = kind === "critical" ? "Most critical" : "Most supportive";
+  const Icon = kind === "critical" ? ThumbsDown : ThumbsUp;
   return (
     <section className="analysis-group" aria-labelledby={`most-${kind}`}>
-      <h3 id={`most-${kind}`}>{title}</h3>
+      <h3 id={`most-${kind}`} className="analysis-group-heading">
+        <Icon className="analysis-group-icon" aria-hidden="true" />
+        <span>{title}</span>
+      </h3>
       {highlights.length ? (
         <ul className="analysis-highlights">
           {highlights.map((highlight) => {
