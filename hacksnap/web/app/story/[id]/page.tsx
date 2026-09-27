@@ -7,17 +7,23 @@ import { StoryContent } from "./story-content";
 
 export const revalidate = 1800;
 
-export async function generateStaticParams() { return []; }
+export async function generateStaticParams() {
+  return [];
+}
 
-export async function generateMetadata({params}: {params: Promise<{id: string}>}): Promise<Metadata> {
-  const {id} = await params;
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
   const story = await getStory(id);
   if (!story) notFound();
   return storyPreviewMetadata(story);
 }
 
-export default async function StoryPage({params}: {params: Promise<{id: string}>}) {
-  const {id} = await params;
+export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const story = await getStory(id);
   if (!story) notFound();
   const category = categoryById(story.category);

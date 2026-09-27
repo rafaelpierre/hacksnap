@@ -56,10 +56,16 @@ export function ThemeToggle() {
   const dark = preference === "dark" || (preference === "system" && systemDark);
   const label = `Switch to ${dark ? "light" : "dark"} mode`;
 
-  return <button type="button" className="theme-control theme-toggle"
-    aria-label={label} title={label}
-    onClick={() => changePreference(dark ? "light" : "dark")}>
-    <Sun className="theme-sun" size={18} strokeWidth={1.75} aria-hidden="true" />
-    <Moon className="theme-moon" size={18} strokeWidth={1.75} aria-hidden="true" />
-  </button>;
+  return (
+    <button
+      type="button"
+      className="theme-control theme-toggle"
+      aria-label={label}
+      title={label}
+      onClick={() => changePreference(dark ? "light" : "dark")}
+    >
+      <Sun className="theme-sun" size={18} strokeWidth={1.75} aria-hidden="true" />
+      <Moon className="theme-moon" size={18} strokeWidth={1.75} aria-hidden="true" />
+    </button>
+  );
 }
