@@ -214,3 +214,16 @@ test("analysis exports allowlist nested fields and JSON preserves untrusted text
   assert.equal(unknown.summary.discussion_analysis.coverage, null);
   assert.ok(validateStory(unknown), JSON.stringify(validateStory.errors));
 });
+
+test("detail declares bounded shared caching for success and safe negatives", async () => {
+  const api = storiesHandlers({ getStory: async (id) => (id === "123" ? story : null) });
+  assert.equal(
+    (await api.detail("123")).headers.get("cache-control"),
+    "public, max-age=0, s-maxage=300",
+  );
+  assert.equal(
+    (await api.detail("124")).headers.get("cache-control"),
+    "public, max-age=0, s-maxage=60",
+  );
+  assert.equal((await api.detail("invalid")).headers.get("cache-control"), "no-store");
+});

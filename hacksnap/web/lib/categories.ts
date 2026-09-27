@@ -1,3 +1,5 @@
+import { assertBrowsePage } from "./archive";
+
 export const CATEGORIES = [
   {
     id: "models_products",
@@ -67,6 +69,7 @@ export const categoryCountsSQL = `SELECT category, count(*)::int AS count FROM h
     AND hn_id BETWEEN 1 AND 999999999999999 GROUP BY category`;
 
 export function categoryQuery(fields: string, category: CategoryId, page: number) {
+  assertBrowsePage(page);
   return {
     text: `SELECT ${fields} FROM hacker_news_threads t
     LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id

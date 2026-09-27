@@ -276,7 +276,11 @@ resources do not need database access.
 
 `GET /api/stories` returns the current ranked stories and ingestion timestamp,
 using the homepage's shared 30-minute data cache. `GET /api/stories/{id}` returns
-one story, including archived stories. Both are public and read-only, exposing
+one story, including archived stories, using a minimal primary-key query with a
+five-minute bounded per-instance cache (one minute for missing stories). Successful
+responses also permit five minutes of shared HTTP caching; safe 404s permit one
+minute. See `web/README.md` for freshness bounds and per-instance admission limits.
+Both are public and read-only, exposing
 an explicit set of story fields and summary text. Invalid IDs return 400,
 unknown stories return 404, and data failures return a sanitized 503 with
 `Retry-After: 60`. See `/docs/api` for the response contract and polling guidance.
