@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import { briefExcerpt } from "./brief";
 
 export const ogImageSize = { width: 1200, height: 630 };
 
@@ -22,13 +23,25 @@ function loadAssets() {
 export async function ogImage({
   title = "AI on Hacker News",
   source,
-}: { title?: string; source?: string } = {}) {
+  takeaway,
+}: { title?: string; source?: string; takeaway?: string | null } = {}) {
   const [heading, body, grain] = await loadAssets();
   const cleanTitle = title.replace(/\s+/g, " ").trim() || "AI on Hacker News";
   const characters = Array.from(cleanTitle);
   const headline =
     characters.length > 180 ? characters.slice(0, 177).join("").trimEnd() + "…" : cleanTitle;
-  const fontSize = headline.length > 120 ? 54 : headline.length > 75 ? 64 : 80;
+  const snippet = briefExcerpt(takeaway);
+  const fontSize = snippet
+    ? headline.length > 120
+      ? 44
+      : headline.length > 75
+        ? 54
+        : 68
+    : headline.length > 120
+      ? 54
+      : headline.length > 75
+        ? 64
+        : 80;
 
   return new ImageResponse(
     <div
@@ -127,10 +140,29 @@ export async function ogImage({
           >
             {headline}
           </div>
-          {!source && (
-            <div style={{ display: "flex", fontSize: 28, color: "#9a9fa0", marginTop: 22 }}>
-              The articles and the arguments worth reading.
+          {snippet ? (
+            <div
+              style={{
+                display: "block",
+                flexShrink: 0,
+                fontSize: 26,
+                lineHeight: 1.25,
+                color: "#9a9fa0",
+                marginTop: 22,
+                wordBreak: "break-word",
+                lineClamp: 3,
+                overflow: "hidden",
+                maxHeight: 26 * 1.25 * 3,
+              }}
+            >
+              {snippet}
             </div>
+          ) : (
+            !source && (
+              <div style={{ display: "flex", fontSize: 28, color: "#9a9fa0", marginTop: 22 }}>
+                The articles and the arguments worth reading.
+              </div>
+            )
           )}
         </div>
         <div
