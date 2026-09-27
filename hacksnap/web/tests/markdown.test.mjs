@@ -99,14 +99,33 @@ test("pending and unavailable sources remain explicit; unsafe article URLs are o
 
 test("leaderboard preserves order, links, freshness and empty states", () => {
   const body = leaderboardMarkdown({
-    stories: [story, { ...story, hn_id: "124", rank: "2", summary: null }],
+    stories: [story, { ...story, hn_id: "124", rank: "2" }],
     ingestion: new Date(0),
   });
   assert.ok(body.indexOf("/story/123") < body.indexOf("/story/124"));
   assert.match(body, /Updates are delayed/);
-  assert.match(body, /Summary pending/);
+  assert.match(body, /Top stories \(2\)/);
   assert.match(body, /The takeaway/);
   assert.match(leaderboardMarkdown({ stories: [], ingestion: null }), /No stories yet/);
+});
+
+test("Markdown homepage excludes pending and blank takeaways from entries and counts", () => {
+  const pending = [
+    { ...story, hn_id: "124", summary: null },
+    { ...story, hn_id: "125", summary: { ...story.summary, overall_takeaway: "" } },
+    { ...story, hn_id: "126", summary: { ...story.summary, overall_takeaway: " \n\t " } },
+  ];
+  const body = leaderboardMarkdown({
+    stories: [pending[0], story, ...pending.slice(1)],
+    ingestion: null,
+  });
+  assert.match(body, /Top stories \(1\)/);
+  assert.match(body, /\/story\/123/);
+  assert.doesNotMatch(body, /\/story\/(124|125|126)|Summary pending/);
+  const empty = leaderboardMarkdown({ stories: pending, ingestion: null });
+  assert.match(empty, /Top stories \(0\)/);
+  assert.match(empty, /No stories yet/);
+  assert.doesNotMatch(empty, /###|Summary pending/);
 });
 
 test("Markdown responses identify their representation and vary on Accept", async () => {
