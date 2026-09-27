@@ -2,10 +2,16 @@ name: Hacksnap
 
 on:
   pull_request:
-    paths: ["hacksnap/**", "data/**", ".github/workflows/hacksnap.yml"]
+    paths:
+      - "hacksnap/**"
+      - "!hacksnap/web/**"
+      - ".github/workflows/hacksnap.yml"
   push:
     branches: [main]
-    paths: ["hacksnap/**", "data/**", ".github/workflows/hacksnap.yml"]
+    paths:
+      - "hacksnap/**"
+      - "!hacksnap/web/**"
+      - ".github/workflows/hacksnap.yml"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +19,15 @@ permissions:
 
 jobs:
   test:
+    name: Worker / ${{ matrix.check }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [lint, tests]
+    defaults:
+      run:
+        working-directory: hacksnap
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
         with:
@@ -21,47 +35,29 @@ jobs:
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: hacksnap/web/package-lock.json
-      - name: Worker tests and lint
-        working-directory: hacksnap
+      - run: uv sync --locked
+      - name: Worker lint
+        if: matrix.check == 'lint'
+        run: uv run ruff check pipeline tests modal_app.py
+      - name: Worker tests and import smoke check
+        if: matrix.check == 'tests'
         run: |
-          uv sync --locked
-          uv run ruff check pipeline tests modal_app.py
           uv run pytest
           uv run python -c 'import modal_app'
-      - name: Ingestion unit tests
-        working-directory: data
-        run: |
-          uv sync --locked
-          uv run pytest
-      - name: Install frontend dependencies
-        working-directory: hacksnap/web
-        run: npm ci
-      - name: Frontend lint (Oxlint)
-        working-directory: hacksnap/web
-        run: npm run lint
-      - name: Frontend formatting (Oxfmt)
-        working-directory: hacksnap/web
-        run: npm run format:check
-      - name: Frontend unit and component tests (Jest)
-        working-directory: hacksnap/web
-        run: npm run test:ci
-      - name: Frontend typecheck and production build
-        working-directory: hacksnap/web
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
-        run: |
-          npm run typecheck
-          npm run build
+
+  # Manual production deployment retains all of the original validation gates.
+  ingestion:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/ingestion.yml
+
+  frontend:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/frontend.yml
 
   deploy:
     # Production changes require an explicit manual workflow run.
     if: github.event_name == 'workflow_dispatch'
-    needs: test
+    needs: [test, ingestion, frontend]
     runs-on: ubuntu-latest
     environment: hacksnap-production
     concurrency:
