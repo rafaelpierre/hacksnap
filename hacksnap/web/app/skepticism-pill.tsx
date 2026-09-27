@@ -10,13 +10,13 @@ export function SkepticismPill({ story }: { story: Story }) {
     label === "No comments"
       ? "No usable comments were available to estimate skepticism."
       : label === "Pending"
-        ? "Skepticism is unavailable until the comments are analyzed."
+        ? "No skepticism estimate is available for this summary."
         : `${label} skepticism in a sample of thread comments. Mixed, neutral and positive reactions are grouped as Low.`;
   const display =
     label === "No comments"
       ? "No comment evidence"
       : label === "Pending"
-        ? "Skepticism pending"
+        ? "Skepticism unavailable"
         : `${label} skepticism`;
   return (
     <span

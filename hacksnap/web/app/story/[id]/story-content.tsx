@@ -3,6 +3,7 @@ import { StoryVisit } from "../../journey-analytics";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById, categoryURL } from "../../../lib/categories";
 import { articleURL, domain } from "../../../lib/format";
+import { DiscussionAnalysis } from "../../discussion-analysis";
 import { SkepticismPill } from "../../skepticism-pill";
 import { ShareLinks } from "../../share-links";
 import { briefExcerpt } from "../../../lib/brief";
@@ -116,12 +117,29 @@ export function StoryContent({
               </p>
             )}
           </section>
-          <section className="discussion-section" aria-labelledby="discussion-heading">
+          <section
+            id="discussion-analysis"
+            className="discussion-section"
+            aria-labelledby="discussion-heading"
+          >
             <div className="discussion-heading">
               <h2 id="discussion-heading">Discussion</h2>
-              <SkepticismPill story={story} />
+              {!summary.discussion_analysis && <SkepticismPill story={story} />}
             </div>
-            {hasDiscussion ? (
+            {summary.discussion_analysis ? (
+              <>
+                {summary.discussion_summary.trim() &&
+                  summary.discussion_analysis.status !== "no_comments" && (
+                    <p>{summary.discussion_summary}</p>
+                  )}
+                <DiscussionAnalysis
+                  analysis={summary.discussion_analysis}
+                  coverage={summary.discussion_analysis_coverage}
+                  analyzedAt={summary.discussion_analyzed_at}
+                  hnURL={hnURL}
+                />
+              </>
+            ) : hasDiscussion ? (
               <>
                 <p>{summary.discussion_summary}</p>
                 <div className="discussion-points">
