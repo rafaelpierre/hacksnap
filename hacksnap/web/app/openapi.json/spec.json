@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Hacksnap Stories API",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Public read-only stories and AI-generated summaries. No authentication required."
   },
   "servers": [
@@ -182,6 +182,17 @@
               },
               "overall_takeaway": {
                 "type": "string"
+              },
+              "discussion_analysis": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DiscussionAnalysis"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Included on GET /api/stories/{id}; omitted from list responses. Null means unavailable, including legacy stories. No backfill is promised."
               }
             }
           },
@@ -206,6 +217,200 @@
         "properties": {
           "error": {
             "type": "string"
+          }
+        }
+      },
+      "DiscussionAnalysis": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "analyzed_at",
+          "coverage",
+          "reference_claims",
+          "critical_comments",
+          "supportive_comments",
+          "topics"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["available", "no_comments", "insufficient_context"]
+          },
+          "analyzed_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Analysis time, independent of article summary generation; null when unknown."
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscussionCoverage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reference_claims": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceClaim"
+            }
+          },
+          "critical_comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CriticalComment"
+            }
+          },
+          "supportive_comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportiveComment"
+            }
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscussionTopic"
+            }
+          }
+        },
+        "description": "AI-generated analysis of a sample. Highlights are paraphrases with explicit stance toward a reference claim, not a vote or a measure of community opinion. no_comments means no usable comments; all evidence lists are empty. insufficient_context means no source claim could be assessed; topics may still be present, claims and stance highlights are empty."
+      },
+      "DiscussionCoverage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stored_comments",
+          "included_comments",
+          "comments_truncated",
+          "selection_method"
+        ],
+        "properties": {
+          "stored_comments": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "included_comments": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "comments_truncated": {
+            "type": "boolean"
+          },
+          "selection_method": {
+            "type": "string",
+            "enum": ["active_branches_with_ancestors_v1"]
+          }
+        },
+        "description": "Usable stored comments and the subset analyzed, selecting active branches with available ancestors. The sample may omit parts of the thread; truncation reports the analysis input limit. Null coverage means unknown."
+      },
+      "ReferenceClaim": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "text", "source"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["article", "story_text"]
+          }
+        }
+      },
+      "CriticalComment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["comment_id", "claim_id", "stance", "paraphrase", "explanation"],
+        "properties": {
+          "comment_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 999999999999999,
+            "description": "HN source comment ID; link to https://news.ycombinator.com/item?id={comment_id}."
+          },
+          "claim_id": {
+            "type": "string",
+            "description": "Matches reference_claims[].id; stance addresses that original claim."
+          },
+          "stance": {
+            "type": "string",
+            "enum": ["disagrees", "qualified_disagreement"]
+          },
+          "paraphrase": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          }
+        }
+      },
+      "SupportiveComment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["comment_id", "claim_id", "stance", "paraphrase", "explanation"],
+        "properties": {
+          "comment_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 999999999999999,
+            "description": "HN source comment ID; link to https://news.ycombinator.com/item?id={comment_id}."
+          },
+          "claim_id": {
+            "type": "string",
+            "description": "Matches reference_claims[].id; stance addresses that original claim."
+          },
+          "stance": {
+            "type": "string",
+            "enum": ["agrees", "qualified_agreement"]
+          },
+          "paraphrase": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          }
+        }
+      },
+      "DiscussionTopic": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "title", "summary", "comment_ids"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "applicability",
+              "evidence",
+              "technical_limitations",
+              "cost",
+              "ethics",
+              "privacy_security",
+              "social_impact",
+              "alternatives",
+              "other"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "comment_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999,
+              "description": "HN source comment ID; link to https://news.ycombinator.com/item?id={comment_id}."
+            }
           }
         }
       }

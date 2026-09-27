@@ -1,4 +1,5 @@
 import type { Story } from "./data";
+import type { DiscussionFields } from "./discussion-analysis";
 import { hasReadySummary } from "./ready-stories.ts";
 import { storyIndicators } from "./story-indicators.ts";
 import { storyMetricsText } from "./story-metrics.ts";
@@ -51,6 +52,82 @@ function original(story: Story): string | null {
   }
 }
 
+function discussionMarkdown(summary: DiscussionFields): string[] {
+  const analysis = summary.discussion_analysis;
+  if (!analysis) return [];
+  const coverage = summary.discussion_analysis_coverage;
+  const lines = [
+    "### Discussion analysis",
+    summary.discussion_analyzed_at
+      ? `Analyzed: ${text(summary.discussion_analyzed_at)}`
+      : "Analysis time unavailable.",
+    coverage
+      ? `Based on ${coverage.included_comments} of ${coverage.stored_comments} usable stored comments. Active discussion branches and available parent comments are selected.${coverage.comments_truncated ? " The analysis input was further shortened to fit its context limit." : ""}`
+      : "Analyzed-comment count unavailable.",
+    "This sample may omit parts of the full thread. Selected examples and themes do not measure community opinion or how common a view is.",
+  ];
+  if (analysis.status === "no_comments") {
+    lines.push(
+      "No usable comments were available for this analysis. Themes and stance examples could not be selected.",
+    );
+    return lines;
+  }
+  for (const topic of analysis.topics) {
+    lines.push(`#### ${text(topic.title)}`, text(topic.summary));
+    if (topic.comment_ids.length)
+      lines.push(
+        "Sources: " +
+          topic.comment_ids
+            .map((id) => link(`Comment ${id}`, `https://news.ycombinator.com/item?id=${id}`))
+            .join(" · "),
+      );
+  }
+  if (analysis.status === "insufficient_context") {
+    lines.push(
+      "The original source was unavailable or did not contain a clear claim to assess. Critical and supportive examples could not be identified against a source claim.",
+    );
+    return lines;
+  }
+  lines.push(
+    "Examples are selected for explicit stance and explanation; their inclusion does not establish that an argument is correct. Comment text below is paraphrased.",
+  );
+  const stanceLabels = {
+    disagrees: "Disagrees",
+    qualified_disagreement: "Disagrees with qualifications",
+    agrees: "Agrees",
+    qualified_agreement: "Agrees with reservations",
+  };
+  for (const [kind, highlights] of [
+    ["critical", analysis.critical_comments],
+    ["supportive", analysis.supportive_comments],
+  ] as const) {
+    lines.push(`### Most ${kind}`);
+    if (!highlights.length)
+      lines.push(
+        `No clear ${kind} examples in the analyzed comments. Other views may exist elsewhere in the thread.`,
+      );
+    for (const highlight of highlights) {
+      lines.push(
+        `#### ${stanceLabels[highlight.stance]}`,
+        text(highlight.paraphrase),
+        text(highlight.explanation),
+      );
+      const claim = analysis.reference_claims.find((claim) => claim.id === highlight.claim_id);
+      if (claim)
+        lines.push(
+          `Claim addressed (${claim.source === "article" ? "article" : "HN post"}): ${text(claim.text)}`,
+        );
+      lines.push(
+        link(
+          `Comment ${highlight.comment_id}`,
+          `https://news.ycombinator.com/item?id=${highlight.comment_id}`,
+        ),
+      );
+    }
+  }
+  return lines;
+}
+
 export function storyMarkdown(story: Story): string {
   const article = original(story);
   const summary = story.summary;
@@ -91,7 +168,8 @@ export function storyMarkdown(story: Story): string {
   if (summary.article_summary && summary.article_key_points.length)
     lines.push(summary.article_key_points.map((p) => `- ${text(p)}`).join("\n"));
   lines.push("## In the discussion", text(summary.discussion_summary));
-  for (const point of summary.discussion_points) {
+  if (summary.discussion_analysis) lines.push(...discussionMarkdown(summary));
+  for (const point of summary.discussion_analysis ? [] : summary.discussion_points) {
     lines.push(`### ${text(point.title)}`, text(point.summary));
     if (point.comment_ids.length)
       lines.push(
