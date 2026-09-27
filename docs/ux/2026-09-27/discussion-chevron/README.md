@@ -19,3 +19,12 @@ prominent, and aria-hidden avoids repeating the label for screen readers. Icons
 are decorative, with no voting or button affordance. Checked both themes at desktop
 and 320px, including 200% text and wrapped headings without horizontal overflow.
 The thumbs screenshots use the shared reply-to-a-critic fixture with both groups.
+
+## Coverage timestamp typography
+
+The coverage timestamp inherits Source Sans 3 from its surrounding sentence,
+removing the global monospace style within `.analysis-coverage`.
+Verified matching computed font families and wrapping at desktop and 320px in
+light and dark themes with 200% text. The isolated component preview uses the
+bundled Source Sans 3 font; mobile has no horizontal overflow.
+Screenshots: `metadata-desktop.png` (light) and `metadata-mobile.png` (dark).

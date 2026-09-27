@@ -2195,6 +2195,9 @@ footer > span {
   font-size: var(--text-label);
   color: var(--muted);
 }
+.analysis-coverage time {
+  font-family: inherit;
+}
 .analysis-themes {
   margin-block: var(--space-8);
 }
