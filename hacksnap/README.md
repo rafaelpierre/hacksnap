@@ -138,6 +138,11 @@ Both completed normally and passed schema and source-ID validation. This was one
 small request per model, not a quality or latency benchmark on production stories.
 The endpoint and model are configuration, not dependencies of the pipeline.
 
+Initial summaries now require cited discussion analysis with prompt
+`v5-initial-discussion-analysis`. The smoke test above predates this change.
+See [initial analysis validation and measurement status](../docs/evaluations/issue-36-initial-analysis.md)
+for the response budget, local checks, and metrics to collect during normal processing.
+
 The API key is a Modal proxy token ID and secret joined with a period, as described
 in the [Modal endpoint docs](https://modal.com/docs/guide/endpoints). Keep it in
 Modal's `hacksnap` Secret for the scheduled worker, or a local environment file for local runs. Do not commit it. An existing endpoint

@@ -2,7 +2,7 @@
 
 Issue: https://github.com/rafaelpierre/hacksnap/issues/34
 
-These shared JSON files can be loaded by Python or web tests without a database or inference service. The inference contract is standalone: `StorySummary`, production prompts, and scheduled refresh behavior are unchanged. Storage support is opt-in; there is no backfill.
+These shared JSON files can be loaded by Python or web tests without a database or inference service. Initial generation requires this analysis in `StorySummary` and saves it with application-owned metadata. Existing summaries retain their sentiment-only path; there is no backfill.
 
 - `valid.json`: source inputs, expected analysis, and semantic expectations for each scenario.
 - `invalid.json`: complete invalid outputs or source mismatches, with expected validation errors.

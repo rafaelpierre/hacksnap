@@ -9,7 +9,12 @@ import httpx
 
 from .config import Settings
 from .kestrel import FetchError, KestrelFetcher, external_article_url
-from .models import CommentSentiment, StorySummary
+from .models import (
+    DISCUSSION_ANALYSIS_SCHEMA_VERSION,
+    CommentSentiment,
+    DiscussionAnalysisMetadata,
+    StorySummary,
+)
 from .preprocess import plain_text, prepare_comments, sample_sentiment_comments, source_fingerprint
 from .prompts import PROMPT_VERSION
 from .summarise import ModalSummarizer, Summarizer
@@ -115,8 +120,38 @@ def process_story(
         stage = "infer"
         summary = summarizer.summarize(source)
         stage = "validate"
-        summary = StorySummary.model_validate(summary)
-        summary.validate_sources(article, comments)
+        # Round-trip also revalidates nested models returned by custom summarizers.
+        summary = StorySummary.model_validate_json(summary.model_dump_json())
+        summary.validate_sources(article, comments, source["story_text"])
+        source_version = source_fingerprint(
+            {"article": article, "story_text": source["story_text"]}, "", ""
+        )
+        metadata = DiscussionAnalysisMetadata(
+            schema_version=DISCUSSION_ANALYSIS_SCHEMA_VERSION,
+            prompt_version=prompt_version,
+            model=summarizer.model,
+            source_version=source_version,
+            input_fingerprint=source_fingerprint(
+                {
+                    "source": source,
+                    "source_version": source_version,
+                    "reference_claims": [
+                        claim.model_dump() for claim in summary.discussion_analysis.reference_claims
+                    ],
+                    "schema_version": DISCUSSION_ANALYSIS_SCHEMA_VERSION,
+                },
+                summarizer.model,
+                prompt_version,
+            ),
+            analyzed_at=datetime.now(UTC),
+            coverage={
+                **{key: coverage[key] for key in (
+                    "stored_comments", "included_comments", "comments_truncated"
+                )},
+                "selection_method": "active_branches_with_ancestors_v1",
+            },
+        )
+        metadata.validate_analysis(summary.discussion_analysis, comments)
         stage = "persist"
         coverage["sentiment"] = sentiment_metadata
         repository.save_summary(
@@ -128,6 +163,8 @@ def process_story(
             prompt_version,
             coverage,
             story.get("content_hash"),
+            discussion_analysis=summary.discussion_analysis,
+            discussion_analysis_metadata=metadata,
         )
         log_event(story, stage, "generated")
         return "generated"

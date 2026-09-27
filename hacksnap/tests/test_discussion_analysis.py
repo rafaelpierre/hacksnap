@@ -148,5 +148,5 @@ def test_schema_artifacts_match_models_and_all_object_fields_are_required():
                 assert set(definition["required"]) == set(definition["properties"])
 
 
-def test_existing_summary_contract_is_unchanged():
-    assert "discussion_analysis" not in StorySummary.model_fields
+def test_initial_summary_requires_analysis():
+    assert StorySummary.model_fields["discussion_analysis"].is_required()

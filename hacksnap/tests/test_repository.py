@@ -41,6 +41,7 @@ def save(repo, analysis=None, metadata=None):
             article_summary="Article", article_key_points=["Claim"],
             discussion_summary="Discussion", discussion_points=[], sentiment=0,
             overall_takeaway="Takeaway",
+            discussion_analysis=analysis or pair()[0],
         ), "c" * 64, "test", "v1", {"included_comments": 1},
         discussion_analysis=analysis, discussion_analysis_metadata=metadata,
     )
