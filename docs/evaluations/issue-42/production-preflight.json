@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-09-27T12:16:11.157484+00:00",
+  "mode": "read-only; no source-content reads",
+  "migration_versions": [
+    "0011_categories"
+  ],
+  "analysis_columns": [
+    "discussion_points",
+    "discussion_summary"
+  ],
+  "latest_summaries": [
+    {
+      "story_id": 49856149,
+      "generated_at": "2026-09-27T12:01:29.227444+00:00"
+    },
+    {
+      "story_id": 49839567,
+      "generated_at": "2026-09-27T12:01:17.253609+00:00"
+    },
+    {
+      "story_id": 49853137,
+      "generated_at": "2026-09-27T12:01:07.229174+00:00"
+    },
+    {
+      "story_id": 49863864,
+      "generated_at": "2026-09-27T12:00:48.168211+00:00"
+    },
+    {
+      "story_id": 49857528,
+      "generated_at": "2026-09-27T08:00:59.157843+00:00"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "checked_at": "2026-09-27T12:18:22.533518+00:00",
+  "migration_versions": [
+    "0013_discussion_retention"
+  ],
+  "analysis_columns": [
+    "discussion_analyzed_at",
+    "discussion_analysis_coverage",
+    "discussion_analysis_metadata",
+    "discussion_analysis",
+    "discussion_points",
+    "discussion_summary",
+    "discussion_content_hash"
+  ],
+  "summary_counts": {
+    "total": 105,
+    "with_analysis": 0
+  },
+  "reader_grants": {
+    "discussion_analysis": true,
+    "discussion_analysis_coverage": true,
+    "discussion_analyzed_at": true,
+    "discussion_analysis_metadata": false,
+    "discussion_content_hash": false
+  }
+}
