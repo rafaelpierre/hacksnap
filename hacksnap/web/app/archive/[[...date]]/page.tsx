@@ -1,3 +1,4 @@
+import { withDataFallback } from "../../with-data-fallback";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -31,7 +32,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   };
 }
 
-export default async function Archive(props: Props) {
+async function Archive(props: Props) {
   const { month, page } = await selection(props);
   const months = await getArchiveMonths();
   if (month && !months.some((item) => item.month === month)) notFound();
@@ -138,3 +139,5 @@ export default async function Archive(props: Props) {
     </BrowseLayout>
   );
 }
+
+export default withDataFallback(Archive);

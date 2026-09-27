@@ -1,4 +1,5 @@
 import "server-only";
+import { DataUnavailableError } from "./data-availability";
 import { ARCHIVE_PAGE_SIZE, archiveMonthsSQL, archiveQuery } from "./archive";
 import path from "node:path";
 import { cache } from "react";
@@ -16,7 +17,13 @@ import {
 } from "./categories";
 
 import type { DiscussionFields } from "./discussion-analysis";
-import { feedFields, storyFields } from "./story-projection";
+import {
+  feedFields,
+  storyFields,
+  legacyFeedFields,
+  legacyStoryFields,
+  discussionColumnsSQL,
+} from "./story-projection";
 export type {
   DiscussionAnalysis,
   DiscussionAnalysisPreview,
@@ -100,19 +107,58 @@ function pool(): Pool {
 }
 
 async function read<T>(query: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool().connect();
+  let client: PoolClient | undefined;
   try {
+    client = await pool().connect();
     // Transaction pooling does not preserve session-level settings.
     await client.query("BEGIN READ ONLY; SET LOCAL statement_timeout = '10s'");
     const result = await query(client);
     await client.query("COMMIT");
     return result;
-  } catch {
-    await client.query("ROLLBACK");
-    throw new Error("Hacksnap data is temporarily unavailable");
+  } catch (error) {
+    // SQLSTATE is useful operationally; messages can contain private query data.
+    const code = (error as { code?: unknown } | null)?.code;
+    console.error("Hacksnap database read failed", {
+      code: typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) ? code : "unknown",
+    });
+    if (client) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // Evict a broken connection without replacing the sanitized read error.
+        client.release(true);
+        client = undefined;
+      }
+    }
+    throw new DataUnavailableError();
   } finally {
-    client.release();
+    client?.release();
   }
+}
+
+// Check per transaction so applying the migration enables analysis without a restart.
+function readStories<T>(
+  kind: "feed" | "story",
+  query: (client: PoolClient, fields: string) => Promise<T>,
+): Promise<T> {
+  return read(async (client) => {
+    const { rows } = await client.query<{ available: boolean }>(discussionColumnsSQL);
+    const available = rows[0].available;
+    if (!available) {
+      console.warn(
+        "Hacksnap discussion analysis unavailable: apply migration 0012 and its reader grants",
+      );
+    }
+    const fields =
+      kind === "feed"
+        ? available
+          ? feedFields
+          : legacyFeedFields
+        : available
+          ? storyFields
+          : legacyStoryFields;
+    return query(client, fields);
+  });
 }
 
 // Cache JSON-safe values: Next's persistent data cache does not preserve Dates.
@@ -125,7 +171,7 @@ type CachedLeaderboard = {
 // Invalidate legacy payloads when adding compact discussion previews.
 const cachedLeaderboard = unstable_cache(
   async (): Promise<CachedLeaderboard> => {
-    return read(async (client) => {
+    return readStories("feed", async (client, fields) => {
       const result = await client.query<{
         stories: CachedLeaderboard["stories"];
         ingestion: Date | null;
@@ -133,7 +179,7 @@ const cachedLeaderboard = unstable_cache(
       }>(`
       SELECT COALESCE((
         SELECT json_agg(story ORDER BY story.rank) FROM (
-          SELECT ${feedFields}, t.rank, t.is_recent, ${rankHistorySQL} AS rank_history
+          SELECT ${fields}, t.rank, t.is_recent, ${rankHistorySQL} AS rank_history
           FROM hacksnap_current_stories t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
         ) story
       ), '[]'::json) AS stories, (
@@ -188,9 +234,9 @@ export async function getSitemapStories(): Promise<{ hn_id: string; modified_at:
 }
 
 export async function getFeedStories(): Promise<Story[]> {
-  return read(async (client) => {
+  return readStories("feed", async (client, fields) => {
     const result =
-      await client.query<Story>(`SELECT ${feedFields}, r.rank, ${rankHistorySQL} AS rank_history,
+      await client.query<Story>(`SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
@@ -204,9 +250,9 @@ export async function getFeedStories(): Promise<Story[]> {
 export const getStory = cache(async (id: string): Promise<Story | null> => {
   // Bound the route before handing a bigint to PostgreSQL.
   if (!/^[1-9][0-9]{0,14}$/.test(id)) return null;
-  return read(async (client) => {
+  return readStories("story", async (client, fields) => {
     const result = await client.query<Story>(
-      `SELECT ${storyFields}, r.rank, ${rankHistorySQL} AS rank_history,
+      `SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
       ${storyMetricsSQL} AS ranking_metrics,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
@@ -232,8 +278,8 @@ export const getCategoryCounts = cache(async (): Promise<CategoryCounts> =>
 );
 
 export const getCategoryStories = cache(async (category: CategoryId, page: number) =>
-  read(async (client) => {
-    const { rows } = await client.query<Story>(categoryQuery(feedFields, category, page));
+  readStories("feed", async (client, fields) => {
+    const { rows } = await client.query<Story>(categoryQuery(fields, category, page));
     return {
       stories: rows.slice(0, CATEGORY_PAGE_SIZE),
       hasNext: rows.length > CATEGORY_PAGE_SIZE,
@@ -254,8 +300,8 @@ export const getRelatedStories = cache(
 );
 
 export const getArchiveStories = cache(async (month: string | null, page: number) =>
-  read(async (client) => {
-    const result = await client.query<Story>(archiveQuery(feedFields, month, page));
+  readStories("feed", async (client, fields) => {
+    const result = await client.query<Story>(archiveQuery(fields, month, page));
     return {
       stories: result.rows.slice(0, ARCHIVE_PAGE_SIZE),
       hasNext: result.rows.length > ARCHIVE_PAGE_SIZE,

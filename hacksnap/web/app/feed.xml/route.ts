@@ -1,10 +1,13 @@
+import { availableData, unavailableResponse } from "../../lib/data-availability";
 import { getFeedStories } from "../../lib/data";
 import { renderRSS } from "../../lib/rss";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return new Response(renderRSS(await getFeedStories()), {
+  const result = await availableData(getFeedStories);
+  if (!result.available) return unavailableResponse();
+  return new Response(renderRSS(result.value), {
     headers: {
       "Content-Type": "application/rss+xml; charset=utf-8",
       "Cache-Control": "no-store",
