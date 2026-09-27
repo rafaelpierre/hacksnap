@@ -53,6 +53,12 @@ def story(story_id=100):
 
 def output(article=True):
     return {
+        "discussion_analysis": {
+            "status": "available" if article else "insufficient_context",
+            "reference_claims": ([{"id": "cost", "text": "Batching reduces costs.",
+                                   "source": "article"}] if article else []),
+            "critical_comments": [], "supportive_comments": [], "topics": [],
+        },
         "article_summary": "The article reports lower inference costs." if article else None,
         "article_key_points": ["Batching reduces the cost per token."] if article else [],
         "discussion_summary": "Commenters disagree about the cost of inference.",
@@ -99,7 +105,7 @@ class FakeRepository:
         self.saved[story_id]["sentiment"] = sentiment
         self.saved[story_id]["source_coverage"]["sentiment"] = metadata
 
-    def save_summary(self, story_id, article_url, summary, fingerprint, model, version, coverage, content_hash=None):
+    def save_summary(self, story_id, article_url, summary, fingerprint, model, version, coverage, content_hash=None, **analysis):
         self.saved[story_id] = {
             "source_fingerprint": fingerprint,
             "summarized_content_hash": content_hash,
@@ -107,6 +113,7 @@ class FakeRepository:
             "sentiment": summary.sentiment,
             "source_coverage": copy.deepcopy(coverage),
             "coverage": coverage,
+            **analysis,
         }
 
 
@@ -533,7 +540,9 @@ def test_sentiment_rejects_invalid_scores(sentiment):
 def test_sentiment_requires_comments_and_cannot_be_omitted():
     with pytest.raises(ValueError):
         StorySummary.model_validate({k: v for k, v in output().items() if k != "sentiment"})
-    result = StorySummary.model_validate({**output(), "sentiment": None, "discussion_points": []})
+    data = {**output(), "sentiment": None, "discussion_points": []}
+    data["discussion_analysis"]["status"] = "no_comments"
+    result = StorySummary.model_validate(data)
     result.validate_sources("article", [])
     with pytest.raises(ValueError, match="omits discussion sentiment"):
         result.validate_sources("article", [{"id": 1}])

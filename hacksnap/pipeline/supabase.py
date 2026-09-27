@@ -157,7 +157,7 @@ class Repository:
         # tied to a potentially different article. Sentiment-only writes preserve it.
         record = {
             **_discussion_record(discussion_analysis, discussion_analysis_metadata),
-            **summary.model_dump(),
+            **summary.model_dump(exclude={"discussion_analysis"}),
             "story_id": story_id,
             "content_hash": content_hash,
             "article_url": article_url,

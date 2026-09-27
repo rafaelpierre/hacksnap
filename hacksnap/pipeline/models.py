@@ -163,6 +163,7 @@ class CommentSentiment(StrictModel):
 
 
 class StorySummary(StrictModel):
+    discussion_analysis: DiscussionAnalysis
     article_summary: Text | None
     article_key_points: list[Text] = Field(max_length=6)
     discussion_summary: Text
@@ -170,7 +171,9 @@ class StorySummary(StrictModel):
     sentiment: Annotated[int, Field(strict=True, ge=-1, le=1)] | None
     overall_takeaway: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=220)]
 
-    def validate_sources(self, article: str | None, comments: list[dict]) -> None:
+    def validate_sources(
+        self, article: str | None, comments: list[dict], story_text: str | None = None
+    ) -> None:
         if not comments and self.sentiment is not None:
             raise ValueError("Sentiment requires supplied comments")
         if comments and self.sentiment is None:
@@ -184,3 +187,4 @@ class StorySummary(StrictModel):
             raise ValueError("Summary omits the supplied article")
         if comments and not self.discussion_points:
             raise ValueError("Summary omits the supplied discussion")
+        self.discussion_analysis.validate_sources(article, story_text, comments)
