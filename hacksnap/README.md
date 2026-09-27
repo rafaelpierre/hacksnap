@@ -138,6 +138,11 @@ Both completed normally and passed schema and source-ID validation. This was one
 small request per model, not a quality or latency benchmark on production stories.
 The endpoint and model are configuration, not dependencies of the pipeline.
 
+Initial summaries now require cited discussion analysis with prompt
+`v5-initial-discussion-analysis`. The smoke test above predates this change.
+See [initial analysis validation and measurement status](../docs/evaluations/issue-36-initial-analysis.md)
+for the response budget, local checks, and metrics to collect during normal processing.
+
 The API key is a Modal proxy token ID and secret joined with a period, as described
 in the [Modal endpoint docs](https://modal.com/docs/guide/endpoints). Keep it in
 Modal's `hacksnap` Secret for the scheduled worker, or a local environment file for local runs. Do not commit it. An existing endpoint
@@ -345,15 +350,17 @@ From the repository root:
 uv run --directory hacksnap pytest
 uv run --directory hacksnap ruff check pipeline tests modal_app.py
 uv run --directory data pytest
-SUPABASE_PASSWORD=offline-test-only uv run --directory data alembic upgrade head --sql > /tmp/hacksnap-schema.sql
 cd hacksnap/web
-HACKSNAP_SCHEMA_SQL=/tmp/hacksnap-schema.sql npm run test:db
+npm ci
+npm run lint
+npm run format:check
+npm run test:ci
+npm run typecheck
 npm run build
 ```
 
-Database tests execute the actual Alembic SQL in embedded PostgreSQL (PGlite),
-covering recent preference, archive fallback, points ordering, empty runs,
-deduplicated membership, and RLS. They never touch production.
+Frontend tests use Jest for unit and component tests. Database and live HTTP
+integration tests and their synthetic database fixture have been removed.
 
 Optional Linux image smoke test (uses Modal compute, no production data or schedule):
 
@@ -362,21 +369,10 @@ cd hacksnap
 uv run modal run tests/modal_smoke.py
 ```
 
-For an isolated UI preview, export the migration SQL as above, then start these
-in separate terminals from `hacksnap/web`:
-
-```sh
-HACKSNAP_SCHEMA_SQL=/tmp/hacksnap-schema.sql node tests/preview-db.mjs
-HACKSNAP_WEB_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/postgres npm run dev
-```
-
-All preview titles are labeled `[Demo]`. The database is ephemeral and contains
-synthetic data only.
-
 ## GitHub Actions
 
-`hacksnap.yml` tests the worker, ingestion regressions, actual migration SQL, and
-production frontend build. Pull requests and pushes to `main` run validation only.
+`hacksnap.yml` runs worker and ingestion unit tests, frontend Jest tests,
+Oxlint, Oxfmt, TypeScript checks, and the production frontend build. Pull requests and pushes to `main` run validation only.
 Production jobs in both `hacksnap.yml` and `supabase-schema.yml` run only through
 GitHub Actions **Run workflow** (`workflow_dispatch`). Merging does not deploy the
 Modal worker or apply database migrations.

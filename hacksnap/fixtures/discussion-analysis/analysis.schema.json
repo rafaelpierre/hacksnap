@@ -1,0 +1,227 @@
+{
+  "$defs": {
+    "CriticalCommentHighlight": {
+      "additionalProperties": false,
+      "properties": {
+        "comment_id": {
+          "exclusiveMinimum": 0,
+          "title": "Comment Id",
+          "type": "integer"
+        },
+        "claim_id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "stance": {
+          "enum": [
+            "disagrees",
+            "qualified_disagreement"
+          ],
+          "title": "Stance",
+          "type": "string"
+        },
+        "paraphrase": {
+          "maxLength": 600,
+          "minLength": 1,
+          "title": "Paraphrase",
+          "type": "string"
+        },
+        "explanation": {
+          "maxLength": 600,
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "comment_id",
+        "claim_id",
+        "stance",
+        "paraphrase",
+        "explanation"
+      ],
+      "title": "CriticalCommentHighlight",
+      "type": "object"
+    },
+    "DiscussionTopic": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "enum": [
+            "applicability",
+            "evidence",
+            "technical_limitations",
+            "cost",
+            "ethics",
+            "privacy_security",
+            "social_impact",
+            "alternatives",
+            "other"
+          ],
+          "title": "Key",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 600,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "comment_ids": {
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 12,
+          "minItems": 1,
+          "title": "Comment Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "title",
+        "summary",
+        "comment_ids"
+      ],
+      "title": "DiscussionTopic",
+      "type": "object"
+    },
+    "ReferenceClaim": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 600,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "article",
+            "story_text"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "source"
+      ],
+      "title": "ReferenceClaim",
+      "type": "object"
+    },
+    "SupportiveCommentHighlight": {
+      "additionalProperties": false,
+      "properties": {
+        "comment_id": {
+          "exclusiveMinimum": 0,
+          "title": "Comment Id",
+          "type": "integer"
+        },
+        "claim_id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "stance": {
+          "enum": [
+            "agrees",
+            "qualified_agreement"
+          ],
+          "title": "Stance",
+          "type": "string"
+        },
+        "paraphrase": {
+          "maxLength": 600,
+          "minLength": 1,
+          "title": "Paraphrase",
+          "type": "string"
+        },
+        "explanation": {
+          "maxLength": 600,
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "comment_id",
+        "claim_id",
+        "stance",
+        "paraphrase",
+        "explanation"
+      ],
+      "title": "SupportiveCommentHighlight",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Standalone inference contract; source-dependent checks require validate_sources().",
+  "properties": {
+    "status": {
+      "enum": [
+        "available",
+        "no_comments",
+        "insufficient_context"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "reference_claims": {
+      "items": {
+        "$ref": "#/$defs/ReferenceClaim"
+      },
+      "maxItems": 6,
+      "title": "Reference Claims",
+      "type": "array"
+    },
+    "critical_comments": {
+      "items": {
+        "$ref": "#/$defs/CriticalCommentHighlight"
+      },
+      "maxItems": 3,
+      "title": "Critical Comments",
+      "type": "array"
+    },
+    "supportive_comments": {
+      "items": {
+        "$ref": "#/$defs/SupportiveCommentHighlight"
+      },
+      "maxItems": 3,
+      "title": "Supportive Comments",
+      "type": "array"
+    },
+    "topics": {
+      "items": {
+        "$ref": "#/$defs/DiscussionTopic"
+      },
+      "maxItems": 6,
+      "title": "Topics",
+      "type": "array"
+    }
+  },
+  "required": [
+    "status",
+    "reference_claims",
+    "critical_comments",
+    "supportive_comments",
+    "topics"
+  ],
+  "title": "DiscussionAnalysis",
+  "type": "object"
+}
