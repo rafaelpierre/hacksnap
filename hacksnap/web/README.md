@@ -294,7 +294,7 @@ topic key/title/summary and selected evidence counts. These counts describe the
 selected highlights, not the proportion of commenters who agree or disagree.
 Both projections include `discussion_analyzed_at` and the reader-safe
 `discussion_analysis_coverage` column. Worker metadata and raw comments remain
-private. Existing API and Markdown serializers retain their current fields.
+private. API and Markdown exports preserve their existing consumer fields.
 
 The new summary fields are optional in public TypeScript types for older fixtures
 and cached payloads. Missing or null analysis means unavailable; it does not
@@ -340,3 +340,21 @@ Legacy skepticism is never treated as explicit support.
 Run `npm test -- tests/discussion-analysis.test.tsx tests/story-content.test.tsx`.
 These tests use the shared `../fixtures/discussion-analysis/valid.json` contract
 fixtures and need no live analysis or database.
+
+## Discussion exports
+
+Story Markdown includes themes, source-comment links, paraphrased stance highlights,
+claim context, sample limitations, and independent analysis coverage/time. Missing
+analysis keeps legacy discussion points; explicit no-comments and insufficient-context
+results describe their limits. Nothing triggers a backfill or export regeneration.
+
+`GET /api/stories/{id}` adds optional, nullable `summary.discussion_analysis`.
+The object explicitly exports status, claims, highlights, cited themes, `analyzed_at`,
+and `coverage`. Nested fields are allowlisted, excluding worker metadata and raw
+source payloads. The list endpoint retains its compact summary; request a detail
+for evidence. OpenAPI 1.1.0, HTML docs, and negotiated Markdown docs describe the
+same additive contract. Clients should handle absent fields from older responses.
+
+Run `npm test -- tests/api.test.mjs tests/markdown.test.mjs` for shared analysis
+fixtures, schema validation, legacy/unavailable states, escaping, and private-field
+exclusion. Ajv validates API responses against the published OpenAPI schemas.

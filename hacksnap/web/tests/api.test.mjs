@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { expect, test } from "@jest/globals";
 import { readFileSync } from "node:fs";
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 import { storiesHandlers } from "../lib/stories-api.ts";
 import { GET, HEAD } from "../app/.well-known/api-catalog/route.ts";
 
@@ -57,7 +59,10 @@ test("list and detail expose only documented fields and preserve pending summari
   assert.equal(list.stories[0].category, "agents_coding");
   assert.equal(list.stories[0].category_model, undefined);
   assert.equal(list.stories[0].summary.model, undefined);
-  assert.deepEqual(await (await api.detail("123")).json(), list.stories[0]);
+  const detail = await (await api.detail("123")).json();
+  assert.equal(detail.summary.discussion_analysis, null);
+  delete detail.summary.discussion_analysis;
+  expect(detail).toEqual(list.stories[0]);
 });
 
 test("invalid IDs do not reach data access; missing stories return 404", async () => {
@@ -89,4 +94,123 @@ test("empty lists succeed and database failures return sanitized, uncacheable 50
     assert.equal(response.headers.get("cache-control"), "no-store");
     expect(await response.json()).toEqual({ error: "Stories are temporarily unavailable" });
   }
+});
+
+const analysisFixtures = JSON.parse(
+  readFileSync(new URL("../../fixtures/discussion-analysis/valid.json", import.meta.url)),
+);
+const spec = JSON.parse(readFileSync(new URL("../app/openapi.json/spec.json", import.meta.url)));
+const ajv = new Ajv2020({ strict: false, allErrors: true });
+addFormats(ajv);
+const validateStory = ajv.compile({
+  ...spec.components.schemas.Story,
+  components: spec.components,
+});
+const coverage = {
+  stored_comments: 12,
+  included_comments: 3,
+  comments_truncated: true,
+  selection_method: "active_branches_with_ancestors_v1",
+};
+
+test.each(analysisFixtures)(
+  "detail conforms to OpenAPI and preserves evidence: $id",
+  async ({ expected }) => {
+    const api = storiesHandlers({
+      getStory: async () => ({
+        ...story,
+        summary: {
+          ...story.summary,
+          discussion_analysis: expected,
+          discussion_analyzed_at: "2026-09-27T09:00:00Z",
+          discussion_analysis_coverage: coverage,
+        },
+      }),
+    });
+    const response = await (await api.detail("123")).json();
+    assert.ok(validateStory(response), JSON.stringify(validateStory.errors));
+    expect(response.summary.discussion_analysis).toEqual({
+      ...expected,
+      analyzed_at: "2026-09-27T09:00:00Z",
+      coverage,
+    });
+    assert.equal(response.summary.discussion_summary, story.summary.discussion_summary);
+    for (const highlight of [...expected.critical_comments, ...expected.supportive_comments]) {
+      assert.ok(
+        response.summary.discussion_analysis.reference_claims.some(
+          (claim) => claim.id === highlight.claim_id,
+        ),
+      );
+    }
+  },
+);
+
+test("null, absent, pending and compact list responses conform to OpenAPI", async () => {
+  const rows = [
+    story,
+    { ...story, summary: null },
+    { ...story, summary: { ...story.summary, discussion_analysis: null } },
+  ];
+  for (const row of rows) {
+    const api = storiesHandlers({
+      getStory: async () => row,
+      getLeaderboard: async () => ({ stories: [row], ingestion: null }),
+    });
+    const detail = await (await api.detail("123")).json();
+    const list = (await (await api.list()).json()).stories[0];
+    for (const response of [detail, list])
+      assert.ok(validateStory(response), JSON.stringify(validateStory.errors));
+    if (detail.summary) assert.equal(detail.summary.discussion_analysis, null);
+    if (list.summary) assert.equal(Object.hasOwn(list.summary, "discussion_analysis"), false);
+  }
+});
+
+test("analysis exports allowlist nested fields and JSON preserves untrusted text", async () => {
+  const analysis = structuredClone(
+    analysisFixtures.find((fixture) => fixture.id === "qualified_agreement").expected,
+  );
+  const hostile = '<script>alert("x")</script> [fake](javascript:alert(1))\n# heading';
+  analysis.reference_claims[0].text = hostile;
+  analysis.supportive_comments[0].paraphrase = hostile;
+  analysis.topics[0].summary = hostile;
+  for (const entry of [
+    analysis,
+    ...analysis.reference_claims,
+    ...analysis.supportive_comments,
+    ...analysis.topics,
+  ])
+    entry.raw_payload = "private-marker";
+  const row = {
+    ...story,
+    summary: {
+      ...story.summary,
+      discussion_analysis: analysis,
+      discussion_analysis_coverage: { ...coverage, comments_fingerprint: "private-marker" },
+      discussion_analysis_meta: { model: "private-marker" },
+      raw_comments: "private-marker",
+    },
+  };
+  const api = storiesHandlers({
+    getStory: async () => row,
+    getLeaderboard: async () => ({ stories: [row], ingestion: null }),
+  });
+  const response = await api.detail("123");
+  assert.match(response.headers.get("content-type"), /application\/json/);
+  const body = await response.text();
+  assert.doesNotMatch(
+    body,
+    /private-marker|raw_payload|comments_fingerprint|discussion_analysis_meta|raw_comments/,
+  );
+  const detail = JSON.parse(body);
+  assert.ok(validateStory(detail), JSON.stringify(validateStory.errors));
+  assert.equal(detail.summary.discussion_analysis.reference_claims[0].text, hostile);
+  assert.equal(detail.summary.discussion_analysis.supportive_comments[0].paraphrase, hostile);
+  assert.equal(detail.summary.discussion_analysis.topics[0].summary, hostile);
+  assert.equal(detail.summary.discussion_analysis.analyzed_at, null);
+  const list = await (await api.list()).json();
+  assert.equal(Object.hasOwn(list.stories[0].summary, "discussion_analysis"), false);
+  row.summary.discussion_analysis_coverage = null;
+  const unknown = await (await api.detail("123")).json();
+  assert.equal(unknown.summary.discussion_analysis.coverage, null);
+  assert.ok(validateStory(unknown), JSON.stringify(validateStory.errors));
 });

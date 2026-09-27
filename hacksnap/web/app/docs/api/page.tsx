@@ -53,6 +53,48 @@ export default function ApiDocs() {
         null while pending. Summaries are AI-generated from sampled source material and may contain
         errors; consult the original article and Hacker News discussion.
       </p>
+      <h2>Discussion analysis</h2>
+      <p>
+        On the story-detail endpoint, a non-null summary also contains{" "}
+        <code>discussion_analysis</code> (object or null). The list endpoint omits this optional
+        field; request <code>{"/api/stories/{id}"}</code> for evidence. Existing summary fields are
+        preserved. A null or missing analysis means unavailable, including legacy stories; no
+        backfill or export regeneration is required.
+      </p>
+      <p>
+        An analysis contains <code>status</code>, <code>analyzed_at</code> (UTC timestamp or null),{" "}
+        <code>coverage</code> (object or null), <code>reference_claims</code>,{" "}
+        <code>critical_comments</code>, <code>supportive_comments</code>, and <code>topics</code>.
+        Status is <code>available</code>, <code>no_comments</code> (all evidence lists empty), or{" "}
+        <code>insufficient_context</code> (no assessable source claim; themes may still be present,
+        with empty claims and stance highlights). Missing coverage or time is unknown, never
+        borrowed from the article summary.
+      </p>
+      <p>
+        Reference claims contain <code>id</code>, <code>text</code>, and <code>source</code> (
+        <code>article</code> or <code>story_text</code>). Highlights contain <code>comment_id</code>
+        , <code>claim_id</code> (matching a reference claim), <code>stance</code>,{" "}
+        <code>paraphrase</code>, and <code>explanation</code>. Critical stances are{" "}
+        <code>disagrees</code> or <code>qualified_disagreement</code>; supportive stances are{" "}
+        <code>agrees</code> or <code>qualified_agreement</code>. Qualifications and the targeted
+        claim must be retained when displaying a highlight.
+      </p>
+      <p>
+        Topics contain <code>key</code>, <code>title</code>, <code>summary</code>, and{" "}
+        <code>comment_ids</code>. Source comments can be read at{" "}
+        <code>{"https://news.ycombinator.com/item?id={comment_id}"}</code>. Coverage contains{" "}
+        <code>stored_comments</code>, <code>included_comments</code>,{" "}
+        <code>comments_truncated</code>, and <code>selection_method</code> (
+        <code>active_branches_with_ancestors_v1</code>). The sample selects active branches and
+        available parent comments and may omit parts of the full thread. Analysis time is
+        independent of article summary generation.
+      </p>
+      <p>
+        Highlights are AI-generated paraphrases selected for explicit stance and explanation. Their
+        inclusion does not establish correctness. Empty groups mean no clear examples in the
+        analyzed sample. Selected evidence does not measure community opinion or how common a view
+        is. Internal worker metadata and raw source payloads are excluded.
+      </p>
       <h2>Errors and freshness</h2>
       <p>
         Errors return <code>{"{error: string}"}</code>: 400 for an invalid ID, 404 for an unknown
@@ -61,7 +103,7 @@ export default function ApiDocs() {
         every 30 minutes.
       </p>
       <pre style={{ whiteSpace: "pre-wrap" }}>
-        <code>{"curl https://hacksnap.live/api/stories"}</code>
+        <code>curl https://hacksnap.live/api/stories</code>
       </pre>
     </article>
   );

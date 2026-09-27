@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "@jest/globals";
 import {
   acceptsMarkdown,
@@ -137,4 +138,92 @@ test("Markdown responses identify their representation and vary on Accept", asyn
   assert.equal(unavailable.status, 503);
   assert.equal(unavailable.headers.get("cache-control"), "no-store");
   assert.equal(unavailable.headers.get("retry-after"), "60");
+});
+
+const analysisFixtures = JSON.parse(
+  readFileSync(new URL("../../fixtures/discussion-analysis/valid.json", import.meta.url)),
+);
+const analysisStory = (analysis) => ({
+  ...story,
+  summary: {
+    ...story.summary,
+    discussion_analysis: analysis,
+    discussion_analyzed_at: "2026-09-27T09:00:00Z",
+    discussion_analysis_coverage: {
+      included_comments: 2,
+      stored_comments: 7,
+      comments_truncated: true,
+      selection_method: "active_branches_with_ancestors_v1",
+    },
+  },
+});
+
+test.each(analysisFixtures)(
+  "Markdown exports cited analysis and limitations: $id",
+  ({ expected }) => {
+    const body = storyMarkdown(analysisStory(expected));
+    assert.match(body, /2 of 7 usable stored comments/);
+    assert.match(body, /active discussion branches/i);
+    assert.match(body, /parent comments/);
+    assert.match(body, /further shortened/);
+    assert.match(body, /do not measure community opinion/);
+    assert.match(body, /Analyzed: 2026\\-09\\-27T09:00:00Z/);
+    assert.doesNotMatch(body, /Some context|A disagreement/);
+    for (const topic of expected.topics) {
+      assert.ok(body.includes(topic.title.replaceAll("-", "\\-")));
+      for (const id of topic.comment_ids)
+        assert.ok(body.includes(`[Comment ${id}](<https://news.ycombinator.com/item?id=${id}>)`));
+    }
+    for (const highlight of [...expected.critical_comments, ...expected.supportive_comments]) {
+      assert.ok(
+        body.includes(
+          `[Comment ${highlight.comment_id}](<https://news.ycombinator.com/item?id=${highlight.comment_id}>)`,
+        ),
+      );
+      assert.match(body, /Claim addressed/);
+      assert.ok(body.includes(highlight.paraphrase.replace(/([\\`*_{}[\]<>#+.!|~-])/g, "\\$1")));
+      assert.ok(body.includes(highlight.explanation.replace(/([\\`*_{}[\]<>#+.!|~-])/g, "\\$1")));
+    }
+    if (expected.status === "no_comments") assert.match(body, /No usable comments were available/);
+    if (expected.status === "insufficient_context")
+      assert.match(body, /did not contain a clear claim/);
+    if (expected.status === "available") {
+      assert.match(body, /text below is paraphrased/);
+      for (const kind of ["critical", "supportive"])
+        if (!expected[`${kind}_comments`].length)
+          assert.ok(body.includes(`No clear ${kind} examples in the analyzed comments`));
+    }
+  },
+);
+
+test("Markdown preserves legacy content when analysis is absent or null", () => {
+  assert.equal(storyMarkdown(analysisStory(null)).includes("Some context"), true);
+  assert.equal(storyMarkdown(story).includes("Some context"), true);
+  assert.doesNotMatch(storyMarkdown(analysisStory(null)), /Discussion analysis|Analyzed:/);
+});
+
+test("Markdown escapes all analysis text, keeps qualifications and excludes private metadata", () => {
+  const analysis = structuredClone(
+    analysisFixtures.find((fixture) => fixture.id === "qualified_agreement").expected,
+  );
+  const hostile = "<script> [fake](javascript:alert(1))\n# injected *bold*";
+  analysis.reference_claims[0].text = hostile;
+  analysis.supportive_comments[0].paraphrase = hostile;
+  analysis.supportive_comments[0].explanation = hostile;
+  analysis.topics[0].title = hostile;
+  analysis.topics[0].summary = hostile;
+  analysis.raw_payload = "private-marker";
+  const row = analysisStory(analysis);
+  row.summary.discussion_analysis_meta = { model: "private-marker" };
+  row.summary.discussion_analysis_coverage.comments_fingerprint = "private-marker";
+  const body = storyMarkdown(row);
+  assert.doesNotMatch(body, /<script>|\[fake\]\(javascript:|\n# injected|private-marker/);
+  assert.ok(body.includes("\\<script\\> \\[fake\\](javascript:alert(1))\n\\# injected \\*bold\\*"));
+  assert.match(body, /Agrees with reservations/);
+  assert.match(body, /item\?id=106/);
+  row.summary.discussion_analyzed_at = null;
+  row.summary.discussion_analysis_coverage = null;
+  const unknown = storyMarkdown(row);
+  assert.match(unknown, /Analysis time unavailable/);
+  assert.match(unknown, /Analyzed-comment count unavailable/);
 });
