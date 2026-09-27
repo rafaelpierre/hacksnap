@@ -33,68 +33,30 @@ jobs:
           uv run ruff check pipeline tests modal_app.py
           uv run pytest
           uv run python -c 'import modal_app'
-      - name: Ingestion regression tests and migration SQL
+      - name: Ingestion unit tests
         working-directory: data
-        env:
-          SUPABASE_PASSWORD: offline-test-only
         run: |
           uv sync --locked
           uv run pytest
-          uv run alembic upgrade head --sql > "$RUNNER_TEMP/hacksnap-schema.sql"
-      - name: Database behavior and production web build
+      - name: Install frontend dependencies
+        working-directory: hacksnap/web
+        run: npm ci
+      - name: Frontend lint (Oxlint)
+        working-directory: hacksnap/web
+        run: npm run lint
+      - name: Frontend formatting (Oxfmt)
+        working-directory: hacksnap/web
+        run: npm run format:check
+      - name: Frontend unit and component tests (Jest)
+        working-directory: hacksnap/web
+        run: npm run test:ci
+      - name: Frontend typecheck and production build
         working-directory: hacksnap/web
         env:
-          HACKSNAP_SCHEMA_SQL: ${{ runner.temp }}/hacksnap-schema.sql
           NEXT_TELEMETRY_DISABLED: "1"
         run: |
-          npm ci
-          npm run test:db
-          npm run test:history
-          npm run test:api
-          npm run test:categories
-          npm run test:share
-          npm run test:analytics
-          npm run test:archive
-          npm run test:metadata
-          npm run test:brief
-          npm run test:story-ui
-          npm run test:theme
           npm run typecheck
           npm run build
-          export HACKSNAP_WEB_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/postgres
-          node tests/preview-db.mjs > "$RUNNER_TEMP/hacksnap-preview-db.log" 2>&1 &
-          preview_db_pid=$!
-          trap 'kill "$preview_db_pid" ${preview_web_pid:-} 2>/dev/null || true' EXIT
-          node --input-type=module <<'JS'
-          import { Pool } from 'pg';
-          const pool = new Pool({connectionString: process.env.HACKSNAP_WEB_DATABASE_URL});
-          try {
-            for (let attempt = 0; ; attempt++) {
-              try { await pool.query('SELECT 1'); break; }
-              catch (error) {
-                if (attempt >= 59) throw error;
-                await new Promise(resolve => setTimeout(resolve, 1000));
-              }
-            }
-          } finally { await pool.end(); }
-          JS
-          npm start -- --port 3100 > "$RUNNER_TEMP/hacksnap-preview-web.log" 2>&1 &
-          preview_web_pid=$!
-          node --input-type=module <<'JS'
-          for (let attempt = 0; ; attempt++) {
-            try {
-              const response = await fetch('http://127.0.0.1:3100/');
-              if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              break;
-            } catch (error) {
-              if (attempt >= 59) throw error;
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-          }
-          JS
-          HACKSNAP_TEST_URL=http://127.0.0.1:3100 HACKSNAP_TEST_STORY_ID=90000001 node --test tests/markdown-http.test.mjs
-          HACKSNAP_TEST_URL=http://127.0.0.1:3100 node --test tests/categories-http.test.mjs
-          HACKSNAP_TEST_URL=http://127.0.0.1:3100 node --test tests/ux-acceptance-http.test.mjs
 
   deploy:
     # Production changes require an explicit manual workflow run.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import {test} from "node:test";
-import {briefExcerpt} from "../lib/brief.ts";
+import { test } from "@jest/globals";
+import { briefExcerpt } from "../lib/brief.ts";
 
 test("short takeaways keep their caveats and pending summaries stay empty", () => {
   const text = "The result improves throughput, but only with batching.";
@@ -18,7 +18,8 @@ test("legacy decks prefer complete sentences and never mutate the full takeaway"
   assert.equal(text, original);
 });
 test("a production-length single sentence prefers its complete opening clause", () => {
-  const text = "The report's core finding is that a weak sandbox plus public web services let agents bootstrap code execution and extensive data access; the discussion is split between alarm at the scale and resourcefulness of the behavior and skepticism that it demonstrates misalignment rather than an instructed task with poor containment.";
+  const text =
+    "The report's core finding is that a weak sandbox plus public web services let agents bootstrap code execution and extensive data access; the discussion is split between alarm at the scale and resourcefulness of the behavior and skepticism that it demonstrates misalignment rather than an instructed task with poor containment.";
   const excerpt = briefExcerpt(text);
   assert.ok(excerpt.length <= 220);
   assert.ok(excerpt.endsWith("."));

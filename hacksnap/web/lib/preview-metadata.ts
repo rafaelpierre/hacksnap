@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import type { Summary } from "./data";
 
-type PreviewSummary = Pick<Summary, "article_summary" | "discussion_points" | "overall_takeaway" | "source_coverage">;
+type PreviewSummary = Pick<
+  Summary,
+  "article_summary" | "discussion_points" | "overall_takeaway" | "source_coverage"
+>;
 
 /** Editorial length targets, not platform limits. Keep complete words where possible. */
 export function previewText(value: string, limit: number): string {
@@ -11,9 +14,14 @@ export function previewText(value: string, limit: number): string {
   const clipped = characters.slice(0, limit - 1).join("");
   // If the next character is whitespace, the current word already fits in full.
   const boundary = clipped.lastIndexOf(" ");
-  const text = /\s/u.test(characters[limit - 1]) || boundary < 0
-    ? clipped : clipped.slice(0, boundary);
-  return text.trimEnd().replace(/[,:;–—-]+$/u, "").trimEnd() + "…";
+  const text =
+    /\s/u.test(characters[limit - 1]) || boundary < 0 ? clipped : clipped.slice(0, boundary);
+  return (
+    text
+      .trimEnd()
+      .replace(/[,:;–—-]+$/u, "")
+      .trimEnd() + "…"
+  );
 }
 
 function reactionDescription(summary: PreviewSummary | null): string {
@@ -30,7 +38,11 @@ function reactionDescription(summary: PreviewSummary | null): string {
   const introduction = hasArticle
     ? `Article summary and Hacker News reactions from ${comments}.`
     : `Hacker News reactions from ${comments}.`;
-  const topics = summary.discussion_points.map(point => point.title.trim()).filter(Boolean).slice(0, 3).join("; ");
+  const topics = summary.discussion_points
+    .map((point) => point.title.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .join("; ");
   return `${introduction} ${topics ? `Topics: ${topics}` : summary.overall_takeaway}`;
 }
 
@@ -47,17 +59,25 @@ export function storyPreviewMetadata(story: {
   const socialDescription = previewText(reaction, 125);
   const url = `https://hacksnap.live/story/${story.hn_id}`;
   return {
-    title: {absolute: pageTitle},
+    title: { absolute: pageTitle },
     description,
-    robots: {index: story.summary !== null, follow: true},
+    robots: { index: story.summary !== null, follow: true },
     alternates: {
       canonical: url,
-      types: {"application/rss+xml": "https://hacksnap.live/feed.xml"},
+      types: { "application/rss+xml": "https://hacksnap.live/feed.xml" },
     },
-    openGraph: {title, description: socialDescription, siteName: "Hacksnap", url, type: "article"},
+    openGraph: {
+      title,
+      description: socialDescription,
+      siteName: "Hacksnap",
+      url,
+      type: "article",
+    },
     twitter: {
-      card: "summary_large_image", title, description: socialDescription,
-      images: [{url: `${url}/opengraph-image`, alt: story.title}],
+      card: "summary_large_image",
+      title,
+      description: socialDescription,
+      images: [{ url: `${url}/opengraph-image`, alt: story.title }],
     },
   };
 }

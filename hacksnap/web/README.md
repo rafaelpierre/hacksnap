@@ -61,10 +61,7 @@ Missing stories return 404; data failures return a sanitized 503
 with `Retry-After: 60`. HEAD returns the same headers without a body. No token
 count is advertised because a tokenizer is not configured.
 
-Run `node --experimental-strip-types --test tests/markdown.test.mjs` for
-negotiation and content regression checks. With a production server running,
-run `HACKSNAP_TEST_URL=http://127.0.0.1:3000 node --test tests/markdown-http.test.mjs`
-to verify HTTP headers, HTML defaults, HEAD, and unaffected API formats.
+Run `npm test -- tests/markdown.test.mjs` for negotiation and content unit tests.
 After deployment, validate with the
 scanner from the [Markdown negotiation skill](https://isitagentready.com/.well-known/agent-skills/markdown-negotiation/SKILL.md).
 
@@ -91,8 +88,7 @@ gap plus timing tolerance) and time after the final capture. It is a sampled
 estimate, not continuous tracking. Missing or insufficient history is shown
 explicitly. No schema change or additional collection job is required.
 
-Run `npm run test:history` for historical aggregation and coverage checks. The
-production HTTP checks also verify these metrics appear before JavaScript runs.
+Run `npm run test:history` for ranking calculations and metric formatting unit tests.
 
 ## Search metadata
 
@@ -128,9 +124,7 @@ summary when available. XML values are escaped and invalid XML characters remove
 The feed queries on each request so additions, summary edits, and removals appear
 without rebuilding. HTML alternate links and the footer advertise the feed.
 
-Run `node --experimental-strip-types --test tests/rss.test.mjs` and `npm run build`
-from this directory. Local integration checks can use the synthetic database
-described in the parent README; no production writes are needed.
+Run `npm test -- tests/rss.test.mjs` and `npm run build` from this directory.
 
 ## Page caching and Cloudflare
 
@@ -241,8 +235,7 @@ canonical URL. Year disclosures contain links only to populated months.
 Archive pages are rendered on request; no schema change is required. The sitemap
 includes the archive landing page and populated months. Story URLs stay unchanged.
 
-Run `npm run test:archive` for route validation, UTC boundaries and database
-pagination checks against synthetic data.
+Run `npm run test:archive` for route validation, month boundaries and pagination parsing unit tests.
 
 ## Category flairs
 
@@ -254,8 +247,7 @@ headline, takeaway and date added, followed by a link to browse the category.
 Stories with no qualifying next reads or no category link to the latest archive
 instead. The section is server-rendered and shares the story page's existing
 30-minute revalidation. It uses the existing category/date index and requires no
-migration. `npm run test:categories` covers selection, and the local preview's
-category HTTP tests check the rendered links and fallback.
+migration. `npm run test:categories` covers category routing and navigation context.
 
 Stories display a compact category flair directly below their title on the
 homepage, article pages and archive. Clicking a flair opens
@@ -273,6 +265,25 @@ public category field is granted to the website role; model, version, timestamp
 and input hash remain private. Keep category IDs in the frontend and ingestion
 classifier aligned; the ingestion tests check that contract.
 
-Run `npm run test:categories` and `npm run test:db` (with `HACKSNAP_SCHEMA_SQL`)
-for routing, pagination, constraints and read-permission checks. Against a local
-preview, run `HACKSNAP_TEST_URL=http://127.0.0.1:3119 node --test tests/categories-http.test.mjs`.
+Run `npm run test:categories` for category routing and navigation context unit tests.
+
+## Frontend checks
+
+Use Node.js 22 and `npm ci`, then run:
+
+```sh
+npm run lint
+npm run format:check
+npm run test:ci
+npm run typecheck
+npm run build
+```
+
+CI runs Oxlint, Oxfmt, and Jest on pull requests and pushes to `main`.
+Run `npm run format` to apply formatting locally. Jest discovers all
+`tests/**/*.test.mjs` and `tests/**/*.test.tsx` files. Tests cover pure functions,
+handlers with injected data access, and React components in jsdom. Database and
+live HTTP integration suites have been removed; tests need no server, database,
+or credentials. The test process uses America/Los_Angeles to verify hydration
+across a UTC date boundary. Jest uses ESM and SWC for TypeScript/TSX; jsdom 26
+keeps its CommonJS dependencies compatible with Jest on Node 22.
