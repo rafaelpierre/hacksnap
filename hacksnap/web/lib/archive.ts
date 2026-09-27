@@ -7,7 +7,8 @@ export function archivePage(value: string | string[] | undefined): number | null
 }
 
 export function archiveMonth(path: string[] = []): string | null {
-  if (path.length !== 2 || !/^[1-9]\d{3}$/.test(path[0]) || !/^(0[1-9]|1[0-2])$/.test(path[1])) return null;
+  if (path.length !== 2 || !/^[1-9]\d{3}$/.test(path[0]) || !/^(0[1-9]|1[0-2])$/.test(path[1]))
+    return null;
   return path.join("-");
 }
 
@@ -19,7 +20,11 @@ export function monthBounds(month: string): [string, string] {
 }
 
 export function monthLabel(month: string): string {
-  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-GB", {month: "long", year: "numeric", timeZone: "UTC"});
+  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 export function archiveURL(month: string | null, page = 1): string {
@@ -34,11 +39,16 @@ export const archiveMonthsSQL = `SELECT to_char(date_added AT TIME ZONE 'UTC', '
 
 export function archiveQuery(fields: string, month: string | null, page: number) {
   const values: (string | number)[] = month ? monthBounds(month) : [];
-  const range = month ? "AND t.date_added >= $1::timestamptz AND t.date_added < $2::timestamptz" : "";
+  const range = month
+    ? "AND t.date_added >= $1::timestamptz AND t.date_added < $2::timestamptz"
+    : "";
   values.push(ARCHIVE_PAGE_SIZE + 1, (page - 1) * ARCHIVE_PAGE_SIZE);
-  return {text: `SELECT ${fields} FROM hacker_news_threads t
+  return {
+    text: `SELECT ${fields} FROM hacker_news_threads t
     LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
     WHERE t.hn_id BETWEEN 1 AND 999999999999999 ${range}
     ORDER BY t.date_added DESC, t.hn_id DESC
-    LIMIT $${values.length - 1} OFFSET $${values.length}`, values};
+    LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    values,
+  };
 }

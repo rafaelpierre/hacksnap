@@ -27,10 +27,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "stories",
-                    "ingestion"
-                  ],
+                  "required": ["stories", "ingestion"],
                   "properties": {
                     "stories": {
                       "type": "array",
@@ -39,10 +36,7 @@
                       }
                     },
                     "ingestion": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
+                      "type": ["string", "null"],
                       "format": "date-time"
                     }
                   }
@@ -176,22 +170,12 @@
             "format": "date-time"
           },
           "summary": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
-            "required": [
-              "article_summary",
-              "discussion_summary",
-              "overall_takeaway"
-            ],
+            "required": ["article_summary", "discussion_summary", "overall_takeaway"],
             "properties": {
               "article_summary": {
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": ["string", "null"]
               },
               "discussion_summary": {
                 "type": "string"
@@ -202,10 +186,7 @@
             }
           },
           "category": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "enum": [
               "models_products",
               "agents_coding",
@@ -221,9 +202,7 @@
       },
       "Error": {
         "type": "object",
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "properties": {
           "error": {
             "type": "string"

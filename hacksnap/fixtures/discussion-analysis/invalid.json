@@ -1,0 +1,541 @@
+[
+  {
+    "id": "unknown_comment",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 101,
+          "parent": 100,
+          "author": "reader_101",
+          "depth": 1,
+          "text": "Your baseline includes startup time but the new engine is warmed up. That does not demonstrate halved latency."
+        }
+      ]
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [
+        {
+          "comment_id": 999,
+          "claim_id": "latency",
+          "stance": "disagrees",
+          "paraphrase": "The baseline comparison includes unequal startup overhead.",
+          "explanation": "The commenter rejects the reported improvement because the test conditions differ."
+        }
+      ],
+      "supportive_comments": [],
+      "topics": [
+        {
+          "key": "evidence",
+          "title": "Unequal benchmark conditions",
+          "summary": "The baseline includes startup overhead that the new engine avoids.",
+          "comment_ids": [
+            101
+          ]
+        }
+      ]
+    },
+    "expected_error": "not supplied"
+  },
+  {
+    "id": "unknown_topic_comment",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 107,
+          "parent": 100,
+          "author": "reader_107",
+          "depth": 1,
+          "text": "How much RAM did each configuration use?"
+        }
+      ]
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [],
+      "supportive_comments": [],
+      "topics": [
+        {
+          "key": "technical_limitations",
+          "title": "Memory requirements",
+          "summary": "A commenter asks about memory usage in the comparison.",
+          "comment_ids": [
+            999
+          ]
+        }
+      ]
+    },
+    "expected_error": "not supplied"
+  },
+  {
+    "id": "unknown_claim",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 102,
+          "parent": 100,
+          "author": "reader_102",
+          "depth": 1,
+          "text": "I repeated the single-client test and also measured half the latency."
+        }
+      ]
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [],
+      "supportive_comments": [
+        {
+          "comment_id": 102,
+          "claim_id": "invented",
+          "stance": "agrees",
+          "paraphrase": "An independent run reproduces the latency reduction.",
+          "explanation": "The commenter explicitly supports the reported test result."
+        }
+      ],
+      "topics": []
+    },
+    "expected_error": "unknown claim"
+  },
+  {
+    "id": "duplicate_highlight",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 101,
+          "parent": 100,
+          "author": "reader_101",
+          "depth": 1,
+          "text": "Your baseline includes startup time but the new engine is warmed up. That does not demonstrate halved latency."
+        }
+      ]
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [
+        {
+          "comment_id": 101,
+          "claim_id": "latency",
+          "stance": "disagrees",
+          "paraphrase": "The baseline comparison includes unequal startup overhead.",
+          "explanation": "The commenter rejects the reported improvement because the test conditions differ."
+        },
+        {
+          "comment_id": 101,
+          "claim_id": "latency",
+          "stance": "disagrees",
+          "paraphrase": "The baseline comparison includes unequal startup overhead.",
+          "explanation": "The commenter rejects the reported improvement because the test conditions differ."
+        }
+      ],
+      "supportive_comments": [],
+      "topics": [
+        {
+          "key": "evidence",
+          "title": "Unequal benchmark conditions",
+          "summary": "The baseline includes startup overhead that the new engine avoids.",
+          "comment_ids": [
+            101
+          ]
+        }
+      ]
+    },
+    "expected_error": "duplicate highlights"
+  },
+  {
+    "id": "invalid_stance_list",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 102,
+          "parent": 100,
+          "author": "reader_102",
+          "depth": 1,
+          "text": "I repeated the single-client test and also measured half the latency."
+        }
+      ]
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [],
+      "supportive_comments": [
+        {
+          "comment_id": 102,
+          "claim_id": "latency",
+          "stance": "mixed",
+          "paraphrase": "An independent run reproduces the latency reduction.",
+          "explanation": "The commenter explicitly supports the reported test result."
+        }
+      ],
+      "topics": []
+    },
+    "expected_error": "Input should be"
+  },
+  {
+    "id": "empty_citations",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 107,
+          "parent": 100,
+          "author": "reader_107",
+          "depth": 1,
+          "text": "How much RAM did each configuration use?"
+        }
+      ]
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [],
+      "supportive_comments": [],
+      "topics": [
+        {
+          "key": "technical_limitations",
+          "title": "Memory requirements",
+          "summary": "A commenter asks about memory usage in the comparison.",
+          "comment_ids": []
+        }
+      ]
+    },
+    "expected_error": "at least 1"
+  },
+  {
+    "id": "duplicate_citations",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 107,
+          "parent": 100,
+          "author": "reader_107",
+          "depth": 1,
+          "text": "How much RAM did each configuration use?"
+        }
+      ]
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [],
+      "supportive_comments": [],
+      "topics": [
+        {
+          "key": "technical_limitations",
+          "title": "Memory requirements",
+          "summary": "A commenter asks about memory usage in the comparison.",
+          "comment_ids": [
+            107,
+            107
+          ]
+        }
+      ]
+    },
+    "expected_error": "duplicate comment citations"
+  },
+  {
+    "id": "duplicate_claims",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 102,
+          "parent": 100,
+          "author": "reader_102",
+          "depth": 1,
+          "text": "I repeated the single-client test and also measured half the latency."
+        }
+      ]
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        },
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [],
+      "supportive_comments": [
+        {
+          "comment_id": 102,
+          "claim_id": "latency",
+          "stance": "agrees",
+          "paraphrase": "An independent run reproduces the latency reduction.",
+          "explanation": "The commenter explicitly supports the reported test result."
+        }
+      ],
+      "topics": []
+    },
+    "expected_error": "duplicate claim IDs"
+  },
+  {
+    "id": "no_comments_with_topics",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 107,
+          "parent": 100,
+          "author": "reader_107",
+          "depth": 1,
+          "text": "How much RAM did each configuration use?"
+        }
+      ]
+    },
+    "expected": {
+      "status": "no_comments",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [],
+      "supportive_comments": [],
+      "topics": [
+        {
+          "key": "technical_limitations",
+          "title": "Memory requirements",
+          "summary": "A commenter asks about memory usage in the comparison.",
+          "comment_ids": [
+            107
+          ]
+        }
+      ]
+    },
+    "expected_error": "cannot contain comment evidence"
+  },
+  {
+    "id": "missing_claim_source",
+    "inputs": {
+      "article": null,
+      "story_text": null,
+      "comments": [
+        {
+          "id": 102,
+          "parent": 100,
+          "author": "reader_102",
+          "depth": 1,
+          "text": "I repeated the single-client test and also measured half the latency."
+        }
+      ]
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [],
+      "supportive_comments": [
+        {
+          "comment_id": 102,
+          "claim_id": "latency",
+          "stance": "agrees",
+          "paraphrase": "An independent run reproduces the latency reduction.",
+          "explanation": "The commenter explicitly supports the reported test result."
+        }
+      ],
+      "topics": []
+    },
+    "expected_error": "requires its supplied source"
+  },
+  {
+    "id": "insufficient_context_with_highlights",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 102,
+          "parent": 100,
+          "author": "reader_102",
+          "depth": 1,
+          "text": "I repeated the single-client test and also measured half the latency."
+        }
+      ]
+    },
+    "expected": {
+      "status": "insufficient_context",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [],
+      "supportive_comments": [
+        {
+          "comment_id": 102,
+          "claim_id": "latency",
+          "stance": "agrees",
+          "paraphrase": "An independent run reproduces the latency reduction.",
+          "explanation": "The commenter explicitly supports the reported test result."
+        }
+      ],
+      "topics": []
+    },
+    "expected_error": "cannot contain claims or highlights"
+  },
+  {
+    "id": "available_without_claims",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 107,
+          "parent": 100,
+          "author": "reader_107",
+          "depth": 1,
+          "text": "How much RAM did each configuration use?"
+        }
+      ]
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [],
+      "critical_comments": [],
+      "supportive_comments": [],
+      "topics": [
+        {
+          "key": "technical_limitations",
+          "title": "Memory requirements",
+          "summary": "A commenter asks about memory usage in the comparison.",
+          "comment_ids": [
+            107
+          ]
+        }
+      ]
+    },
+    "expected_error": "requires reference claims"
+  },
+  {
+    "id": "comments_with_empty_status",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": [
+        {
+          "id": 113,
+          "parent": 100,
+          "author": "reader_113",
+          "depth": 1,
+          "text": "What about memory?"
+        }
+      ]
+    },
+    "expected": {
+      "status": "no_comments",
+      "reference_claims": [],
+      "critical_comments": [],
+      "supportive_comments": [],
+      "topics": []
+    },
+    "expected_error": "status disagrees"
+  },
+  {
+    "id": "available_without_comments",
+    "inputs": {
+      "article": "The engine halves latency in our single-client test.",
+      "story_text": null,
+      "comments": []
+    },
+    "expected": {
+      "status": "available",
+      "reference_claims": [
+        {
+          "id": "latency",
+          "text": "The engine halves latency in the reported test.",
+          "source": "article"
+        }
+      ],
+      "critical_comments": [],
+      "supportive_comments": [],
+      "topics": [
+        {
+          "key": "technical_limitations",
+          "title": "Memory requirements",
+          "summary": "A commenter asks about memory usage in the comparison.",
+          "comment_ids": [
+            107
+          ]
+        }
+      ]
+    },
+    "expected_error": "status disagrees"
+  }
+]

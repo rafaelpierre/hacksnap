@@ -16,19 +16,34 @@ export function suggestedPost(id: string, title: string, takeaway?: string | nul
 /** X counts URLs as 23 characters and weights some Unicode characters differently. */
 export function xPostStatus(post: string) {
   const parsed = twitter.parseTweet(post);
-  return {length: parsed.weightedLength, limit: 280, valid: parsed.valid};
+  return { length: parsed.weightedLength, limit: 280, valid: parsed.valid };
 }
 
 /** Destinations are navigation only. None of these URLs publishes a post. */
 export function shareDestinations(post: string, url: string, title: string) {
   return [
-    {name: "X", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(post)}`, acceptsText: true},
-    {name: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, acceptsText: false},
-    {name: "Email", href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(post.replaceAll("\n", "\r\n"))}`, acceptsText: true},
+    {
+      name: "X",
+      href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(post)}`,
+      acceptsText: true,
+    },
+    {
+      name: "LinkedIn",
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+      acceptsText: false,
+    },
+    {
+      name: "Email",
+      href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(post.replaceAll("\n", "\r\n"))}`,
+      acceptsText: true,
+    },
   ];
 }
 
-export async function copyText(text: string, clipboard?: Pick<Clipboard, "writeText">): Promise<boolean> {
+export async function copyText(
+  text: string,
+  clipboard?: Pick<Clipboard, "writeText">,
+): Promise<boolean> {
   if (!clipboard) return false;
   try {
     await clipboard.writeText(text);

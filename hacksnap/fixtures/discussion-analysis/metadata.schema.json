@@ -1,0 +1,87 @@
+{
+  "$defs": {
+    "DiscussionAnalysisCoverage": {
+      "additionalProperties": false,
+      "description": "Public counts describe prepared inputs, never opinion prevalence or all of HN.",
+      "properties": {
+        "stored_comments": {
+          "minimum": 0,
+          "title": "Stored Comments",
+          "type": "integer"
+        },
+        "included_comments": {
+          "minimum": 0,
+          "title": "Included Comments",
+          "type": "integer"
+        },
+        "comments_truncated": {
+          "title": "Comments Truncated",
+          "type": "boolean"
+        },
+        "selection_method": {
+          "const": "active_branches_with_ancestors_v1",
+          "title": "Selection Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stored_comments",
+        "included_comments",
+        "comments_truncated",
+        "selection_method"
+      ],
+      "title": "DiscussionAnalysisCoverage",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Application-owned provenance; never ask the inference model to invent these fields.\n\nOnly coverage and analyzed_at are public. Versions, fingerprints and model stay internal.",
+  "properties": {
+    "schema_version": {
+      "const": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "prompt_version": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Prompt Version",
+      "type": "string"
+    },
+    "model": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    },
+    "source_version": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Source Version",
+      "type": "string"
+    },
+    "input_fingerprint": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Input Fingerprint",
+      "type": "string"
+    },
+    "analyzed_at": {
+      "format": "date-time",
+      "title": "Analyzed At",
+      "type": "string"
+    },
+    "coverage": {
+      "$ref": "#/$defs/DiscussionAnalysisCoverage"
+    }
+  },
+  "required": [
+    "schema_version",
+    "prompt_version",
+    "model",
+    "source_version",
+    "input_fingerprint",
+    "analyzed_at",
+    "coverage"
+  ],
+  "title": "DiscussionAnalysisMetadata",
+  "type": "object"
+}
