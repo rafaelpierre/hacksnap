@@ -18,5 +18,6 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   return ogImage({
     title: story.title,
     source: domain(story.url),
+    takeaway: story.summary?.overall_takeaway,
   });
 }

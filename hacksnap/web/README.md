@@ -115,8 +115,10 @@ share a request-scoped read backed by the bounded per-instance story cache.
 
 Social previews use the shared 1200×630 template in `lib/og-image.tsx`.
 `/opengraph-image` renders the default brand card; `/story/:id/opengraph-image`
-renders the stored story title and source domain, revalidating every 30 minutes.
-Long headlines shrink and truncate to fit. Rendering uses the bundled font and
+renders the stored story title, source domain and a short excerpt of the summary's
+overall takeaway, revalidating every 30 minutes. Stories without a takeaway omit
+the snippet. Long headlines shrink and truncate to fit, leaving room for up to
+three lines of snippet text. Rendering uses the bundled font and
 needs no external image/font service or model call. Unknown story IDs return 404.
 
 `/feed.xml` returns RSS 2.0 for the latest 50 stored stories ordered by publication
