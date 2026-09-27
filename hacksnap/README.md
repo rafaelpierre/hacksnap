@@ -342,6 +342,36 @@ Failures log UTC time, story ID, URL without query/userinfo, stage, error type a
 HTTP status or controlled fetch diagnostic. Arbitrary exception messages,
 database connection strings, request headers and response bodies are not logged.
 
+### Discussion analysis refresh
+
+Existing new-format stories refresh stance highlights and topics from retained
+comments and their saved reference claims. Claims are reused verbatim; the worker
+never re-fetches the article or regenerates its brief. Legacy stories continue
+through sentiment-only refresh and receive no analysis backfill.
+
+The discussion cache includes the full prepared sample, available parent context,
+coverage, reference claims, source version, model, schema and refresh-prompt version.
+Initial generation primes that cache. The metadata still records the prompt that
+actually generated the analysis. Existing analyses from the earlier worker may
+refresh once to adopt this fingerprint format. Unchanged inputs skip inference;
+missing retained source and failed inference preserve the last valid analysis.
+`discussion_analyzed_at` advances only on successful analysis generation, separately
+from article `generated_at`. Refreshes count as `analysis_updated` in job results.
+
+Migration `0013_discussion_retention` makes early content and snapshot cleanup wait
+for the private `discussion_content_hash` column to match the raw source version.
+Analysis writes commit this acknowledgement atomically; normalized cache hits can
+acknowledge a raw version without changing analysis time. Concurrent analysis writes
+are checked against the previously read fingerprint. Legacy cleanup and seven-day
+expiry are unchanged. Collector ingestion uses the same acknowledgement to avoid
+discarding inputs before refresh.
+
+Apply the migration, then deploy the collector and enrichment worker through their
+existing manual workflows. The migration performs no cleanup or backfill. An older
+initial-generation worker remains usable after the migration; its new-format rows
+without acknowledgements retain source until refreshed or expired. Roll back both
+collector and refresh worker before downgrading the cleanup function.
+
 ## Checks
 
 From the repository root:

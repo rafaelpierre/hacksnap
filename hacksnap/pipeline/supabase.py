@@ -89,7 +89,8 @@ class Repository:
     def get_summary(self, story_id: int) -> dict | None:
         with self._connect() as connection:
             return connection.execute(
-                """SELECT source_fingerprint, sentiment, source_coverage, summarized_content_hash
+                """SELECT source_fingerprint, sentiment, source_coverage, summarized_content_hash,
+                          discussion_analysis, discussion_analysis_metadata
                    FROM hacksnap_summaries WHERE story_id = %s""",
                 (story_id,),
             ).fetchone()
@@ -106,7 +107,8 @@ class Repository:
             ).fetchone()
 
     def save_discussion_analysis(
-        self, story_id: int, analysis: DiscussionAnalysis, metadata: DiscussionAnalysisMetadata
+        self, story_id: int, analysis: DiscussionAnalysis, metadata: DiscussionAnalysisMetadata,
+        *, content_hash: str | None = None, expected_fingerprint: str | None = None,
     ) -> bool:
         """Refresh an existing analysis atomically; never backfill legacy summaries.
 
@@ -115,18 +117,38 @@ class Repository:
         """
         if analysis is None or metadata is None:
             raise ValueError("A refresh requires discussion analysis and metadata")
-        record = {"story_id": story_id, **_discussion_record(analysis, metadata)}
+        record = {
+            "story_id": story_id, **_discussion_record(analysis, metadata),
+            "content_hash": content_hash,
+            "expected_fingerprint": expected_fingerprint,
+        }
         with self._connect() as connection:
             result = connection.execute(
                 """UPDATE hacksnap_summaries
                    SET discussion_analysis = %(discussion_analysis)s,
                        discussion_analysis_metadata = %(discussion_analysis_metadata)s,
                        discussion_analyzed_at = %(discussion_analyzed_at)s,
+                       discussion_content_hash = %(content_hash)s,
                        updated_at = CURRENT_TIMESTAMP
-                   WHERE story_id = %(story_id)s AND discussion_analysis IS NOT NULL""",
+                   WHERE story_id = %(story_id)s AND discussion_analysis IS NOT NULL
+                     AND (%(expected_fingerprint)s::text IS NULL OR
+                          discussion_analysis_metadata->>'input_fingerprint' = %(expected_fingerprint)s)""",
                 record,
             )
             return result.rowcount == 1
+
+    def mark_discussion_contents(self, story_id: int, fingerprint: str, content_hash: str | None) -> None:
+        """A cache hit can acknowledge a raw version without advancing analysis time."""
+        with self._connect() as connection:
+            result = connection.execute(
+                """UPDATE hacksnap_summaries
+                   SET discussion_content_hash = %s
+                   WHERE story_id = %s AND discussion_analysis IS NOT NULL
+                     AND discussion_analysis_metadata->>'input_fingerprint' = %s""",
+                (content_hash, story_id, fingerprint),
+            )
+            if result.rowcount != 1:
+                raise ValueError("Discussion analysis changed during cache acknowledgement")
 
     def save_sentiment(self, story_id: int, sentiment: int | None, metadata: dict) -> None:
         with self._connect() as connection:
@@ -165,6 +187,7 @@ class Repository:
             "model": model,
             "prompt_version": prompt_version,
             "source_coverage": coverage,
+            "discussion_content_hash": content_hash if discussion_analysis is not None else None,
         }
         for key in ("article_key_points", "discussion_points", "source_coverage"):
             record[key] = Jsonb(record[key])
@@ -175,17 +198,19 @@ class Repository:
                     (story_id, article_url, article_summary, article_key_points,
                      discussion_summary, discussion_points, sentiment, overall_takeaway,
                      source_fingerprint, model, prompt_version, source_coverage, summarized_content_hash,
-                     discussion_analysis, discussion_analysis_metadata, discussion_analyzed_at)
+                     discussion_analysis, discussion_analysis_metadata, discussion_analyzed_at,
+                     discussion_content_hash)
                 VALUES (%(story_id)s, %(article_url)s, %(article_summary)s,
                         %(article_key_points)s, %(discussion_summary)s, %(discussion_points)s,
                         %(sentiment)s, %(overall_takeaway)s, %(source_fingerprint)s, %(model)s,
                         %(prompt_version)s, %(source_coverage)s, %(content_hash)s,
                         %(discussion_analysis)s, %(discussion_analysis_metadata)s,
-                        %(discussion_analyzed_at)s)
+                        %(discussion_analyzed_at)s, %(discussion_content_hash)s)
                 ON CONFLICT (story_id) DO UPDATE SET
                     discussion_analysis = EXCLUDED.discussion_analysis,
                     discussion_analysis_metadata = EXCLUDED.discussion_analysis_metadata,
                     discussion_analyzed_at = EXCLUDED.discussion_analyzed_at,
+                    discussion_content_hash = EXCLUDED.discussion_content_hash,
                     summarized_content_hash = EXCLUDED.summarized_content_hash,
                     article_url = EXCLUDED.article_url,
                     article_summary = EXCLUDED.article_summary,

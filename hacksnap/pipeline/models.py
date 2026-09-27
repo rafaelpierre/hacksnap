@@ -96,11 +96,22 @@ class DiscussionAnalysis(StrictModel):
 
         This verifies provenance and membership, not semantic entailment of paraphrases.
         """
-        if (self.status == "no_comments") != (not comments):
-            raise ValueError("Analysis status disagrees with supplied comments")
+        self.validate_comments(comments)
         sources = {"article": article, "story_text": story_text}
         if any(not (sources[claim.source] or "").strip() for claim in self.reference_claims):
             raise ValueError("Reference claim requires its supplied source")
+
+    def validate_refresh(self, reference_claims: list[dict], comments: list[dict]) -> None:
+        """Refreshes reuse previously source-validated claims verbatim."""
+        if [claim.model_dump() for claim in self.reference_claims] != reference_claims:
+            raise ValueError("Refresh changed persisted reference claims")
+        self.validate_comments(comments)
+
+    def validate_comments(self, comments: list[dict]) -> None:
+        if (self.status == "no_comments") != (not comments):
+            raise ValueError("Analysis status disagrees with supplied comments")
+        if comments and self.reference_claims and self.status != "available":
+            raise ValueError("Supplied claims and comments require available analysis")
         known_ids = {comment["id"] for comment in comments}
         cited_ids = {h.comment_id for h in [*self.critical_comments, *self.supportive_comments]}
         cited_ids.update(cid for topic in self.topics for cid in topic.comment_ids)

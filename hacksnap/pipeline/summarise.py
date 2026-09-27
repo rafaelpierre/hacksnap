@@ -8,9 +8,9 @@ from uuid import uuid4
 
 import httpx
 
-from .models import CommentSentiment, StorySummary
+from .models import CommentSentiment, DiscussionAnalysis, StorySummary
 from .preprocess import sample_sentiment_comments
-from .prompts import SENTIMENT_PROMPT, SYSTEM_PROMPT
+from .prompts import DISCUSSION_REFRESH_PROMPT, SENTIMENT_PROMPT, SYSTEM_PROMPT
 
 MAX_RESPONSE_TOKENS = 8000
 logger = logging.getLogger("hacksnap")
@@ -22,6 +22,8 @@ class Summarizer(Protocol):
     def summarize(self, source: dict) -> StorySummary: ...
 
     def estimate_sentiment(self, comments: list[dict]) -> CommentSentiment: ...
+
+    def refresh_discussion(self, source: dict) -> DiscussionAnalysis: ...
 
 
 class ModalSummarizer:
@@ -42,6 +44,13 @@ class ModalSummarizer:
         source = {**source, "sentiment_comments": sample_sentiment_comments(source["comments"])}
         result = self._infer(source, SYSTEM_PROMPT, StorySummary, "hacksnap_summary")
         result.validate_sources(source["article"], source["comments"], source.get("story_text"))
+        return result
+
+    def refresh_discussion(self, source: dict) -> DiscussionAnalysis:
+        result = self._infer(
+            source, DISCUSSION_REFRESH_PROMPT, DiscussionAnalysis, "hacksnap_discussion_refresh"
+        )
+        result.validate_refresh(source["reference_claims"], source["comments"])
         return result
 
     def estimate_sentiment(self, comments: list[dict]) -> CommentSentiment:

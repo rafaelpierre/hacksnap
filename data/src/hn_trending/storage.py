@@ -113,7 +113,8 @@ FROM hacker_news_threads t
 WHERE t.hn_id = %(hn_id)s AND t.date_added >= now() - interval '7 days'
   AND NOT EXISTS (SELECT 1 FROM hacksnap_summaries s WHERE s.story_id = t.hn_id
     AND s.article_summary IS NOT NULL
-    AND s.summarized_content_hash = hn_source_hash(%(full_raw_text_contents)s::text::jsonb))
+    AND CASE WHEN s.discussion_analysis IS NULL THEN s.summarized_content_hash
+             ELSE s.discussion_content_hash END = hn_source_hash(%(full_raw_text_contents)s::text::jsonb))
 ON CONFLICT (hn_id) DO UPDATE SET
   full_raw_text_contents = EXCLUDED.full_raw_text_contents,
   content_hash = EXCLUDED.content_hash, fetched_at = now()
@@ -125,7 +126,10 @@ WHERE c.hn_id = t.hn_id AND t.hn_id = %(hn_id)s AND (
   t.date_added < now() - interval '7 days' OR EXISTS (
     SELECT 1 FROM hacksnap_summaries s WHERE s.story_id = t.hn_id
       AND s.article_summary IS NOT NULL
-      AND s.summarized_content_hash = hn_source_hash(%(full_raw_text_contents)s::text::jsonb)
+      AND (s.discussion_analysis IS NULL OR
+           c.content_hash = s.discussion_content_hash)
+      AND CASE WHEN s.discussion_analysis IS NULL THEN s.summarized_content_hash
+             ELSE s.discussion_content_hash END = hn_source_hash(%(full_raw_text_contents)s::text::jsonb)
   ))
 """
 
@@ -137,6 +141,9 @@ SELECT %(run_id)s, t.hn_id,
     CASE WHEN t.date_added >= now() - interval '7 days' AND NOT EXISTS (
       SELECT 1 FROM hacksnap_summaries s WHERE s.story_id = t.hn_id
         AND s.article_summary IS NOT NULL
+        AND (s.discussion_analysis IS NULL OR
+             s.discussion_content_hash =
+             hn_source_hash(%(full_raw_text_contents)s::text::jsonb))
     ) THEN %(raw_payload)s::jsonb ELSE NULL END,
     %(content_hash)s, %(score)s, %(descendants)s, %(top_story_rank)s, %(max_comment_depth)s
 FROM hacker_news_threads t WHERE t.hn_id = %(hn_id)s
