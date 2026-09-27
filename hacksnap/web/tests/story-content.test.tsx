@@ -127,9 +127,9 @@ test("ranked card footer separates points, comments and movement between updates
     const ranked = {...story, rank: String(ranks.at(-1)), rank_history: history([...ranks])};
     const html = render(createElement(StoryRow, {story: ranked, variant: "ranked"}));
     assert.ok(html.includes(label));
-    assert.ok(html.includes(`${value} places`));
+    assert.ok(html.includes(`<span aria-hidden="true">${value}</span>`));
     assert.match(html, /lucide-star/);
-    assert.match(html, /12 comments<\/a>/);
+    assert.match(html.replace(/<[^>]*>/g, ""), /12 comments/);
     assert.doesNotMatch(render(createElement(StoryRow, {story: ranked})), /rank-movement/);
   }
 });
@@ -142,6 +142,6 @@ test("leading card reports a climb since the most recent saved rank", () => {
   const html = render(createElement(StoryRow, {story: ranked, variant: "ranked"}));
   assert.match(html, /aria-label="Rank 1"/);
   assert.match(html, /Climbed 1 position in Hacksnap since the previous update/);
-  assert.match(html, /\+1 places/);
+  assert.match(html, /<span aria-hidden="true">\+1<\/span>/);
   assert.match(html, /lucide-chevrons-up/);
 });

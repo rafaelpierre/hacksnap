@@ -27,11 +27,11 @@ export function StoryRow({story, variant = "unranked"}: {story: Story; variant?:
       {takeaway ? <p className="feed-excerpt">{briefExcerpt(takeaway)}</p> : <p className="feed-excerpt feed-pending">Brief pending. Check back after the next summary update.</p>}
       <div className="feed-story-footer">
         <div className="story-meta">
-          <span className="points"><Star size={14} aria-hidden="true" />{story.points.toLocaleString("en-GB")} points</span>
-          <a href={`https://news.ycombinator.com/item?id=${story.hn_id}`}><MessageCircle size={14} aria-hidden="true" />{story.comment_count.toLocaleString("en-GB")} comments</a>
+          <span className="points" title={`${story.points.toLocaleString("en-GB")} points`}><Star size={14} aria-hidden="true" /><span>{story.points.toLocaleString("en-GB")}<span className="sr-only"> points</span></span></span>
+          <a href={`https://news.ycombinator.com/item?id=${story.hn_id}`} title={`${story.comment_count.toLocaleString("en-GB")} comments`}><MessageCircle size={14} aria-hidden="true" /><span>{story.comment_count.toLocaleString("en-GB")}<span className="sr-only"> comments</span></span></a>
           {hasRank && <span className="rank-movement" aria-label={movementLabel} title={movementLabel}>
             <MovementIcon size={16} aria-hidden="true" />
-            <span aria-hidden="true">{movement === null ? "—" : formatRankChange(movement)} places</span>
+            <span aria-hidden="true">{movement === null ? "—" : formatRankChange(movement)}</span>
           </span>}
         </div>
         <ShareLinks id={story.hn_id} title={story.title} takeaway={takeaway} />
