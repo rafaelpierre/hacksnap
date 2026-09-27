@@ -172,6 +172,21 @@ await db.exec(`DO $$ BEGIN
   ASSERT NOT EXISTS (SELECT 1 FROM hn_thread_contents WHERE hn_id = 20);
   ASSERT NOT EXISTS (SELECT 1 FROM hn_thread_snapshots WHERE hn_id = 20 AND raw_payload IS NOT NULL);
 END $$;`);
+// A is acknowledged and absent from retained contents. Ingest changed B,
+// then A again before enrichment: A must remove B, not leave it queued.
+const [upsert, , discard] = input.queries;
+const changed = upsert.params.map(value => typeof value === 'string'
+  ? value.replace('new evidence', 'pending evidence') : value);
+await db.query(upsert.sql, changed);
+await db.exec(`DO $$ BEGIN
+  ASSERT EXISTS (SELECT 1 FROM hn_thread_contents WHERE hn_id = 20);
+END $$;`);
+await db.query(upsert.sql, upsert.params);
+await db.query(discard.sql, discard.params);
+await db.exec(`DO $$ BEGIN
+  ASSERT NOT EXISTS (SELECT 1 FROM hn_thread_contents WHERE hn_id = 20),
+    'Reverted acknowledged A must discard pending B';
+END $$;`);
 await db.exec(input.downgrade);
 await db.close();
 '''
@@ -191,3 +206,40 @@ def test_cleanup_acknowledgement_is_nullable_private_and_not_backfilled():
     assert "GRANT" not in cleanup_sql()
     module.downgrade()
     module.op.drop_column.assert_called_once_with("hacksnap_summaries", "discussion_content_hash")
+
+
+def test_reverted_incoming_source_discards_any_older_pending_payload():
+    # An acknowledged incoming A supersedes pending B; comparing B to A here
+    # would leave B queued for the worker even though ingestion last observed A.
+    assert "c.content_hash" not in DISCARD_REDUNDANT_CONTENTS
+    assert "ELSE s.discussion_content_hash END = hn_source_hash(%(full_raw_text_contents)s::text::jsonb)" in DISCARD_REDUNDANT_CONTENTS
+
+
+def test_snapshot_retention_uses_parameters_supplied_by_snapshot_row():
+    from uuid import uuid4
+    from hn_trending.storage import database_row, snapshot_row
+
+    row = database_row({"id": 20, "title": "AI", "time": 1},
+                       '{"story": {}, "comments": []}', top_story_rank=1, max_comment_depth=5)
+    params = snapshot_row(row, uuid4())
+    assert set(re.findall(r"%\((\w+)\)s", INSERT_SNAPSHOT)) <= params.keys()
+
+
+def test_collector_serializes_discard_with_the_story_upsert(monkeypatch):
+    from uuid import uuid4
+    from hn_trending import storage
+
+    connection = MagicMock()
+    cursor = connection.cursor.return_value.__enter__.return_value
+    cursor.fetchone.return_value = None
+    monkeypatch.setattr(storage.psycopg, "connect", lambda _: connection)
+    connection.__enter__.return_value = connection
+    row = storage.database_row({"id": 20, "title": "AI", "time": 1},
+                               '{"story": {}, "comments": []}', top_story_rank=1, max_comment_depth=5)
+    storage.store_threads_and_snapshots("unused", uuid4(), [row])
+    # The row lock acquired by UPSERT_THREAD survives through the discard and
+    # snapshot write. Another collector for this story must wait until commit.
+    assert [call.args[0] for call in cursor.execute.call_args_list] == [
+        storage.UPSERT_THREAD, UPSERT_CONTENTS, DISCARD_REDUNDANT_CONTENTS, INSERT_SNAPSHOT,
+    ]
+    connection.commit.assert_called_once_with()
