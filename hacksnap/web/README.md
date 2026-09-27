@@ -405,3 +405,11 @@ cache misses still depend on retained data. Requests across many IDs or instance
 still require edge rate limiting and verified origin restrictions. See the
 [issue #75 verification report](../../docs/security/issue-75-public-read-limits.md)
 for deployment evidence and remaining exposure.
+
+## Discussion rendering fallback
+
+Set server-only `HACKSNAP_DISCUSSION_RENDERING=false` and redeploy to use legacy
+summary projections across story, public API, feed, archive and category reads. Stored analysis
+and worker generation are unchanged. Enabled and disabled deployments use separate
+leaderboard cache keys. Remove the setting and redeploy to restore analysis.
+See the [rollout runbook](../../docs/evaluations/issue-42/README.md).

@@ -467,3 +467,9 @@ existing summaries remain unscored and display “Pending.” Existing summaries
 retained comments receive missing sentiment through a separate inference request
 on their next successful top-10 refresh.
 Older stories without retained comments remain unscored until ingested again.
+
+## Comment-analysis rollout and fallback
+
+See [issue #42 release verification](../docs/evaluations/issue-42/README.md) for
+the semantic evaluation command, deployment evidence, pending production checks,
+and steps to pause generation or hide analysis while preserving stored data.

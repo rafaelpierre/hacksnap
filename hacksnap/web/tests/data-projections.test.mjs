@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { publicStorySQL } from "../lib/public-story.ts";
 import { PGlite } from "@electric-sql/pglite";
 import { hasReadySummary } from "../lib/ready-stories.ts";
 import { beforeEach, afterAll, expect, jest, test } from "@jest/globals";
@@ -43,7 +44,7 @@ jest.unstable_mockModule("pg", () => ({
 jest.unstable_mockModule("next/cache", () => ({
   unstable_noStore: () => {},
   unstable_cache: (fn, keys) => {
-    assert.deepEqual(keys, ["hacksnap-leaderboard-v12-ready-top-ten"]);
+    assert.deepEqual(keys, ["hacksnap-leaderboard-v13-discussion-rollout", "enabled"]);
     return () => cachedValue ?? fn();
   },
 }));
@@ -245,3 +246,38 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
     await db.close();
   }
 }, 30000);
+
+test("rendering fallback uses legacy projections without reading or changing stored analysis", async () => {
+  const previous = process.env.HACKSNAP_DISCUSSION_RENDERING;
+  const warning = jest.spyOn(console, "warn").mockImplementation(() => {});
+  process.env.HACKSNAP_DISCUSSION_RENDERING = "false";
+  try {
+    for (const [load, fields] of [
+      [() => data.getFeedStories(), legacyFeedFields],
+      [() => data.getArchiveStories(null, 1), legacyFeedFields],
+      [() => data.getCategoryStories("agents_coding", 1), legacyFeedFields],
+      [() => data.getStory("456"), legacyStoryFields],
+      [() => data.getPublicStory("456"), publicStorySQL(false)],
+      [() => data.getLeaderboard(), legacyFeedFields],
+    ]) {
+      rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
+      queries.length = 0;
+      await load();
+      assert.ok(!queries.includes(discussionColumnsSQL));
+      assert.ok(queries.some((sql) => sql.includes(fields)));
+      assert.ok(queries.every((sql) => !/INSERT|UPDATE|DELETE/.test(sql)));
+    }
+    expect(warning).not.toHaveBeenCalled();
+    delete process.env.HACKSNAP_DISCUSSION_RENDERING;
+    clock += 1_800_001;
+    queries.length = 0;
+    await data.getStory("456");
+    assert.ok(queries.includes(discussionColumnsSQL));
+    assert.ok(queries.some((sql) => sql.includes(storyFields)));
+  } finally {
+    rows = [];
+    if (previous === undefined) delete process.env.HACKSNAP_DISCUSSION_RENDERING;
+    else process.env.HACKSNAP_DISCUSSION_RENDERING = previous;
+    warning.mockRestore();
+  }
+});

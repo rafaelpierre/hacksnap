@@ -145,6 +145,7 @@ async function read<T>(query: (client: PoolClient) => Promise<T>): Promise<T> {
 }
 
 async function hasDiscussionColumns(client: PoolClient): Promise<boolean> {
+  if (process.env.HACKSNAP_DISCUSSION_RENDERING === "false") return false;
   const { rows } = await client.query<{ available: boolean }>(discussionColumnsSQL);
   const available = rows[0].available;
   if (!available) {
@@ -211,7 +212,10 @@ const cachedLeaderboard = unstable_cache(
       };
     });
   },
-  ["hacksnap-leaderboard-v12-ready-top-ten"],
+  [
+    "hacksnap-leaderboard-v13-discussion-rollout",
+    process.env.HACKSNAP_DISCUSSION_RENDERING === "false" ? "disabled" : "enabled",
+  ],
   { revalidate: 1800 },
 );
 

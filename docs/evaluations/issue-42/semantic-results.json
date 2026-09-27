@@ -1,0 +1,1138 @@
+{
+  "evaluated_at": "2026-09-27T12:20:30.766368+00:00",
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+  "initial_prompt": "v5-initial-discussion-analysis",
+  "refresh_prompt": "v1-discussion-refresh",
+  "schema_version": "1",
+  "scope": "synthetic fixtures only; no production reads or writes",
+  "timing": "client wall time; includes CLI authentication when selected",
+  "results": [
+    {
+      "case": "one_sided_criticism",
+      "mode": "initial",
+      "semantic_expectations": [
+        "The supportive list must be empty; do not invent balance."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "available",
+          "reference_claims": [
+            {
+              "id": "c1",
+              "text": "The engine halves latency in a single-client test.",
+              "source": "article"
+            }
+          ],
+          "critical_comments": [
+            {
+              "comment_id": 101,
+              "claim_id": "c1",
+              "stance": "disagrees",
+              "paraphrase": "The baseline includes startup time while the new engine is warmed up, so the test does not demonstrate halved latency.",
+              "explanation": "Identifies a confound between startup and warmed-up performance that undermines the comparison."
+            }
+          ],
+          "supportive_comments": [],
+          "topics": [
+            {
+              "key": "technical_limitations",
+              "title": "Technical limitations",
+              "summary": "The commenter questions the latency comparison because baseline startup time is compared with a warmed-up engine.",
+              "comment_ids": [
+                101
+              ]
+            },
+            {
+              "key": "evidence",
+              "title": "Evidence",
+              "summary": "The halved-latency claim is challenged as not demonstrated by the described test.",
+              "comment_ids": [
+                101
+              ]
+            }
+          ]
+        },
+        "article_summary": "The article claims the engine halves latency in a single-client test.",
+        "article_key_points": [
+          "The engine reportedly halves latency in a single-client test.",
+          "The test is limited to one client, so broader performance is not established."
+        ],
+        "discussion_summary": "One commenter challenges the latency claim, arguing the comparison is confounded: the baseline includes startup time while the new engine is warmed up.",
+        "discussion_points": [
+          {
+            "title": "Confounded comparison",
+            "summary": "The commenter says the baseline includes startup time while the new engine is warmed up, so the test does not demonstrate halved latency.",
+            "comment_ids": [
+              101
+            ]
+          }
+        ],
+        "sentiment": -1,
+        "overall_takeaway": "The article claims halved latency in a single-client test, but a commenter notes the baseline includes startup time while the new engine is warmed up, so the comparison may not support that."
+      },
+      "output_characters": 1765,
+      "analysis_characters": 856,
+      "elapsed_seconds": 11.101
+    },
+    {
+      "case": "one_sided_criticism",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "The supportive list must be empty; do not invent balance."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "available",
+        "reference_claims": [
+          {
+            "id": "latency",
+            "text": "The engine halves latency in the reported test.",
+            "source": "article"
+          }
+        ],
+        "critical_comments": [
+          {
+            "comment_id": 101,
+            "claim_id": "latency",
+            "stance": "disagrees",
+            "paraphrase": "The comparison is invalid because the baseline includes startup time while the new engine is warmed up, so it does not demonstrate halved latency.",
+            "explanation": "The commenter rejects the latency claim by challenging the fairness of the benchmark setup."
+          }
+        ],
+        "supportive_comments": [],
+        "topics": [
+          {
+            "key": "evidence",
+            "title": "Benchmark fairness and warm-up conditions",
+            "summary": "The commenter argues that including startup time in the baseline while using a warmed-up new engine undermines the latency comparison.",
+            "comment_ids": [
+              101
+            ]
+          }
+        ]
+      },
+      "output_characters": 763,
+      "analysis_characters": 763,
+      "elapsed_seconds": 5.562
+    },
+    {
+      "case": "sparse_support",
+      "mode": "initial",
+      "semantic_expectations": [
+        "One comment is sufficient for one supported highlight; do not pad topics."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "available",
+          "reference_claims": [
+            {
+              "id": "claim_1",
+              "text": "The engine halves latency in a single-client test.",
+              "source": "article"
+            }
+          ],
+          "critical_comments": [],
+          "supportive_comments": [
+            {
+              "comment_id": 102,
+              "claim_id": "claim_1",
+              "stance": "agrees",
+              "paraphrase": "Reports repeating the single-client test and measuring the same halved latency.",
+              "explanation": "Directly corroborates the article's latency claim under the same test condition."
+            }
+          ],
+          "topics": [
+            {
+              "key": "technical_limitations",
+              "title": "Single-client test scope",
+              "summary": "The article's latency claim is limited to a single-client test, and the commenter repeats that same test condition.",
+              "comment_ids": [
+                102
+              ]
+            }
+          ]
+        },
+        "article_summary": "The article claims the engine halves latency in a single-client test. It provides no other details or context.",
+        "article_key_points": [
+          "The engine halves latency in a single-client test.",
+          "The measurement is limited to a single-client test."
+        ],
+        "discussion_summary": "One commenter says they repeated the single-client test and measured the same halved latency. No other discussion is supplied.",
+        "discussion_points": [
+          {
+            "title": "Replication of the single-client result",
+            "summary": "A commenter reports repeating the single-client test and measuring half the latency, corroborating the article's claim under the same condition.",
+            "comment_ids": [
+              102
+            ]
+          }
+        ],
+        "sentiment": 1,
+        "overall_takeaway": "A commenter reports reproducing the engine's halved latency in the same single-client test, but the evidence remains limited to that one test condition."
+      },
+      "output_characters": 1536,
+      "analysis_characters": 662,
+      "elapsed_seconds": 8.028
+    },
+    {
+      "case": "sparse_support",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "One comment is sufficient for one supported highlight; do not pad topics."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "available",
+        "reference_claims": [
+          {
+            "id": "latency",
+            "text": "The engine halves latency in the reported test.",
+            "source": "article"
+          }
+        ],
+        "critical_comments": [],
+        "supportive_comments": [
+          {
+            "comment_id": 102,
+            "claim_id": "latency",
+            "stance": "agrees",
+            "paraphrase": "The commenter repeated the single-client test and observed the latency was halved, supporting the claim.",
+            "explanation": "The commenter repeated the single-client test and observed the latency was halved, supporting the claim."
+          }
+        ],
+        "topics": [
+          {
+            "key": "technical_limitations",
+            "title": "Latency replication",
+            "summary": "A commenter reports repeating the single-client test and measuring half the latency.",
+            "comment_ids": [
+              102
+            ]
+          }
+        ]
+      },
+      "output_characters": 672,
+      "analysis_characters": 672,
+      "elapsed_seconds": 6.662
+    },
+    {
+      "case": "sarcasm",
+      "mode": "initial",
+      "semantic_expectations": [
+        "Miraculous speedup is sarcasm, not evidence of agreement."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "available",
+          "reference_claims": [
+            {
+              "id": "a1",
+              "text": "The engine halves latency in a single-client test.",
+              "source": "article"
+            }
+          ],
+          "critical_comments": [
+            {
+              "comment_id": 103,
+              "claim_id": "a1",
+              "stance": "disagrees",
+              "paraphrase": "The speedup may be an artifact of excluding a network round trip from the new engine measurement.",
+              "explanation": "The commenter challenges the benchmark's validity, implying the engine itself may not be responsible for the latency reduction."
+            }
+          ],
+          "supportive_comments": [],
+          "topics": [
+            {
+              "key": "other",
+              "title": "Benchmark methodology",
+              "summary": "The sole comment questions whether the latency gain is due to engine improvements or to excluding a network round trip.",
+              "comment_ids": [
+                103
+              ]
+            }
+          ]
+        },
+        "article_summary": "The article claims the engine halves latency in the authors' single-client test.",
+        "article_key_points": [
+          "The engine reportedly halves latency.",
+          "The result is from a single-client test.",
+          "No baseline, network conditions, or methodology are provided."
+        ],
+        "discussion_summary": "One commenter challenges the measurement, arguing the speedup may come from excluding a network round trip rather than engine improvements.",
+        "discussion_points": [
+          {
+            "title": "Benchmark validity questioned",
+            "summary": "The sole supplied comment disputes the latency claim, suggesting the new engine measurement omits a network round trip and therefore overstates the speedup.",
+            "comment_ids": [
+              103
+            ]
+          }
+        ],
+        "sentiment": -1,
+        "overall_takeaway": "The article claims a halving of latency in a single-client test, but the only supplied comment argues the gain may come from excluding a network round trip."
+      },
+      "output_characters": 1609,
+      "analysis_characters": 705,
+      "elapsed_seconds": 14.845
+    },
+    {
+      "case": "sarcasm",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "Miraculous speedup is sarcasm, not evidence of agreement."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "available",
+        "reference_claims": [
+          {
+            "id": "latency",
+            "text": "The engine halves latency in the reported test.",
+            "source": "article"
+          }
+        ],
+        "critical_comments": [
+          {
+            "comment_id": 103,
+            "claim_id": "latency",
+            "stance": "disagrees",
+            "paraphrase": "The commenter sarcastically suggests the speedup comes from removing the network round trip from the new engine measurement, challenging the reported latency halving as a measurement artifact.",
+            "explanation": "The commenter sarcastically suggests the speedup comes from removing the network round trip from the new engine measurement, challenging the reported latency halving as a measurement artifact."
+          }
+        ],
+        "supportive_comments": [],
+        "topics": [
+          {
+            "key": "evidence",
+            "title": "Latency measurement validity",
+            "summary": "The commenter questions whether the reported latency improvement reflects the engine itself or an altered measurement setup that excludes network round-trip time.",
+            "comment_ids": [
+              103
+            ]
+          }
+        ]
+      },
+      "output_characters": 925,
+      "analysis_characters": 925,
+      "elapsed_seconds": 7.955
+    },
+    {
+      "case": "reply_disagrees_with_critic",
+      "mode": "initial",
+      "semantic_expectations": [
+        "Interpret comment 105 with parent 104; disagreement in a reply can support the article."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "available",
+          "reference_claims": [
+            {
+              "id": "claim_1",
+              "text": "The engine halves latency in our single-client test.",
+              "source": "article"
+            }
+          ],
+          "critical_comments": [
+            {
+              "comment_id": 104,
+              "claim_id": "claim_1",
+              "stance": "disagrees",
+              "paraphrase": "The commenter says the test cannot be reproduced.",
+              "explanation": "This challenges the reported result's reproducibility."
+            }
+          ],
+          "supportive_comments": [
+            {
+              "comment_id": 105,
+              "claim_id": "claim_1",
+              "stance": "agrees",
+              "paraphrase": "The commenter says they ran the script and reproduced the latency halving.",
+              "explanation": "This explicitly supports the article's claim."
+            }
+          ],
+          "topics": [
+            {
+              "key": "other",
+              "title": "Reproducibility of the latency test",
+              "summary": "Commenters disagree about whether the single-client latency result can be reproduced.",
+              "comment_ids": [
+                104,
+                105
+              ]
+            }
+          ]
+        },
+        "article_summary": "The article claims the engine halves latency in a single-client test.",
+        "article_key_points": [
+          "The engine reportedly halves latency in a single-client test."
+        ],
+        "discussion_summary": "Two commenters dispute reproducibility: one says the test cannot be reproduced, while another says running the provided script reproduced the reported latency halving.",
+        "discussion_points": [
+          {
+            "title": "Reproducibility challenged",
+            "summary": "One commenter challenges the result by saying the test cannot be reproduced.",
+            "comment_ids": [
+              104
+            ]
+          },
+          {
+            "title": "Successful reproduction reported",
+            "summary": "A reply counters that running the provided script did reproduce the reported latency halving.",
+            "comment_ids": [
+              105
+            ]
+          },
+          {
+            "title": "Unresolved reproducibility",
+            "summary": "The exchange leaves unresolved whether the single-client result is broadly reproducible, since it cites one failed and one successful attempt.",
+            "comment_ids": [
+              104,
+              105
+            ]
+          }
+        ],
+        "sentiment": 0,
+        "overall_takeaway": "The article claims a single-client latency halving; discussion splits on reproducibility, with one commenter reporting success and another failure."
+      },
+      "output_characters": 1923,
+      "analysis_characters": 789,
+      "elapsed_seconds": 15.445
+    },
+    {
+      "case": "reply_disagrees_with_critic",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "Interpret comment 105 with parent 104; disagreement in a reply can support the article."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "available",
+        "reference_claims": [
+          {
+            "id": "latency",
+            "text": "The engine halves latency in the reported test.",
+            "source": "article"
+          }
+        ],
+        "critical_comments": [
+          {
+            "comment_id": 104,
+            "claim_id": "latency",
+            "stance": "disagrees",
+            "paraphrase": "States the test cannot be reproduced, directly challenging the reported latency result.",
+            "explanation": "States the test cannot be reproduced, directly challenging the reported latency result."
+          }
+        ],
+        "supportive_comments": [
+          {
+            "comment_id": 105,
+            "claim_id": "latency",
+            "stance": "agrees",
+            "paraphrase": "Says they ran the script and reproduced the reported halving of latency.",
+            "explanation": "Says they ran the script and reproduced the reported halving of latency."
+          }
+        ],
+        "topics": [
+          {
+            "key": "evidence",
+            "title": "Latency test reproducibility",
+            "summary": "Commenters dispute whether the reported latency test can be reproduced, with one saying it cannot and a reply saying the script reproduced the halving.",
+            "comment_ids": [
+              104,
+              105
+            ]
+          }
+        ]
+      },
+      "output_characters": 942,
+      "analysis_characters": 942,
+      "elapsed_seconds": 7.104
+    },
+    {
+      "case": "qualified_agreement",
+      "mode": "initial",
+      "semantic_expectations": [
+        "Preserve the concurrency caveat.",
+        "A comment may cite multiple topics."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "available",
+          "reference_claims": [
+            {
+              "id": "claim_1",
+              "text": "The engine halves latency in our single-client test.",
+              "source": "article"
+            }
+          ],
+          "critical_comments": [],
+          "supportive_comments": [
+            {
+              "comment_id": 106,
+              "claim_id": "claim_1",
+              "stance": "qualified_agreement",
+              "paraphrase": "Confirms the single-client latency halving and calls it useful there, but warns against expecting the same with concurrent traffic.",
+              "explanation": "Accepts the article's limited claim while adding a concurrency caveat."
+            }
+          ],
+          "topics": [
+            {
+              "key": "social_impact",
+              "title": "Single-client latency improvement",
+              "summary": "The article claims halved latency in a single-client test; a commenter accepts this but cautions about concurrent traffic.",
+              "comment_ids": [
+                106
+              ]
+            },
+            {
+              "key": "social_impact",
+              "title": "Concurrent traffic caveat",
+              "summary": "A commenter warns the single-client result may not generalize to concurrent traffic.",
+              "comment_ids": [
+                106
+              ]
+            }
+          ]
+        },
+        "article_summary": "The article claims the engine halves latency in a single-client test.",
+        "article_key_points": [
+          "The engine halves latency in a single-client test."
+        ],
+        "discussion_summary": "One commenter confirms the single-client latency improvement but cautions it may not hold under concurrent traffic.",
+        "discussion_points": [
+          {
+            "title": "Single-client benefit with concurrency caveat",
+            "summary": "The latency halving is accepted for a single client, but the commenter warns it may not generalize to concurrent traffic.",
+            "comment_ids": [
+              106
+            ]
+          }
+        ],
+        "sentiment": 0,
+        "overall_takeaway": "The engine halves latency in a single-client test, but one commenter cautions that this may not extend to concurrent traffic."
+      },
+      "output_characters": 1628,
+      "analysis_characters": 904,
+      "elapsed_seconds": 6.695
+    },
+    {
+      "case": "qualified_agreement",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "Preserve the concurrency caveat.",
+        "A comment may cite multiple topics."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "available",
+        "reference_claims": [
+          {
+            "id": "latency",
+            "text": "The engine halves latency in the reported test.",
+            "source": "article"
+          }
+        ],
+        "critical_comments": [],
+        "supportive_comments": [
+          {
+            "comment_id": 106,
+            "claim_id": "latency",
+            "stance": "qualified_agreement",
+            "paraphrase": "Accepts the reported single-client latency improvement but cautions that it should not be expected under concurrent traffic.",
+            "explanation": "Accepts the reported single-client latency improvement but cautions that it should not be expected under concurrent traffic."
+          }
+        ],
+        "topics": [
+          {
+            "key": "technical_limitations",
+            "title": "Concurrent traffic caveat",
+            "summary": "The latency improvement is acknowledged for one client, with a warning that concurrent traffic may change the result.",
+            "comment_ids": [
+              106
+            ]
+          }
+        ]
+      },
+      "output_characters": 764,
+      "analysis_characters": 764,
+      "elapsed_seconds": 8.789
+    },
+    {
+      "case": "neutral_question",
+      "mode": "initial",
+      "semantic_expectations": [
+        "The question establishes neither agreement nor disagreement; both highlight lists stay empty."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "available",
+          "reference_claims": [
+            {
+              "id": "claim_1",
+              "text": "The engine halves latency in a single-client test.",
+              "source": "article"
+            }
+          ],
+          "critical_comments": [],
+          "supportive_comments": [],
+          "topics": [
+            {
+              "key": "technical_limitations",
+              "title": "Missing performance details",
+              "summary": "The discussion asks about RAM usage per configuration, leaving resource consumption and test conditions unclear.",
+              "comment_ids": [
+                107
+              ]
+            }
+          ]
+        },
+        "article_summary": "The article reports that the engine halves latency in a single-client test. It does not provide baseline details, multi-client results, or resource usage.",
+        "article_key_points": [
+          "The engine halves latency in a single-client test."
+        ],
+        "discussion_summary": "The only supplied comment asks how much RAM each configuration used. It does not support or dispute the latency claim, but it highlights an unanswered resource-usage question.",
+        "discussion_points": [
+          {
+            "title": "RAM usage is an open question",
+            "summary": "A commenter asks how much RAM each configuration used, indicating memory footprint was not addressed in the article.",
+            "comment_ids": [
+              107
+            ]
+          }
+        ],
+        "sentiment": 0,
+        "overall_takeaway": "The engine reportedly halves latency in a single-client test, but the article gives no baseline, workload, or multi-client data; one commenter asks about RAM use."
+      },
+      "output_characters": 1298,
+      "analysis_characters": 413,
+      "elapsed_seconds": 6.921
+    },
+    {
+      "case": "neutral_question",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "The question establishes neither agreement nor disagreement; both highlight lists stay empty."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "available",
+        "reference_claims": [
+          {
+            "id": "latency",
+            "text": "The engine halves latency in the reported test.",
+            "source": "article"
+          }
+        ],
+        "critical_comments": [],
+        "supportive_comments": [],
+        "topics": [
+          {
+            "key": "technical_limitations",
+            "title": "RAM usage per configuration",
+            "summary": "A commenter asks how much RAM each configuration used.",
+            "comment_ids": [
+              107
+            ]
+          }
+        ]
+      },
+      "output_characters": 352,
+      "analysis_characters": 352,
+      "elapsed_seconds": 9.293
+    },
+    {
+      "case": "ethical_concern",
+      "mode": "initial",
+      "semantic_expectations": [
+        "An ethical concern about an application does not refute the latency measurement."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "available",
+          "reference_claims": [
+            {
+              "id": "claim_1",
+              "text": "The engine halves latency in our single-client test.",
+              "source": "article"
+            }
+          ],
+          "critical_comments": [],
+          "supportive_comments": [],
+          "topics": [
+            {
+              "key": "privacy_security",
+              "title": "Surveillance consent and deletion policy",
+              "summary": "Comment 108 raises that using the engine for employee surveillance would require consent and a clear deletion policy.",
+              "comment_ids": [
+                108
+              ]
+            }
+          ]
+        },
+        "article_summary": "The article claims the engine halves latency in a single-client test. It does not provide multi-client results, broader benchmark conditions, or independent verification. The claim is therefore limited to the authors' test setup.",
+        "article_key_points": [
+          "The engine halves latency in a single-client test, per the article.",
+          "No multi-client or independent benchmark is reported."
+        ],
+        "discussion_summary": "Only one comment was supplied. It does not evaluate the latency claim; it raises consent and deletion-policy requirements for employee surveillance use.",
+        "discussion_points": [
+          {
+            "title": "Surveillance governance concern",
+            "summary": "Comment 108 raises that employee surveillance use would require consent and a clear deletion policy; it does not address the latency claim.",
+            "comment_ids": [
+              108
+            ]
+          }
+        ],
+        "sentiment": -1,
+        "overall_takeaway": "The engine reportedly halves latency, but only in a single-client test; the lone comment raises consent and deletion-policy needs for surveillance use."
+      },
+      "output_characters": 1453,
+      "analysis_characters": 428,
+      "elapsed_seconds": 7.246
+    },
+    {
+      "case": "ethical_concern",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "An ethical concern about an application does not refute the latency measurement."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "available",
+        "reference_claims": [
+          {
+            "id": "latency",
+            "text": "The engine halves latency in the reported test.",
+            "source": "article"
+          }
+        ],
+        "critical_comments": [],
+        "supportive_comments": [],
+        "topics": [
+          {
+            "key": "privacy_security",
+            "title": "Employee surveillance safeguards",
+            "summary": "The commenter says using the engine for employee surveillance would require consent and a clear deletion policy.",
+            "comment_ids": [
+              108
+            ]
+          }
+        ]
+      },
+      "output_characters": 410,
+      "analysis_characters": 410,
+      "elapsed_seconds": 9.689
+    },
+    {
+      "case": "multiple_claims",
+      "mode": "initial",
+      "semantic_expectations": [
+        "Target the cost claim and preserve agreement with the separate latency claim.",
+        "Select this comment once rather than duplicating it across highlight lists."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "available",
+          "reference_claims": [
+            {
+              "id": "claim_1",
+              "text": "The engine halves latency in a single-client test.",
+              "source": "article"
+            },
+            {
+              "id": "claim_2",
+              "text": "The engine reduces hosting costs.",
+              "source": "article"
+            }
+          ],
+          "critical_comments": [
+            {
+              "comment_id": 109,
+              "claim_id": "claim_2",
+              "stance": "disagrees",
+              "paraphrase": "Rejects the hosting-cost reduction claim, saying RAM costs twice as much.",
+              "explanation": "The commenter accepts the latency result but argues the cost claim is undermined by higher RAM costs."
+            }
+          ],
+          "supportive_comments": [],
+          "topics": [
+            {
+              "key": "cost",
+              "title": "Hosting cost claim disputed",
+              "summary": "Commenter rejects the cost-reduction claim, citing doubled RAM costs.",
+              "comment_ids": [
+                109
+              ]
+            },
+            {
+              "key": "other",
+              "title": "Latency result accepted",
+              "summary": "Commenter accepts the reported latency result.",
+              "comment_ids": [
+                109
+              ]
+            }
+          ]
+        },
+        "article_summary": "The article claims the engine halves latency in a single-client test and reduces hosting costs. It provides no methodology or cost breakdown.",
+        "article_key_points": [
+          "Engine halves latency in a single-client test.",
+          "Engine reduces hosting costs."
+        ],
+        "discussion_summary": "One commenter accepts the latency result but rejects the hosting-cost claim, arguing RAM costs twice as much. No other discussion is supplied.",
+        "discussion_points": [
+          {
+            "title": "Cost claim disputed",
+            "summary": "Commenter accepts the latency finding but disputes the cost-reduction claim, citing doubled RAM costs.",
+            "comment_ids": [
+              109
+            ]
+          }
+        ],
+        "sentiment": 0,
+        "overall_takeaway": "Article claims halved single-client latency and lower hosting costs, but the sole commenter disputes the cost claim, citing doubled RAM costs."
+      },
+      "output_characters": 1651,
+      "analysis_characters": 828,
+      "elapsed_seconds": 15.383
+    },
+    {
+      "case": "multiple_claims",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "Target the cost claim and preserve agreement with the separate latency claim.",
+        "Select this comment once rather than duplicating it across highlight lists."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "available",
+        "reference_claims": [
+          {
+            "id": "latency",
+            "text": "The engine halves latency in the reported test.",
+            "source": "article"
+          },
+          {
+            "id": "cost",
+            "text": "The engine reduces hosting costs.",
+            "source": "article"
+          }
+        ],
+        "critical_comments": [
+          {
+            "comment_id": 109,
+            "claim_id": "cost",
+            "stance": "disagrees",
+            "paraphrase": "The commenter rejects the cost-reduction claim, arguing that RAM costs are higher.",
+            "explanation": "The commenter rejects the cost-reduction claim, arguing that RAM costs are higher."
+          }
+        ],
+        "supportive_comments": [],
+        "topics": [
+          {
+            "key": "cost",
+            "title": "Hosting cost challenge",
+            "summary": "The commenter disputes the claim that the engine reduces hosting costs, citing higher RAM costs.",
+            "comment_ids": [
+              109
+            ]
+          }
+        ]
+      },
+      "output_characters": 702,
+      "analysis_characters": 702,
+      "elapsed_seconds": 7.085
+    },
+    {
+      "case": "no_comments",
+      "mode": "initial",
+      "semantic_expectations": [
+        "All evidence lists are empty; this is different from missing historical analysis."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "no_comments",
+          "reference_claims": [
+            {
+              "id": "claim_1",
+              "text": "In a single-client test, the engine reduced latency by half.",
+              "source": "article"
+            }
+          ],
+          "critical_comments": [],
+          "supportive_comments": [],
+          "topics": []
+        },
+        "article_summary": "The article reports that the engine halves latency in a single-client test. It provides no multi-client or broader performance evidence.",
+        "article_key_points": [
+          "Latency was halved in the reported test.",
+          "The test covered only a single client, limiting generalization."
+        ],
+        "discussion_summary": "No usable discussion was available because no comments were supplied.",
+        "discussion_points": [],
+        "sentiment": null,
+        "overall_takeaway": "The engine halved latency in a single-client test, but the result is limited to one client and no discussion was available to assess it."
+      },
+      "output_characters": 815,
+      "analysis_characters": 211,
+      "elapsed_seconds": 7.887
+    },
+    {
+      "case": "no_comments",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "All evidence lists are empty; this is different from missing historical analysis."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "no_comments",
+        "reference_claims": [],
+        "critical_comments": [],
+        "supportive_comments": [],
+        "topics": []
+      },
+      "output_characters": 106,
+      "analysis_characters": 106,
+      "elapsed_seconds": 8.968
+    },
+    {
+      "case": "unavailable_source",
+      "mode": "initial",
+      "semantic_expectations": [
+        "Do not reconstruct article claims from comments; topics remain possible."
+      ],
+      "semantic_review": "pending",
+      "validation": "failed",
+      "error_type": "ValueError",
+      "elapsed_seconds": 4.426
+    },
+    {
+      "case": "unavailable_source",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "Do not reconstruct article claims from comments; topics remain possible."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "insufficient_context",
+        "reference_claims": [],
+        "critical_comments": [],
+        "supportive_comments": [],
+        "topics": [
+          {
+            "key": "other",
+            "title": "Article access and test setup inquiry",
+            "summary": "A commenter reports being unable to access the article and asks for details about the test setup.",
+            "comment_ids": [
+              110
+            ]
+          }
+        ]
+      },
+      "output_characters": 308,
+      "analysis_characters": 308,
+      "elapsed_seconds": 5.701
+    },
+    {
+      "case": "hn_text_post",
+      "mode": "initial",
+      "semantic_expectations": [
+        "HN story text can supply the reference claim without an external article."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "available",
+          "reference_claims": [
+            {
+              "id": "claim_1",
+              "text": "The author reports measuring half the latency on this device with the new engine; no baseline or methodology is given.",
+              "source": "story_text"
+            }
+          ],
+          "critical_comments": [],
+          "supportive_comments": [
+            {
+              "comment_id": 111,
+              "claim_id": "claim_1",
+              "stance": "agrees",
+              "paraphrase": "Reports reproducing the author's latency result on the same device.",
+              "explanation": "Directly corroborates the story's measurement claim, though only on the same device."
+            }
+          ],
+          "topics": [
+            {
+              "key": "technical_limitations",
+              "title": "Engine latency measurement",
+              "summary": "The story claims halved latency on one device with a new engine; a commenter reports reproducing it on the same device.",
+              "comment_ids": [
+                111
+              ]
+            }
+          ]
+        },
+        "article_summary": null,
+        "article_key_points": [],
+        "discussion_summary": "The only supplied comment reports reproducing the author's latency result on the same device. No parent context, methodology, or counterarguments are available.",
+        "discussion_points": [
+          {
+            "title": "Reproduction on the same device",
+            "summary": "A commenter says they reproduced the reported latency result on the same device, supporting the story's claim, though no independent setup or methodology is described.",
+            "comment_ids": [
+              111
+            ]
+          }
+        ],
+        "sentiment": 1,
+        "overall_takeaway": "A single commenter reports reproducing the author's halved-latency result on the same device, but the sample lacks methodology, parent context, and independent setups."
+      },
+      "output_characters": 1455,
+      "analysis_characters": 731,
+      "elapsed_seconds": 9.52
+    },
+    {
+      "case": "hn_text_post",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "HN story text can supply the reference claim without an external article."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "available",
+        "reference_claims": [
+          {
+            "id": "latency",
+            "text": "The engine halves latency in the reported test.",
+            "source": "story_text"
+          }
+        ],
+        "critical_comments": [],
+        "supportive_comments": [
+          {
+            "comment_id": 111,
+            "claim_id": "latency",
+            "stance": "agrees",
+            "paraphrase": "The commenter reports independently reproducing the result on the same device, which supports the reported latency outcome.",
+            "explanation": "The commenter states they reproduced the result on the same device, indicating agreement with the reported test outcome."
+          }
+        ],
+        "topics": [
+          {
+            "key": "evidence",
+            "title": "Independent reproduction on same device",
+            "summary": "A commenter reports reproducing the reported result using the same device, indicating replication of the test outcome.",
+            "comment_ids": [
+              111
+            ]
+          }
+        ]
+      },
+      "output_characters": 751,
+      "analysis_characters": 751,
+      "elapsed_seconds": 4.11
+    },
+    {
+      "case": "open_question",
+      "mode": "initial",
+      "semantic_expectations": [
+        "Available text can lack a proposition to agree with; topics are still useful."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "discussion_analysis": {
+          "status": "insufficient_context",
+          "reference_claims": [],
+          "critical_comments": [],
+          "supportive_comments": [],
+          "topics": [
+            {
+              "key": "evidence",
+              "title": "Batch processing priorities",
+              "summary": "One commenter says throughput matters more than latency for batch inference.",
+              "comment_ids": [
+                112
+              ]
+            }
+          ]
+        },
+        "article_summary": null,
+        "article_key_points": [],
+        "discussion_summary": "Only one comment was supplied. It states a preference for throughput over latency in batch processing, but offers no broader metric framework or comparison of inference engines.",
+        "discussion_points": [
+          {
+            "title": "Batch processing priorities",
+            "summary": "For batch processing, one commenter prioritizes throughput over latency.",
+            "comment_ids": [
+              112
+            ]
+          }
+        ],
+        "sentiment": 0,
+        "overall_takeaway": "The only supplied comment prioritizes throughput over latency for batch inference, but it does not answer the broader question of which metrics to use."
+      },
+      "output_characters": 906,
+      "analysis_characters": 280,
+      "elapsed_seconds": 7.852
+    },
+    {
+      "case": "open_question",
+      "mode": "refresh",
+      "semantic_expectations": [
+        "Available text can lack a proposition to agree with; topics are still useful."
+      ],
+      "semantic_review": "pending",
+      "validation": "passed",
+      "output": {
+        "status": "insufficient_context",
+        "reference_claims": [],
+        "critical_comments": [],
+        "supportive_comments": [],
+        "topics": [
+          {
+            "key": "technical_limitations",
+            "title": "Batch processing priorities",
+            "summary": "The commenter values throughput more than latency for batch processing workloads.",
+            "comment_ids": [
+              112
+            ]
+          }
+        ]
+      },
+      "output_characters": 298,
+      "analysis_characters": 298,
+      "elapsed_seconds": 8.409
+    }
+  ]
+}
