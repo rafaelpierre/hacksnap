@@ -1,10 +1,9 @@
 import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
-import { MessageCircle } from "lucide-react";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById, categoryURL } from "../../../lib/categories";
 import { articleURL, domain } from "../../../lib/format";
-import { skepticismDisplay } from "../../../lib/sentiment";
+import { SkepticismPill } from "../../skepticism-pill";
 import { ShareLinks } from "../../share-links";
 import { briefExcerpt } from "../../../lib/brief";
 import { StoryAddedTime } from "../../story-added-time";
@@ -15,20 +14,6 @@ function StoryShare({story, placement}: {story: Story; placement: "story_top" | 
   return <ShareLinks id={story.hn_id} title={story.title} takeaway={story.summary?.overall_takeaway} placement={placement} />;
 }
 
-function SkepticismPill({story}: {story: Story}) {
-  const coverage = story.summary?.source_coverage;
-  const count = coverage?.sentiment?.included_comments ?? coverage?.included_comments;
-  const {label} = skepticismDisplay(story.summary?.sentiment ?? null, count === 0);
-  const explanation = label === "No comments"
-    ? "No usable comments were available to estimate skepticism."
-    : label === "Pending"
-      ? "Skepticism is unavailable until the comments are analyzed."
-      : `${label} skepticism in a sample of thread comments. Mixed, neutral and positive reactions are grouped as Low.`;
-  const display = label === "No comments" ? "No comment evidence" : label === "Pending" ? "Skepticism pending" : `${label} skepticism`;
-  return <span className={`skepticism-pill skepticism-${label.toLowerCase().replace(" ", "-")}`} title={explanation} aria-label={explanation}>
-    <MessageCircle size={14} aria-hidden="true" /> {display}
-  </span>;
-}
 
 export function StoryContent({story, relatedStories}: {story: Story; relatedStories: RelatedStory[]}) {
   const summary = story.summary;

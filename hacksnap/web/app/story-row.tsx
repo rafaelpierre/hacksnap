@@ -3,6 +3,7 @@ import type { Story } from "../lib/data";
 import { CategoryBadge } from "./categories";
 import { formatRankChange, latestRankChange } from "../lib/rank-history";
 import { briefExcerpt } from "../lib/brief";
+import { SkepticismPill } from "./skepticism-pill";
 import { ShareLinks } from "./share-links";
 import { BrowseStoryLink } from "./story-navigation";
 
@@ -33,6 +34,7 @@ export function StoryRow({story, variant = "unranked"}: {story: Story; variant?:
             <MovementIcon size={16} aria-hidden="true" />
             <span aria-hidden="true">{movement === null ? "—" : formatRankChange(movement)}</span>
           </span>}
+          <SkepticismPill story={story} />
         </div>
         <ShareLinks id={story.hn_id} title={story.title} takeaway={takeaway} />
       </div>
