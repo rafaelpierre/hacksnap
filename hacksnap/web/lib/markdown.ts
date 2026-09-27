@@ -236,7 +236,7 @@ export function markdownResponse(body: string, status = 200): Response {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
       Vary: "Accept",
-      // The underlying leaderboard already has its own shared data cache.
+      // Cache data behind the handler; keep negotiated representations out of shared HTTP caches.
       "Cache-Control": "no-store",
       ...(status === 503 ? { "Retry-After": "60" } : {}),
     },

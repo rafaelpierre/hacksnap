@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { PGlite } from "@electric-sql/pglite";
 import { hasReadySummary } from "../lib/ready-stories.ts";
-import { expect, jest, test } from "@jest/globals";
+import { beforeEach, afterAll, expect, jest, test } from "@jest/globals";
 import {
   feedFields,
   storyFields,
@@ -47,6 +47,12 @@ jest.unstable_mockModule("next/cache", () => ({
     return () => cachedValue ?? fn();
   },
 }));
+let clock = Date.now();
+const now = jest.spyOn(Date, "now").mockImplementation(() => clock);
+beforeEach(() => {
+  clock += 1_800_001;
+});
+afterAll(() => now.mockRestore());
 const data = await import("../lib/data.ts");
 
 test("each loader uses its intended projection; older cached fields remain optional", async () => {
@@ -89,6 +95,15 @@ test("each loader uses its intended projection; older cached fields remain optio
     assert.equal(stories[0].summary.discussion_summary, "Legacy summary");
     assert.equal(stories[0].summary.discussion_analysis_preview ?? null, null);
     assert.equal(stories[0].summary.discussion_analyzed_at ?? null, null);
+    queries.length = 0;
+    for (const page of [0, 101, 9999999, NaN, 1.5]) {
+      await assert.rejects(data.getArchiveStories(null, page), /Invalid browse page/);
+      await assert.rejects(data.getCategoryStories("agents_coding", page), /Invalid browse page/);
+    }
+    assert.equal(queries.length, 0, "invalid pages never acquire a database connection");
+    rows = Array.from({ length: 31 }, () => ({ hn_id: "1" }));
+    assert.equal((await data.getArchiveStories(null, 100)).hasNext, false);
+    assert.equal((await data.getCategoryStories("agents_coding", 100)).hasNext, false);
   } finally {
     cachedValue = undefined;
     rows = [];
@@ -97,11 +112,12 @@ test("each loader uses its intended projection; older cached fields remain optio
   }
 });
 
-test("all story loaders tolerate an unmigrated database and detect migration on the next read", async () => {
+test("all story loaders tolerate an unmigrated database and detect migration on the next uncached read", async () => {
   process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
   const warning = jest.spyOn(console, "warn").mockImplementation(() => {});
   try {
     for (const ready of [false, true]) {
+      clock += 1_800_001;
       available = ready;
       for (const [load, fields] of [
         [() => data.getFeedStories(), ready ? feedFields : legacyFeedFields],
@@ -190,6 +206,7 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
         FROM hacker_news_threads WHERE hn_id <> 8;
     `);
     for (const ready of [false, true]) {
+      clock += 1_800_001;
       available = ready;
       rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
       queries.length = 0;

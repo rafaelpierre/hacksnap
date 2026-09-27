@@ -1,6 +1,14 @@
 import "server-only";
 import { DataUnavailableError } from "./data-availability";
-import { ARCHIVE_PAGE_SIZE, archiveMonthsSQL, archiveQuery } from "./archive";
+import { boundedCache } from "./bounded-cache";
+import { publicStorySQL, validStoryId, type PublicStory } from "./public-story";
+import {
+  ARCHIVE_PAGE_SIZE,
+  MAX_BROWSE_PAGE,
+  assertBrowsePage,
+  archiveMonthsSQL,
+  archiveQuery,
+} from "./archive";
 import path from "node:path";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
@@ -136,19 +144,24 @@ async function read<T>(query: (client: PoolClient) => Promise<T>): Promise<T> {
   }
 }
 
-// Check per transaction so applying the migration enables analysis without a restart.
+async function hasDiscussionColumns(client: PoolClient): Promise<boolean> {
+  const { rows } = await client.query<{ available: boolean }>(discussionColumnsSQL);
+  const available = rows[0].available;
+  if (!available) {
+    console.warn(
+      "Hacksnap discussion analysis unavailable: apply migration 0012 and its reader grants",
+    );
+  }
+  return available;
+}
+
+// Check on each cache miss so applying the migration needs no process restart.
 function readStories<T>(
   kind: "feed" | "story",
   query: (client: PoolClient, fields: string) => Promise<T>,
 ): Promise<T> {
   return read(async (client) => {
-    const { rows } = await client.query<{ available: boolean }>(discussionColumnsSQL);
-    const available = rows[0].available;
-    if (!available) {
-      console.warn(
-        "Hacksnap discussion analysis unavailable: apply migration 0012 and its reader grants",
-      );
-    }
+    const available = await hasDiscussionColumns(client);
     const fields =
       kind === "feed"
         ? available
@@ -236,35 +249,67 @@ export async function getSitemapStories(): Promise<{ hn_id: string; modified_at:
   });
 }
 
-export async function getFeedStories(): Promise<Story[]> {
-  return readStories("feed", async (client, fields) => {
-    const result =
-      await client.query<Story>(`SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
+const cachedFeedStories = boundedCache(
+  async (): Promise<Story[]> => {
+    return readStories("feed", async (client, fields) => {
+      const result =
+        await client.query<Story>(`SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
       WHERE t.hn_id BETWEEN 1 AND 999999999999999
       ORDER BY t.date_added DESC, t.hn_id DESC LIMIT 50`);
-    return result.rows;
-  });
+      return result.rows;
+    });
+  },
+  { ttl: () => 300_000, maxEntries: 1, maxPending: 1 },
+);
+
+export function getFeedStories(): Promise<Story[]> {
+  return cachedFeedStories("feed");
 }
 
-// Share the read between page metadata and rendering within the same request.
-export const getStory = cache(async (id: string): Promise<Story | null> => {
-  // Bound the route before handing a bigint to PostgreSQL.
-  if (!/^[1-9][0-9]{0,14}$/.test(id)) return null;
-  return readStories("story", async (client, fields) => {
-    const result = await client.query<Story>(
-      `SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
+const cachedPublicStory = boundedCache(
+  async (id: string): Promise<PublicStory | null> =>
+    read(async (client) => {
+      const sql = publicStorySQL(await hasDiscussionColumns(client));
+      return (await client.query<PublicStory>(sql, [id])).rows[0] ?? null;
+    }),
+  { ttl: (story) => (story ? 300_000 : 60_000), maxEntries: 512, maxPending: 8 },
+);
+
+export async function getPublicStory(id: string): Promise<PublicStory | null> {
+  if (!validStoryId(id)) return null;
+  return cachedPublicStory(id);
+}
+
+// Cache expensive renderer reads across requests, including negotiated Markdown.
+const cachedStory = boundedCache(
+  async (id: string): Promise<Story | null> => {
+    return readStories("story", async (client, fields) => {
+      const result = await client.query<Story>(
+        `SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
       ${storyMetricsSQL} AS ranking_metrics,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
       WHERE t.hn_id = $1`,
-      [id],
-    );
-    return result.rows[0] ?? null;
-  });
+        [id],
+      );
+      return result.rows[0] ?? null;
+    });
+  },
+  { ttl: (story) => (story ? 1_800_000 : 60_000), maxEntries: 128, maxPending: 4 },
+);
+
+// Share the result between page metadata and rendering within the same request.
+export const getStory = cache(async (id: string): Promise<Story | null> => {
+  if (!validStoryId(id)) return null;
+  try {
+    return await cachedStory(id);
+  } catch {
+    throw new DataUnavailableError();
+  }
 });
 
 export const getArchiveMonths = cache(async (): Promise<{ month: string; count: number }[]> =>
@@ -280,15 +325,16 @@ export const getCategoryCounts = cache(async (): Promise<CategoryCounts> =>
   }),
 );
 
-export const getCategoryStories = cache(async (category: CategoryId, page: number) =>
-  readStories("feed", async (client, fields) => {
+export const getCategoryStories = cache(async (category: CategoryId, page: number) => {
+  assertBrowsePage(page);
+  return readStories("feed", async (client, fields) => {
     const { rows } = await client.query<Story>(categoryQuery(fields, category, page));
     return {
       stories: rows.slice(0, CATEGORY_PAGE_SIZE),
-      hasNext: rows.length > CATEGORY_PAGE_SIZE,
+      hasNext: page < MAX_BROWSE_PAGE && rows.length > CATEGORY_PAGE_SIZE,
     };
-  }),
-);
+  });
+});
 
 export type RelatedStory = Pick<Story, "hn_id" | "title" | "url" | "date_added"> & {
   takeaway: string;
@@ -302,12 +348,13 @@ export const getRelatedStories = cache(
     ),
 );
 
-export const getArchiveStories = cache(async (month: string | null, page: number) =>
-  readStories("feed", async (client, fields) => {
+export const getArchiveStories = cache(async (month: string | null, page: number) => {
+  assertBrowsePage(page);
+  return readStories("feed", async (client, fields) => {
     const result = await client.query<Story>(archiveQuery(fields, month, page));
     return {
       stories: result.rows.slice(0, ARCHIVE_PAGE_SIZE),
-      hasNext: result.rows.length > ARCHIVE_PAGE_SIZE,
+      hasNext: page < MAX_BROWSE_PAGE && result.rows.length > ARCHIVE_PAGE_SIZE,
     };
-  }),
-);
+  });
+});

@@ -51,10 +51,12 @@ curl -i -H 'Accept: text/markdown' https://hacksnap.live/story/12345678
 Markdown responses include `Vary: Accept` and use
 `Content-Type: text/markdown; charset=utf-8` and is generated directly from the
 same public data as the pages, including source links and summary coverage.
-Markdown responses use `Cache-Control: no-store`. Homepage and story HTML use
-Vercel ISR with a 30-minute revalidation interval; `/docs/api` stays dynamic.
-Vercel runs the proxy before its cache lookup, so Markdown requests rewrite to
-the uncached Markdown handler before a cached HTML page can be served.
+Markdown responses use `Cache-Control: no-store` to preserve negotiation across
+CDNs. Story data behind the handler has a bounded 30-minute cache shared by
+HTML/metadata reads in the same instance; missing stories expire after 60 seconds.
+The leaderboard retains its existing shared data cache. Homepage, story HTML,
+and `/docs/api` render per request. The proxy rewrites Markdown requests to the
+Markdown handler before rendering.
 Next.js replaces the HTML `Vary` header with its own router headers, so an
 external CDN must bypass caching for these negotiated page URLs.
 Missing stories return 404; data failures return a sanitized 503
@@ -109,7 +111,7 @@ supplies its canonical URL and Twitter large-image card. Pending summaries use a
 fallback and `noindex, follow`, and are excluded from the sitemap. Once a summary is
 available, the story enters the sitemap and becomes indexable on the page's next
 revalidation (the existing cache interval is 30 minutes). The metadata and page
-share a request-scoped database read.
+share a request-scoped read backed by the bounded per-instance story cache.
 
 Social previews use the shared 1200×630 template in `lib/og-image.tsx`.
 `/opengraph-image` renders the default brand card; `/story/:id/opengraph-image`
@@ -121,8 +123,10 @@ needs no external image/font service or model call. Unknown story IDs return 404
 on Hacksnap (`date_added`, then ID). Entries contain titles, canonical links,
 stable GUIDs, publication dates, and the takeaway, article brief, and discussion
 summary when available. XML values are escaped and invalid XML characters removed.
-The feed queries on each request so additions, summary edits, and removals appear
-without rebuilding. HTML alternate links and the footer advertise the feed.
+The feed uses a five-minute per-instance data cache and declares
+`Cache-Control: public, max-age=0, s-maxage=300`. Data and HTTP caching can add up
+to ten minutes of delay for additions, summary edits, and removals. Failures return
+a sanitized 503 with `no-store` and `Retry-After: 60`. HTML alternate links and the footer advertise the feed.
 
 Run `npm test -- tests/rss.test.mjs` and `npm run build` from this directory.
 
@@ -178,14 +182,12 @@ use their own dedicated tokens.
 
 ### Page cache configuration
 
-The homepage and `/story/:id` export `revalidate = 1800`. Both pages are generated
-on their first visit through an empty `generateStaticParams`. The homepage uses
-an optional catch-all segment that accepts only `/`; all other unmatched paths
-return 404 before reading data. Builds need no database connection. Runtime
-requests require `HACKSNAP_WEB_DATABASE_URL` with the dedicated `hacksnap_reader` login. The shared
-leaderboard data cache also revalidates after 1800 seconds, including API consumers.
-ISR serves a stale page while refreshing after the interval, and retains the last
-successful page if regeneration fails. This is not a strict 30-minute maximum age.
+The homepage and `/story/:id` render per request so outages cannot become cached
+HTML. The homepage accepts only `/`; unmatched paths return 404 before data access.
+Builds need no database connection. Runtime requests use `HACKSNAP_WEB_DATABASE_URL`
+with the dedicated `hacksnap_reader` login. Leaderboard data uses the existing
+shared 1,800-second revalidation cache; failed refreshes can retain stale data.
+Story data uses the bounded per-instance cache documented below.
 
 In Cloudflare, create a **Bypass cache** rule for:
 
@@ -197,19 +199,16 @@ In Cloudflare, create a **Bypass cache** rule for:
 ```
 
 Ensure no later cache rule overrides this bypass. Keep static asset caching
-unchanged. Cloudflare page requests still reach Vercel, where warmed HTML pages
-should report `X-Vercel-Cache: HIT`. Cloudflare may report `DYNAMIC` or `BYPASS`;
-this does not mean Vercel rendered the page again. Preserve request headers and
+unchanged. Cloudflare page requests reach Vercel for dynamic HTML rendering.
+Cloudflare may report `DYNAMIC` or `BYPASS`. Preserve request headers and
 query strings, including Next.js `_rsc` navigation parameters.
 
 After deploying, request HTML, then Markdown, then HTML for both `/` and a valid
-story URL. Verify the content types remain distinct after warming the HTML cache,
+story URL. Verify the content types remain distinct across repeated requests,
 and check client-side story navigation. Do not force a shared Cloudflare HTML
 cache merely to improve its cache-hit metric.
 
-CI builds before starting the synthetic database, then runs production HTTP checks
-with `HACKSNAP_TEST_STORY_ID=90000001` to verify cache TTLs, HTML/Markdown
-separation, navigation payloads, and unknown-path 404s.
+Unit tests verify cache expiry, format headers, and route validation using mocks.
 
 ## Archive
 
@@ -217,7 +216,11 @@ separation, navigation payloads, and unknown-path 404s.
 first. `/archive/YYYY/MM` filters by the UTC month in which a story was added to
 Hacksnap. Daily headings use that same date, not the summary update time.
 Each page shows up to 30 stories, with ordinary newer/older links and its own
-canonical URL. Year disclosures contain links only to populated months.
+canonical URL. Archive and category listings accept pages 1–100 (at most 3,000
+stories and an SQL offset of 2,970). Larger pages return 404 before data access;
+the final allowed page has no older-page link. Use populated month links to reach
+older archive entries. Categories show their latest 3,000 stories; deeper category
+browsing needs cursor pagination before this limit can be raised. Year disclosures contain links only to populated months.
 Archive pages are rendered on request; no schema change is required. The sitemap
 includes the archive landing page and populated months. Story URLs stay unchanged.
 
@@ -367,3 +370,38 @@ the debate” link to the story’s `#discussion-analysis` section, preserving t
 list return context and scroll position. Themes use a labelled text list distinct
 from category links. Legacy, null and no-comments analysis adds no preview or
 pending state; topics without stance evidence show themes alone.
+
+## Public read limits
+
+`/api/stories/{id}` uses a parameterized primary-key lookup of just the existing
+public fields, three summary strings, and the public discussion analysis now in
+the detail contract. It does not read ranking views, rank history, or worker metadata. Invalid IDs return an uncacheable
+400 before acquiring a database connection. Unknown valid IDs return a cacheable 404. Database failures and cache-capacity failures return a sanitized, uncacheable
+503 with `Retry-After: 60`.
+
+| Data cache                 | Positive TTL  | Missing TTL | Maximum entries | Maximum pending distinct keys |
+| -------------------------- | ------------- | ----------- | --------------- | ----------------------------- |
+| Public API detail          | 300 seconds   | 60 seconds  | 512             | 8                             |
+| Story rendering / Markdown | 1,800 seconds | 60 seconds  | 128             | 4                             |
+| RSS data                   | 300 seconds   | n/a         | 1               | 1                             |
+
+These caches live in each running instance, expire without serving stale results,
+share concurrent loads for the same key, and evict the least recently used completed
+entry at capacity. Pending loads count toward capacity. Failures are never stored;
+excess distinct pending keys fail before entering the database queue. The existing
+single-connection pool, read-only transactions, and statement timeout still apply.
+Schema/grant checks run on cache misses; cached legacy projections pick up a
+new migration after expiry. Cold starts and separate instances each have their own caches. These are work and
+memory bounds, not a distributed request-rate limit or a byte limit on stored text.
+
+API detail successes declare `public, max-age=0, s-maxage=300`; safe 404s declare
+`public, max-age=0, s-maxage=60`. Combining data and HTTP caches can delay a detail
+update by up to ten minutes, or discovery of a previously missing ID by two minutes.
+Story HTML renders per request using story data cached for at most 30 minutes. Markdown stays
+uncacheable at HTTP level and preserves `Vary: Accept` and HEAD behavior.
+
+Archive/category bounds limit offsets, but their count queries and story metric
+cache misses still depend on retained data. Requests across many IDs or instances
+still require edge rate limiting and verified origin restrictions. See the
+[issue #75 verification report](../../docs/security/issue-75-public-read-limits.md)
+for deployment evidence and remaining exposure.

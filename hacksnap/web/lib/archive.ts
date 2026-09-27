@@ -1,9 +1,15 @@
 export const ARCHIVE_PAGE_SIZE = 30;
+// At most 3,000 stories per listing; older archive stories remain reachable by month.
+export const MAX_BROWSE_PAGE = 100;
+export function assertBrowsePage(page: number): void {
+  if (!Number.isInteger(page) || page < 1 || page > MAX_BROWSE_PAGE)
+    throw new RangeError("Invalid browse page");
+}
 
 export function archivePage(value: string | string[] | undefined): number | null {
   if (value === undefined) return 1;
   if (typeof value !== "string" || !/^[1-9]\d{0,6}$/.test(value)) return null;
-  return Number(value);
+  return Number(value) <= MAX_BROWSE_PAGE ? Number(value) : null;
 }
 
 export function archiveMonth(path: string[] = []): string | null {
@@ -38,6 +44,7 @@ export const archiveMonthsSQL = `SELECT to_char(date_added AT TIME ZONE 'UTC', '
   GROUP BY 1 ORDER BY 1 DESC`;
 
 export function archiveQuery(fields: string, month: string | null, page: number) {
+  assertBrowsePage(page);
   const values: (string | number)[] = month ? monthBounds(month) : [];
   const range = month
     ? "AND t.date_added >= $1::timestamptz AND t.date_added < $2::timestamptz"

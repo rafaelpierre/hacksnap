@@ -1,4 +1,10 @@
 import type { Story } from "./data";
+import {
+  type PublicStory,
+  validStoryId,
+  PUBLIC_CACHE_CONTROL,
+  NEGATIVE_CACHE_CONTROL,
+} from "./public-story";
 import type { DiscussionFields } from "./discussion-analysis";
 
 // Explicitly copy every nested field: cached/query objects may contain private extras.
@@ -50,7 +56,7 @@ function publicDiscussion(summary: DiscussionFields) {
 }
 
 // Keep the public contract independent of internal query fields and diagnostics.
-export function publicStory(story: Story, includeDiscussion = false) {
+export function publicStory(story: PublicStory, includeDiscussion = false) {
   return {
     hn_id: String(story.hn_id),
     title: story.title,
@@ -72,7 +78,7 @@ export function publicStory(story: Story, includeDiscussion = false) {
 
 export function storiesHandlers(data: {
   getLeaderboard: () => Promise<{ stories: Story[]; ingestion: Date | null }>;
-  getStory: (id: string) => Promise<Story | null>;
+  getStory: (id: string) => Promise<PublicStory | null>;
 }) {
   const unavailable = () =>
     Response.json(
@@ -92,14 +98,22 @@ export function storiesHandlers(data: {
       }
     },
     async detail(id: string) {
-      if (!/^[1-9][0-9]{0,14}$/.test(id)) {
-        return Response.json({ error: "Invalid story ID" }, { status: 400 });
+      if (!validStoryId(id)) {
+        return Response.json(
+          { error: "Invalid story ID" },
+          { status: 400, headers: { "Cache-Control": "no-store" } },
+        );
       }
       try {
         const story = await data.getStory(id);
         return story
-          ? Response.json(publicStory(story, true))
-          : Response.json({ error: "Story not found" }, { status: 404 });
+          ? Response.json(publicStory(story, true), {
+              headers: { "Cache-Control": PUBLIC_CACHE_CONTROL },
+            })
+          : Response.json(
+              { error: "Story not found" },
+              { status: 404, headers: { "Cache-Control": NEGATIVE_CACHE_CONTROL } },
+            );
       } catch {
         return unavailable();
       }
