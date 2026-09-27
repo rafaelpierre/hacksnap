@@ -167,34 +167,20 @@ References: [Next.js inline CSS](https://nextjs.org/docs/app/api-reference/confi
 [script loading](https://nextjs.org/docs/app/api-reference/components/script), and
 [Cloudflare email obfuscation](https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/).
 
-### Automatic purge after production deployments
+### Production deployments and Cloudflare
 
-The GitHub Actions workflow `.github/workflows/cloudflare-purge.yml` purges
-Cloudflare after Vercel reports a successful `Production` deployment. Preview
-and failed deployments are ignored. It uses the existing Vercel GitHub
-integration and does not require a Vercel function or build-hook changes.
+Production deployments no longer trigger a Cloudflare cache purge. HTML bypasses
+Cloudflare caching, so clearing the entire zone on each deployment is unnecessary.
+Keep the page bypass rules below in place. Vercel manages the application's ISR
+cache separately.
 
-Add these **repository secrets** under GitHub → Settings → Secrets and variables
-→ Actions:
+Static assets can remain cached. If a cached asset changes without its URL
+changing, purge that URL manually or version its filename.
 
-- `CLOUDFLARE_ZONE_ID`: the zone ID from the Cloudflare dashboard for `hacksnap.live`.
-- `CLOUDFLARE_API_TOKEN`: a custom token with **Zone → Cache Purge → Purge**
-  permission, restricted to that zone.
-
-Merge the workflow into the default branch to enable it. After the next production
-deployment, check **Purge Cloudflare after production deployment** in GitHub
-Actions. Missing credentials or a rejected purge fail that workflow without
-rolling back the Vercel deployment. This purges the entire configured zone,
-including any other hostnames in it; it does not purge Vercel's own cache.
-
-The filter matches this repository's current Vercel deployment label, `Production`,
-and deployment creator, `vercel[bot]`. If the integration's environment name
-changes, update the filter. Deployments must emit a GitHub deployment status to
-trigger this workflow; CLI-only releases or dashboard promotions without that
-event are not covered. Keep the page bypass rules below in place.
-
-References: [Vercel GitHub integration](https://vercel.com/docs/git/vercel-for-github)
-and [Cloudflare purge API](https://developers.cloudflare.com/api/resources/cache/methods/purge/).
+The retired purge workflow's `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_API_TOKEN`
+repository secrets are no longer used by this repository's workflows. They can be
+removed if nothing else relies on them. Workers deployments and Spamhaus updates
+use their own dedicated tokens.
 
 ### Page cache configuration
 
