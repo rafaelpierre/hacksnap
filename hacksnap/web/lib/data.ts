@@ -15,7 +15,15 @@ import {
   type CategoryCounts,
 } from "./categories";
 
-export type Summary = {
+import type { DiscussionFields } from "./discussion-analysis";
+import { feedFields, storyFields } from "./story-projection";
+export type {
+  DiscussionAnalysis,
+  DiscussionAnalysisPreview,
+  DiscussionAnalysisCoverage,
+} from "./discussion-analysis";
+
+export type Summary = DiscussionFields & {
   article_summary: string | null;
   article_key_points: string[];
   discussion_summary: string;
@@ -107,16 +115,6 @@ async function read<T>(query: (client: PoolClient) => Promise<T>): Promise<T> {
   }
 }
 
-// Explicit public projection: raw comments, ingestion configuration, credentials,
-// fingerprints and worker diagnostics never enter a React component.
-const fields = `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added, t.category,
-  CASE WHEN s.story_id IS NULL THEN NULL ELSE json_build_object(
-    'article_summary', s.article_summary, 'article_key_points', s.article_key_points,
-    'discussion_summary', s.discussion_summary, 'discussion_points', s.discussion_points,
-    'sentiment', s.sentiment, 'overall_takeaway', s.overall_takeaway, 'generated_at', s.generated_at,
-    'model', s.model, 'source_coverage', s.source_coverage
-  ) END AS summary`;
-
 // Cache JSON-safe values: Next's persistent data cache does not preserve Dates.
 type CachedLeaderboard = {
   stories: (Omit<Story, "date_added"> & { date_added: string; rank_history: RankObservation[] })[];
@@ -124,7 +122,7 @@ type CachedLeaderboard = {
   observed_at: string;
 };
 
-// Invalidate cached point-velocity payloads when switching to rank history.
+// Invalidate legacy payloads when adding compact discussion previews.
 const cachedLeaderboard = unstable_cache(
   async (): Promise<CachedLeaderboard> => {
     return read(async (client) => {
@@ -135,7 +133,7 @@ const cachedLeaderboard = unstable_cache(
       }>(`
       SELECT COALESCE((
         SELECT json_agg(story ORDER BY story.rank) FROM (
-          SELECT ${fields}, t.rank, t.is_recent, ${rankHistorySQL} AS rank_history
+          SELECT ${feedFields}, t.rank, t.is_recent, ${rankHistorySQL} AS rank_history
           FROM hacksnap_current_stories t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
         ) story
       ), '[]'::json) AS stories, (
@@ -151,7 +149,7 @@ const cachedLeaderboard = unstable_cache(
       };
     });
   },
-  ["hacksnap-leaderboard-v10-categories"],
+  ["hacksnap-leaderboard-v11-discussion-preview"],
   { revalidate: 1800 },
 );
 
@@ -192,7 +190,7 @@ export async function getSitemapStories(): Promise<{ hn_id: string; modified_at:
 export async function getFeedStories(): Promise<Story[]> {
   return read(async (client) => {
     const result =
-      await client.query<Story>(`SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
+      await client.query<Story>(`SELECT ${feedFields}, r.rank, ${rankHistorySQL} AS rank_history,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
@@ -208,7 +206,7 @@ export const getStory = cache(async (id: string): Promise<Story | null> => {
   if (!/^[1-9][0-9]{0,14}$/.test(id)) return null;
   return read(async (client) => {
     const result = await client.query<Story>(
-      `SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
+      `SELECT ${storyFields}, r.rank, ${rankHistorySQL} AS rank_history,
       ${storyMetricsSQL} AS ranking_metrics,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
@@ -235,7 +233,7 @@ export const getCategoryCounts = cache(async (): Promise<CategoryCounts> =>
 
 export const getCategoryStories = cache(async (category: CategoryId, page: number) =>
   read(async (client) => {
-    const { rows } = await client.query<Story>(categoryQuery(fields, category, page));
+    const { rows } = await client.query<Story>(categoryQuery(feedFields, category, page));
     return {
       stories: rows.slice(0, CATEGORY_PAGE_SIZE),
       hasNext: rows.length > CATEGORY_PAGE_SIZE,
@@ -257,7 +255,7 @@ export const getRelatedStories = cache(
 
 export const getArchiveStories = cache(async (month: string | null, page: number) =>
   read(async (client) => {
-    const result = await client.query<Story>(archiveQuery(fields, month, page));
+    const result = await client.query<Story>(archiveQuery(feedFields, month, page));
     return {
       stories: result.rows.slice(0, ARCHIVE_PAGE_SIZE),
       hasNext: result.rows.length > ARCHIVE_PAGE_SIZE,

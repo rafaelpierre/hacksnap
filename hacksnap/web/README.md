@@ -273,3 +273,25 @@ live HTTP integration suites have been removed; tests need no server, database,
 or credentials. The test process uses America/Los_Angeles to verify hydration
 across a UTC date boundary. Jest uses ESM and SWC for TypeScript/TSX; jsdom 26
 keeps its CommonJS dependencies compatible with Jest on Node 22.
+
+## Discussion-analysis projections
+
+Deploy additive migration `0012_discussion_analysis` before this web version.
+`getStory` exposes `summary.discussion_analysis` with reference claims, selected
+critical/supportive highlights and topic citations. Leaderboard, RSS source,
+archive and category reads expose `summary.discussion_analysis_preview`: status,
+topic key/title/summary and selected evidence counts. These counts describe the
+selected highlights, not the proportion of commenters who agree or disagree.
+Both projections include `discussion_analyzed_at` and the reader-safe
+`discussion_analysis_coverage` column. Worker metadata and raw comments remain
+private. Existing API and Markdown serializers retain their current fields.
+
+The new summary fields are optional in public TypeScript types for older fixtures
+and cached payloads. Missing or null analysis means unavailable; it does not
+promise backfill. An analysis with `status: "no_comments"` is an explicit analyzed
+result. The leaderboard cache version changes to discard older cached projections.
+
+`tests/discussion-projection.test.mjs` runs the shared contract fixtures, legacy
+and pending rows through embedded PostgreSQL with the migration's reader grant.
+It verifies detail completeness, compact feeds and denied private-column reads
+without credentials or a database server. PGlite is a test-only dependency.
