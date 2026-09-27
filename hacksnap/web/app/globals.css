@@ -2205,11 +2205,38 @@ footer > span {
   border-bottom: 1px solid var(--line);
 }
 .analysis-theme summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  list-style: none;
   cursor: pointer;
   min-height: var(--touch-target);
   padding: var(--space-3) var(--space-2);
   font-weight: 600;
   color: var(--ink);
+}
+.analysis-theme summary > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.analysis-theme summary::-webkit-details-marker {
+  display: none;
+}
+.analysis-theme-chevron {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 200ms ease;
+}
+.analysis-theme[open] .analysis-theme-chevron {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .analysis-theme-chevron {
+    transition: none;
+  }
 }
 .analysis-theme-body {
   padding: var(--space-3) var(--space-2);

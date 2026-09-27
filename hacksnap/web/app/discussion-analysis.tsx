@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
 import type {
   CriticalCommentHighlight,
   SupportiveCommentHighlight,
@@ -132,7 +132,10 @@ export function DiscussionAnalysis({
               <h3 id="discussion-themes-heading">Discussion themes</h3>
               {analysis.topics.map((topic) => (
                 <details className="analysis-theme" key={topic.key}>
-                  <summary>{topic.title}</summary>
+                  <summary>
+                    <span>{topic.title}</span>
+                    <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
+                  </summary>
                   <div className="analysis-theme-body">
                     <p>{topic.summary}</p>
                     <ul
