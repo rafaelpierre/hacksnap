@@ -28,3 +28,12 @@ Verified matching computed font families and wrapping at desktop and 320px in
 light and dark themes with 200% text. The isolated component preview uses the
 bundled Source Sans 3 font; mobile has no horizontal overflow.
 Screenshots: `metadata-desktop.png` (light) and `metadata-mobile.png` (dark).
+
+## Discussion section icons
+
+MessagesSquare represents the overall conversation; ListTree represents grouped,
+expandable themes. Both use the same muted, text-relative treatment as the stance
+icons and remain hidden from screen readers. At 320px with 200% text, headings
+wrap rather than overflow. Checked desktop and mobile in both themes with the
+actual discussion component, the story heading markup, and bundled fonts.
+Screenshots: `headings-desktop.png` and `headings-mobile.png`.

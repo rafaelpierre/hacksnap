@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronDown, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ListTree, ThumbsDown, ThumbsUp } from "lucide-react";
 import type {
   CriticalCommentHighlight,
   SupportiveCommentHighlight,
@@ -133,7 +133,10 @@ export function DiscussionAnalysis({
         <>
           {analysis.topics.length > 0 && (
             <section className="analysis-themes" aria-labelledby="discussion-themes-heading">
-              <h3 id="discussion-themes-heading">Discussion themes</h3>
+              <h3 id="discussion-themes-heading" className="discussion-title">
+                <ListTree className="discussion-title-icon" aria-hidden="true" />
+                <span>Discussion themes</span>
+              </h3>
               {analysis.topics.map((topic) => (
                 <details className="analysis-theme" key={topic.key}>
                   <summary>
