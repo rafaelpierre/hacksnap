@@ -22,3 +22,26 @@ response to secret-file and WordPress probes at the Cloudflare edge.
 Apply migration `0004_hacksnap` before running the updated collector. Configure
 the `hacksnap` Modal Secret before deploying its schedule. The website uses
 server-only database credentials; no service-role key is sent to browsers.
+
+## Continuous integration
+
+Pull requests and pushes to `main` run only the workflows affected by their
+changed paths. Each workflow also runs when its own YAML file changes.
+
+| Workflow | Related paths | Checks |
+| --- | --- | --- |
+| Hacksnap worker | `hacksnap/**`, excluding `hacksnap/web/**` | Ruff lint and pytest/import checks in parallel |
+| Ingestion | `data/**`, plus `hacksnap/web/lib/categories.ts` used by the category consistency test | pytest |
+| Frontend | `hacksnap/web/**`, shared `hacksnap/fixtures/**`, and migration `0012_discussion_analysis.py` used by the projection tests | Oxlint, Oxfmt, Jest, and typecheck/build in four parallel jobs |
+| MCP | `mcp/**` | pytest |
+
+Schema validation, scanner-tax, and Spamhaus keep their existing scoped workflows.
+Matrix jobs use `fail-fast: false` so a lint or formatting failure does not cancel
+the test results. Ingestion and MCP currently have no configured lint/format checks.
+Manual runs of **Hacksnap** still require worker, ingestion, and frontend checks
+before the existing production deployment can proceed. Frontend and ingestion
+workflows are reusable so this deployment uses the same checks as pull requests.
+
+If branch protection requires the former `test` check, update its required checks
+to match the new names. Path-filtered workflows do not report checks for unrelated
+changes; do not require every project check unconditionally.

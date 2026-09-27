@@ -1,0 +1,59 @@
+name: Frontend
+
+on:
+  pull_request:
+    paths:
+      - "hacksnap/web/**"
+      - "hacksnap/fixtures/**"
+      - "data/migrations/versions/0012_discussion_analysis.py"
+      - ".github/workflows/frontend.yml"
+  push:
+    branches: [main]
+    paths:
+      - "hacksnap/web/**"
+      - "hacksnap/fixtures/**"
+      - "data/migrations/versions/0012_discussion_analysis.py"
+      - ".github/workflows/frontend.yml"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Frontend / ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [lint, format, tests, build]
+    defaults:
+      run:
+        working-directory: hacksnap/web
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: hacksnap/web/package-lock.json
+      - run: npm ci
+      - name: Lint (Oxlint)
+        if: matrix.check == 'lint'
+        run: npm run lint
+      - name: Formatting (Oxfmt)
+        if: matrix.check == 'format'
+        run: npm run format:check
+      - name: Unit and component tests (Jest)
+        if: matrix.check == 'tests'
+        run: npm run test:ci
+      - name: Typecheck and production build
+        if: matrix.check == 'build'
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          npm run typecheck
+          npm run build
