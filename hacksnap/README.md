@@ -28,7 +28,14 @@ and `observed_at` (timestamp with time zone). The `(hn_id, observed_at)` primary
 key indexes each story's history. RLS and revoked client grants keep writes private.
 
 `hacksnap_ranked_stories` ranks **all eligible stories** using the same recency,
-points and ID ordering. `hacksnap_current_stories` displays its first ten rows.
+points and ID ordering. `hacksnap_current_stories` supplies its first ten rows to the worker for enrichment.
+The website selects the first ten stories from `hacksnap_ranked_stories` with a
+nonblank `overall_takeaway` preview, filtering before the limit. Older eligible
+stories fill any gaps using the same recent-first, points and ID ordering. This
+selection is shared by homepage HTML, Markdown and the leaderboard API. Canonical
+rank values are retained for consistency with recorded rank history, so displayed
+ranks can have gaps. Fewer than ten cards appear only when fewer than ten eligible
+stories have previews. Pending stories remain eligible for worker enrichment.
 At the end of every worker refresh, after fetch failures are excluded, one atomic
 insert records every eligible rank with a shared timestamp, including ranks below
 10 and unchanged positions. This follows the worker's four-hour daytime schedule;

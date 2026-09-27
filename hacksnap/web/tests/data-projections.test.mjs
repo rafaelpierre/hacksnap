@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { PGlite } from "@electric-sql/pglite";
+import { hasReadySummary } from "../lib/ready-stories.ts";
 import { expect, jest, test } from "@jest/globals";
 import {
   feedFields,
@@ -41,7 +43,7 @@ jest.unstable_mockModule("pg", () => ({
 jest.unstable_mockModule("next/cache", () => ({
   unstable_noStore: () => {},
   unstable_cache: (fn, keys) => {
-    assert.deepEqual(keys, ["hacksnap-leaderboard-v11-discussion-preview"]);
+    assert.deepEqual(keys, ["hacksnap-leaderboard-v12-ready-top-ten"]);
     return () => cachedValue ?? fn();
   },
 }));
@@ -149,3 +151,80 @@ test("connection, query and rollback failures stay sanitized and release broken 
     log.mockRestore();
   }
 });
+
+test("leaderboard fills ten preview-ready stories before limiting, including older fallbacks", async () => {
+  const db = new PGlite();
+  const warning = jest.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    await db.exec(`
+      CREATE TABLE hacker_news_threads (
+        hn_id bigint PRIMARY KEY, title text, url text, points int,
+        comment_count int, date_added timestamptz, category text
+      );
+      CREATE VIEW hacksnap_ranked_stories AS
+        SELECT *, date_added >= CURRENT_TIMESTAMP - INTERVAL '24 hours' AS is_recent,
+          row_number() OVER (ORDER BY
+            (date_added >= CURRENT_TIMESTAMP - INTERVAL '24 hours') DESC,
+            points DESC, hn_id DESC) AS rank
+        FROM hacker_news_threads;
+      CREATE VIEW hacksnap_current_stories AS
+        SELECT * FROM hacksnap_ranked_stories ORDER BY rank LIMIT 10;
+      CREATE TABLE hacksnap_summaries (
+        story_id bigint PRIMARY KEY, article_summary text, article_key_points jsonb,
+        discussion_summary text, discussion_points jsonb, sentiment int,
+        overall_takeaway text, generated_at timestamptz, model text, source_coverage jsonb,
+        discussion_analysis jsonb, discussion_analyzed_at timestamptz,
+        discussion_analysis_coverage jsonb
+      );
+      CREATE TABLE hacksnap_rank_history (hn_id bigint, rank bigint, observed_at timestamptz);
+      CREATE TABLE hn_ingestion_runs (
+        run_id bigint, status text, filters jsonb, started_at timestamptz, finished_at timestamptz
+      );
+      INSERT INTO hacker_news_threads (hn_id, points, date_added)
+        SELECT id, CASE WHEN id <= 8 THEN 100 ELSE 1000 END,
+          CURRENT_TIMESTAMP - CASE WHEN id <= 8 THEN INTERVAL '1 hour' ELSE INTERVAL '2 days' END
+        FROM generate_series(1, 20) AS id;
+      INSERT INTO hacksnap_summaries (story_id, overall_takeaway)
+        SELECT hn_id, CASE hn_id WHEN 7 THEN NULL WHEN 6 THEN '' WHEN 5 THEN E' \t\n\r '
+          ELSE 'Ready preview' END
+        FROM hacker_news_threads WHERE hn_id <> 8;
+    `);
+    for (const ready of [false, true]) {
+      available = ready;
+      rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
+      queries.length = 0;
+      await data.getLeaderboard();
+      const sql = queries.find((query) => query.includes("json_agg(story ORDER BY story.rank)"));
+      const result = await db.query(sql);
+      const stories = result.rows[0].stories;
+      assert.equal(stories.length, 10);
+      assert.ok(stories.every(hasReadySummary));
+      assert.deepEqual(
+        stories.map((story) => story.hn_id),
+        [4, 3, 2, 1, 20, 19, 18, 17, 16, 15],
+      );
+      assert.deepEqual(
+        stories.map((story) => story.is_recent),
+        [true, true, true, true, false, false, false, false, false, false],
+      );
+      // Preserve canonical ranks so current positions and recorded history use the same scale.
+      assert.deepEqual(
+        stories.map((story) => story.rank),
+        [5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      );
+    }
+    const sql = queries.find((query) => query.includes("json_agg(story ORDER BY story.rank)"));
+    await db.exec("DELETE FROM hacksnap_summaries WHERE story_id > 2");
+    assert.deepEqual(
+      (await db.query(sql)).rows[0].stories.map((story) => story.hn_id),
+      [2, 1],
+    );
+    await db.exec("DELETE FROM hacksnap_summaries");
+    assert.deepEqual((await db.query(sql)).rows[0].stories, []);
+  } finally {
+    available = true;
+    rows = [];
+    warning.mockRestore();
+    await db.close();
+  }
+}, 30000);
