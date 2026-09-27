@@ -168,7 +168,7 @@ type CachedLeaderboard = {
   observed_at: string;
 };
 
-// Invalidate legacy payloads when adding compact discussion previews.
+// Invalidate cached selections made before preview filtering and backfill.
 const cachedLeaderboard = unstable_cache(
   async (): Promise<CachedLeaderboard> => {
     return readStories("feed", async (client, fields) => {
@@ -180,7 +180,10 @@ const cachedLeaderboard = unstable_cache(
       SELECT COALESCE((
         SELECT json_agg(story ORDER BY story.rank) FROM (
           SELECT ${fields}, t.rank, t.is_recent, ${rankHistorySQL} AS rank_history
-          FROM hacksnap_current_stories t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+          FROM hacksnap_ranked_stories t INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+          WHERE s.overall_takeaway ~ '[^[:space:]]'
+          ORDER BY t.rank
+          LIMIT 10
         ) story
       ), '[]'::json) AS stories, (
         SELECT finished_at FROM hn_ingestion_runs
@@ -195,7 +198,7 @@ const cachedLeaderboard = unstable_cache(
       };
     });
   },
-  ["hacksnap-leaderboard-v11-discussion-preview"],
+  ["hacksnap-leaderboard-v12-ready-top-ten"],
   { revalidate: 1800 },
 );
 
