@@ -53,7 +53,7 @@ function readJourney(token: string | null): BrowseContext | null {
 function journeyToken(): string | null {
   const url = new URL(window.location.href);
   const legacyToken = url.searchParams.get("journey");
-  const pending = pendingJourney?.href === url.pathname ? pendingJourney : null;
+  const pending = pendingJourney?.href === url.pathname + url.hash ? pendingJourney : null;
   const token = pending ? pending.token : (window.history.state?.[HISTORY_KEY] ?? legacyToken);
   if (pending || url.searchParams.has("journey")) {
     url.searchParams.delete("journey");
@@ -78,10 +78,18 @@ function plainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
   );
 }
 
-export function BrowseStoryLink({ id, children }: { id: string; children: ReactNode }) {
+export function BrowseStoryLink({
+  id,
+  anchor,
+  children,
+}: {
+  id: string;
+  anchor?: "discussion-analysis";
+  children: ReactNode;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const href = `/story/${id}`;
+  const href = `/story/${id}${anchor ? `#${anchor}` : ""}`;
   function open(event: MouseEvent<HTMLAnchorElement>) {
     if (!plainClick(event)) return;
     let journey: string | null = null;

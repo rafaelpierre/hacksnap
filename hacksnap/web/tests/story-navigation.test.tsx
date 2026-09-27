@@ -184,6 +184,26 @@ test("story URLs stay clean while each history entry retains its own journey", a
     assert.equal(window.history.state.hacksnapJourney, firstState.hacksnapJourney);
     assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
 
+    for (const source of ["/", "/archive?page=3", "/category/agents-coding?page=2"]) {
+      window.history.replaceState({}, "", source);
+      await render(
+        <BrowseStoryLink id="42" anchor="discussion-analysis">
+          Read the debate
+        </BrowseStoryLink>,
+        source,
+      );
+      assert.equal(
+        document.querySelector("a")?.getAttribute("href"),
+        "/story/42#discussion-analysis",
+      );
+      await click();
+      assert.equal(pushes.at(-1), "/story/42#discussion-analysis");
+      await render(<StoryReturnLink />, `debate-${source}`);
+      assert.equal(window.location.hash, "#discussion-analysis");
+      assert.ok(window.history.state.hacksnapJourney);
+      assert.equal(document.querySelector("a")?.getAttribute("href"), source);
+    }
+
     // Old bookmarked URLs are cleaned while retaining their valid return context.
     window.history.replaceState(
       { frameworkState: "preserved" },

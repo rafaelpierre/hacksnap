@@ -26,6 +26,11 @@ export function StoryRow({
         ? "Hacksnap rank unchanged since the previous update"
         : `${movement > 0 ? "Climbed" : "Dropped"} ${Math.abs(movement)} ${Math.abs(movement) === 1 ? "position" : "positions"} in Hacksnap since the previous update`;
   const takeaway = story.summary?.overall_takeaway?.trim();
+  const preview = story.summary?.discussion_analysis_preview;
+  const topics = preview?.status !== "no_comments" ? (preview?.topics.slice(0, 2) ?? []) : [];
+  const hasDebate =
+    preview?.status === "available" &&
+    (preview.selected_evidence.critical > 0 || preview.selected_evidence.supportive > 0);
 
   return (
     <article
@@ -52,6 +57,25 @@ export function StoryRow({
           <p className="feed-excerpt feed-pending">
             Brief pending. Check back after the next summary update.
           </p>
+        )}
+        {(topics.length > 0 || hasDebate) && (
+          <div className="feed-discussion">
+            {topics.length > 0 && (
+              <div className="feed-discussion-themes">
+                <span className="feed-discussion-label">Discussion themes</span>
+                <ul aria-label="Discussion themes">
+                  {topics.map((topic, index) => (
+                    <li key={`${topic.key}-${index}`}>{topic.title}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {hasDebate && (
+              <BrowseStoryLink id={story.hn_id} anchor="discussion-analysis">
+                Read the debate
+              </BrowseStoryLink>
+            )}
+          </div>
         )}
         <div className="feed-story-footer">
           <div className="story-meta">

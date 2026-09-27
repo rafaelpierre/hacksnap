@@ -358,3 +358,12 @@ same additive contract. Clients should handle absent fields from older responses
 Run `npm test -- tests/api.test.mjs tests/markdown.test.mjs` for shared analysis
 fixtures, schema validation, legacy/unavailable states, escaping, and private-field
 exclusion. Ajv validates API responses against the published OpenAPI schemas.
+
+## Feed discussion previews
+
+Home, archive and category cards show up to two discussion theme titles from the
+compact feed projection. Selected critical or supportive evidence adds a “Read
+the debate” link to the story’s `#discussion-analysis` section, preserving the
+list return context and scroll position. Themes use a labelled text list distinct
+from category links. Legacy, null and no-comments analysis adds no preview or
+pending state; topics without stance evidence show themes alone.
