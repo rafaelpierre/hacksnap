@@ -1,4 +1,5 @@
 import type { Story } from "./data";
+import { hasReadySummary } from "./ready-stories.ts";
 import { storyIndicators } from "./story-indicators.ts";
 import { storyMetricsText } from "./story-metrics.ts";
 import { categoryById, categoryURL } from "./categories.ts";
@@ -119,16 +120,18 @@ export function leaderboardMarkdown({
   ingestion: Date | null;
   observed_at?: string;
 }): string {
+  const readyStories = stories.filter(hasReadySummary);
   const lines = [
     "# AI on Hacker News",
     "The articles and the arguments worth reading.",
-    `## Top stories (${stories.length})`,
+    `## Top stories (${readyStories.length})`,
     ingestion ? `Updated ${ingestion.toISOString()}` : "Waiting for stories",
   ];
   if (ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000)
     lines.push("Updates are delayed. These are the latest saved stories.");
-  if (!stories.length) lines.push("No stories yet. Stories will appear after the next update.");
-  for (const story of stories) {
+  if (!readyStories.length)
+    lines.push("No stories yet. Stories will appear after the next update.");
+  for (const story of readyStories) {
     const category = categoryById(story.category);
     lines.push(
       `### ${story.rank ?? ""}. ${link(story.title, `https://hacksnap.live/story/${story.hn_id}`)}`,
@@ -141,7 +144,7 @@ export function leaderboardMarkdown({
       );
     const article = original(story);
     if (article) lines.push(link("Original article", article));
-    lines.push(story.summary ? text(story.summary.overall_takeaway) : "Summary pending");
+    lines.push(text(story.summary.overall_takeaway));
   }
   lines.push(
     "Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Summaries updated hourly",

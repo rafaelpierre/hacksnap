@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeaderboard } from "../../lib/data";
+import { hasReadySummary } from "../../lib/ready-stories";
 import { LocalTime } from "../local-time";
 import { StoryRow } from "../story-row";
 import { BrowseLayout } from "../topic-sidebar";
@@ -18,7 +19,7 @@ export default async function Home({ params }: { params: Promise<{ path?: string
   // Only the root URL belongs to this page; unknown paths must remain 404s.
   if ((await params).path?.length) notFound();
   const { stories, ingestion } = await getLeaderboard();
-  const readyStories = stories.filter((story) => story.summary?.overall_takeaway?.trim());
+  const readyStories = stories.filter(hasReadySummary);
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
   return (
     <BrowseLayout active="home">
