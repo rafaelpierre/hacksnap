@@ -3,13 +3,27 @@
 import { ChevronLeft } from "lucide-react";
 import { track } from "../lib/analytics";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type MouseEvent, type ReactNode } from "react";
 import { browseLabel, validBrowseContext, type BrowseContext } from "../lib/navigation-context";
 
 const PREFIX = "hacksnap:journey:";
 const RESTORE_KEY = "hacksnap:pending-return";
 const TAB_PREFIX = "hacksnap-tab:";
+const HISTORY_KEY = "hacksnapJourney";
+// router.push has no state argument. Hand off the token in memory until the
+// destination commits, then attach it to that entry without changing its URL.
+let pendingJourney: {href: string; token: string | null} | null = null;
+
+function cancelPendingJourney() {
+  pendingJourney = null;
+  window.removeEventListener("popstate", cancelPendingJourney);
+}
+
+function prepareJourney(href: string, token: string | null) {
+  pendingJourney = {href, token};
+  window.addEventListener("popstate", cancelPendingJourney);
+}
 
 function storage(): Storage | null {
   try { return window.sessionStorage; } catch { return null; }
@@ -31,7 +45,16 @@ function readJourney(token: string | null): BrowseContext | null {
 }
 
 function journeyToken(): string | null {
-  return new URLSearchParams(window.location.search).get("journey");
+  const url = new URL(window.location.href);
+  const legacyToken = url.searchParams.get("journey");
+  const pending = pendingJourney?.href === url.pathname ? pendingJourney : null;
+  const token = pending ? pending.token : window.history.state?.[HISTORY_KEY] ?? legacyToken;
+  if (pending || url.searchParams.has("journey")) {
+    url.searchParams.delete("journey");
+    window.history.replaceState({...window.history.state, [HISTORY_KEY]: token}, "", url.pathname + url.search + url.hash);
+    if (pending) cancelPendingJourney();
+  }
+  return typeof token === "string" ? token : null;
 }
 
 function plainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
@@ -44,7 +67,7 @@ export function BrowseStoryLink({id, children}: {id: string; children: ReactNode
   const href = `/story/${id}`;
   function open(event: MouseEvent<HTMLAnchorElement>) {
     if (!plainClick(event)) return;
-    let destination = href;
+    let journey: string | null = null;
     const store = storage();
     const url = window.location.pathname + window.location.search;
     const label = browseLabel(url);
@@ -54,11 +77,12 @@ export function BrowseStoryLink({id, children}: {id: string; children: ReactNode
         const token = crypto.randomUUID();
         const context: BrowseContext = {url, label, scrollY: window.scrollY, savedAt: Date.now()};
         store.setItem(PREFIX + token, JSON.stringify({tabId: currentTabId(), context}));
-        destination = `${href}?journey=${token}`;
+        journey = token;
       } catch { /* Use the canonical destination when storage is unavailable. */ }
     }
     event.preventDefault();
-    startTransition(() => router.push(destination));
+    prepareJourney(href, journey);
+    startTransition(() => router.push(href));
   }
   return <><Link href={href} onClick={open} aria-busy={pending || undefined}>{children}</Link>
     {pending && <span className="navigation-pending" role="status">Opening story…</span>}</>;
@@ -71,9 +95,10 @@ export function NextStoryLink({id, children}: {id: string; children: ReactNode})
   function open(event: MouseEvent<HTMLAnchorElement>) {
     if (!plainClick(event)) return;
     const token = journeyToken();
-    const destination = readJourney(token) ? `${href}?journey=${token}` : href;
+    const journey = readJourney(token) ? token : null;
     event.preventDefault();
-    startTransition(() => router.push(destination));
+    prepareJourney(href, journey);
+    startTransition(() => router.push(href));
   }
   return <><Link href={href} onClick={open} aria-busy={pending || undefined}>{children}</Link>
     {pending && <span className="navigation-pending" role="status">Opening story…</span>}</>;
@@ -81,14 +106,21 @@ export function NextStoryLink({id, children}: {id: string; children: ReactNode})
 
 export function StoryReturnLink({destination, archiveOnly = false}: {destination?: {href: string; label: string}; archiveOnly?: boolean} = {}) {
   const router = useRouter();
+  const pathname = usePathname();
   const [context, setContext] = useState<BrowseContext | null>(null);
   useEffect(() => {
-    const saved = readJourney(journeyToken());
-    const path = saved?.url.split("?")[0];
-    const matches = archiveOnly ? path === "/archive" || path?.startsWith("/archive/")
-      : !destination || path === destination.href;
-    setContext(saved && matches ? saved : null);
-  }, [destination?.href, archiveOnly]);
+    function updateContext(event?: PopStateEvent) {
+      if (event) cancelPendingJourney();
+      const saved = readJourney(journeyToken());
+      const path = saved?.url.split("?")[0];
+      const matches = archiveOnly ? path === "/archive" || path?.startsWith("/archive/")
+        : !destination || path === destination.href;
+      setContext(saved && matches ? saved : null);
+    }
+    updateContext();
+    window.addEventListener("popstate", updateContext);
+    return () => window.removeEventListener("popstate", updateContext);
+  }, [pathname, destination?.href, archiveOnly]);
   function rememberReturn(event: MouseEvent<HTMLAnchorElement>) {
     track("story_return");
     if (!plainClick(event)) return;
