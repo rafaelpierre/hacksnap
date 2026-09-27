@@ -18,7 +18,8 @@ for (let y = 0; y < height; y++) {
   for (let x = 0; x < width; x++) {
     const color = [24, 24, 24];
     for (const [cx, cy, radius, tint, opacity] of gradients) {
-      const distance = Math.hypot(x - cx * width, y - cy * height) / (radius * Math.max(width, height));
+      const distance =
+        Math.hypot(x - cx * width, y - cy * height) / (radius * Math.max(width, height));
       const falloff = distance < 0.5 ? 1 - distance * 1.28 : Math.max(0, (1 - distance) * 0.72);
       const alpha = opacity * falloff;
       for (let channel = 0; channel < 3; channel++) {
@@ -29,10 +30,12 @@ for (let y = 0; y < height; y++) {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     const noise = (seed / 4294967296 - 0.5) * 30;
     for (let channel = 0; channel < 3; channel++) {
-      pixels[(y * width + x) * 3 + channel] = Math.round(Math.max(0, Math.min(255, color[channel] + noise)));
+      pixels[(y * width + x) * 3 + channel] = Math.round(
+        Math.max(0, Math.min(255, color[channel] + noise)),
+      );
     }
   }
 }
-await sharp(pixels, {raw: {width, height, channels: 3}})
-  .png({palette: true, colours: 256, dither: 0})
+await sharp(pixels, { raw: { width, height, channels: 3 } })
+  .png({ palette: true, colours: 256, dither: 0 })
   .toFile(new URL("../lib/assets/og-grain.png", import.meta.url).pathname);

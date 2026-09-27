@@ -2,11 +2,17 @@ import type { Story } from "./data";
 import { storyIndicators } from "./story-indicators.ts";
 
 function xml(value: string): string {
-  return value
-    // XML 1.0 excludes control characters and unpaired surrogates.
-    .replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu, "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  return (
+    value
+      // XML 1.0 excludes control characters and unpaired surrogates.
+      // oxlint-disable-next-line no-control-regex -- Remove characters forbidden by XML 1.0.
+      .replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu, "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;")
+  );
 }
 
 export function renderRSS(stories: Story[], asOf = new Date().toISOString()): string {
@@ -18,11 +24,14 @@ export function renderRSS(stories: Story[], asOf = new Date().toISOString()): st
 <description>AI stories from Hacker News, with article briefs and highlights from the discussion.</description>
 <language>en</language>
 <atom:link href="https://hacksnap.live/feed.xml" rel="self" type="application/rss+xml" />
-${stories.map(story => {
+${stories
+  .map((story) => {
     const url = `https://hacksnap.live/story/${story.hn_id}`;
     const summary = story.summary;
     const description = summary
-      ? [summary.overall_takeaway, summary.article_summary, summary.discussion_summary].filter(Boolean).join("\n\n")
+      ? [summary.overall_takeaway, summary.article_summary, summary.discussion_summary]
+          .filter(Boolean)
+          .join("\n\n")
       : "Summary pending. Read the original sources and Hacker News discussion on Hacksnap.";
     return `<item>
 <title>${xml(story.title)}</title>
@@ -31,7 +40,8 @@ ${stories.map(story => {
 <pubDate>${story.date_added.toUTCString()}</pubDate>
 <description>${xml([description, `${story.points} points · ${story.comment_count} comments`, ...storyIndicators(story, story.observed_at ?? asOf)].join("\n\n"))}</description>
 </item>`;
-  }).join("\n")}
+  })
+  .join("\n")}
 </channel>
 </rss>`;
 }

@@ -12,7 +12,11 @@ const RESTORE_KEY = "hacksnap:pending-return";
 const TAB_PREFIX = "hacksnap-tab:";
 
 function storage(): Storage | null {
-  try { return window.sessionStorage; } catch { return null; }
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
 }
 
 function currentTabId(): string | null {
@@ -27,7 +31,9 @@ function readJourney(token: string | null): BrowseContext | null {
   try {
     const record = JSON.parse(store.getItem(PREFIX + token) ?? "null");
     return record?.tabId === tabId ? validBrowseContext(record.context) : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function journeyToken(): string | null {
@@ -35,10 +41,17 @@ function journeyToken(): string | null {
 }
 
 function plainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
-  return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && !event.defaultPrevented;
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey &&
+    !event.defaultPrevented
+  );
 }
 
-export function BrowseStoryLink({id, children}: {id: string; children: ReactNode}) {
+export function BrowseStoryLink({ id, children }: { id: string; children: ReactNode }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const href = `/story/${id}`;
@@ -52,19 +65,31 @@ export function BrowseStoryLink({id, children}: {id: string; children: ReactNode
       try {
         if (!currentTabId()) window.name = TAB_PREFIX + crypto.randomUUID();
         const token = crypto.randomUUID();
-        const context: BrowseContext = {url, label, scrollY: window.scrollY, savedAt: Date.now()};
-        store.setItem(PREFIX + token, JSON.stringify({tabId: currentTabId(), context}));
+        const context: BrowseContext = { url, label, scrollY: window.scrollY, savedAt: Date.now() };
+        store.setItem(PREFIX + token, JSON.stringify({ tabId: currentTabId(), context }));
         destination = `${href}?journey=${token}`;
-      } catch { /* Use the canonical destination when storage is unavailable. */ }
+      } catch {
+        /* Use the canonical destination when storage is unavailable. */
+      }
     }
     event.preventDefault();
     startTransition(() => router.push(destination));
   }
-  return <><Link href={href} onClick={open} aria-busy={pending || undefined}>{children}</Link>
-    {pending && <span className="navigation-pending" role="status">Opening story…</span>}</>;
+  return (
+    <>
+      <Link href={href} onClick={open} aria-busy={pending || undefined}>
+        {children}
+      </Link>
+      {pending && (
+        <span className="navigation-pending" role="status">
+          Opening story…
+        </span>
+      )}
+    </>
+  );
 }
 
-export function NextStoryLink({id, children}: {id: string; children: ReactNode}) {
+export function NextStoryLink({ id, children }: { id: string; children: ReactNode }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const href = `/story/${id}`;
@@ -75,17 +100,31 @@ export function NextStoryLink({id, children}: {id: string; children: ReactNode})
     event.preventDefault();
     startTransition(() => router.push(destination));
   }
-  return <><Link href={href} onClick={open} aria-busy={pending || undefined}>{children}</Link>
-    {pending && <span className="navigation-pending" role="status">Opening story…</span>}</>;
+  return (
+    <>
+      <Link href={href} onClick={open} aria-busy={pending || undefined}>
+        {children}
+      </Link>
+      {pending && (
+        <span className="navigation-pending" role="status">
+          Opening story…
+        </span>
+      )}
+    </>
+  );
 }
 
-export function StoryReturnLink({destination, archiveOnly = false}: {destination?: {href: string; label: string}; archiveOnly?: boolean} = {}) {
+export function StoryReturnLink({
+  destination,
+  archiveOnly = false,
+}: { destination?: { href: string; label: string }; archiveOnly?: boolean } = {}) {
   const router = useRouter();
   const [context, setContext] = useState<BrowseContext | null>(null);
   useEffect(() => {
     const saved = readJourney(journeyToken());
     const path = saved?.url.split("?")[0];
-    const matches = archiveOnly ? path === "/archive" || path?.startsWith("/archive/")
+    const matches = archiveOnly
+      ? path === "/archive" || path?.startsWith("/archive/")
       : !destination || path === destination.href;
     setContext(saved && matches ? saved : null);
   }, [destination?.href, archiveOnly]);
@@ -100,26 +139,41 @@ export function StoryReturnLink({destination, archiveOnly = false}: {destination
     }
     const store = storage();
     if (!context || !store) return;
-    try { store.setItem(RESTORE_KEY, JSON.stringify({tabId: currentTabId(), context})); } catch { /* The link still returns to the list. */ }
+    try {
+      store.setItem(RESTORE_KEY, JSON.stringify({ tabId: currentTabId(), context }));
+    } catch {
+      /* The link still returns to the list. */
+    }
   }
   if (archiveOnly && !context) return null;
-  return <Link className={destination ? "breadcrumb-link" : "back-link"} href={context?.url ?? destination?.href ?? "/"} scroll={!context} onClick={rememberReturn}>
-    {!destination && <ChevronLeft className="inline-icon" aria-hidden="true" />} {archiveOnly && "Back to "}{destination?.label ?? context?.label ?? "Top stories"}
-  </Link>;
+  return (
+    <Link
+      className={destination ? "breadcrumb-link" : "back-link"}
+      href={context?.url ?? destination?.href ?? "/"}
+      scroll={!context}
+      onClick={rememberReturn}
+    >
+      {!destination && <ChevronLeft className="inline-icon" aria-hidden="true" />}{" "}
+      {archiveOnly && "Back to "}
+      {destination?.label ?? context?.label ?? "Top stories"}
+    </Link>
+  );
 }
 
 export function ListPositionRestorer() {
   useEffect(() => {
     const store = storage();
     if (!store) return;
-    let record: {tabId?: string; context?: unknown} | null = null;
+    let record: { tabId?: string; context?: unknown } | null = null;
     try {
       record = JSON.parse(store.getItem(RESTORE_KEY) ?? "null");
-    } catch { return; }
+    } catch {
+      return;
+    }
     const context = record?.tabId === currentTabId() ? validBrowseContext(record?.context) : null;
     if (!context || context.url !== window.location.pathname + window.location.search) return;
     const frame = requestAnimationFrame(() => {
-      window.scrollTo({top: context.scrollY, behavior: "auto"});
+      window.scrollTo({ top: context.scrollY, behavior: "auto" });
       store.removeItem(RESTORE_KEY);
     });
     return () => cancelAnimationFrame(frame);
