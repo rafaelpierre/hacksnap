@@ -276,7 +276,17 @@ keeps its CommonJS dependencies compatible with Jest on Node 22.
 
 ## Discussion-analysis projections
 
-Deploy additive migration `0012_discussion_analysis` before this web version.
+Deploy additive migration `0012_discussion_analysis` to enable discussion analysis.
+The website checks the three public columns and their SELECT privileges in each
+story-read transaction. Until they are available, it serves existing summaries
+with null analysis fields and logs a migration warning. The next uncached read
+automatically enables analysis after the migration; leaderboard data may remain
+cached for up to 30 minutes.
+
+The Supabase schema workflow validates migrations on push but applies them only
+on `workflow_dispatch`. Run that workflow on `main` and verify that its **Apply
+schema migrations** job succeeds before deploying schema-dependent features.
+Database read failures log only SQLSTATE, never query text or database messages.
 `getStory` exposes `summary.discussion_analysis` with reference claims, selected
 critical/supportive highlights and topic citations. Leaderboard, RSS source,
 archive and category reads expose `summary.discussion_analysis_preview`: status,
@@ -295,6 +305,22 @@ result. The leaderboard cache version changes to discard older cached projection
 and pending rows through embedded PostgreSQL with the migration's reader grant.
 It verifies detail completeness, compact feeds and denied private-column reads
 without credentials or a database server. PGlite is a test-only dependency.
+
+## Data outages
+
+Database connection and query failures become sanitized availability errors.
+Frontend pages show a retry action inside the normal navigation; these responses
+opt out of caching. Home and story pages render per request so a transient
+outage cannot become a cached page; the leaderboard retains its existing
+30-minute data cache. Empty lists remain valid empty states, and unknown stories
+remain 404s. Story metadata handles outages without failing rendering or claiming
+that a temporarily unavailable story does not exist. Related stories and topic
+counts are optional, so their failure does not hide otherwise available content.
+
+JSON APIs, Markdown, RSS, and story image endpoints return a sanitized 503 with
+`Retry-After: 60` and `Cache-Control: no-store` when their data is unavailable.
+The sitemap retains static navigation entries during outages. Unexpected errors
+outside data reads still reach the normal error boundary.
 
 ## Story discussion analysis
 

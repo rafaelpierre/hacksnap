@@ -1,3 +1,4 @@
+import { availableData } from "../../lib/data-availability";
 import { ArrowUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -13,7 +14,8 @@ export const metadata: Metadata = {
 };
 
 export default async function TopicsPage() {
-  const counts = await getCategoryCounts();
+  const result = await availableData(getCategoryCounts);
+  const counts = result.available ? result.value : null;
   return (
     <>
       <header className="feed-header">
@@ -30,7 +32,9 @@ export default async function TopicsPage() {
               </strong>
               <span className="topic-description">{category.description}</span>
               <span className="topic-count">
-                {counts[category.id] ?? 0} {counts[category.id] === 1 ? "story" : "stories"}
+                {counts
+                  ? `${counts[category.id] ?? 0} ${counts[category.id] === 1 ? "story" : "stories"}`
+                  : "Story counts unavailable"}
               </span>
             </Link>
           </li>

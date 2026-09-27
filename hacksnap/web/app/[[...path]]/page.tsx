@@ -1,3 +1,4 @@
+import { withDataFallback } from "../with-data-fallback";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -8,14 +9,9 @@ import { StoryRow } from "../story-row";
 import { BrowseLayout } from "../topic-sidebar";
 import { ListPositionRestorer } from "../story-navigation";
 
-export const revalidate = 1800;
+export const dynamic = "force-dynamic";
 
-// An optional segment lets / use on-demand ISR without querying data at build time.
-export async function generateStaticParams() {
-  return [];
-}
-
-export default async function Home({ params }: { params: Promise<{ path?: string[] }> }) {
+async function Home({ params }: { params: Promise<{ path?: string[] }> }) {
   // Only the root URL belongs to this page; unknown paths must remain 404s.
   if ((await params).path?.length) notFound();
   const { stories, ingestion } = await getLeaderboard();
@@ -66,3 +62,5 @@ export default async function Home({ params }: { params: Promise<{ path?: string
     </BrowseLayout>
   );
 }
+
+export default withDataFallback(Home);

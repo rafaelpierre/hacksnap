@@ -1,3 +1,5 @@
+import { availableData } from "../../../lib/data-availability";
+import { withDataFallback } from "../../with-data-fallback";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -36,10 +38,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   };
 }
 
-export default async function CategoryPage(props: Props) {
+async function CategoryPage(props: Props) {
   const { category, page } = await selection(props);
   const [counts, { stories, hasNext }] = await Promise.all([
-    getCategoryCounts(),
+    availableData(getCategoryCounts),
     getCategoryStories(category.id, page),
   ]);
   if (page > 1 && !stories.length) notFound();
@@ -60,7 +62,7 @@ export default async function CategoryPage(props: Props) {
       <section aria-labelledby="category-stories-heading">
         <div className="feed-bar">
           <h2 id="category-stories-heading">
-            Latest stories <span>{counts[category.id] ?? 0}</span>
+            Latest stories {counts.available && <span>{counts.value[category.id] ?? 0}</span>}
           </h2>
           <p>Newest first</p>
         </div>
@@ -100,3 +102,5 @@ export default async function CategoryPage(props: Props) {
     </BrowseLayout>
   );
 }
+
+export default withDataFallback(CategoryPage);

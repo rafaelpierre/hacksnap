@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "@jest/globals";
 import { PGlite } from "@electric-sql/pglite";
-import { feedFields, storyFields } from "../lib/story-projection.ts";
+import {
+  feedFields,
+  storyFields,
+  legacyFeedFields,
+  legacyStoryFields,
+  discussionColumnsSQL,
+} from "../lib/story-projection.ts";
 
 const fixtures = JSON.parse(
   readFileSync(new URL("../../fixtures/discussion-analysis/valid.json", import.meta.url)),
@@ -141,6 +147,63 @@ test("reader projections preserve shared fixtures and legacy rows while excludin
       db.query("SELECT raw_comments FROM hacker_news_threads"),
       /permission denied/,
     );
+  } finally {
+    await db.close();
+  }
+}, 30000);
+
+test("legacy projections work before migration and while new column grants are missing", async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(`
+      CREATE ROLE hacksnap_reader;
+      CREATE TABLE hacker_news_threads (
+        hn_id bigint PRIMARY KEY, title text, url text, points int,
+        comment_count int, date_added timestamptz, category text
+      );
+      CREATE TABLE hacksnap_summaries (
+        story_id bigint PRIMARY KEY, article_summary text, article_key_points jsonb,
+        discussion_summary text, discussion_points jsonb, sentiment int,
+        overall_takeaway text, generated_at timestamptz, model text, source_coverage jsonb,
+        source_fingerprint text
+      );
+      GRANT SELECT ON hacker_news_threads TO hacksnap_reader;
+      GRANT SELECT (story_id,article_summary,article_key_points,discussion_summary,
+        discussion_points,sentiment,overall_takeaway,generated_at,model,source_coverage)
+        ON hacksnap_summaries TO hacksnap_reader;
+      INSERT INTO hacker_news_threads (hn_id) VALUES (1), (2);
+      INSERT INTO hacksnap_summaries (story_id,discussion_summary) VALUES (1,'Existing summary');
+      SET ROLE hacksnap_reader;
+    `);
+    for (const phase of ["absent", "ungranted", "granted"]) {
+      const { rows } = await db.query(discussionColumnsSQL);
+      assert.equal(rows[0].available, phase === "granted");
+      for (const fields of rows[0].available
+        ? [feedFields, storyFields]
+        : [legacyFeedFields, legacyStoryFields]) {
+        const { rows: stories } = await db.query(`SELECT ${fields} FROM hacker_news_threads t
+          LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id ORDER BY t.hn_id`);
+        assert.equal(stories[0].summary.discussion_summary, "Existing summary");
+        assert.equal(stories[0].summary.discussion_analyzed_at, null);
+        assert.equal(stories[0].summary.discussion_analysis_coverage, null);
+        assert.equal(stories[1].summary, null);
+      }
+      await assert.rejects(
+        db.query("SELECT source_fingerprint FROM hacksnap_summaries"),
+        /permission denied/,
+      );
+      if (phase === "absent") {
+        await db.exec(`RESET ROLE;
+          ALTER TABLE hacksnap_summaries ADD COLUMN discussion_analysis jsonb,
+            ADD COLUMN discussion_analyzed_at timestamptz,
+            ADD COLUMN discussion_analysis_coverage jsonb;
+          SET ROLE hacksnap_reader;`);
+      } else if (phase === "ungranted") {
+        await db.exec(`RESET ROLE;
+          ${migration.match(/GRANT SELECT \(discussion_analysis,[\s\S]*?TO hacksnap_reader/)[0]};
+          SET ROLE hacksnap_reader;`);
+      }
+    }
   } finally {
     await db.close();
   }
