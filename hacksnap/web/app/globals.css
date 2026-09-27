@@ -1911,6 +1911,15 @@ footer > span {
     padding: var(--space-5) var(--space-4);
   }
 
+  /* Keep the compact metrics and Share aligned at phone widths. */
+  .feed-story-footer {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .feed-story .story-meta {
+    gap: 8px;
+  }
+
   .feed-story h3 {
     font-size: 19px;
   }

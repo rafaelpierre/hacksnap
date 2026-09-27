@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "prompt_version": "discussion-v1",
+  "model": "fixture-model",
+  "source_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "input_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "analyzed_at": "2026-09-27T12:00:00Z",
+  "coverage": {
+    "stored_comments": 3,
+    "included_comments": 1,
+    "comments_truncated": true,
+    "selection_method": "active_branches_with_ancestors_v1"
+  }
+}
