@@ -2139,3 +2139,16 @@ footer > span {
   padding: 0;
   font: inherit;
 }
+
+/* Keep discussion sentiment at the same visual scale as card metadata. */
+.feed-story .skepticism-pill {
+  gap: 5px;
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+@media (max-width: 40rem) {
+  .feed-story-footer .share-menu {
+    align-self: flex-start;
+  }
+}
