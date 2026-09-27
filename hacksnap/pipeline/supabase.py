@@ -4,7 +4,39 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from .models import StorySummary
+from .models import DiscussionAnalysis, DiscussionAnalysisMetadata, StorySummary
+
+
+def _discussion_record(
+    analysis: DiscussionAnalysis | None, metadata: DiscussionAnalysisMetadata | None
+) -> dict:
+    """Revalidate at the storage boundary, including models mutated after construction.
+
+    Source membership must already have been checked against the prepared inputs via
+    validate_sources() and validate_analysis(); raw source text is not persisted here.
+    """
+    if (analysis is None) != (metadata is None):
+        raise ValueError("Discussion analysis and metadata must be supplied together")
+    if analysis is None:
+        return {
+            "discussion_analysis": None,
+            "discussion_analysis_metadata": None,
+            "discussion_analyzed_at": None,
+        }
+    analysis = DiscussionAnalysis.model_validate_json(analysis.model_dump_json())
+    metadata = DiscussionAnalysisMetadata.model_validate_json(metadata.model_dump_json())
+    included = metadata.coverage.included_comments
+    if (analysis.status == "no_comments") != (included == 0):
+        raise ValueError("Analysis status disagrees with coverage")
+    cited = {h.comment_id for h in [*analysis.critical_comments, *analysis.supportive_comments]}
+    cited.update(cid for topic in analysis.topics for cid in topic.comment_ids)
+    if len(cited) > included:
+        raise ValueError("Analysis cites more comments than coverage includes")
+    return {
+        "discussion_analysis": Jsonb(analysis.model_dump(mode="json")),
+        "discussion_analysis_metadata": Jsonb(metadata.model_dump(mode="json")),
+        "discussion_analyzed_at": metadata.analyzed_at,
+    }
 
 
 class Repository:
@@ -62,6 +94,40 @@ class Repository:
                 (story_id,),
             ).fetchone()
 
+    def get_discussion_analysis(self, story_id: int) -> dict | None:
+        """Read claims, analysis, provenance, and time from one database snapshot."""
+        with self._connect() as connection:
+            return connection.execute(
+                """SELECT discussion_analysis, discussion_analysis_metadata,
+                          discussion_analyzed_at, discussion_analysis_coverage
+                   FROM hacksnap_summaries
+                   WHERE story_id = %s AND discussion_analysis IS NOT NULL""",
+                (story_id,),
+            ).fetchone()
+
+    def save_discussion_analysis(
+        self, story_id: int, analysis: DiscussionAnalysis, metadata: DiscussionAnalysisMetadata
+    ) -> bool:
+        """Refresh an existing analysis atomically; never backfill legacy summaries.
+
+        Returns False for absent or legacy summaries. Initial analysis is saved with
+        save_summary(), so a new story's summary and analysis commit together.
+        """
+        if analysis is None or metadata is None:
+            raise ValueError("A refresh requires discussion analysis and metadata")
+        record = {"story_id": story_id, **_discussion_record(analysis, metadata)}
+        with self._connect() as connection:
+            result = connection.execute(
+                """UPDATE hacksnap_summaries
+                   SET discussion_analysis = %(discussion_analysis)s,
+                       discussion_analysis_metadata = %(discussion_analysis_metadata)s,
+                       discussion_analyzed_at = %(discussion_analyzed_at)s,
+                       updated_at = CURRENT_TIMESTAMP
+                   WHERE story_id = %(story_id)s AND discussion_analysis IS NOT NULL""",
+                record,
+            )
+            return result.rowcount == 1
+
     def save_sentiment(self, story_id: int, sentiment: int | None, metadata: dict) -> None:
         with self._connect() as connection:
             connection.execute(
@@ -83,8 +149,14 @@ class Repository:
         prompt_version: str,
         coverage: dict,
         content_hash: str | None = None,
+        *,
+        discussion_analysis: DiscussionAnalysis | None = None,
+        discussion_analysis_metadata: DiscussionAnalysisMetadata | None = None,
     ) -> None:
+        # A legacy replacement clears prior analysis rather than retaining claims
+        # tied to a potentially different article. Sentiment-only writes preserve it.
         record = {
+            **_discussion_record(discussion_analysis, discussion_analysis_metadata),
             **summary.model_dump(),
             "story_id": story_id,
             "content_hash": content_hash,
@@ -97,17 +169,23 @@ class Repository:
         for key in ("article_key_points", "discussion_points", "source_coverage"):
             record[key] = Jsonb(record[key])
         with self._connect() as connection:
-            connection.execute(
+            result = connection.execute(
                 """
                 INSERT INTO hacksnap_summaries
                     (story_id, article_url, article_summary, article_key_points,
                      discussion_summary, discussion_points, sentiment, overall_takeaway,
-                     source_fingerprint, model, prompt_version, source_coverage, summarized_content_hash)
+                     source_fingerprint, model, prompt_version, source_coverage, summarized_content_hash,
+                     discussion_analysis, discussion_analysis_metadata, discussion_analyzed_at)
                 VALUES (%(story_id)s, %(article_url)s, %(article_summary)s,
                         %(article_key_points)s, %(discussion_summary)s, %(discussion_points)s,
                         %(sentiment)s, %(overall_takeaway)s, %(source_fingerprint)s, %(model)s,
-                        %(prompt_version)s, %(source_coverage)s, %(content_hash)s)
+                        %(prompt_version)s, %(source_coverage)s, %(content_hash)s,
+                        %(discussion_analysis)s, %(discussion_analysis_metadata)s,
+                        %(discussion_analyzed_at)s)
                 ON CONFLICT (story_id) DO UPDATE SET
+                    discussion_analysis = EXCLUDED.discussion_analysis,
+                    discussion_analysis_metadata = EXCLUDED.discussion_analysis_metadata,
+                    discussion_analyzed_at = EXCLUDED.discussion_analyzed_at,
                     summarized_content_hash = EXCLUDED.summarized_content_hash,
                     article_url = EXCLUDED.article_url,
                     article_summary = EXCLUDED.article_summary,
@@ -120,9 +198,13 @@ class Repository:
                     model = EXCLUDED.model, prompt_version = EXCLUDED.prompt_version,
                     source_coverage = EXCLUDED.source_coverage,
                     generated_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                WHERE EXCLUDED.discussion_analysis IS NULL
+                   OR hacksnap_summaries.discussion_analysis IS NOT NULL
             """,
                 record,
             )
+            if discussion_analysis is not None and result.rowcount != 1:
+                raise ValueError("Cannot add discussion analysis to a legacy summary")
 
     def cleanup_contents(self, batch_size: int = 500) -> dict:
         with self._connect() as connection:
