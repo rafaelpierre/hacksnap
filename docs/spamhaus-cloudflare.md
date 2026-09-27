@@ -16,7 +16,7 @@ the workflow must be on the default branch. It does not enable Bot Fight Mode.
    documents the legacy name **Account Filter Lists: Edit**; its permission
    reference lists both names for access to the same resource. Search for
    `Lists` rather than the full legacy label.
-   This is a separate token from the site's existing cache-purge token.
+   Keep this token separate from the Workers deployment token.
 3. In GitHub repository Settings → Secrets and variables → Actions, configure:
 
    | Type | Name | Value |

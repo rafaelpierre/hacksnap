@@ -93,8 +93,8 @@ Scripts edit access for the account and Workers Routes edit access for the zone;
 retain the template's read permissions for zone/account lookup. The account ID
 value can be the same as the one used for the Spamhaus workflow.
 
-The existing `CLOUDFLARE_API_TOKEN` is used for cache purges, and
-`CLOUDFLARE_LISTS_API_TOKEN` is used for Spamhaus lists. Keep those separate.
+Use separate tokens for Workers deployments and Spamhaus lists
+(`CLOUDFLARE_LISTS_API_TOKEN`).
 The new workflow maps `CLOUDFLARE_WORKERS_API_TOKEN` and
 `CLOUDFLARE_WORKERS_ACCOUNT_ID` to Wrangler's expected `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` environment variables only during deployment. Never commit
