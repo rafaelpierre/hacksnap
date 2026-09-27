@@ -45,6 +45,29 @@ export default function AboutPage() {
         </p>
       </section>
 
+      <section aria-labelledby="discussion-analysis-heading">
+        <h2 id="discussion-analysis-heading">Themes and competing reactions</h2>
+        <p>
+          Newly analyzed stories include discussion themes and selected Most critical and Most
+          supportive comments. Each example paraphrases a comment, explains its stance and
+          reservations, identifies the original claim it addresses, and links to the source comment.
+          Theme links show the evidence behind each summary.
+        </p>
+        <p>
+          These examples come from the available sample, selected for explicit stance and
+          explanation. They are not an exhaustive ranking, a measure of correctness, or a vote.
+          Either side can be empty when clear evidence is missing. Neutral questions, mixed
+          reactions and disagreements with other commenters do not by themselves count as support
+          for the original claim.
+        </p>
+        <p>
+          Analysis time and coverage describe the discussion sample separately from the article
+          brief. When the source has no usable claim, themes can still be shown without stance
+          highlights. Older stories retain their original discussion summaries; this feature is not
+          backfilled.
+        </p>
+      </section>
+
       <section aria-labelledby="ranking-heading">
         <h2 id="ranking-heading">Ranking</h2>
         <p>
@@ -59,11 +82,12 @@ export default function AboutPage() {
       <section aria-labelledby="skepticism-heading">
         <h2 id="skepticism-heading">Skepticism</h2>
         <p>
-          High means the sampled comments lean doubtful, critical or concerned about the story’s
-          subject. Low includes mixed, neutral and positive reactions. This is a qualitative AI
-          estimate from at most ten selected comments, separate from the broader sample used for the
-          discussion brief. It is not a numeric score or a claim of consensus. When no usable
-          comments are available, Hacksnap shows that instead of guessing.
+          The legacy skepticism label is separate from explicit agreement. Low skepticism does not
+          mean agreement. High means the sampled comments lean doubtful, critical or concerned about
+          the story’s subject. Low includes mixed, neutral and positive reactions. This is a
+          qualitative AI estimate from at most ten selected comments, separate from the broader
+          sample used for the discussion brief. It is not a numeric score or a claim of consensus.
+          When no usable comments are available, Hacksnap shows that instead of guessing.
         </p>
       </section>
       <p>

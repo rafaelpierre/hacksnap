@@ -295,3 +295,22 @@ result. The leaderboard cache version changes to discard older cached projection
 and pending rows through embedded PostgreSQL with the migration's reader grant.
 It verifies detail completeness, compact feeds and denied private-column reads
 without credentials or a database server. PGlite is a test-only dependency.
+
+## Story discussion analysis
+
+New-format story pages expose `#discussion-analysis` for feed links. They use the
+public analysis contract to show expandable, cited themes and two groups of
+paraphrased comments with explicit stance, caveats and original target claims.
+Groups stack when space is limited; native disclosures and ordinary source links
+work with keyboard navigation and without JavaScript. Coverage and UTC analysis
+time come from discussion fields, independently of the article summary.
+
+New themes replace legacy discussion points, keeping the discussion summary as
+the introduction. Null or absent analysis preserves legacy rendering without
+promising a backfill. No-comments and insufficient-context states explain their
+limits; empty groups only describe missing evidence within the analyzed sample.
+Legacy skepticism is never treated as explicit support.
+
+Run `npm test -- tests/discussion-analysis.test.tsx tests/story-content.test.tsx`.
+These tests use the shared `../fixtures/discussion-analysis/valid.json` contract
+fixtures and need no live analysis or database.
