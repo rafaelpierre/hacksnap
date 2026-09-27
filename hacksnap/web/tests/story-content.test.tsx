@@ -240,3 +240,88 @@ test("no-comments analysis suppresses stale discussion introduction", () => {
   assert.match(html, /No usable comments were available for this analysis/);
   assert.doesNotMatch(html, /The mocked discussion brief/);
 });
+
+for (const variant of ["ranked", "unranked"] as const) {
+  for (const selected_evidence of [
+    { critical: 1, supportive: 0 },
+    { critical: 0, supportive: 1 },
+  ]) {
+    test(`${variant} cards link selected stance evidence and show at most two themes`, () => {
+      const card = {
+        ...story,
+        rank: "1",
+        summary: {
+          ...story.summary!,
+          discussion_analysis_preview: {
+            status: "available" as const,
+            topics: [
+              { key: "cost" as const, title: "Costs & tradeoffs", summary: "Hidden topic summary" },
+              {
+                key: "evidence" as const,
+                title: "Evidence " + "long-title".repeat(30),
+                summary: "Hidden evidence",
+              },
+              { key: "other" as const, title: "Third theme", summary: "Hidden third" },
+            ],
+            selected_evidence,
+          },
+        },
+      };
+      const html = render(createElement(StoryRow, { story: card, variant }));
+      assert.match(html, /aria-label="Discussion themes"/);
+      assert.match(html, /Costs &amp; tradeoffs/);
+      assert.ok(html.includes("long-title".repeat(30)));
+      assert.match(html, /href="\/story\/90000001#discussion-analysis"[^>]*>Read the debate/);
+      assert.match(html, /href="\/category\/agents-coding"/);
+      assert.match(html, /A test takeaway/);
+      assert.match(html, /aria-label="Share: A mocked story title"/);
+      assert.doesNotMatch(html, /Third theme|Hidden topic summary|Hidden evidence|consensus|%/);
+    });
+  }
+}
+
+test("topics without stance evidence show themes without a debate link", () => {
+  for (const status of ["available", "insufficient_context"] as const) {
+    const html = render(
+      createElement(StoryRow, {
+        story: {
+          ...story,
+          summary: {
+            ...story.summary!,
+            discussion_analysis_preview: {
+              status,
+              topics: [{ key: "cost", title: "Operating costs", summary: "Hidden summary" }],
+              selected_evidence: { critical: 0, supportive: 0 },
+            },
+          },
+        },
+      }),
+    );
+    assert.match(html, /Operating costs/);
+    assert.doesNotMatch(html, /Read the debate|Hidden summary|pending/i);
+  }
+});
+
+test("missing, null, empty and no-comments previews add no discussion UI", () => {
+  for (const preview of [
+    undefined,
+    null,
+    { status: "available" as const, topics: [], selected_evidence: { critical: 0, supportive: 0 } },
+    {
+      status: "no_comments" as const,
+      topics: [],
+      selected_evidence: { critical: 0, supportive: 0 },
+    },
+  ]) {
+    const html = render(
+      createElement(StoryRow, {
+        story: {
+          ...story,
+          summary: { ...story.summary!, discussion_analysis_preview: preview },
+        },
+      }),
+    );
+    assert.doesNotMatch(html, /feed-discussion|Read the debate|pending/i);
+    assert.match(html, /A test takeaway/);
+  }
+});

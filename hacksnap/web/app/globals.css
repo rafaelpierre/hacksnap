@@ -1681,6 +1681,34 @@ footer > span {
   color: var(--muted);
   font-style: italic;
 }
+.feed-discussion {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.feed-discussion-label {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.feed-discussion-themes ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  color: var(--prose);
+}
+.feed-discussion-themes li {
+  margin-left: var(--space-4);
+  max-width: calc(100% - var(--space-4));
+}
+.feed-discussion > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
 .feed-story-footer {
   display: flex;
   flex-wrap: wrap;
