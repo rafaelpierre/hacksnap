@@ -1,0 +1,56 @@
+[
+  {
+    "fixture": "both_groups",
+    "layout": {
+      "width": 320,
+      "scroll": 320,
+      "groups": 2,
+      "text": "DiscussionReaders compare benchmark conditions and independent results.2 comments analyzed. Analyzed 27 Sept 2026, 12:00 UTC.The sample selects active discussion branches and includes available parent comments. It may omit parts of the full thread. Selected examples and themes do not measure community opinion or how common a view is.Among the comments analyzed. Examples are selected for explicit stance and explanation; their inclusion does not establish that an argument is correct. Comment text below is paraphrased.Most criticalDisagreesA commenter disputes reproducibility.They challenge the credibility of the reported result.Claim addressed (article): The engine halves latency in the reported test.HN comment 104 Most supportiveAgreesA reply reports reproducing the result.The reply disagrees with the critic while supporting the original latency claim.Claim addressed (article): The engine halves latency in the reported test.HN comment 105 Read the full HN discussion "
+    }
+  },
+  {
+    "fixture": "sparse_support",
+    "layout": {
+      "width": 320,
+      "scroll": 320,
+      "groups": 2,
+      "text": "DiscussionReaders compare benchmark conditions and independent results.1 comment analyzed. Analyzed 27 Sept 2026, 12:00 UTC.The sample selects active discussion branches and includes available parent comments. It may omit parts of the full thread. Selected examples and themes do not measure community opinion or how common a view is.Among the comments analyzed. Examples are selected for explicit stance and explanation; their inclusion does not establish that an argument is correct. Comment text below is paraphrased.Most criticalNo clear critical examples in the analyzed comments. Other views may exist elsewhere in the thread.Most supportiveAgreesAn independent run reproduces the latency reduction.The commenter explicitly supports the reported test result.Claim addressed (article): The engine halves latency in the reported test.HN comment 102 Read the full HN discussion "
+    }
+  },
+  {
+    "fixture": "neutral_question",
+    "layout": {
+      "width": 320,
+      "scroll": 320,
+      "groups": 2,
+      "text": "DiscussionReaders compare benchmark conditions and independent results.1 comment analyzed. Analyzed 27 Sept 2026, 12:00 UTC.The sample selects active discussion branches and includes available parent comments. It may omit parts of the full thread. Selected examples and themes do not measure community opinion or how common a view is.Discussion themesMemory requirementsA commenter asks about memory usage in the comparison.HN comment 107 Among the comments analyzed. Examples are selected for explicit stance and explanation; their inclusion does not establish that an argument is correct. Comment text below is paraphrased.Most criticalNo clear critical examples in the analyzed comments. Other views may exist elsewhere in the thread.Most supportiveNo clear supportive examples in the analyzed comments. Other views may exist elsewhere in the thread.Read the full HN discussion "
+    }
+  },
+  {
+    "fixture": "no_comments",
+    "layout": {
+      "width": 320,
+      "scroll": 320,
+      "groups": 0,
+      "text": "Discussion0 comments analyzed. Analyzed 27 Sept 2026, 12:00 UTC.The sample selects active discussion branches and includes available parent comments. It may omit parts of the full thread. Selected examples and themes do not measure community opinion or how common a view is.No usable comments were available for this analysis. Themes and stance examples could not be selected.Read the full HN discussion "
+    }
+  },
+  {
+    "fixture": "unavailable_source",
+    "layout": {
+      "width": 320,
+      "scroll": 320,
+      "groups": 0,
+      "text": "DiscussionReaders compare benchmark conditions and independent results.1 comment analyzed. Analyzed 27 Sept 2026, 12:00 UTC.The sample selects active discussion branches and includes available parent comments. It may omit parts of the full thread. Selected examples and themes do not measure community opinion or how common a view is.Discussion themesUnavailable methodologyA commenter asks for the inaccessible test setup.HN comment 110 The original source was unavailable or did not contain a clear claim to assess. Critical and supportive examples could not be identified against a source claim.Read the full HN discussion "
+    }
+  },
+  {
+    "fixture": "legacy_null",
+    "layout": {
+      "width": 320,
+      "scroll": 320,
+      "groups": 0,
+      "text": "Discussion Skepticism unavailableReaders compare benchmark conditions and independent results.Benchmark conditionsReaders question the comparison.Source comments[1] "
+    }
+  }
+]

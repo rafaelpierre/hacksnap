@@ -89,7 +89,7 @@ def test_refresh_updates_complete_analysis_without_legacy_fields(database):
     assert params["discussion_analysis"].obj == analysis.model_dump(mode="json")
     assert params["discussion_analysis_metadata"].obj == metadata.model_dump(mode="json")
     assert "WHERE story_id = %(story_id)s AND discussion_analysis IS NOT NULL" in sql
-    assert all(field not in sql for field in ("sentiment", "article_summary", "source_coverage"))
+    assert all(field not in sql for field in ("sentiment", "article_summary", "summarized_content_hash", "generated_at"))
 
 
 def test_refresh_does_not_create_or_backfill_rows(database):
@@ -190,3 +190,30 @@ def test_legacy_summary_and_sentiment_calls_remain_compatible(database):
     assert "source_coverage = source_coverage ||" in sql
     assert params[0] == -1 and params[2] == 200
     assert params[1].obj == {"sentiment": {"included_comments": 10}}
+
+
+def test_refresh_atomically_acknowledges_input_and_checks_previous_analysis(database):
+    repo, _, connection = database
+    assert repo.save_discussion_analysis(200, *pair(), content_hash="d" * 64,
+                                         expected_fingerprint="a" * 64)
+    sql, record = connection.execute.call_args.args
+    assert record["content_hash"] == "d" * 64
+    assert record["expected_fingerprint"] == "a" * 64
+    assert "discussion_analysis_metadata->>'input_fingerprint' = %(expected_fingerprint)s" in sql
+    assert "discussion_content_hash = %(content_hash)s" in sql
+    assert "source_coverage" not in sql
+    assert "summarized_content_hash" not in sql and "generated_at" not in sql
+
+
+def test_cache_acknowledgement_does_not_advance_discussion_or_article_time(database):
+    repo, _, connection = database
+    repo.mark_discussion_contents(200, "a" * 64, "b" * 64)
+    sql, params = connection.execute.call_args.args
+    assert params[0] == "b" * 64
+    assert params[1:] == (200, "a" * 64)
+    assert all(field not in sql for field in (
+        "discussion_analyzed_at", "generated_at", "updated_at", "summarized_content_hash"
+    ))
+    connection.execute.return_value.rowcount = 0
+    with pytest.raises(ValueError, match="changed during cache"):
+        repo.mark_discussion_contents(200, "a" * 64, "b" * 64)

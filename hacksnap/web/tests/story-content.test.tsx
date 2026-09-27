@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import type { DiscussionAnalysis } from "../lib/discussion-analysis";
 import { test } from "@jest/globals";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -171,4 +173,70 @@ test("leading card reports a climb since the most recent saved rank", () => {
   assert.match(html, /Climbed 1 position in Hacksnap since the previous update/);
   assert.match(html, /<span aria-hidden="true">\+1<\/span>/);
   assert.match(html, /lucide-chevrons-up/);
+});
+
+const discussionFixtures: { id: string; expected: DiscussionAnalysis }[] = JSON.parse(
+  readFileSync(new URL("../../fixtures/discussion-analysis/valid.json", import.meta.url), "utf8"),
+);
+
+test("new discussion replaces old points, retains its introduction and has a stable feed anchor", () => {
+  const analysis = discussionFixtures[0].expected;
+  const next: Story = {
+    ...story,
+    summary: {
+      ...story.summary!,
+      discussion_analysis: analysis,
+      discussion_points: [
+        { title: "Old duplicate theme", summary: "Repeated content", comment_ids: [101] },
+      ],
+      source_coverage: { ...story.summary!.source_coverage, included_comments: 0 },
+      discussion_analysis_coverage: {
+        stored_comments: 4,
+        included_comments: 3,
+        comments_truncated: true,
+        selection_method: "active_branches_with_ancestors_v1",
+      },
+      discussion_analyzed_at: "2026-09-27T12:00:00Z",
+    },
+  };
+  const html = render(createElement(StoryContent, { story: next, relatedStories: [] }));
+  assert.match(html, /id="discussion-analysis"/);
+  assert.match(html, /The mocked discussion brief/);
+  assert.match(html, /3 comments analyzed/);
+  assert.match(html, /Most critical/);
+  assert.doesNotMatch(html, /Old duplicate theme|Repeated content|skepticism-pill/);
+});
+
+test("legacy null and missing analysis keep cited discussion points without pending labels", () => {
+  for (const discussion_analysis of [null, undefined]) {
+    const legacy: Story = {
+      ...story,
+      summary: {
+        ...story.summary!,
+        discussion_analysis,
+        sentiment: null,
+        discussion_points: [
+          { title: "Legacy evidence", summary: "Preserved discussion", comment_ids: [123] },
+        ],
+      },
+    };
+    const html = render(createElement(StoryContent, { story: legacy, relatedStories: [] }));
+    assert.match(html, /Preserved discussion/);
+    assert.match(html, /Source comment 123 for Legacy evidence/);
+    assert.match(html, /Skepticism unavailable/);
+    assert.doesNotMatch(html.replace(/<[^>]*>/g, ""), /pending|Most supportive|Most critical/i);
+  }
+});
+
+test("no-comments analysis suppresses stale discussion introduction", () => {
+  const noComments: Story = {
+    ...story,
+    summary: {
+      ...story.summary!,
+      discussion_analysis: discussionFixtures.find((item) => item.id === "no_comments")!.expected,
+    },
+  };
+  const html = render(createElement(StoryContent, { story: noComments, relatedStories: [] }));
+  assert.match(html, /No usable comments were available for this analysis/);
+  assert.doesNotMatch(html, /The mocked discussion brief/);
 });

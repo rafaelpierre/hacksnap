@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from pipeline.kestrel import FetchError, KestrelFetcher, external_article_url
-from pipeline.models import CommentSentiment, StorySummary
+from pipeline.models import CommentSentiment, DiscussionAnalysis, StorySummary
 from pipeline.preprocess import prepare_comments, source_fingerprint
 from pipeline.refresh import process_story, refresh
 from pipeline.summarise import ModalSummarizer
@@ -99,7 +99,25 @@ class FakeRepository:
         self.failures[story_id] = article_url
 
     def get_summary(self, story_id):
-        return self.saved.get(story_id)
+        record = copy.deepcopy(self.saved.get(story_id))
+        if record and record.get("discussion_analysis") is not None:
+            for key in ("discussion_analysis", "discussion_analysis_metadata"):
+                record[key] = record[key].model_dump(mode="json")
+        return record
+
+    def mark_discussion_contents(self, story_id, fingerprint, content_hash):
+        record = self.saved[story_id]
+        assert record["discussion_analysis_metadata"].input_fingerprint == fingerprint
+        record["discussion_content_hash"] = content_hash
+
+    def save_discussion_analysis(self, story_id, analysis, metadata, *, content_hash=None,
+                                 expected_fingerprint=None):
+        record = self.saved[story_id]
+        if record["discussion_analysis_metadata"].input_fingerprint != expected_fingerprint:
+            return False
+        record.update(discussion_analysis=analysis, discussion_analysis_metadata=metadata)
+        record["discussion_content_hash"] = content_hash
+        return True
 
     def save_sentiment(self, story_id, sentiment, metadata):
         self.saved[story_id]["sentiment"] = sentiment
@@ -109,6 +127,7 @@ class FakeRepository:
         self.saved[story_id] = {
             "source_fingerprint": fingerprint,
             "summarized_content_hash": content_hash,
+            "discussion_content_hash": content_hash if analysis.get("discussion_analysis") else None,
             "summary": summary,
             "sentiment": summary.sentiment,
             "source_coverage": copy.deepcopy(coverage),
@@ -123,6 +142,16 @@ class FakeSummarizer:
     def __init__(self):
         self.calls = 0
         self.sentiment_calls = 0
+        self.discussion_calls = []
+
+    def refresh_discussion(self, source):
+        self.discussion_calls.append(copy.deepcopy(source))
+        return DiscussionAnalysis(
+            status=("no_comments" if not source["comments"] else
+                    "available" if source["reference_claims"] else "insufficient_context"),
+            reference_claims=source["reference_claims"], critical_comments=[],
+            supportive_comments=[], topics=[],
+        )
 
     def estimate_sentiment(self, comments):
         self.sentiment_calls += 1
@@ -358,10 +387,10 @@ def test_modal_session_affinity_is_shared_within_batch_and_rotates_between_batch
             repo = FakeRepository([story(100), story(101)])
             model = ModalSummarizer(client, "https://test.modal.run/v1", "test-model", "fake-key")
             counts = refresh(repo, SimpleNamespace(fetch=lambda url: "article"), model)
-            assert counts == {"generated": 2, "unchanged": 0, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0}
+            assert counts == {"generated": 2, "unchanged": 0, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0}
             # A cached repeat skips inference regardless of the routing header.
             assert refresh(repo, SimpleNamespace(fetch=lambda url: "article"), model) == {
-                "generated": 0, "unchanged": 2, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0}
+                "generated": 0, "unchanged": 2, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0}
 
     assert len(sessions) == 4
     assert sessions[0] == sessions[1]
@@ -382,10 +411,10 @@ def test_failed_article_is_replaced_in_same_refresh_and_not_retried():
         return "article"
 
     fetcher, model = SimpleNamespace(fetch=fetch), FakeSummarizer()
-    assert refresh(repo, fetcher, model) == {"generated": 10, "unchanged": 0, "failed": 0, "fetch_skipped": 2, "unavailable": 0, "sentiment_updated": 0}
+    assert refresh(repo, fetcher, model) == {"generated": 10, "unchanged": 0, "failed": 0, "fetch_skipped": 2, "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0}
     assert set(repo.saved) == set(range(1, 10)) | {11}
     calls.clear()
-    assert refresh(repo, fetcher, model) == {"generated": 0, "unchanged": 10, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0}
+    assert refresh(repo, fetcher, model) == {"generated": 0, "unchanged": 10, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0}
     assert not any(url.endswith(("/0", "/10")) for url in calls)
     repo.stories[0]["url"] = "https://example.com/corrected"
     assert refresh(repo, fetcher, model)["generated"] == 1
@@ -398,7 +427,7 @@ def test_all_fetches_fail_without_looping_forever():
         raise FetchError("Kestrel timed out")
 
     counts = refresh(repo, SimpleNamespace(fetch=fail), FakeSummarizer())
-    assert counts == {"generated": 0, "unchanged": 0, "failed": 0, "fetch_skipped": 50, "unavailable": 0, "sentiment_updated": 0}
+    assert counts == {"generated": 0, "unchanged": 0, "failed": 0, "fetch_skipped": 50, "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0}
     assert len(repo.failures) == 50
 
 
@@ -458,7 +487,7 @@ def test_run_returns_isolated_story_failures_with_cache_hits(monkeypatch, caplog
         assert completed["status"] == "succeeded"
         assert repo.failures == {101: story(101)["url"]}
     else:
-        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0}
+        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0}
 
 
 def test_refresh_records_all_ranks_after_fetch_failures_even_when_unchanged():
@@ -511,6 +540,7 @@ def test_changed_comments_refresh_sentiment_without_advancing_summary_hash():
     repo, model = FakeRepository([item]), FakeSummarizer()
     fetcher = SimpleNamespace(fetch=lambda _: "article")
     assert process_story(item, repo, fetcher, model) == "generated"
+    repo.saved[100]["discussion_analysis"] = None  # Legacy row.
     previous = copy.deepcopy(repo.saved[100])
     changed = payload()
     changed["comments"][0]["item"]["text"] = "Changed argument"
@@ -556,6 +586,7 @@ def test_existing_summary_survives_prompt_and_model_changes():
     repo, model = FakeRepository([item]), FakeSummarizer()
     fetcher = SimpleNamespace(fetch=lambda _: "article")
     assert process_story(item, repo, fetcher, model, prompt_version="v1") == "generated"
+    repo.saved[100]["discussion_analysis"] = None  # Legacy row.
     model.model = "another-model"
     item["title"] = "Changed title"
     assert process_story(item, repo, fetcher, model) == "unchanged"
@@ -575,6 +606,7 @@ def test_scored_legacy_row_adopts_comment_cache_without_inference():
     item = {**story(), "content_hash": "retained-hash"}
     repo, model = FakeRepository(), FakeSummarizer()
     process_story(item, repo, SimpleNamespace(fetch=lambda _: "article"), model)
+    repo.saved[100]["discussion_analysis"] = None  # Legacy row.
     del repo.saved[100]["source_coverage"]["sentiment"]
     assert process_story(item, repo, None, model) == "unchanged"
     assert process_story(item, repo, None, model) == "unchanged"
@@ -585,6 +617,7 @@ def test_scored_legacy_row_adopts_comment_cache_without_inference():
 def test_empty_comments_clear_score_without_inference_and_are_cached():
     repo, model = FakeRepository(), FakeSummarizer()
     process_story(story(), repo, SimpleNamespace(fetch=lambda _: "article"), model)
+    repo.saved[100]["discussion_analysis"] = None  # Legacy row.
     item = {**story(), "full_raw_text_contents": json.dumps({"comments": []})}
     assert process_story(item, repo, None, model) == "sentiment_updated"
     assert repo.saved[100]["sentiment"] is None
@@ -644,6 +677,7 @@ def test_sentiment_cache_tracks_only_the_ten_comment_sample():
     item = {**story(), "full_raw_text_contents": json.dumps(data)}
     repo, model = FakeRepository(), FakeSummarizer()
     assert process_story(item, repo, SimpleNamespace(fetch=lambda _: "article"), model) == "generated"
+    repo.saved[100]["discussion_analysis"] = None  # Legacy row.
     metadata = repo.saved[100]["source_coverage"]["sentiment"]
     assert metadata["included_comments"] == 10
     assert metadata["comments_truncated"] is True
