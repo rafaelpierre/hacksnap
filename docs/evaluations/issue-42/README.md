@@ -14,9 +14,12 @@ analysis. The migrations performed no historical processing.
 - [Read-only preflight](production-preflight.json) and
   [post-migration verification](production-post-migration.json).
 
-The initial worker deployment uses the v5 initial/v1 refresh prompts. This PR
-corrects semantic defects found during release evaluation with v6 initial/v2
-refresh prompts. The rendering fallback in this PR requires a frontend deployment.
+The [corrected worker deployment](https://github.com/rafaelpierre/hacksnap/actions/runs/36318974600)
+succeeded at 12:27 UTC: Modal enrichment v6 and collector v3 both use commit
+`6b02d45`, with v6 initial/v2 refresh prompts and matching retention logic.
+Subsequent rebases preserve the deployed Python code unchanged. The rendering
+fallback in this PR requires a frontend deployment. Normal scheduling remains
+enabled; the next enrichment run after deployment is 16:00 UTC.
 
 **Issue #42 stays open until a small batch from normal processing has been
 reviewed in production.** No manual refresh, historical article fetch, backfill
@@ -105,7 +108,7 @@ analysis cache for eligible new-format rows; legacy rows remain ineligible.
   changed comments outside the sentiment sample, missing retained source,
   concurrent-write rejection, failure isolation and last-valid-analysis preservation.
 - Ingestion suite: 62 passed, one opt-in integration test skipped.
-- Frontend: 156 tests passed, plus lint, formatting, TypeScript and credential-free production build
+- Frontend: 171 tests passed, plus lint, formatting, TypeScript and credential-free production build
   pass on Node 22. The suite includes embedded PostgreSQL reader projection/grant
   checks, shared fixture rendering, source links, legacy rendering, outage handling
   and the explicit rendering fallback.
@@ -114,8 +117,13 @@ analysis cache for eligible new-format rows; legacy rows remain ineligible.
 
 Caching at the checked revision: story and homepage HTML are forced dynamic
 following the outage fix; the shared leaderboard data cache still revalidates every
-1,800 seconds. React's story cache is request-scoped. The fallback changes the
-leaderboard cache namespace and separates enabled and disabled deployments.
+1,800 seconds. The merged public-read limits also cache story/Markdown data for
+30 minutes and API/RSS data for five minutes within each running instance, with
+shorter negative-cache lifetimes and bounded capacity. React also deduplicates
+story reads within a request. The fallback changes the persistent leaderboard
+cache namespace and separates enabled and disabled deployments. Redeployment
+restarts the instance caches; API HTTP caches may retain earlier responses for
+their advertised TTL. Verify or invalidate affected edge URLs during a fallback.
 Cloudflare must continue bypassing HTML and negotiated Markdown routes.
 
 ## Deployment and recovery
@@ -172,6 +180,6 @@ The worker and stored data are unchanged. Disabled deployments use a separate
 leaderboard cache key, preventing an enabled cached projection from resurfacing.
 
 Remove the setting (or set `true`) and redeploy to restore analysis. The fallback
-test covers every loader, verifies that no analysis capability read or mutation
+test covers every analysis loader, including the new public API lookup, verifies that no analysis capability read or mutation
 occurs, and checks re-enabling. This is an operational fallback, not a runtime
 per-user preference.
