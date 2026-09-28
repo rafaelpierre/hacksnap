@@ -50,7 +50,7 @@ def generate(fixture, result=None, finish_reason="stop", repository=None):
     repo = repository or FakeRepository([item])
     def handler(request):
         body = json.loads(request.content)
-        assert body["max_tokens"] == 8000
+        assert body["max_tokens"] == 32000
         assert "discussion_analysis" in body["response_format"]["json_schema"]["schema"]["required"]
         return httpx.Response(200, json={"choices": [{
             "finish_reason": finish_reason,

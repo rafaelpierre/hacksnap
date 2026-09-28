@@ -1,7 +1,8 @@
 # Hacksnap
 
-An article + HN discussion digest refreshed every four hours on top of the existing collector.
-The Modal schedule runs at 08:00, 12:00, 16:00, and 20:00 UTC.
+An article + HN discussion digest refreshed hourly during the day on top of the existing collector.
+The Modal schedule runs on the hour from 09:00 through midnight, inclusive, in
+`Europe/London` (16 runs per day). It follows GMT/BST automatically.
 The worker never fetches Hacker News. Next.js renders structured summaries from
 Supabase over a server-only PostgreSQL connection.
 
@@ -38,7 +39,7 @@ ranks can have gaps. Fewer than ten cards appear only when fewer than ten eligib
 stories have previews. Pending stories remain eligible for worker enrichment.
 At the end of every worker refresh, after fetch failures are excluded, one atomic
 insert records every eligible rank with a shared timestamp, including ranks below
-10 and unchanged positions. This follows the worker's four-hour daytime schedule;
+10 and unchanged positions. This follows the worker's hourly daytime schedule;
 manual refreshes also record observations. These are sampled positions, not every
 intermediate change to the live view. Failed rank writes fail the refresh.
 
@@ -85,7 +86,7 @@ deduplicated observations; subsequent ingestion maintains it correctly.
 ## Files
 
 ```text
-modal_app.py             four-hour schedule + pinned Linux Kestrel image
+modal_app.py             hourly London daytime schedule + pinned Linux Kestrel image
 pipeline/config.py      all runtime environment configuration
 pipeline/supabase.py    existing PostgreSQL connection pattern + enrichment writes
 pipeline/kestrel.py     bounded JSON CLI adapter
@@ -170,7 +171,8 @@ uv run modal secret create hacksnap --from-dotenv .env.local
 uv run modal deploy modal_app.py
 ```
 
-This deploys one function at `0 * * * *` UTC. It processes stories sequentially;
+This deploys one function at `0 0,9-23 * * *` in `Europe/London`.
+It processes stories sequentially;
 one container prevents overlapping refresh executions. The 40-minute timeout
 bounds a run. Kestrel compilation happens while building the image, never per
 scheduled invocation. It installs the exact published crates.io source release
@@ -331,6 +333,9 @@ and further truncation; raw articles are not persisted.
 Every output is validated against Pydantic and checked for invented comment IDs
 and article claims without an article. HTML is never generated or injected into
 the UI. Invalid or failed inference cannot overwrite a valid saved summary.
+Inference has a 32,000-token response budget, including model reasoning. The previous
+8,000-token cap truncated initial summaries and discussion refreshes in production.
+Incomplete responses are rejected; a later scheduled run retries eligible stories.
 If fetching fails, the worker records the story ID and failed URL permanently.
 The shared leaderboard excludes that story while its URL matches the failure record,
 and the worker processes the next eligible story in the same refresh. Existing
@@ -340,8 +345,11 @@ A corrected story URL becomes eligible automatically; to deliberately retry an
 unchanged URL, delete its row from `hacksnap_fetch_failures`. A missing Kestrel
 executable is a worker configuration error and does not exclude articles.
 Article fetch failures are logged as warnings and counted as `fetch_skipped`; they
-do not fail the scheduled run. Inference, storage, and worker configuration errors
-still fail the run, including errors while recording a fetch failure.
+do not fail the scheduled run. Per-story inference, storage, and worker configuration
+errors are counted as
+`failed` in the result and `refresh_completed` log, while other stories continue.
+The Modal invocation can still succeed with a nonzero failure count. Errors outside
+per-story processing, including ranking-history writes and cleanup, fail the invocation.
 HN self-posts still receive discussion summaries without fetching an article.
 
 Apply migration `0005_fetch_failures` before deploying the updated worker. It also
@@ -436,7 +444,7 @@ variables or credentials and does not create or overwrite this secret.
 
 The `supabase-production` environment supplies the migration credentials.
 No database writes are performed by the web build or deployment preflight.
-Existing four-hour Modal enrichment and hourly HN ingestion schedules are unchanged by these manual
+The hourly daytime Modal enrichment and hourly HN ingestion schedules are unchanged by these manual
 deployment gates. No frontend deployment is configured in these workflows.
 
 No production schema migration, persistent proxy token creation, scheduled
