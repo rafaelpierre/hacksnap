@@ -160,6 +160,7 @@ def test_refresh_endpoint_uses_discussion_only_schema_and_rejects_truncation(fin
     result = model.refresh_discussion(source)
     def handler(request):
         body = json.loads(request.content)
+        assert body["max_tokens"] == 32000
         assert body["response_format"]["json_schema"]["name"] == "hacksnap_discussion_refresh"
         assert "article_summary" not in body["response_format"]["json_schema"]["schema"]["properties"]
         assert json.loads(body["messages"][1]["content"]) == source

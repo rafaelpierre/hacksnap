@@ -12,7 +12,8 @@ from .models import CommentSentiment, DiscussionAnalysis, StorySummary
 from .preprocess import sample_sentiment_comments
 from .prompts import DISCUSSION_REFRESH_PROMPT, SENTIMENT_PROMPT, SYSTEM_PROMPT
 
-MAX_RESPONSE_TOKENS = 8000
+# Includes reasoning tokens; 8,000 truncated production summary and discussion outputs.
+MAX_RESPONSE_TOKENS = 32000
 logger = logging.getLogger("hacksnap")
 
 
