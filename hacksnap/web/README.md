@@ -337,8 +337,9 @@ work with keyboard navigation and without JavaScript. Coverage and UTC analysis
 time come from discussion fields, independently of the article summary.
 
 New themes replace legacy discussion points, keeping the discussion summary as
-the introduction. Null or absent analysis preserves legacy rendering without
-promising a backfill. No-comments and insufficient-context states explain their
+the introduction. Blank-line-separated introduction paragraphs render as separate
+paragraphs in HTML and Markdown, including for legacy summaries. Null or absent
+analysis preserves legacy rendering without promising a backfill. No-comments and insufficient-context states explain their
 limits; empty groups only describe missing evidence within the analyzed sample.
 Legacy skepticism is never treated as explicit support.
 

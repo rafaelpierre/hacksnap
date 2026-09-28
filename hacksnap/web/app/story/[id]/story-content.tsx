@@ -11,6 +11,14 @@ import { StoryAddedTime } from "../../story-added-time";
 import { RelatedStories } from "../../related-stories";
 import { StoryReturnLink } from "../../story-navigation";
 
+function DiscussionIntroduction({ text }: { text: string }) {
+  return text
+    .split(/\r?\n\s*\r?\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph, index) => <p key={index}>{paragraph}</p>);
+}
+
 function StoryShare({ story, placement }: { story: Story; placement: "story_top" | "story_end" }) {
   return (
     <ShareLinks
@@ -133,7 +141,7 @@ export function StoryContent({
               <>
                 {summary.discussion_summary.trim() &&
                   summary.discussion_analysis.status !== "no_comments" && (
-                    <p>{summary.discussion_summary}</p>
+                    <DiscussionIntroduction text={summary.discussion_summary} />
                   )}
                 <DiscussionAnalysis
                   analysis={summary.discussion_analysis}
@@ -144,7 +152,7 @@ export function StoryContent({
               </>
             ) : hasDiscussion ? (
               <>
-                <p>{summary.discussion_summary}</p>
+                <DiscussionIntroduction text={summary.discussion_summary} />
                 <div className="discussion-points">
                   {summary.discussion_points.map((point, i) => (
                     <section className="discussion-point" key={i}>

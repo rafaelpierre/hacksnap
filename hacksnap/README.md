@@ -146,10 +146,37 @@ Both completed normally and passed schema and source-ID validation. This was one
 small request per model, not a quality or latency benchmark on production stories.
 The endpoint and model are configuration, not dependencies of the pipeline.
 
-Initial summaries now require cited discussion analysis with prompt
-`v5-initial-discussion-analysis`. The smoke test above predates this change.
-See [initial analysis validation and measurement status](../docs/evaluations/issue-36-initial-analysis.md)
+Initial summaries use prompt `v7-editorial-summaries`, retaining cited discussion
+analysis. The smoke test above predates this prompt. See
+[initial analysis validation and measurement status](../docs/evaluations/issue-36-initial-analysis.md)
 for the response budget, local checks, and metrics to collect during normal processing.
+
+### Summary writing style
+
+`pipeline/prompts.py` defines Hacksnap's editorial voice: Bloomberg-style specificity
+and information density, with Financial Times-style clarity, restraint and skepticism.
+The source and underlying technical questions lead the coverage.
+
+- **TLDR:** `article_summary` opens with the source's central contribution in 2–4
+  sentences, followed by factual, non-repeating `article_key_points`. Prefer 4–6
+  bullets (within the existing six-item schema), fewer when evidence is sparse.
+- **Discussion:** `discussion_summary` opens with the central tension and develops
+  competing interpretations in roughly 2–5 compact paragraphs. Blank lines separate
+  paragraphs; HTML and Markdown preserve those breaks. Sparse discussions need less.
+- Distinguish proposals, reported results, verified findings and interpretations.
+  Attribute experience or original evidence where provenance matters, retain material
+  uncertainty, and avoid hype, generic openings and claims of community consensus.
+- The model performs a final editorial pass on those three fields. Detailed discussion
+  points, claims, supportive/critical highlights, topics, sentiment and the takeaway
+  keep their existing instructions. The response remains schema-constrained JSON,
+  with the existing 32,000-token response limit and concise output targets (up to
+  220 words for the Discussion introduction).
+
+This version applies to newly generated summaries after worker deployment. Existing
+summaries and Discussion introductions are retained; the normal evidence refresh
+updates only discussion analysis. This change does not backfill or regenerate prose.
+Automated checks verify prompt wiring, persistence and rendering; they do not establish
+live model writing quality. Review generated prose during the normal rollout.
 
 The API key is a Modal proxy token ID and secret joined with a period, as described
 in the [Modal endpoint docs](https://modal.com/docs/guide/endpoints). Keep it in

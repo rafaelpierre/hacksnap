@@ -328,3 +328,22 @@ test("missing, null, empty and no-comments previews add no discussion UI", () =>
     assert.match(html, /A test takeaway/);
   }
 });
+
+test("discussion paragraphs stay separate and escaped for current and legacy summaries", () => {
+  for (const discussion_analysis of [undefined, discussionFixtures[0].expected]) {
+    const next: Story = {
+      ...story,
+      summary: {
+        ...story.summary!,
+        discussion_analysis,
+        discussion_summary:
+          "  The central question is production reliability.\r\n\r\nA separate concern is latency.\n \n<script>unsafe</script>  ",
+      },
+    };
+    const html = render(createElement(StoryContent, { story: next, relatedStories: [] }));
+    assert.match(html, /<p>The central question is production reliability\.<\/p>/);
+    assert.match(html, /<p>A separate concern is latency\.<\/p>/);
+    assert.match(html, /<p>&lt;script&gt;unsafe&lt;\/script&gt;<\/p>/);
+    assert.doesNotMatch(html, /<script>unsafe|<p>\s*<\/p>/);
+  }
+});
