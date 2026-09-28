@@ -11,7 +11,7 @@ from test_pipeline import FakeRepository, FakeSummarizer, many_comments_payload,
 
 from pipeline.models import DISCUSSION_ANALYSIS_SCHEMA_VERSION
 from pipeline.preprocess import sample_sentiment_comments
-from pipeline.prompts import PROMPT_VERSION
+from pipeline.prompts import EDITORIAL_STYLE_PROMPT, PROMPT_VERSION, SYSTEM_PROMPT
 from pipeline.refresh import process_story
 from pipeline.summarise import ModalSummarizer
 
@@ -51,6 +51,8 @@ def generate(fixture, result=None, finish_reason="stop", repository=None):
     def handler(request):
         body = json.loads(request.content)
         assert body["max_tokens"] == 32000
+        assert body["messages"][0] == {"role": "system", "content": SYSTEM_PROMPT}
+        assert EDITORIAL_STYLE_PROMPT in body["messages"][0]["content"]
         assert "discussion_analysis" in body["response_format"]["json_schema"]["schema"]["required"]
         return httpx.Response(200, json={"choices": [{
             "finish_reason": finish_reason,
@@ -222,3 +224,27 @@ def test_analysis_is_saved_before_run_cleanup(monkeypatch):
     monkeypatch.setattr(module, "ModalSummarizer", lambda *args: FakeSummarizer())
     assert module.run()["generated"] == 1
     assert cleaned == [True]
+
+
+def test_editorial_paragraphs_and_bullets_survive_generation_and_storage():
+    result = fixture_output(VALID[0])
+    result["article_summary"] = (
+        "The source reports a performance improvement in its measured workload. "
+        "It describes the setup used to obtain that result."
+    )
+    result["article_key_points"] = [
+        "The test uses a fixed workload.",
+        "The source identifies its comparison baseline.",
+        "The measurements describe the tested hardware.",
+        "The implementation details accompany the results.",
+    ]
+    result["discussion_summary"] = (
+        "The central question is how the reported improvement transfers to other workloads."
+        "\n\nThe benchmark provides one comparison; production applicability needs its own evidence."
+    )
+    status, repo = generate(VALID[0], result)
+    assert status == "generated"
+    stored = repo.saved[100]["summary"]
+    for field in ("article_summary", "article_key_points", "discussion_summary"):
+        assert getattr(stored, field) == result[field]
+    assert stored.discussion_analysis.model_dump() == VALID[0]["expected"]

@@ -227,3 +227,15 @@ test("Markdown escapes all analysis text, keeps qualifications and excludes priv
   assert.match(unknown, /Analysis time unavailable/);
   assert.match(unknown, /Analyzed-comment count unavailable/);
 });
+
+test("Discussion introduction preserves paragraph breaks and escapes source markup", () => {
+  const body = storyMarkdown({
+    ...story,
+    summary: {
+      ...story.summary,
+      discussion_summary: "The central question\n\nA separate concern <script>",
+    },
+  });
+  assert.ok(body.includes("The central question\n\nA separate concern \\<script\\>"));
+  assert.ok(!body.includes("<script>"));
+});
