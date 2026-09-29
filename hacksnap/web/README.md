@@ -315,12 +315,17 @@ null image fields and keep their ordinary text layout.
 
 The interface only renders records with `image_status = 'ready'` and an HTTPS
 URL on a `*.public.blob.vercel-storage.com` host. It never reads or exposes the
-publisher source-image URL. Missing, pending, failed, malformed, and browser
-load-error images remove their image wrapper while preserving the card or story
-content. Until source descriptions are stored, the supplementary images use an
+publisher source-image URL. Missing, pending, failed, and malformed records omit
+the image wrapper. Browser load errors keep a branded placeholder in the reserved
+frame while preserving the card or story content. Until source descriptions are stored, the supplementary images use an
 empty alt attribute so the headline remains the accessible label. Detail images
-retain their supplied intrinsic dimensions; feed cards crop within a reserved
-responsive frame. Social Open Graph images retain the existing generated template.
+retain their supplied intrinsic dimensions. Feed thumbnails keep their reserved
+responsive frame and fill it only when cropping would remove no more than 20%
+of the image area. Otherwise they show the full image against the theme's neutral
+surface. The initial HTML uses the default 4:3 frame; a resize observer adjusts
+the fit for the actual frame on mobile and with enlarged text. Fitting uses the
+stored image dimensions, requires no extra downloads or AI calls, and applies to
+Top, archive and category feeds. Social Open Graph images retain the existing generated template.
 
 ## Discussion-analysis projections
 
