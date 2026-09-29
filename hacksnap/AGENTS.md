@@ -135,7 +135,8 @@ npm run build
    Address failures, or report the specific blocker. Summarize the change, checks,
    PR link, and remaining work for the user.
 7. Merging changes matched by `.github/workflows/hacksnap.yml` into `main`
-   triggers automatic Modal deployment after validation and the schema preflight.
+   triggers automatic Modal deployment after validation, the schema preflight and
+   a check that the run still matches current `main`.
    Follow the user's authorization before merging or manually deploying; approval
    to create or push a PR does not authorize merging it. Database migrations remain
    a separate manual action. Follow the rollout instructions in `hacksnap/README.md`

@@ -457,6 +457,7 @@ when it changes any of these paths:
 - `hacksnap/pyproject.toml`
 - `hacksnap/uv.lock`
 - `.github/workflows/hacksnap.yml`
+- `.github/scripts/deploy-modal.sh`
 
 Frontend-only, documentation-only, fixture-only and test-only changes do not trigger
 an automatic worker deployment. **Run workflow** (`workflow_dispatch`) remains
@@ -468,6 +469,17 @@ those pass, deployment verifies the database schema version and runs `modal depl
 using the existing `hacksnap` Secret in Modal. The `hacksnap-production` environment
 and deployment concurrency controls apply to both paths, including any configured
 environment approval rules. Pull requests do not deploy.
+
+While holding the deployment concurrency slot, the worker queries GitHub for the
+current `main` SHA immediately before calling Modal. It deploys only if that SHA
+matches the revision validated by this run. Older runs skip deployment with a notice
+and job summary; failed or invalid revision lookups fail the job without deploying.
+This applies to automatic and manual runs, preventing an older validation run from
+rolling back a newer deployment. The job never switches to untested code.
+
+If `main` advances with a change outside the deployment paths while validation is
+running, the earlier run will also skip. Start a new **Hacksnap** manual run on current
+`main` when needed; rerunning the old run retains its old SHA and will skip again.
 
 Database migrations remain manual. For changes that need a migration, run
 **Supabase schema** against `main` before the worker deployment reaches its schema

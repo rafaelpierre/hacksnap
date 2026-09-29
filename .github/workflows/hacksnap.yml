@@ -6,6 +6,8 @@ on:
       - "hacksnap/**"
       - "!hacksnap/web/**"
       - ".github/workflows/hacksnap.yml"
+      - ".github/scripts/deploy-modal.sh"
+      - ".github/tests/test_modal_deploy.py"
   push:
     branches: [main]
     paths:
@@ -14,6 +16,7 @@ on:
       - "hacksnap/pyproject.toml"
       - "hacksnap/uv.lock"
       - ".github/workflows/hacksnap.yml"
+      - ".github/scripts/deploy-modal.sh"
   workflow_dispatch:
 
 permissions:
@@ -40,10 +43,11 @@ jobs:
       - run: uv sync --locked
       - name: Worker lint
         if: matrix.check == 'lint'
-        run: uv run ruff check pipeline tests modal_app.py
+        run: uv run ruff check pipeline tests modal_app.py ../.github/tests/test_modal_deploy.py
       - name: Worker tests and import smoke check
         if: matrix.check == 'tests'
         run: |
+          uv run python ../.github/tests/test_modal_deploy.py
           uv run pytest
           uv run python -c 'import modal_app'
 
@@ -100,8 +104,7 @@ jobs:
       - name: Deploy the scheduled Modal function
         working-directory: hacksnap
         env:
+          GH_TOKEN: ${{ github.token }}
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
-        run: |
-          uv sync --locked --no-dev
-          uv run modal deploy modal_app.py
+        run: bash ../.github/scripts/deploy-modal.sh
