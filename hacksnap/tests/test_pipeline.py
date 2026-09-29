@@ -74,6 +74,16 @@ def output(article=True):
     }
 
 
+def inference_output(summary=None):
+    """Encode a saved-summary fixture using the model's structured brief contract."""
+    result = dict(summary if summary is not None else output())
+    discussion = result.get("discussion_summary")
+    if isinstance(discussion, str):
+        opening, *bullets = discussion.split("\n\n")
+        result["discussion_summary"] = {"opening": opening, "bullets": bullets}
+    return result
+
+
 class FakeRepository:
     def __init__(self, stories=None):
         self.stories = stories or [story()]
@@ -340,7 +350,7 @@ def test_modal_endpoint_requires_complete_structured_response(finish_reason):
             200,
             json={
                 "choices": [
-                    {"finish_reason": finish_reason, "message": {"content": json.dumps(output())}}
+                    {"finish_reason": finish_reason, "message": {"content": json.dumps(inference_output())}}
                 ]
             },
         )
@@ -379,7 +389,7 @@ def test_modal_session_affinity_is_shared_within_batch_and_rotates_between_batch
         assert request.headers["Authorization"] == "Bearer fake-key"
         return httpx.Response(
             200,
-            json={"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(output())}}]},
+            json={"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(inference_output())}}]},
         )
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
@@ -703,7 +713,7 @@ def test_both_endpoint_paths_use_ten_sentiment_comments_and_preserve_summary_inp
         if body["response_format"]["json_schema"]["name"] == "hacksnap_summary":
             assert len(source["comments"]) == 30
             assert len(source["sentiment_comments"]) == 10
-            result = output()
+            result = inference_output()
         else:
             assert len(source["comments"]) == 10
             result = {"sentiment": 0}

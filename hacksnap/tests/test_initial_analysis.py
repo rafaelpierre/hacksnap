@@ -7,7 +7,14 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from test_pipeline import FakeRepository, FakeSummarizer, many_comments_payload, output, story
+from test_pipeline import (
+    FakeRepository,
+    FakeSummarizer,
+    inference_output,
+    many_comments_payload,
+    output,
+    story,
+)
 
 from pipeline.models import DISCUSSION_ANALYSIS_SCHEMA_VERSION
 from pipeline.preprocess import sample_sentiment_comments
@@ -56,7 +63,7 @@ def generate(fixture, result=None, finish_reason="stop", repository=None):
         assert "discussion_analysis" in body["response_format"]["json_schema"]["schema"]["required"]
         return httpx.Response(200, json={"choices": [{
             "finish_reason": finish_reason,
-            "message": {"content": json.dumps(result or fixture_output(fixture))},
+            "message": {"content": json.dumps(inference_output(result or fixture_output(fixture)))},
         }], "usage": {"prompt_tokens": 2100, "completion_tokens": 800, "total_tokens": 2900,
                        "untrusted": "do not log this"}})
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
@@ -245,6 +252,45 @@ def test_editorial_paragraphs_and_bullets_survive_generation_and_storage():
     status, repo = generate(VALID[0], result)
     assert status == "generated"
     stored = repo.saved[100]["summary"]
-    for field in ("article_summary", "article_key_points", "discussion_summary"):
+    for field in ("article_summary", "article_key_points"):
         assert getattr(stored, field) == result[field]
+    assert stored.discussion_summary == result["discussion_summary"].replace("\n\n", "\n\n- ")
     assert stored.discussion_analysis.model_dump() == VALID[0]["expected"]
+
+
+@pytest.mark.parametrize("brief", [
+    {"opening": "Question", "bullets": ["A"] * 5},
+    {"opening": "Question", "bullets": ["x" * 451]},
+    {"opening": "x" * 301, "bullets": []},
+    {"opening": "Question", "bullets": [" "]},
+    {"opening": "Question", "bullets": ["First\nSecond"]},
+    {"opening": "Question", "bullets": [123]},
+    {"opening": "Question"},
+])
+def test_invalid_discussion_brief_never_saves_partial_summary(brief):
+    result = fixture_output(VALID[0])
+    result["discussion_summary"] = brief
+    status, repo = generate(VALID[0], result)
+    assert status == "failed"
+    assert repo.saved == {}
+
+
+def test_no_comments_cannot_generate_discussion_bullets():
+    fixture = next(f for f in VALID if f["id"] == "no_comments")
+    result = fixture_output(fixture)
+    result["discussion_summary"] = {"opening": "No usable discussion.", "bullets": ["Invented view."]}
+    status, repo = generate(fixture, result)
+    assert status == "failed"
+    assert repo.saved == {}
+
+
+def test_brief_schema_requires_separate_opening_and_bullets_but_storage_stays_text():
+    from pipeline.models import GeneratedStorySummary, StorySummary
+
+    schema = GeneratedStorySummary.model_json_schema()
+    brief = schema["$defs"]["DiscussionBrief"]
+    assert set(brief["required"]) == {"opening", "bullets"}
+    assert brief["additionalProperties"] is False
+    assert brief["properties"]["bullets"]["maxItems"] == 4
+    assert brief["properties"]["bullets"]["items"]["maxLength"] == 450
+    assert StorySummary.model_json_schema()["properties"]["discussion_summary"]["type"] == "string"

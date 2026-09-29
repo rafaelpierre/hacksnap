@@ -6,17 +6,24 @@ import { articleURL, domain } from "../../../lib/format";
 import { DiscussionAnalysis } from "../../discussion-analysis";
 import { SkepticismPill } from "../../skepticism-pill";
 import { ShareLinks } from "../../share-links";
+import { discussionBriefBlocks } from "../../../lib/discussion-brief";
 import { briefExcerpt } from "../../../lib/brief";
 import { StoryAddedTime } from "../../story-added-time";
 import { RelatedStories } from "../../related-stories";
 import { StoryReturnLink } from "../../story-navigation";
 
 function DiscussionIntroduction({ text }: { text: string }) {
-  return text
-    .split(/\r?\n\s*\r?\n/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-    .map((paragraph, index) => <p key={index}>{paragraph}</p>);
+  return discussionBriefBlocks(text).map((block, index) =>
+    block.type === "paragraph" ? (
+      <p key={index}>{block.text}</p>
+    ) : (
+      <ul className="key-points" key={index}>
+        {block.items.map((item, itemIndex) => (
+          <li key={itemIndex}>{item}</li>
+        ))}
+      </ul>
+    ),
+  );
 }
 
 function StoryShare({ story, placement }: { story: Story; placement: "story_top" | "story_end" }) {

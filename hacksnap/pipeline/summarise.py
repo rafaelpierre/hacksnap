@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import httpx
 
-from .models import CommentSentiment, DiscussionAnalysis, StorySummary
+from .models import CommentSentiment, DiscussionAnalysis, GeneratedStorySummary, StorySummary
 from .preprocess import sample_sentiment_comments
 from .prompts import DISCUSSION_REFRESH_PROMPT, SENTIMENT_PROMPT, SYSTEM_PROMPT
 
@@ -43,7 +43,10 @@ class ModalSummarizer:
 
     def summarize(self, source: dict) -> StorySummary:
         source = {**source, "sentiment_comments": sample_sentiment_comments(source["comments"])}
-        result = self._infer(source, SYSTEM_PROMPT, StorySummary, "hacksnap_summary")
+        generated = self._infer(source, SYSTEM_PROMPT, GeneratedStorySummary, "hacksnap_summary")
+        if not source["comments"] and generated.discussion_summary.bullets:
+            raise ValueError("Discussion bullets require supplied comments")
+        result = generated.to_summary()
         result.validate_sources(source["article"], source["comments"], source.get("story_text"))
         return result
 

@@ -347,3 +347,24 @@ test("discussion paragraphs stay separate and escaped for current and legacy sum
     assert.doesNotMatch(html, /<script>unsafe|<p>\s*<\/p>/);
   }
 });
+
+test("Discussion opening and bullets render as a safe list for current and legacy analysis", () => {
+  for (const discussion_analysis of [undefined, discussionFixtures[0].expected]) {
+    const next: Story = {
+      ...story,
+      summary: {
+        ...story.summary!,
+        discussion_analysis,
+        discussion_summary:
+          "The question is production reliability.\n\n- Evidence: One workload was measured.\n- Limits: <script>unsafe</script> & unverified.",
+      },
+    };
+    const html = render(createElement(StoryContent, { story: next, relatedStories: [] }));
+    assert.match(html, /<p>The question is production reliability\.<\/p>/);
+    assert.match(
+      html,
+      /<ul class="key-points"><li>Evidence: One workload was measured\.<\/li><li>Limits: &lt;script&gt;unsafe&lt;\/script&gt; &amp; unverified\.<\/li><\/ul>/,
+    );
+    assert.doesNotMatch(html, /<script>unsafe|<p>- Evidence/);
+  }
+});
