@@ -703,3 +703,31 @@ and error spans, including story failures caught so the batch can continue.
 Application logging and retry warnings are forwarded into the current trace;
 existing console logging remains intact. Exception details use Logfire's default
 sensitive-data scrubbing. Thread-pool work retains parent trace context.
+
+## Workflow concurrency and timing
+
+The scheduled image worker processes up to four jobs concurrently. Set
+`HACKSNAP_IMAGE_CONCURRENCY` to 1–8 (default 4); `HACKSNAP_IMAGE_BATCH_SIZE`
+remains the total attempt cap, not the worker count. Each lease is claimed only
+when a worker slot is free. Lease budgets include contention for publisher pacing.
+Custom settings requiring a lease above 3,600 seconds fail before queue writes;
+reduce concurrency, candidates, redirects or the publisher interval.
+The shared fetcher maintains per-host spacing across workers and redirects;
+unrelated hosts can run simultaneously. The explicit fixed-day backfill commands
+retain their sequential checkpoint behavior.
+
+`refresh_completed`, `image_batch_completed`, and the collector's
+`ingestion_completed` events report elapsed seconds, concurrency, item counts,
+and items per minute. Summary throughput counts all attempted stories, including
+cache hits and failures; ingestion throughput counts examined stories; image
+throughput counts claimed attempts. Compare these counts and result breakdowns,
+not just total duration: summaries now consider up to 50 stories per run.
+`summary_job_completed` includes executor wait and processing time;
+`image_job_completed` includes processing time. `inference_timing` includes
+warm-up wait, request duration and total duration on success and failure. The
+existing `inference_completed.elapsed_seconds` excludes warm-up waiting.
+Threaded summary, image and ingestion work inherits the parent tracing context.
+
+The image worker still starts after the summary batch completes. No change to
+Modal container limits, model routing, publisher pacing or inference rate limits
+is required to enable these internal workers.

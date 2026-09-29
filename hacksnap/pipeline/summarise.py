@@ -113,17 +113,33 @@ class ModalSummarizer:
             if owns_warmup:
                 self._warmup_states[key] = Event()
             complete = self._warmup_states[key]
-        if owns_warmup:
-            try:
-                # Only the first request for each key queues for this lock.
-                with self._warmup_lock:
-                    return self._request_inference(source, prompt, schema, name)
-            finally:
-                # Release this key's waiters even on failure, independently of
-                # whichever unrelated cold prompt acquires the global lock next.
-                complete.set()
-        complete.wait()
-        return self._request_inference(source, prompt, schema, name)
+        started = perf_counter()
+        request_started = None
+        status = "failed"
+        try:
+            if owns_warmup:
+                try:
+                    # First requests serialize; warmed prompts proceed independently.
+                    with self._warmup_lock:
+                        request_started = perf_counter()
+                        result = self._request_inference(source, prompt, schema, name)
+                finally:
+                    complete.set()
+            else:
+                complete.wait()
+                request_started = perf_counter()
+                result = self._request_inference(source, prompt, schema, name)
+            status = "succeeded"
+            return result
+        finally:
+            finished = perf_counter()
+            logger.info(json.dumps({
+                "event": "inference_timing", "schema": name, "model": self.model,
+                "warmup_owner": owns_warmup, "status": status,
+                "warmup_wait_seconds": round((request_started if request_started is not None else finished) - started, 3),
+                "request_seconds": round(finished - request_started, 3) if request_started is not None else 0,
+                "total_seconds": round(finished - started, 3),
+            }))
 
     def _request_inference(self, source: dict, prompt: str, schema, name: str):
         started = perf_counter()

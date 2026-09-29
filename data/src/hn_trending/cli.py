@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from contextvars import copy_context
 from threading import Lock
+from time import perf_counter
 from typing import Any
 from urllib.parse import quote
 
@@ -131,6 +134,8 @@ def main(
     run_id = start_ingestion_run(database_url, run_filters)
     click.echo(f"Created ingestion run {run_id}.")
 
+    started = perf_counter()
+    status = "failed"
     rows: list[dict[str, Any]] = []
     detected = 0
     filtered = 0
@@ -253,7 +258,7 @@ def main(
                 def submit_next() -> None:
                     entry = next(stories, None)
                     if entry is not None:
-                        pending.add(executor.submit(collect_story, *entry))
+                        pending.add(executor.submit(copy_context().run, collect_story, *entry))
 
                 for _ in range(story_concurrency):
                     submit_next()
@@ -307,6 +312,15 @@ def main(
             f"Run {run_id} completed: stored={stored}, "
             f"snapshots_inserted={snapshots_inserted}."
         )
+        status = "succeeded"
+    finally:
+        elapsed = perf_counter() - started
+        logging.getLogger("hn_trending").info(json.dumps({
+            "event": "ingestion_completed", "run_id": str(run_id), "status": status,
+            "examined": examined, "matched": len(rows), "snapshots_inserted": snapshots_inserted,
+            "concurrency": story_concurrency, "elapsed_seconds": round(elapsed, 3),
+            "items_per_minute": round(examined * 60 / elapsed, 3) if elapsed else 0,
+        }))
 
 
 if __name__ == "__main__":  # pragma: no cover

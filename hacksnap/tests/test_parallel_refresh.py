@@ -341,3 +341,36 @@ def test_warmed_waiters_run_while_another_prompt_is_still_warming(monkeypatch, f
                 release_b.set()
             assert other.result(timeout=5).sentiment == 0
     assert len(requests) == 5
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_inference_timing_includes_warmup_wait_and_failed_requests(monkeypatch, caplog, failure):
+    caplog.set_level("INFO", logger="hacksnap")
+    now = [10.0]
+    monkeypatch.setattr(summarise_module, "perf_counter", lambda: now[0])
+    model = ModalSummarizer(None, "https://test.invalid", "test-model", "secret")
+
+    class Warmed:
+        def wait(self):
+            now[0] += 7
+
+    model._warmup_states[(SENTIMENT_PROMPT, CommentSentiment, "test")] = Warmed()
+
+    def request(*args):
+        now[0] += 3
+        if failure:
+            raise ValueError("sensitive response")
+        return CommentSentiment(sentiment=0)
+
+    monkeypatch.setattr(model, "_request_inference", request)
+    if failure:
+        with pytest.raises(ValueError):
+            model._infer({}, SENTIMENT_PROMPT, CommentSentiment, "test")
+    else:
+        model._infer({}, SENTIMENT_PROMPT, CommentSentiment, "test")
+    event = json.loads(caplog.records[-1].message)
+    assert event["warmup_wait_seconds"] == 7
+    assert event["request_seconds"] == 3
+    assert event["total_seconds"] == 10
+    assert event["status"] == ("failed" if failure else "succeeded")
+    assert "sensitive response" not in caplog.text
