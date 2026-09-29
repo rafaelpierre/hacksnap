@@ -12,7 +12,6 @@ import {
 } from "./archive";
 import path from "node:path";
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
 import { Pool, type PoolClient } from "pg";
 import { rankHistorySQL, type RankObservation } from "./rank-history";
 import { storyMetricsSQL, type RankingMetrics } from "./story-metrics";
@@ -213,15 +212,16 @@ function readStories<T>(
   });
 }
 
-// Cache JSON-safe values: Next's persistent data cache does not preserve Dates.
+// SQL JSON aggregation returns story dates as strings.
 type CachedLeaderboard = {
   stories: (Omit<Story, "date_added"> & { date_added: string; rank_history: RankObservation[] })[];
   ingestion: string | null;
   observed_at: string;
 };
 
-// Invalidate cached selections made before preview filtering and backfill.
-const cachedLeaderboard = unstable_cache(
+// Hard expiry bounds ranking staleness, including time-based archive transitions.
+// Expired reads wait for fresh data; failures use the existing unavailable state.
+const cachedLeaderboard = boundedCache(
   async (): Promise<CachedLeaderboard> => {
     return readStories("feed", async (client, fields) => {
       const result = await client.query<{
@@ -252,11 +252,7 @@ const cachedLeaderboard = unstable_cache(
       };
     });
   },
-  [
-    "hacksnap-leaderboard-v15-story-images",
-    process.env.HACKSNAP_DISCUSSION_RENDERING === "false" ? "disabled" : "enabled",
-  ],
-  { revalidate: 1800 },
+  { ttl: () => 60_000, maxEntries: 1, maxPending: 1 },
 );
 
 export async function getLeaderboard(): Promise<{
@@ -264,7 +260,7 @@ export async function getLeaderboard(): Promise<{
   ingestion: Date | null;
   observed_at: string;
 }> {
-  const { stories, ingestion, observed_at } = await cachedLeaderboard();
+  const { stories, ingestion, observed_at } = await cachedLeaderboard("leaderboard");
   return {
     stories: stories.map((story) => ({ ...story, date_added: new Date(story.date_added) })),
     ingestion: ingestion ? new Date(ingestion) : null,
