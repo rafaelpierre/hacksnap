@@ -418,6 +418,14 @@ Run `npm test -- tests/api.test.mjs tests/markdown.test.mjs` for shared analysis
 fixtures, schema validation, legacy/unavailable states, escaping, and private-field
 exclusion. Ajv validates API responses against the published OpenAPI schemas.
 
+## Feed card layout
+
+The category and rank occupy a full-width row above the image and title. The
+image and title share a top edge at every viewport width. When the card has limited space, a
+compact thumbnail stays beside the title while the excerpt, discussion themes
+and footer use the full card width. Cards without an image retain full-width
+text, and footer controls wrap when text is enlarged.
+
 ## Feed discussion previews
 
 Home, archive and category cards show up to two discussion theme titles from the
