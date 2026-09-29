@@ -43,7 +43,6 @@ async function Archive(props: Props) {
     const day = story.date_added.toISOString().slice(0, 10);
     groups.set(day, [...(groups.get(day) ?? []), story]);
   }
-  const years = [...new Set(months.map((item) => item.month.slice(0, 4)))];
   return (
     <BrowseLayout>
       <ListPositionRestorer />
@@ -59,38 +58,8 @@ async function Archive(props: Props) {
           )}
         </div>
         <h1>{month ? monthLabel(month) : "Latest stories"}</h1>
-        <p>AI stories from Hacker News, newest first. Browse by month below.</p>
+        <p>AI stories from Hacker News, newest first.</p>
       </header>
-      <nav className="archive-months" aria-label="Browse archive by month">
-        <Link className="button" href="/archive" aria-current={!month ? "page" : undefined}>
-          All stories
-        </Link>
-        {years.length > 0 && (
-          <details className="archive-date-control" open={Boolean(month)}>
-            <summary>Browse by month</summary>
-            {years.map((year) => (
-              <details key={year} open={year === month?.slice(0, 4)}>
-                <summary>{year}</summary>
-                <ul>
-                  {months
-                    .filter((item) => item.month.startsWith(year))
-                    .map((item) => (
-                      <li key={item.month}>
-                        <Link
-                          href={archiveURL(item.month)}
-                          aria-current={month === item.month ? "page" : undefined}
-                        >
-                          {monthLabel(item.month).replace(` ${year}`, "")}{" "}
-                          <span>({item.count})</span>
-                        </Link>
-                      </li>
-                    ))}
-                </ul>
-              </details>
-            ))}
-          </details>
-        )}
-      </nav>
       {stories.length === 0 ? (
         <div className="empty">
           <h2>No stories yet.</h2>

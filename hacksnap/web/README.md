@@ -246,9 +246,10 @@ Hacksnap. Daily headings use that same date, not the summary update time.
 Each page shows up to 30 stories, with ordinary newer/older links and its own
 canonical URL. Archive and category listings accept pages 1–100 (at most 3,000
 stories and an SQL offset of 2,970). Larger pages return 404 before data access;
-the final allowed page has no older-page link. Use populated month links to reach
+the final allowed page has no older-page link. Use dated archive URLs to reach
 older archive entries. Categories show their latest 3,000 stories; deeper category
-browsing needs cursor pagination before this limit can be raised. Year disclosures contain links only to populated months.
+browsing needs cursor pagination before this limit can be raised. The feed starts
+directly below the heading, without the All stories or Browse by month controls.
 Archive pages are rendered on request; no schema change is required. The sitemap
 includes the archive landing page and populated months. Story URLs stay unchanged.
 
