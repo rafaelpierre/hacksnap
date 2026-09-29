@@ -292,6 +292,9 @@ def test_public_fetcher_paces_repeated_requests_for_same_host(monkeypatch):
         def getheader(self, name, default=None):
             return {"Content-Type": "text/html", "Content-Length": "2"}.get(name, default)
 
+        def isclosed(self):
+            return False
+
         def read1(self, size):
             if hasattr(self, "read_once"):
                 return b""
@@ -410,6 +413,9 @@ def test_body_deadline_survives_connection_socket_detach(monkeypatch):
 
         def getheader(self, name, default=None):
             return "text/html" if name == "Content-Type" else default
+
+        def isclosed(self):
+            return False
 
         def read1(self, size):
             self.reads += 1
@@ -549,3 +555,51 @@ def test_worker_settings_accept_existing_limit_names_and_bound_batch(monkeypatch
     monkeypatch.setenv("HACKSNAP_IMAGE_BATCH_SIZE", "101")
     with pytest.raises(ValueError, match="HACKSNAP_IMAGE_BATCH_SIZE"):
         ImageSettings.from_env()
+
+
+@pytest.mark.parametrize('body_size', [0, 17, 131_073])
+@pytest.mark.parametrize('framing', ['length', 'chunked', 'eof'])
+def test_completed_http_response_does_not_touch_closed_socket(monkeypatch, body_size, framing):
+    """Exercise http.client's real EOF/socket ownership, without external network."""
+    from pipeline import image_metadata
+
+    client, server = socket.socketpair()
+    body = b'x' * body_size
+    headers = b'HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nConnection: close\r\n'
+    if framing == 'length':
+        wire = headers + f'Content-Length: {len(body)}\r\n\r\n'.encode() + body
+    elif framing == 'chunked':
+        chunks = [body[i:i + 4096] for i in range(0, len(body), 4096)]
+        wire = headers + b'Transfer-Encoding: chunked\r\n\r\n' + b''.join(
+            f'{len(chunk):x}\r\n'.encode() + chunk + b'\r\n' for chunk in chunks
+        ) + b'0\r\n\r\n'
+    else:
+        wire = headers + b'\r\n' + body
+
+    def serve():
+        try:
+            request = b''
+            while b'\r\n\r\n' not in request:
+                request += server.recv(4096)
+            server.sendall(wire)
+        finally:
+            server.close()
+
+    class Connection(http.client.HTTPConnection):
+        def connect(self):
+            self.sock = client
+
+    monkeypatch.setattr(image_metadata, '_resolved_public_address', lambda *args: '93.184.215.14')
+    monkeypatch.setattr(image_metadata.http.client, 'HTTPConnection', Connection)
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    try:
+        result, _, mime = PublicFetcher(timeout=5, publisher_interval=0).get(
+            'http://publisher.test/image.png', max(1, len(body)), accepted_types=('image/png',),
+        )
+        assert result == body
+        assert mime == 'image/png'
+    finally:
+        client.close()
+        thread.join(timeout=5)
+    assert not thread.is_alive()
