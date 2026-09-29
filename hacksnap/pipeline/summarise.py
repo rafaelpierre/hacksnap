@@ -41,7 +41,8 @@ class ModalSummarizer:
         self.reasoning_effort = reasoning_effort
         # run() creates one summarizer per batch; affinity is scoped to that run.
         self.session_id = str(uuid4())
-        self._warmup_complete = Event()
+        self._warmup_states: dict[tuple[str, type, str], Event] = {}
+        self._warmup_states_lock = Lock()
         self._warmup_lock = Lock()
 
     def summarize(self, source: dict) -> StorySummary:
@@ -73,16 +74,24 @@ class ModalSummarizer:
         return result
 
     def _infer(self, source: dict, prompt: str, schema, name: str):
-        # Gate the first actual inference, not the first story: cache hits and
-        # fetch failures must not consume the warm-up. Reuse its normal result.
-        if not self._warmup_complete.is_set():
-            with self._warmup_lock:
-                if not self._warmup_complete.is_set():
-                    try:
-                        return self._request_inference(source, prompt, schema, name)
-                    finally:
-                        # Warm-up is best effort; a failure cannot stall other stories.
-                        self._warmup_complete.set()
+        # A discussion or sentiment request cannot warm the summary prefix.
+        # Track each prompt/schema independently while serializing cold requests.
+        key = (prompt, schema, name)
+        with self._warmup_states_lock:
+            owns_warmup = key not in self._warmup_states
+            if owns_warmup:
+                self._warmup_states[key] = Event()
+            complete = self._warmup_states[key]
+        if owns_warmup:
+            try:
+                # Only the first request for each key queues for this lock.
+                with self._warmup_lock:
+                    return self._request_inference(source, prompt, schema, name)
+            finally:
+                # Release this key's waiters even on failure, independently of
+                # whichever unrelated cold prompt acquires the global lock next.
+                complete.set()
+        complete.wait()
         return self._request_inference(source, prompt, schema, name)
 
     def _request_inference(self, source: dict, prompt: str, schema, name: str):

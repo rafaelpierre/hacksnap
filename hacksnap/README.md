@@ -213,10 +213,14 @@ Each run selects up to **50 stories** from the full ranking, including stories
 below the website’s top-ten display. This is a cap on all attempted stories,
 including cache hits, missing content and failures, rather than 50 guaranteed new
 summaries. Fetching and preprocessing can overlap immediately. The first
-actual model request in a run completes before later model requests begin, giving
-the endpoint a chance to warm its prompt cache. Its result is used normally; no
-extra inference request is sent. Cached stories and failed fetches do not consume
-this warm-up, and a failed warm-up releases the remaining requests.
+actual model request for each prompt/schema combination completes before other
+requests using that combination begin. Summary, discussion-refresh and sentiment
+prompts have separate warm-ups: completing a discussion refresh does not warm the
+summary prefix. Cold warm-ups run one at a time. Same-prompt waiters are released
+by their own completion event, so they can run concurrently even while another
+prompt is warming. Each warm-up result is used normally, with no extra inference
+request. Cached stories and failed fetches do not consume a warm-up, and a failed
+warm-up releases the remaining requests for its prompt.
 All requests retain the same run-scoped `Modal-Session-Id`; cache reuse is best
 effort and depends on the endpoint's routing and prefix-cache configuration.
 After each batch finishes, the worker re-reads the ranking for replacements,
