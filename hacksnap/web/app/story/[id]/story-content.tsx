@@ -29,6 +29,7 @@ function DiscussionIntroduction({ text }: { text: string }) {
 function StoryShare({ story, placement }: { story: Story; placement: "story_top" | "story_end" }) {
   return (
     <ShareLinks
+      slug={story.story_slug}
       id={story.hn_id}
       title={story.title}
       takeaway={story.summary?.overall_takeaway}

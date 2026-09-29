@@ -3,8 +3,13 @@ import twitter from "twitter-text";
 import { canonicalStoryUrl } from "./story-url";
 export { canonicalStoryUrl } from "./story-url";
 
-export function suggestedPost(id: string, title: string, takeaway?: string | null): string {
-  const url = canonicalStoryUrl(id, title);
+export function suggestedPost(
+  id: string,
+  title: string,
+  takeaway?: string | null,
+  slug?: string | null,
+): string {
+  const url = canonicalStoryUrl(id, slug);
   const summary = takeaway?.trim();
   return summary
     ? `${title.trim()}\n\n${summary}\n\n${url}`

@@ -169,7 +169,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
     act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
   try {
     await render(
-      <BrowseStoryLink id="42" title="Headline">
+      <BrowseStoryLink id="42" slug="headline-42">
         Story
       </BrowseStoryLink>,
       "list",
@@ -184,7 +184,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
     assert.equal(firstState.frameworkState, "preserved");
 
     await render(
-      <NextStoryLink id="43" title="Headline">
+      <NextStoryLink id="43" slug="headline-43">
         Next
       </NextStoryLink>,
       "next",
@@ -199,7 +199,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
     for (const source of ["/", "/archive?page=3", "/category/agents-coding?page=2"]) {
       window.history.replaceState({}, "", source);
       await render(
-        <BrowseStoryLink id="42" title="Headline" anchor="discussion-analysis">
+        <BrowseStoryLink id="42" slug="headline-42" anchor="discussion-analysis">
           Read the debate
         </BrowseStoryLink>,
         source,
@@ -243,7 +243,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
 
     window.history.pushState({}, "", "/archive?page=2");
     await render(
-      <BrowseStoryLink id="42" title="Headline">
+      <BrowseStoryLink id="42" slug="headline-42">
         Story
       </BrowseStoryLink>,
       "second-list",
@@ -272,7 +272,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
     await render(<StoryReturnLink archiveOnly />, "direct");
     assert.equal(document.querySelector("a"), null);
     await render(
-      <NextStoryLink id="44" title="Headline">
+      <NextStoryLink id="44" slug="headline-44">
         Next
       </NextStoryLink>,
       "direct-next",

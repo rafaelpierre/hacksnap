@@ -37,7 +37,7 @@ async function StoryPage({
   if (!id) notFound();
   const story = await getStory(id);
   if (!story) notFound();
-  const canonical = storyPath(story.hn_id, story.title);
+  const canonical = storyPath(story.hn_id, story.story_slug);
   if (`/story/${slug}` !== canonical) {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries((await searchParams) ?? {})) {

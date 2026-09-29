@@ -47,10 +47,7 @@ test("long stories get compact previews without changing the source title or ima
   assert.equal(metadata.twitter.card, "summary_large_image");
   assert.equal(metadata.twitter.images[0].alt, title);
   assert.equal(story.title, title);
-  assert.equal(
-    metadata.alternates.canonical,
-    "https://hacksnap.live/story/kev-tiny-jev-like-family-of-decision-models-built-on-top-of-qwen3-5-49783999",
-  );
+  assert.equal(metadata.alternates.canonical, "https://hacksnap.live/story/49783999");
 });
 
 test("search and social metadata position the story as reactions with its actual sample and topics", () => {

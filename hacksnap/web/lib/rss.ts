@@ -27,7 +27,7 @@ export function renderRSS(stories: Story[], asOf = new Date().toISOString()): st
 <atom:link href="https://hacksnap.live/feed.xml" rel="self" type="application/rss+xml" />
 ${stories
   .map((story) => {
-    const url = canonicalStoryUrl(story.hn_id, story.title);
+    const url = canonicalStoryUrl(story.hn_id, story.story_slug);
     const summary = story.summary;
     const description = summary
       ? [summary.overall_takeaway, summary.article_summary, summary.discussion_summary]

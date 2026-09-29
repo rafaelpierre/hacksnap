@@ -81,7 +81,7 @@ test("story metadata distinguishes an outage from a missing story; related failu
   getStory.mockResolvedValueOnce(null);
   await assert.rejects(generateMetadata(props), (error) => error === notFound);
   getStory.mockResolvedValueOnce({ hn_id: "123", title: "Headline", category: "agents_coding" });
-  const element = await Page({ params: Promise.resolve({ id: "headline-123" }) });
+  const element = await Page({ params: Promise.resolve({ id: "123" }) });
   assert.deepEqual(element.props.relatedStories, []);
   assert.equal(element.props.story.hn_id, "123");
 });

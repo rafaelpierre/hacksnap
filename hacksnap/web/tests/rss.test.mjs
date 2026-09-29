@@ -52,6 +52,7 @@ test("RSS links use the title while GUIDs survive headline edits", () => {
   const story = {
     hn_id: "123",
     title: "Original title",
+    story_slug: "original-title-123",
     points: 1,
     comment_count: 0,
     date_added: new Date(0),
@@ -60,7 +61,7 @@ test("RSS links use the title while GUIDs survive headline edits", () => {
   const original = renderRSS([story]);
   const edited = renderRSS([{ ...story, title: "Edited title" }]);
   assert.ok(original.includes("<link>https://hacksnap.live/story/original-title-123</link>"));
-  assert.ok(edited.includes("<link>https://hacksnap.live/story/edited-title-123</link>"));
+  assert.ok(edited.includes("<link>https://hacksnap.live/story/original-title-123</link>"));
   assert.equal(
     original.match(/<guid[^>]*>.*?<\/guid>/)[0],
     edited.match(/<guid[^>]*>.*?<\/guid>/)[0],

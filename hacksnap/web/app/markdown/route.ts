@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     if (id) {
       const story = await getStory(id);
       if (story) {
-        const canonical = storyPath(story.hn_id, story.title);
+        const canonical = storyPath(story.hn_id, story.story_slug);
         if (page !== canonical) {
           return new Response(null, {
             status: 308,

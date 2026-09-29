@@ -4,6 +4,7 @@ import { jest, test } from "@jest/globals";
 const story = {
   hn_id: "123",
   title: "Readable headline",
+  story_slug: "readable-headline-123",
   category: null,
   summary: null,
   date_added: new Date("2026-09-29T12:00:00Z"),
@@ -85,5 +86,38 @@ test("legacy HTML redirects retain navigation context and repeated query values"
     }),
     (error) =>
       error.url === "/story/readable-headline-123?journey=saved-token&source=one&source=two",
+  );
+});
+
+test("existing numeric stories render directly and reject invented canonical slugs", async () => {
+  const legacy = { ...story, story_slug: null, title: "Updated old headline" };
+  getStory.mockResolvedValueOnce(legacy);
+  assert.equal((await Page(props("123"))).props.story, legacy);
+  getStory.mockResolvedValueOnce(legacy);
+  assert.equal(
+    (await generateMetadata(props("123"))).alternates.canonical,
+    "https://hacksnap.live/story/123",
+  );
+  getStory.mockResolvedValueOnce(legacy);
+  await assert.rejects(Page(props("invented-slug-123")), (error) => error.url === "/story/123");
+  for (const handler of [GET, HEAD]) {
+    getStory.mockResolvedValueOnce(legacy);
+    assert.equal((await handler(request("123"))).status, 200);
+    getStory.mockResolvedValueOnce(legacy);
+    assert.equal(
+      (await handler(request("invented-slug-123"))).headers.get("location"),
+      "/story/123",
+    );
+  }
+});
+
+test("new stories keep their first saved slug after headline edits", async () => {
+  const edited = { ...story, title: "A later title" };
+  getStory.mockResolvedValueOnce(edited);
+  assert.equal((await Page(props("readable-headline-123"))).props.story.title, "A later title");
+  getStory.mockResolvedValueOnce(edited);
+  assert.equal(
+    (await generateMetadata(props("123"))).alternates.canonical,
+    "https://hacksnap.live/story/readable-headline-123",
   );
 });

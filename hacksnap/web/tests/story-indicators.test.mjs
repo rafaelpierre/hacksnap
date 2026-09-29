@@ -101,13 +101,13 @@ test("sitemap exposes latest content modification on homepage and keeps each sto
   const older = new Date("2026-09-19T12:00:00Z");
   const latest = new Date(asOf);
   const entries = sitemapEntries([
-    { hn_id: "123", title: "Headline", modified_at: latest },
-    { hn_id: "456", title: "Another headline", modified_at: older },
+    { hn_id: "123", story_slug: null, modified_at: latest },
+    { hn_id: "456", story_slug: null, modified_at: older },
   ]);
   assert.equal(entries[0].lastModified, latest);
   assert.equal(entries[1].lastModified, latest);
   assert.equal(entries[2].lastModified, older);
-  assert.equal(entries[1].url, "https://hacksnap.live/story/headline-123");
+  assert.equal(entries[1].url, "https://hacksnap.live/story/123");
   assert.deepEqual(sitemapEntries([]), [{ url: "https://hacksnap.live/" }]);
 });
 

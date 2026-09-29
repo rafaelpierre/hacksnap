@@ -65,7 +65,7 @@ The current-thread table also records each story's latest HN `points` and total
 `comment_count` values for fast filtering and display.
 
 The command upserts by `hn_id`, so it is safe to run on a schedule. It refreshes
-the story metadata while retaining the original `date_added` value. Raw contents
+the story metadata while retaining the original `date_added` and `story_slug` values. Raw contents
 are retained only under the policy described below.
 Every invocation also creates an `hn_ingestion_runs` record. Each selected thread
 is written to the metadata/content tables and to `hn_thread_snapshots` in one
@@ -238,3 +238,27 @@ raw content or summaries. An interrupted run can be resumed with the same comman
 For a local run with `SUPABASE_PASSWORD` and `MODAL_LLM_API_KEY` loaded, use
 `uv run python -m hn_trending.backfill_categories` with optional `--limit` or
 `--dry-run`. Apply the migration before deploying either the collector or website.
+
+
+## New-story URLs (migration 0014)
+
+Migration `0014_story_slugs` adds nullable `hacker_news_threads.story_slug` and
+SELECT access for the website reader. Existing rows remain NULL and keep their
+numeric public URLs. The updated collector generates a bounded headline slug only
+for the INSERT values. Its conflict update deliberately leaves `story_slug`
+untouched, including NULL, so neither old stories nor saved new slugs change when
+re-ingested or retitled. Duplicate headlines remain distinct through the HN ID suffix.
+
+Deploy the migration and website before the updated collector. The website safely
+uses numeric URLs while the new column or its reader grant is unavailable. No
+backfill is needed. Avoid downgrading migration 0014 after new URLs are published:
+it removes their saved slugs. Rolling back collector code alone preserves them.
+
+The collector tests cover normalization and the no-backfill migration. To also
+execute the migration, grants and actual upsert against embedded PostgreSQL, run
+from the repository root after installing the frontend dependencies:
+
+```sh
+HACKSNAP_TEST_PGLITE_MODULE="$(pwd)/hacksnap/web/node_modules/@electric-sql/pglite/dist/index.js" \
+  uv run --directory data pytest
+```

@@ -61,7 +61,7 @@ test("mocked story renders the reading journey and recommendations without a dat
   assert.match(html, /id="discussion-heading"[^>]*>.*?<span>Discussion<\/span><\/h2>/);
   assert.match(html, /The mocked discussion brief/);
   assert.match(html, /Low skepticism/);
-  assert.match(html, /href="\/story\/a-related-mocked-story-90000004"/);
+  assert.match(html, /href="\/story\/90000004"/);
   assert.match(html, /href="\/category\/agents-coding"/);
   assert.doesNotMatch(html, /story-metrics/);
 });
@@ -91,7 +91,7 @@ test("mocked story states distinguish missing comments and pending summaries", (
 
 test("mocked feed row preserves a story link, category and shared Share control", () => {
   const html = render(createElement(StoryRow, { story, variant: "ranked" }));
-  assert.match(html, /href="\/story\/a-mocked-story-title-90000001"/);
+  assert.match(html, /href="\/story\/90000001"/);
   assert.match(html, /href="\/category\/agents-coding"/);
   assert.match(html, /aria-label="Share: A mocked story title"/);
 });
@@ -274,10 +274,7 @@ for (const variant of ["ranked", "unranked"] as const) {
       assert.match(html, /aria-label="Discussion themes"/);
       assert.match(html, /Costs &amp; tradeoffs/);
       assert.ok(html.includes("long-title".repeat(30)));
-      assert.match(
-        html,
-        /href="\/story\/a-mocked-story-title-90000001#discussion-analysis"[^>]*>Read the debate/,
-      );
+      assert.match(html, /href="\/story\/90000001#discussion-analysis"[^>]*>Read the debate/);
       assert.match(html, /href="\/category\/agents-coding"/);
       assert.match(html, /A test takeaway/);
       assert.match(html, /aria-label="Share: A mocked story title"/);

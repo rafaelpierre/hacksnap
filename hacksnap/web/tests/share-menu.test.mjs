@@ -9,7 +9,7 @@ import {
 } from "../lib/share-text.ts";
 
 test("copy link uses the canonical address and reports success only after writeText resolves", async () => {
-  const url = canonicalStoryUrl("123", "Headline");
+  const url = canonicalStoryUrl("123", "headline-123");
   assert.equal(url, "https://hacksnap.live/story/headline-123");
   let resolveWrite;
   const clipboard = {
@@ -46,13 +46,13 @@ test("denied and unavailable clipboard writes return failure", async () => {
 test("a missing takeaway produces a complete draft with the title and canonical link", () => {
   const draft = suggestedPost("456", "A full story title", null);
   assert.match(draft, /^A full story title\n\nSummary pending\./);
-  assert.match(draft, /https:\/\/hacksnap\.live\/story\/a-full-story-title-456$/);
+  assert.match(draft, /https:\/\/hacksnap\.live\/story\/456$/);
   assert.doesNotMatch(draft, /undefined|null/);
 });
 
 test("text destinations preserve edits while LinkedIn keeps the previewable canonical URL", () => {
   const edited = "My own take — unchanged.\n\nhttps://hacksnap.live/story/789";
-  const url = canonicalStoryUrl("789", "Original headline");
+  const url = canonicalStoryUrl("789", "original-headline-789");
   const destinations = shareDestinations(edited, url, "Original headline");
   const x = new URL(destinations.find((item) => item.name === "X").href);
   const linkedin = new URL(destinations.find((item) => item.name === "LinkedIn").href);
@@ -78,7 +78,7 @@ test("copying a revised post writes the exact reader-authored text", async () =>
 });
 
 test("X validation accounts for transformed links and weighted Unicode without changing the draft", () => {
-  const url = canonicalStoryUrl("123", "Headline");
+  const url = canonicalStoryUrl("123", "headline-123");
   const fitting = `${"a".repeat(256)} ${url}`;
   assert.deepEqual(xPostStatus(fitting), { length: 280, limit: 280, valid: true });
   assert.deepEqual(xPostStatus(`${"a".repeat(257)} ${url}`), {

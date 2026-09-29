@@ -1,18 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "@jest/globals";
-import { canonicalStoryUrl, storySlug, storyPath, storyIdFromSlug } from "../lib/story-url.ts";
+import { canonicalStoryUrl, storyPath, storyIdFromSlug } from "../lib/story-url.ts";
 
-test("headlines produce bounded, readable, unambiguous URLs", () => {
-  assert.equal(storyPath("123", "Café’s AI: What's new?"), "/story/cafes-ai-whats-new-123");
-  assert.equal(canonicalStoryUrl("123", "Headline"), "https://hacksnap.live/story/headline-123");
-  assert.equal(storySlug("123", "🚀 中文"), "story-123");
-  assert.equal(storySlug("123", ""), "story-123");
-  assert.notEqual(storySlug("123", "Same title"), storySlug("124", "Same title"));
-  for (const title of ["a".repeat(200), "long title ".repeat(30), "2026", "<script>/../?foo#bar"]) {
-    const slug = storySlug("999999999999999", title);
-    assert.ok(slug.length <= 96);
-    assert.equal(storyIdFromSlug(slug), "999999999999999");
+test("only a saved slug changes the public address", () => {
+  for (const slug of [undefined, null, "", "Headline", "another-story-124", "../headline-123"]) {
+    assert.equal(storyPath("123", slug), "/story/123");
+    assert.equal(canonicalStoryUrl("123", slug), "https://hacksnap.live/story/123");
   }
+  assert.equal(storyPath("123", "original-title-123"), "/story/original-title-123");
 });
 
 test("old IDs and edited titles resolve while malformed routes are rejected", () => {

@@ -221,7 +221,7 @@ export function leaderboardMarkdown({
   for (const story of readyStories) {
     const category = categoryById(story.category);
     lines.push(
-      `### ${story.rank ?? ""}. ${link(story.title, canonicalStoryUrl(story.hn_id, story.title))}`,
+      `### ${story.rank ?? ""}. ${link(story.title, canonicalStoryUrl(story.hn_id, story.story_slug))}`,
       `${story.points} points · ${link(`${story.comment_count} comments`, `https://news.ycombinator.com/item?id=${story.hn_id}`)}${!story.is_recent ? " · Archive" : ""}`,
     );
     lines.push(storyIndicators(story, observed_at).map(text).join("\n\n"));

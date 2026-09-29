@@ -81,18 +81,18 @@ function plainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
 
 export function BrowseStoryLink({
   id,
-  title,
+  slug,
   anchor,
   children,
 }: {
   id: string;
-  title: string;
+  slug?: string | null;
   anchor?: "discussion-analysis";
   children: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const href = `${storyPath(id, title)}${anchor ? `#${anchor}` : ""}`;
+  const href = `${storyPath(id, slug)}${anchor ? `#${anchor}` : ""}`;
   function open(event: MouseEvent<HTMLAnchorElement>) {
     if (!plainClick(event)) return;
     let journey: string | null = null;
@@ -130,16 +130,16 @@ export function BrowseStoryLink({
 
 export function NextStoryLink({
   id,
-  title,
+  slug,
   children,
 }: {
   id: string;
-  title: string;
+  slug?: string | null;
   children: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const href = storyPath(id, title);
+  const href = storyPath(id, slug);
   function open(event: MouseEvent<HTMLAnchorElement>) {
     if (!plainClick(event)) return;
     const token = journeyToken();

@@ -28,7 +28,7 @@ export function RelatedStories({
                 <article>
                   {category && <span className="related-topic">{category.label}</span>}
                   <h3>
-                    <NextStoryLink id={story.hn_id} title={story.title}>
+                    <NextStoryLink id={story.hn_id} slug={story.story_slug}>
                       {story.title}
                     </NextStoryLink>
                   </h3>

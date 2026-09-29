@@ -1,23 +1,10 @@
-/** Readable URLs retain the source ID so duplicate or edited headlines stay resolvable. */
-export function storySlug(id: string, title: string): string {
-  const headline = title
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[’']/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80)
-    .replace(/-+$/g, "");
-  return `${headline || "story"}-${id}`;
+/** Missing stored slugs keep existing stories at their original numeric URL. */
+export function storyPath(id: string, slug?: string | null): string {
+  return `/story/${slug && storyIdFromSlug(slug) === id ? slug : id}`;
 }
 
-export function storyPath(id: string, title: string): string {
-  return `/story/${storySlug(id, title)}`;
-}
-
-export function canonicalStoryUrl(id: string, title: string): string {
-  return `https://hacksnap.live${storyPath(id, title)}`;
+export function canonicalStoryUrl(id: string, slug?: string | null): string {
+  return `https://hacksnap.live${storyPath(id, slug)}`;
 }
 
 /** Accept old numeric URLs and bounded headline slugs, never arbitrary ID suffixes. */

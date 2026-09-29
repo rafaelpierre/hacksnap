@@ -38,19 +38,28 @@ keyboard focus, OS appearance changes, saved preferences and blocked storage.
 
 ## Story URLs
 
-Story links use `/story/<headline>-<hn-id>`, for example
-`/story/small-models-on-your-laptop-12345678`. Headlines are normalized to lowercase
-ASCII words, capped at 80 characters, with `story` as the fallback for titles with
-no ASCII letters or digits. The trailing ID disambiguates duplicate titles and
-keeps old URLs resolvable after headline edits.
+Existing stories retain `/story/<hn-id>` permanently. Migration `0014_story_slugs`
+adds a nullable stored slug without backfilling any existing row. After the updated
+collector is deployed, only first inserts receive `/story/<headline>-<hn-id>`.
+Refreshes preserve the stored value, including NULL for older stories, so headline
+edits never change either kind of URL. Headlines are normalized to lowercase ASCII,
+capped at 80 characters, with `story` as the fallback when no ASCII letters or digits remain.
 
-Numeric URLs and outdated headline slugs permanently redirect (308) to the current
-canonical address in both HTML and Markdown. When HTML streaming has already
-started, Next.js emits its standard browser redirect instead of changing the HTTP
-status. Existing query parameters survive HTML redirects. Feed cards, related stories, sharing,
-social previews, Markdown, RSS links, and the sitemap use the same address. RSS
-GUIDs retain their original numeric URLs to avoid duplicate feed entries. The
-public `/api/stories/{id}` endpoint continues to accept numeric IDs.
+Every public link uses the stored slug or falls back to the numeric ID: feed and
+related stories, sharing, metadata, social images, Markdown, RSS and the sitemap.
+Missing column/grant detection lets the website run before the migration; it uses
+numeric URLs until the column is readable. The leaderboard cache version changes
+to discard older projections. RSS GUIDs and the public API's numeric IDs remain stable.
+
+Alternate URLs redirect to the saved canonical address; an older story's numeric
+URL renders directly. Markdown GET/HEAD return 308. HTML uses Next.js permanent
+redirects, preserving query parameters; when streaming has started, Next.js emits
+its standard browser redirect. Routing still resolves the ID at the end of the slug.
+
+Apply migration 0014 before deploying the updated collector. Roll out the website
+before the collector to ensure newly inserted slugs are used immediately. No backfill
+or production migration is performed by local checks. Rolling back ingestion keeps
+saved slugs; rolling back the migration discards them and should be avoided once published.
 
 ## Markdown content negotiation
 

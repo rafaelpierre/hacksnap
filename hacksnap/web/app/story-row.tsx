@@ -49,7 +49,7 @@ export function StoryRow({
           )}
         </div>
         <h3>
-          <BrowseStoryLink id={story.hn_id} title={story.title}>
+          <BrowseStoryLink id={story.hn_id} slug={story.story_slug}>
             {story.title}
           </BrowseStoryLink>
         </h3>
@@ -73,7 +73,11 @@ export function StoryRow({
               </div>
             )}
             {hasDebate && (
-              <BrowseStoryLink id={story.hn_id} title={story.title} anchor="discussion-analysis">
+              <BrowseStoryLink
+                id={story.hn_id}
+                slug={story.story_slug}
+                anchor="discussion-analysis"
+              >
                 Read the debate
               </BrowseStoryLink>
             )}
@@ -108,7 +112,12 @@ export function StoryRow({
             )}
             <SkepticismPill story={story} />
           </div>
-          <ShareLinks id={story.hn_id} title={story.title} takeaway={takeaway} />
+          <ShareLinks
+            slug={story.story_slug}
+            id={story.hn_id}
+            title={story.title}
+            takeaway={takeaway}
+          />
         </div>
       </div>
     </article>
