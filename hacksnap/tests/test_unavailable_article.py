@@ -55,7 +55,9 @@ def test_unavailable_page_can_publish_without_fabricated_article_claims(article,
         summarizer = ModalSummarizer(client, "https://mock.invalid/v1", "test", "fake")
         assert process_story(item, repo, SimpleNamespace(fetch=lambda _: article), summarizer) == "generated"
     saved = repo.saved[100]
-    assert saved["summary"].article_summary == ARTICLE_UNAVAILABLE_NOTICE
+    assert saved["summary"].article_summary is None
+    assert json.loads(saved["summary"].model_dump_json())["article_summary"] is None
+    assert ARTICLE_UNAVAILABLE_NOTICE not in saved["summary"].model_dump_json()
     assert saved["summary"].article_key_points == []
     assert saved["coverage"]["article_status"] == "unavailable"
     assert saved["discussion_analysis"].reference_claims == []

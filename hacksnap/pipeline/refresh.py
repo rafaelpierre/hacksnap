@@ -192,6 +192,12 @@ def process_story(
         summary.validate_sources(article, comments, source["story_text"])
         if summary.article_unavailable:
             coverage["article_status"] = "unavailable"
+            # The notice is an inference marker only. Public consumers use null
+            # to select unavailable copy, source links, and discussion-only metadata.
+            summary = StorySummary.model_validate({
+                **summary.model_dump(), "article_summary": None,
+            })
+            summary.validate_sources(None, comments, source["story_text"])
         source_version = source_fingerprint(
             {"article": article, "story_text": source["story_text"]}, "", ""
         )
