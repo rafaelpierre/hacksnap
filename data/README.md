@@ -116,11 +116,11 @@ enabled and no Data API policies are created.
 
 The [schema workflow](../.github/workflows/supabase-schema.yml) validates changes
 to migrations on pull requests and matching pushes to `main`. These standalone
-push runs validate only. The Hacksnap worker calls this reusable workflow after
-its validation jobs pass and waits for pending migrations to be applied before
-Modal deployment. Manual schema runs on `main` remain available.
+push runs validate only. The Hacksnap worker and Deploy ingestion workflows call
+this reusable workflow after their validation jobs pass and wait for pending
+migrations to be applied before Modal deployment. Manual schema runs on `main` remain available.
 
-Both rollout paths use `alembic upgrade head` through the IPv4 pooler, which is a
+All rollout paths use `alembic upgrade head` through the IPv4 pooler, which is a
 no-op when the schema is current. They share the production migration concurrency
 group and reject stale revisions before database access. A failed migration blocks
 the calling worker deployment. Configure `SUPABASE_PASSWORD` as
@@ -330,10 +330,27 @@ sensitive-data scrubbing. Thread-pool work retains parent trace context.
 
 ### Deployment verification and throughput
 
-The `Ingestion` GitHub workflow validates code but does not deploy `hn-ingestion`.
-A successful CI run alone does not update the scheduled collector. After an
-authorized deployment from `data/`, verify the Modal deployment history and the
-startup log's `story_concurrency=4` value:
+The `Ingestion` workflow remains reusable validation only. The separate
+`Deploy ingestion` workflow automatically deploys `hn-ingestion` after relevant
+merges to `main`: collector source, Modal entrypoint, dependencies, migrations,
+Alembic configuration, or deployment workflow/helper changes. Documentation and
+test-only pushes do not deploy. Pull requests run validation without production
+secrets, migrations or deployment. A manual run on `main` uses the same gates;
+manual runs on other branches only validate.
+
+Deployment waits for ingestion tests and deployment-guard regressions, then calls
+the existing `Supabase schema` workflow to apply pending migrations under its
+shared `supabase-schema-production` lock. A failed gate blocks deployment. The
+collector deploy job uses the existing `hacksnap-production` environment and its
+`MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` and `SUPABASE_PASSWORD` secrets, plus a
+separate `hn-ingestion-modal-deploy` lock. It verifies the database schema and
+checks that the tested commit is still current `main` immediately before deploying
+from `data/`. Stale runs cannot roll back a newer collector deployment; rerun
+`Deploy ingestion` on current `main` if a stale run was skipped. The schema gate
+also rejects stale commits before migration.
+
+After deployment, verify Modal history and the startup log's
+`story_concurrency=4` value (run from `data/`):
 
 ```sh
 uv run modal app history hn-ingestion --json
@@ -341,8 +358,9 @@ uv run modal app logs hn-ingestion --since 1d --search story_concurrency --times
 ```
 
 At the 29 September 2026 investigation, production was still v3, deployed on
-27 September at commit `6b02d45`, before the parallel collector changes.
-The image and summary app deploys separately and cannot update this collector.
+27 September at commit `6b02d45`, before the parallel collector changes. This missing automatic deployment path
+caused that drift; `Deploy ingestion` now updates the collector independently of
+the image and summary app.
 
 `ingestion_completed` reports run ID, success/failure, examined and matched
 stories, persisted snapshots, elapsed seconds, concurrency and examined items

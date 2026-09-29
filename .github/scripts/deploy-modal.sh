@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run from hacksnap/ inside the deploy job's concurrency group.
+# Run from the target app directory (hacksnap/ or data/) inside the deploy job's concurrency group.
 set -euo pipefail
 
 uv sync --locked --no-dev
