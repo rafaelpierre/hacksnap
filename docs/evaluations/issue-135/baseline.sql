@@ -4,8 +4,8 @@
 BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
 SET LOCAL statement_timeout = '10s';
 
--- Current eligible source inventory by ranked position. Pending with source is
--- the only potentially processable backlog; a blank takeaway is not homepage-ready.
+-- Current eligible inventory: only rows without a summary can enter initial
+-- summarization. Existing blank summaries need repair, even with retained source.
 WITH inventory AS (
   SELECT r.rank, r.hn_id, t.date_added, c.hn_id IS NOT NULL AS source_retained,
          s.story_id IS NOT NULL AS has_summary,
@@ -24,12 +24,12 @@ WITH inventory AS (
 )
 SELECT rank_band, count(*) AS eligible_sources,
        count(*) FILTER (WHERE ready) AS usable_briefs,
-       count(*) FILTER (WHERE NOT ready AND source_retained) AS pending_with_source,
-       count(*) FILTER (WHERE NOT ready AND NOT source_retained) AS pending_without_source,
-       count(*) FILTER (WHERE has_summary AND NOT ready) AS summary_not_usable,
+       count(*) FILTER (WHERE NOT has_summary AND source_retained) AS initial_summary_backlog_with_source,
+       count(*) FILTER (WHERE NOT has_summary AND NOT source_retained) AS initial_summary_backlog_without_source,
+       count(*) FILTER (WHERE has_summary AND NOT ready) AS existing_summary_needs_repair,
        percentile_cont(0.5) WITHIN GROUP (
          ORDER BY EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - date_added)) / 3600
-       ) FILTER (WHERE NOT ready AND source_retained) AS pending_source_age_p50_hours
+       ) FILTER (WHERE NOT has_summary AND source_retained) AS initial_summary_backlog_age_p50_hours
 FROM bands GROUP BY rank_band ORDER BY rank_band;
 
 -- Save this entire result after each scheduled run, keyed by (captured_at_utc,
