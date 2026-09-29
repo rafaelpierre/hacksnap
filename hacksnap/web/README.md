@@ -434,6 +434,8 @@ landscape previews more room. Image height follows its original proportions;
 text can make a row taller when needed. The footer aligns to the bottom of the
 content column. Narrow desktop cards keep the image beside the title and give
 the excerpt and footer the full width. Footer controls wrap when text is enlarged.
+Feed headlines use rem units so they scale with the excerpt and metadata when
+readers enlarge text. Light and dark themes share the same sizing and layout.
 
 Home, archive and category cards omit discussion themes and the “Read the debate”
 link. The title opens the full story, where discussion analysis remains available.

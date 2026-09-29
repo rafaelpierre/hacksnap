@@ -6,7 +6,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 20,
+      "excerptSize": 16,
+      "cardHeights": [
+        238.1875,
+        238.1875,
+        238.1875,
+        238.1875,
+        227.1875,
+        201.59375
+      ],
       "images": [
         {
           "height": 151.1875,
@@ -47,7 +56,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 40,
+      "excerptSize": 32,
+      "cardHeights": [
+        631.453125,
+        631.453125,
+        631.453125,
+        631.453125,
+        492.5625,
+        390.1875
+      ],
       "images": [
         {
           "height": 176.890625,
@@ -88,7 +106,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 20,
+      "excerptSize": 16,
+      "cardHeights": [
+        238.1875,
+        238.1875,
+        238.1875,
+        238.1875,
+        227.1875,
+        201.59375
+      ],
       "images": [
         {
           "height": 151.1875,
@@ -129,7 +156,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 40,
+      "excerptSize": 32,
+      "cardHeights": [
+        631.453125,
+        631.453125,
+        631.453125,
+        631.453125,
+        492.5625,
+        390.1875
+      ],
       "images": [
         {
           "height": 176.890625,
@@ -170,7 +206,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 20,
+      "excerptSize": 16,
+      "cardHeights": [
+        279.78125,
+        279.78125,
+        279.78125,
+        279.78125,
+        227.1875,
+        201.59375
+      ],
       "images": [
         {
           "height": 107.390625,
@@ -211,7 +256,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 40,
+      "excerptSize": 32,
+      "cardHeights": [
+        756.9375,
+        756.9375,
+        651.75,
+        705.75,
+        543.75,
+        441.375
+      ],
       "images": [
         {
           "height": 98.265625,
@@ -252,7 +306,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 20,
+      "excerptSize": 16,
+      "cardHeights": [
+        279.78125,
+        279.78125,
+        279.78125,
+        279.78125,
+        227.1875,
+        201.59375
+      ],
       "images": [
         {
           "height": 107.390625,
@@ -293,7 +356,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 40,
+      "excerptSize": 32,
+      "cardHeights": [
+        756.9375,
+        756.9375,
+        651.75,
+        705.75,
+        543.75,
+        441.375
+      ],
       "images": [
         {
           "height": 98.265625,
@@ -334,7 +406,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 19,
+      "excerptSize": 16,
+      "cardHeights": [
+        569.875,
+        569.875,
+        518.640625,
+        544.28125,
+        372.203125,
+        301.828125
+      ],
       "images": [
         {
           "height": 134.390625,
@@ -375,7 +456,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 38,
+      "excerptSize": 32,
+      "cardHeights": [
+        1787.578125,
+        1890.0625,
+        1684.984375,
+        1736.28125,
+        1406.078125,
+        894.421875
+      ],
       "images": [
         {
           "height": 100.796875,
@@ -416,7 +506,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 19,
+      "excerptSize": 16,
+      "cardHeights": [
+        569.875,
+        569.875,
+        518.640625,
+        544.28125,
+        372.203125,
+        301.828125
+      ],
       "images": [
         {
           "height": 134.390625,
@@ -457,7 +556,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 38,
+      "excerptSize": 32,
+      "cardHeights": [
+        1787.578125,
+        1890.0625,
+        1684.984375,
+        1736.28125,
+        1406.078125,
+        894.421875
+      ],
       "images": [
         {
           "height": 100.796875,
@@ -498,7 +606,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 20,
+      "excerptSize": 16,
+      "cardHeights": [
+        279.78125,
+        252.78125,
+        227.484375,
+        227.484375,
+        227.1875,
+        201.59375
+      ],
       "images": [
         {
           "height": 140.484375,
@@ -539,7 +656,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 40,
+      "excerptSize": 32,
+      "cardHeights": [
+        756.9375,
+        756.9375,
+        702.9375,
+        705.75,
+        543.75,
+        441.375
+      ],
       "images": [
         {
           "height": 96.25,
@@ -580,7 +706,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 20,
+      "excerptSize": 16,
+      "cardHeights": [
+        279.78125,
+        252.78125,
+        227.484375,
+        227.484375,
+        227.1875,
+        201.59375
+      ],
       "images": [
         {
           "height": 140.484375,
@@ -621,7 +756,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 40,
+      "excerptSize": 32,
+      "cardHeights": [
+        756.9375,
+        756.9375,
+        702.9375,
+        705.75,
+        543.75,
+        441.375
+      ],
       "images": [
         {
           "height": 96.25,
@@ -662,7 +806,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 20,
+      "excerptSize": 16,
+      "cardHeights": [
+        279.78125,
+        279.78125,
+        279.78125,
+        279.78125,
+        227.1875,
+        201.59375
+      ],
       "images": [
         {
           "height": 107.390625,
@@ -703,7 +856,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 40,
+      "excerptSize": 32,
+      "cardHeights": [
+        756.9375,
+        756.9375,
+        651.75,
+        705.75,
+        543.75,
+        441.375
+      ],
       "images": [
         {
           "height": 98.265625,
@@ -744,7 +906,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 20,
+      "excerptSize": 16,
+      "cardHeights": [
+        279.78125,
+        279.78125,
+        279.78125,
+        279.78125,
+        227.1875,
+        201.59375
+      ],
       "images": [
         {
           "height": 107.390625,
@@ -785,7 +956,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 40,
+      "excerptSize": 32,
+      "cardHeights": [
+        756.9375,
+        756.9375,
+        651.75,
+        705.75,
+        543.75,
+        441.375
+      ],
       "images": [
         {
           "height": 98.265625,
@@ -826,7 +1006,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 19,
+      "excerptSize": 16,
+      "cardHeights": [
+        569.875,
+        569.875,
+        518.640625,
+        544.28125,
+        372.203125,
+        301.828125
+      ],
       "images": [
         {
           "height": 134.390625,
@@ -867,7 +1056,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 38,
+      "excerptSize": 32,
+      "cardHeights": [
+        1787.578125,
+        1890.0625,
+        1684.984375,
+        1736.28125,
+        1406.078125,
+        894.421875
+      ],
       "images": [
         {
           "height": 100.796875,
@@ -908,7 +1106,16 @@
     "textSize": 100,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 19,
+      "excerptSize": 16,
+      "cardHeights": [
+        569.875,
+        569.875,
+        518.640625,
+        544.28125,
+        372.203125,
+        301.828125
+      ],
       "images": [
         {
           "height": 134.390625,
@@ -949,7 +1156,16 @@
     "textSize": 200,
     "metrics": {
       "overflow": false,
-      "themes": false,
+      "titleSize": 38,
+      "excerptSize": 32,
+      "cardHeights": [
+        1787.578125,
+        1890.0625,
+        1684.984375,
+        1736.28125,
+        1406.078125,
+        894.421875
+      ],
       "images": [
         {
           "height": 100.796875,

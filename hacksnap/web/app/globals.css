@@ -1669,7 +1669,7 @@ footer > span {
   color: var(--accent);
 }
 .feed-story-lead h3 {
-  font-size: 27px;
+  font-size: 1.6875rem;
   line-height: 1.25;
   letter-spacing: -0.8px;
 }
@@ -1990,10 +1990,10 @@ footer > span {
   }
 
   .feed-story h3 {
-    font-size: 19px;
+    font-size: 1.1875rem;
   }
   .feed-story-lead h3 {
-    font-size: 23px;
+    font-size: 1.4375rem;
   }
   .feed-story-image {
     grid-row: 3;
