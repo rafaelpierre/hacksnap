@@ -7,6 +7,7 @@ import logging
 import math
 import time
 from email.utils import parsedate_to_datetime
+from threading import Lock
 from typing import Any
 
 import httpx
@@ -200,8 +201,14 @@ class TitleTopicClassifier:
         self.model = model
         self.client = client or httpx
         self._next_request_at = 0.0
+        self._request_lock = Lock()
 
     def classify(self, title: str, *, already_relevant: bool = False) -> TopicDecision:
+        # Serialize the full retry sequence so workers share pauses and cooldowns.
+        with self._request_lock:
+            return self._classify(title, already_relevant=already_relevant)
+
+    def _classify(self, title: str, *, already_relevant: bool) -> TopicDecision:
         system_prompt = CLASSIFIER_SYSTEM_PROMPT
         if already_relevant:
             system_prompt += (
