@@ -27,3 +27,17 @@ focus restoration, and the close button. Both groups' popups fit at 320px and
 
 - `highlights-desktop.png`: both groups in light mode, with popups closed.
 - `highlight-popup-mobile.png`: critical comment popup in dark mode at 320px.
+
+## Theme icon placement
+
+The source icon follows the theme title; the expansion chevron stays at the far
+right. Verified pointer clicks open only the intended popup or disclosure.
+CSS anchors keep the controls as separate native interactive elements.
+The existing trailing placement remains the fallback without anchor support.
+
+At extreme text enlargement in a narrow container, controls wrap below the title
+so the full title retains readable line lengths and both targets remain distinct.
+Checked light/dark at 320px and 1280px with normal and 200% text.
+
+- `theme-icons-mobile.png`: title-adjacent source icons at 320px.
+- `theme-icons-enlarged.png`: controls wrap below titles at 320px and 200% text.
