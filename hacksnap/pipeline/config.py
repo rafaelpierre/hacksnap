@@ -5,6 +5,20 @@ from dataclasses import dataclass
 from urllib.parse import quote, urlsplit
 
 
+def database_url_from_env() -> str:
+    database_url = os.environ.get("HACKSNAP_DATABASE_URL")
+    if not database_url:
+        password = os.environ.get("SUPABASE_PASSWORD")
+        if not password:
+            raise ValueError("Set HACKSNAP_DATABASE_URL or SUPABASE_PASSWORD")
+        database_url = (
+            "postgresql://postgres.tbihbssiluihmnseuknk:"
+            f"{quote(password, safe='')}@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
+            "?sslmode=require"
+        )
+    return database_url
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str
@@ -20,16 +34,7 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        database_url = os.environ.get("HACKSNAP_DATABASE_URL")
-        if not database_url:
-            password = os.environ.get("SUPABASE_PASSWORD")
-            if not password:
-                raise ValueError("Set HACKSNAP_DATABASE_URL or SUPABASE_PASSWORD")
-            database_url = (
-                "postgresql://postgres.tbihbssiluihmnseuknk:"
-                f"{quote(password, safe='')}@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
-                "?sslmode=require"
-            )
+        database_url = database_url_from_env()
         required = ("MODAL_LLM_BASE_URL", "MODAL_LLM_MODEL", "MODAL_LLM_API_KEY")
         if any(not os.environ.get(key) for key in required):
             raise ValueError("Set MODAL_LLM_BASE_URL, MODAL_LLM_MODEL and MODAL_LLM_API_KEY")

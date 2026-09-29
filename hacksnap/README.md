@@ -563,3 +563,87 @@ Older stories without retained comments remain unscored until ingested again.
 See [issue #42 release verification](../docs/evaluations/issue-42/README.md) for
 the semantic evaluation command, deployment evidence, pending production checks,
 and steps to pause generation or hide analysis while preserving stored data.
+
+## Publisher images (issues #59–64)
+
+Apply additive migration `0015_article_images` before deploying this worker or web
+version. Existing stories keep their image-less layout until an asset is ready.
+Image state and publisher provenance live on the canonical `hacker_news_threads`
+row, keyed by `hn_id`. The website receives only canonical URL, status, dimensions
+and MIME type; source URLs and retry diagnostics remain private.
+
+The independent `refresh_article_images` Modal function drains a bounded batch at
+15 minutes past each hour (UTC). It uses persisted article rows as its durable
+queue, so summary caching, missing retained comments and summary failures cannot
+skip image retries. It does not call the summarizer or modify article fetch-failure
+exclusions. The summary schedule is unchanged. Missing Blob credentials disable
+only image processing. HTML metadata is acquired separately from Kestrel's
+extracted text; summarizer input remains unchanged. This costs one bounded HTML
+request per image attempt plus the image request and validated redirects.
+
+### Setup and rollout
+
+1. Create a **public** Vercel Blob store. Add its `BLOB_READ_WRITE_TOKEN` to the
+   existing server-side Modal `hacksnap` Secret and to local image-worker settings.
+   Keep it out of the frontend and `NEXT_PUBLIC_*` variables. The web app needs no
+   Blob token. The token is optional until images are enabled.
+2. Apply migration `0015_article_images` through the existing schema workflow.
+3. Run a small backfill using [the rollout checklist](../docs/image-backfill.md).
+   Inspect ready canonical URLs, dimensions, public rendering and reason counts
+   before expanding the batch or enabling the schedule.
+4. The existing release workflow applies pending migrations and deploys Modal
+   after an authorized merge to main and successful checks. Manual rollout is
+   also available through that workflow. Deploy the website only after the additive
+   schema is ready. Local checks do not deploy, migrate production, or upload assets.
+
+The locked official `vercel==0.5.4` Python SDK uses
+`BlobClient(token=...).put(path, bytes, access="public", content_type="image/webp",
+add_random_suffix=True, overwrite=False)`. Uploads remain in memory and each
+replacement gets a fresh cache-safe public Blob URL. The SDK closes after each
+upload and uses its built-in bounded request timeout/retries. See the
+[Vercel Blob SDK documentation](https://vercel.com/docs/vercel-blob/using-blob-sdk).
+A crash after upload but before persistence can leave an unreferenced Blob; lease
+checks prevent an older attempt from overwriting a newer result. Replacements
+retain their previous ready asset if processing fails. Old/unreferenced Blobs are
+not deleted automatically; review references before any storage cleanup.
+
+### Limits and diagnostics
+
+Defaults and environment names are listed in `.env.example`. Each publisher fetch
+allows HTTP(S) only, validates DNS and every redirect, and pins the connection to
+an approved public IP while preserving TLS hostname verification. Publisher spacing
+counts toward the retrieval deadline; its configured interval must be shorter than
+the timeout. Defaults are
+10 seconds per retrieval, five redirects, 2 MB HTML, 10 MB source image, 40 million
+decoded pixels and minimum 600 × 300 pixels. Pillow preserves aspect ratio, fits
+within 1600 × 1600 and encodes metadata-stripped WebP at quality 82. Handling stays
+in `BytesIO`; no temporary image files or Node image service are used.
+
+The MVP selects Open Graph `og:image`, then its secure_url/url variants, resolving
+relative candidates against the article URL. Absent metadata ends the attempt as
+failed. Twitter, JSON-LD, trying alternate unusable candidates and generated branded
+fallbacks remain the separate Phase 2 issue #65; social preview assets are unchanged.
+
+Structured `article_image` logs include article ID/URL, source URL/type, status
+and reason. URL credentials, queries and fragments are removed from logs. Source
+provenance is retained privately in the database. Reasons distinguish
+`no_image_metadata`, `fetch_timeout`, `http_403`, `http_404`,
+`invalid_content_type`, `image_too_large`, `image_too_small`, `decode_failed`,
+`blocked_url` and `blob_upload_failed`, plus pipeline/persistence failures.
+Batch completion logs summarize outcomes. Retry/lease state is stored durably;
+see the backfill guide for restart and exhausted-attempt recovery.
+
+After `npm ci` in `hacksnap/web`, run the optional database regressions against the
+existing test-only PGlite package (embedded PostgreSQL, no service credentials):
+
+```sh
+HACKSNAP_TEST_PGLITE_MODULE="$PWD/hacksnap/web/node_modules/@electric-sql/pglite/dist/index.js" \
+  uv run --directory hacksnap pytest tests/test_image_repository.py
+HACKSNAP_TEST_PGLITE_MODULE="$PWD/hacksnap/web/node_modules/@electric-sql/pglite/dist/index.js" \
+  uv run --directory data pytest tests/test_article_images_migration.py
+```
+
+Run these commands from the repository root. The normal worker/ingestion suites
+also exercise deterministic security, image-processing, lifecycle, and backfill
+contracts without network or production credentials. Live publisher-to-Blob
+rollout remains a deployment check; it has not been run as part of local validation.
