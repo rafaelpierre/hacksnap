@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from urllib.parse import quote, urlsplit
 
 MAX_STORIES_PER_RUN = 50
+SENTIMENT_BASE_URL = "https://rafaelpierre--ep-glm-5-3-flash-nvfp4-server.us-west.modal.direct/v1"
+SENTIMENT_MODEL = "nvidia/GLM-5.3-Flash-NVFP4"
 
 
 def database_url_from_env() -> str:
@@ -34,6 +36,10 @@ class Settings:
     comment_chars: int = 48000
     fetch_timeout: int = 30
     llm_timeout: int = 120
+    sentiment_base_url: str = SENTIMENT_BASE_URL
+    sentiment_model: str = SENTIMENT_MODEL
+    sentiment_api_key: str | None = None
+    sentiment_reasoning_effort: str = "low"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -45,6 +51,14 @@ class Settings:
         parsed = urlsplit(endpoint)
         if parsed.scheme != "https" or parsed.username or parsed.password or parsed.query:
             raise ValueError("MODAL_LLM_BASE_URL must be a credential-free HTTPS base URL")
+        sentiment_endpoint = os.environ.get("MODAL_SENTIMENT_BASE_URL", SENTIMENT_BASE_URL).rstrip("/")
+        parsed = urlsplit(sentiment_endpoint)
+        if (parsed.scheme != "https" or not parsed.hostname or parsed.username
+                or parsed.password or parsed.query or parsed.fragment):
+            raise ValueError("MODAL_SENTIMENT_BASE_URL must be a credential-free HTTPS base URL")
+        sentiment_model = os.environ.get("MODAL_SENTIMENT_MODEL", SENTIMENT_MODEL).strip()
+        if not sentiment_model:
+            raise ValueError("MODAL_SENTIMENT_MODEL must not be empty")
         return cls(
             database_url=database_url,
             llm_base_url=endpoint,
@@ -52,4 +66,8 @@ class Settings:
             llm_api_key=os.environ["MODAL_LLM_API_KEY"],
             llm_reasoning_effort=os.environ.get("MODAL_LLM_REASONING_EFFORT", "low"),
             kestrel_binary=os.environ.get("KESTREL_BINARY", "/usr/local/bin/kestrel"),
+            sentiment_base_url=sentiment_endpoint,
+            sentiment_model=sentiment_model,
+            sentiment_api_key=os.environ.get("MODAL_SENTIMENT_API_KEY") or os.environ["MODAL_LLM_API_KEY"],
+            sentiment_reasoning_effort=os.environ.get("MODAL_SENTIMENT_REASONING_EFFORT", "low"),
         )

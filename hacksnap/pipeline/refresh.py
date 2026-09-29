@@ -20,8 +20,8 @@ from .models import (
     StorySummary,
 )
 from .preprocess import plain_text, prepare_comments, sample_sentiment_comments, source_fingerprint
-from .prompts import DISCUSSION_REFRESH_PROMPT_VERSION, PROMPT_VERSION
-from .summarise import ModalSummarizer, Summarizer
+from .prompts import DISCUSSION_REFRESH_PROMPT_VERSION, PROMPT_VERSION, SENTIMENT_PROMPT_VERSION
+from .summarise import ModalSummarizer, RoutedSummarizer, Summarizer
 from .supabase import Repository
 
 logger = logging.getLogger("hacksnap")
@@ -120,12 +120,17 @@ def process_story(
         payload = json.loads(story["full_raw_text_contents"])
         comments, coverage = prepare_comments(payload, comment_budget)
         sentiment_comments = sample_sentiment_comments(comments)
-        comments_fingerprint = source_fingerprint({"comments": sentiment_comments}, "", "")
+        sentiment_model = getattr(summarizer, "sentiment_model", summarizer.model)
+        comments_fingerprint = source_fingerprint(
+            {"comments": sentiment_comments}, sentiment_model, SENTIMENT_PROMPT_VERSION
+        )
         sentiment_metadata = {
             **coverage,
             "included_comments": len(sentiment_comments),
             "comments_truncated": len(sentiment_comments) < coverage["stored_comments"],
             "comments_fingerprint": comments_fingerprint,
+            "model": sentiment_model,
+            "prompt_version": SENTIMENT_PROMPT_VERSION,
         }
         existing = repository.get_summary(story["hn_id"])
         if existing:
@@ -139,15 +144,7 @@ def process_story(
             stage = "sentiment_cache"
             previous = (existing.get("source_coverage") or {}).get("sentiment", {})
             same_comments = previous.get("comments_fingerprint") == comments_fingerprint
-            # Adopt the cache for already-scored legacy rows when their full inputs match.
-            legacy_unchanged = (
-                not previous and len(comments) <= 10 and story.get("content_hash") is not None
-                and existing.get("summarized_content_hash") == story["content_hash"]
-                and existing.get("sentiment") is not None
-            )
-            if legacy_unchanged:
-                repository.save_sentiment(story["hn_id"], existing["sentiment"], sentiment_metadata)
-                return "analysis_updated" if analysis_updated else "unchanged"
+            # Legacy scores lack model provenance; refresh once instead of adopting them.
             if same_comments and (existing.get("sentiment") is not None or not comments):
                 log_event(story, stage, "unchanged")
                 return "analysis_updated" if analysis_updated else "unchanged"
@@ -292,13 +289,21 @@ def run() -> dict:
         settings.kestrel_binary, settings.fetch_timeout, settings.article_chars
     )
     with httpx.Client(timeout=settings.llm_timeout) as client:
-        summarizer = ModalSummarizer(
+        editorial = ModalSummarizer(
             client,
             settings.llm_base_url,
             settings.llm_model,
             settings.llm_api_key,
             settings.llm_reasoning_effort,
         )
+        sentiment = ModalSummarizer(
+            client,
+            settings.sentiment_base_url,
+            settings.sentiment_model,
+            settings.sentiment_api_key or settings.llm_api_key,
+            settings.sentiment_reasoning_effort,
+        )
+        summarizer = RoutedSummarizer(editorial, sentiment)
         image_enabled = (
             os.environ.get("HACKSNAP_IMAGES_ENABLED", "").lower() == "true"
             and bool(os.environ.get("BLOB_READ_WRITE_TOKEN"))
