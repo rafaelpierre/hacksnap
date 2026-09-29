@@ -50,7 +50,7 @@ export function StoryRow({
           <span className="archive-label">Archive</span>
         )}
       </div>
-      <ArticleImage image={image} alt="" className="feed-story-image" loading="lazy" />
+      <ArticleImage image={image} alt="" className="feed-story-image" loading="lazy" adaptiveFit />
       <div className="story-content">
         <h3>
           <BrowseStoryLink id={story.hn_id} slug={story.story_slug}>

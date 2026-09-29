@@ -56,3 +56,14 @@ export function canonicalArticleImage(image: ArticleImage): CanonicalArticleImag
     return null;
   }
 }
+
+/** Keep at least 80% of an image when filling the feed's default 4:3 frame. */
+export function articleThumbnailFit(
+  image: Pick<CanonicalArticleImage, "width" | "height">,
+  frameAspectRatio = 4 / 3,
+): "contain" | "cover" {
+  const imageAspectRatio = image.width / image.height;
+  const visibleFraction =
+    Math.min(imageAspectRatio, frameAspectRatio) / Math.max(imageAspectRatio, frameAspectRatio);
+  return visibleFraction + Number.EPSILON < 0.8 ? "contain" : "cover";
+}

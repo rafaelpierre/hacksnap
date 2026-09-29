@@ -75,3 +75,14 @@ test("ready social metadata uses Blob while unavailable assets use the site bran
     );
   }
 });
+
+test("ranked and unranked feeds choose a fit in the initial HTML", () => {
+  for (const variant of ["ranked", "unranked"] as const) {
+    const wide = render(<StoryRow story={story} variant={variant} />);
+    assert.match(wide, /object-fit:contain/);
+    const landscape = render(
+      <StoryRow story={{ ...story, image_height: 800 }} variant={variant} />,
+    );
+    assert.match(landscape, /object-fit:cover/);
+  }
+});
