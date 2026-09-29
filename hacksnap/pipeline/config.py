@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass
 from urllib.parse import quote, urlsplit
 
+MAX_STORIES_PER_RUN = 50
+
 
 def database_url_from_env() -> str:
     """Resolve database credentials without requiring inference settings."""

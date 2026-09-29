@@ -8,6 +8,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
+from .config import MAX_STORIES_PER_RUN
 from .models import DiscussionAnalysis, DiscussionAnalysisMetadata, StorySummary
 
 IMAGE_SOURCE_TYPES = frozenset({"og", "twitter", "json_ld", "generated"})
@@ -356,13 +357,13 @@ class Repository:
                 params,
             ).fetchall()
 
-    def get_current_top_stories(self, limit: int = 10) -> list[dict]:
-        if not 1 <= limit <= 10:
-            raise ValueError("Leaderboard limit must be between 1 and 10")
+    def get_current_top_stories(self, limit: int = MAX_STORIES_PER_RUN) -> list[dict]:
+        if not 1 <= limit <= MAX_STORIES_PER_RUN:
+            raise ValueError(f"Worker story limit must be between 1 and {MAX_STORIES_PER_RUN}")
         with self._connect() as connection:
             return connection.execute(
                 """SELECT t.hn_id, t.title, t.url, c.full_raw_text_contents, c.content_hash
-                   FROM hacksnap_current_stories t
+                   FROM hacksnap_ranked_stories t
                    LEFT JOIN hn_thread_contents c USING (hn_id)
                    ORDER BY t.rank LIMIT %s""",
                 (limit,),

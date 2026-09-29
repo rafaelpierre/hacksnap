@@ -25,9 +25,6 @@ def test_refresh_runs_bounded_parallel_jobs_and_waits_before_recording_ranks(
     active = peak = 0
     completed = []
     repo = FakeRepository([story(i) for i in range(total)])
-    # Widen only the fake selection to stress the full 15-worker ceiling.
-    if total > 10:
-        repo.get_current_top_stories = lambda limit: repo.stories
 
     def process(item, repository, fetcher, summarizer, comment_budget, *, image_enabled):
         nonlocal active, peak
@@ -173,3 +170,15 @@ def test_parallel_inference_failure_does_not_block_other_stories():
     assert counts["failed"] == 1
     assert set(repo.saved) == set(range(10)) - {3}
     assert len(repo.rank_observations) == 1
+
+
+def test_refresh_enriches_fifty_stories_without_attempting_the_fifty_first():
+    repo = FakeRepository([story(i) for i in range(60)])
+    counts = refresh_module.refresh(
+        repo, SimpleNamespace(fetch=lambda _: "article"), FakeSummarizer(),
+    )
+    assert counts["generated"] == 50
+    assert sum(counts.values()) == 50
+    assert set(repo.saved) == set(range(50))
+    # Rank history still captures every eligible story, beyond the workload cap.
+    assert repo.rank_observations == [list(range(60))]

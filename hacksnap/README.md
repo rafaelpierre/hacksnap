@@ -8,16 +8,16 @@ Supabase over a server-only PostgreSQL connection.
 
 ## Ranking
 
-The `hacksnap_current_stories` database view is the shared ranking definition for
+The `hacksnap_ranked_stories` database view defines the shared ranking for
 the worker and website:
 
 1. Consider stories from successful AI-classified ingestion runs, excluding articles whose current URL previously failed to fetch.
 2. Prefer stories whose **first `date_added` is within the last 24 hours**.
-3. Select the highest-point recent stories, filling remaining places from older
-   eligible stories by points until there are ten.
-4. Display **recent stories first, then archive entries**, sorting each group by
+3. Sort **recent stories first, then archive entries**, ordering each group by
    points descending. HN ID descending is the deterministic tie-breaker. An older
    fallback cannot rank above a recent story, even if it has more points.
+4. Enrich up to 50 ranked stories per worker run. The website displays the first
+   ten eligible stories with a published summary preview.
 
 Apply migration `0006_recent_first` to update the shared ranking for the worker
 and website. Recency still uses the original collection time (`date_added`).
@@ -29,7 +29,8 @@ and `observed_at` (timestamp with time zone). The `(hn_id, observed_at)` primary
 key indexes each story's history. RLS and revoked client grants keep writes private.
 
 `hacksnap_ranked_stories` ranks **all eligible stories** using the same recency,
-points and ID ordering. `hacksnap_current_stories` supplies its first ten rows to the worker for enrichment.
+points and ID ordering. The worker selects up to its first 50 rows for enrichment;
+`hacksnap_current_stories` remains the top-ten view.
 The website selects the first ten stories from `hacksnap_ranked_stories` with a
 nonblank `overall_takeaway` preview, filtering before the limit. Older eligible
 stories fill any gaps using the same recent-first, points and ID ordering. This
@@ -208,8 +209,10 @@ uv run modal deploy modal_app.py
 
 This deploys one function at `0 0,9-23 * * *` in `Europe/London`.
 It processes stories concurrently with a hard limit of **15 active story jobs**.
-The existing top-ten selection remains unchanged, so each ranking batch currently
-has at most ten jobs. Fetching and preprocessing can overlap immediately. The first
+Each run selects up to **50 stories** from the full ranking, including stories
+below the website’s top-ten display. This is a cap on all attempted stories,
+including cache hits, missing content and failures, rather than 50 guaranteed new
+summaries. Fetching and preprocessing can overlap immediately. The first
 actual model request in a run completes before later model requests begin, giving
 the endpoint a chance to warm its prompt cache. Its result is used normally; no
 extra inference request is sent. Cached stories and failed fetches do not consume
@@ -348,7 +351,7 @@ Check that `checks.discovery.apiCatalog.status` is `"pass"`.
 ## Cache and failures
 
 Existing summaries are retained without fetching the article or regenerating the
-summary. For current top-10 stories, sentiment is estimated separately when a
+summary. For the worker’s top-50 stories, sentiment is estimated separately when a
 score is missing or the prepared comment sample has changed. Sentiment uses a
 stable pseudorandom sample of at most 10 usable comments from the prepared
 discussion; fewer comments use all available ones. The sample is selected by a
@@ -567,7 +570,7 @@ Apply Alembic migration `0009_sentiment` before deploying the web app and summar
 worker. It adds a nullable, constrained small integer to `hacksnap_summaries`;
 existing summaries remain unscored and display “Pending.” Existing summaries with
 retained comments receive missing sentiment through a separate inference request
-on their next successful top-10 refresh.
+on their next successful top-50 worker refresh.
 Older stories without retained comments remain unscored until ingested again.
 
 ## Comment-analysis rollout and fallback

@@ -539,9 +539,9 @@ def test_refresh_records_all_ranks_after_fetch_failures_even_when_unchanged():
     assert counts["failed"] == 0
     assert counts["fetch_skipped"] == 1
     assert repo.rank_observations == [list(range(101, 112))]
-    assert 111 not in repo.saved  # Below the ten-story inference/display cutoff.
+    assert 111 in repo.saved  # Worker enrichment extends beyond the top-ten display.
     counts = refresh(repo, SimpleNamespace(fetch=fetch), model)
-    assert counts["unchanged"] == 10
+    assert counts["unchanged"] == 11
     assert repo.rank_observations == [list(range(101, 112))] * 2
 
 
@@ -658,14 +658,14 @@ def test_empty_comments_clear_score_without_inference_and_are_cached():
     assert model.sentiment_calls == 0
 
 
-def test_sentiment_backfill_only_processes_top_ten():
-    repo, model = FakeRepository([story(i) for i in range(11)]), FakeSummarizer()
+def test_sentiment_backfill_only_processes_top_fifty():
+    repo, model = FakeRepository([story(i) for i in range(51)]), FakeSummarizer()
     for item in repo.stories:
         process_story(item, repo, SimpleNamespace(fetch=lambda _: "article"), model)
         repo.saved[item["hn_id"]]["sentiment"] = None
-    assert refresh(repo, None, model)["sentiment_updated"] == 10
-    assert model.sentiment_calls == 10
-    assert repo.saved[10]["sentiment"] is None
+    assert refresh(repo, None, model)["sentiment_updated"] == 50
+    assert model.sentiment_calls == 50
+    assert repo.saved[50]["sentiment"] is None
 
 
 @pytest.mark.parametrize("score", [-1, 0, 1, None, 2, True, "1"])

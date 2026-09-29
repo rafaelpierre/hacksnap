@@ -9,7 +9,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
-from .config import Settings
+from .config import MAX_STORIES_PER_RUN, Settings
 from .image_scope import BACKFILL_START
 from .kestrel import FetchError, KestrelFetcher, external_article_url
 from .models import (
@@ -255,15 +255,15 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = 48000,
     with ThreadPoolExecutor(max_workers=MAX_PARALLELISM) as executor:
         # Re-read the ranking after each completed batch to replace failed articles.
         # Bound work even if many articles fail or ingestion changes the queue.
-        while len(attempted) < 50:
+        while len(attempted) < MAX_STORIES_PER_RUN:
             candidates = [
-                story for story in repository.get_current_top_stories(limit=10)
+                story for story in repository.get_current_top_stories(limit=MAX_STORIES_PER_RUN)
                 if story["hn_id"] not in attempted
             ]
             if not candidates:
                 break
             futures = []
-            for story in candidates[:50 - len(attempted)]:
+            for story in candidates[:MAX_STORIES_PER_RUN - len(attempted)]:
                 attempted.add(story["hn_id"])
                 futures.append(executor.submit(
                     process_story, story, repository, fetcher, summarizer, comment_budget,
@@ -271,8 +271,8 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = 48000,
                 ))
             for future in as_completed(futures):
                 counts[future.result()] += 1
-    if len(attempted) == 50:
-        logger.warning(json.dumps({"event": "refresh_attempt_limit", "limit": 50}))
+    if len(attempted) == MAX_STORIES_PER_RUN:
+        logger.info(json.dumps({"event": "refresh_attempt_limit", "limit": MAX_STORIES_PER_RUN}))
     # Capture the final ordering after failed articles have been excluded.
     repository.record_rank_history()
     logger.log(
