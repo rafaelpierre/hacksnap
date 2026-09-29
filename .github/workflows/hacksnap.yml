@@ -9,8 +9,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "hacksnap/**"
-      - "!hacksnap/web/**"
+      - "hacksnap/pipeline/**"
+      - "hacksnap/modal_app.py"
+      - "hacksnap/pyproject.toml"
+      - "hacksnap/uv.lock"
       - ".github/workflows/hacksnap.yml"
   workflow_dispatch:
 
@@ -45,18 +47,24 @@ jobs:
           uv run pytest
           uv run python -c 'import modal_app'
 
-  # Manual production deployment retains all of the original validation gates.
+  # Automatic and manual production deployments share all validation gates.
   ingestion:
-    if: github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     uses: ./.github/workflows/ingestion.yml
 
   frontend:
-    if: github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     uses: ./.github/workflows/frontend.yml
 
   deploy:
-    # Production changes require an explicit manual workflow run.
-    if: github.event_name == 'workflow_dispatch'
+    # Deploy matching main pushes and explicit manual runs after all checks pass.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: [test, ingestion, frontend]
     runs-on: ubuntu-latest
     environment: hacksnap-production
