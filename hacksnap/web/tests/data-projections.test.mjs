@@ -5,12 +5,13 @@ import { hasReadySummary } from "../lib/ready-stories.ts";
 import { beforeEach, afterAll, expect, jest, test } from "@jest/globals";
 import {
   feedFields,
+  feedFieldsWithoutImages,
   storyFields,
+  storyFieldsWithoutImages,
   legacyFeedFields,
   legacyStoryFields,
   discussionColumnsSQL,
   imageColumnsSQL,
-  storyImageProjection,
 } from "../lib/story-projection.ts";
 
 const queries = [];
@@ -48,7 +49,7 @@ jest.unstable_mockModule("pg", () => ({
 jest.unstable_mockModule("next/cache", () => ({
   unstable_noStore: () => {},
   unstable_cache: (fn, keys) => {
-    assert.deepEqual(keys, ["hacksnap-leaderboard-v15-public-images", "enabled"]);
+    assert.deepEqual(keys, ["hacksnap-leaderboard-v15-story-images", "enabled"]);
     return () => cachedValue ?? fn();
   },
 }));
@@ -77,6 +78,8 @@ test("each loader uses its intended projection; older cached fields remain optio
     queries.length = 0;
     await data.getStory("123");
     assert.ok(queries.some((sql) => sql.includes(storyFields)));
+    assert.ok(queries.some((sql) => sql.includes("t.image_url, t.image_status")));
+    assert.ok(queries.every((sql) => !sql.includes("image_source_")));
 
     rows = [{ stories: [], ingestion: null, ranked_at: new Date("2026-09-27T12:00:00Z") }];
     queries.length = 0;
@@ -135,34 +138,59 @@ test("all story loaders tolerate an unmigrated database and detect migration on 
         queries.length = 0;
         await load();
         assert.ok(queries.includes(discussionColumnsSQL));
+        assert.ok(queries.includes(imageColumnsSQL));
         assert.ok(queries.some((sql) => sql.includes(fields)));
       }
     }
   } finally {
     available = true;
+    imagesAvailable = true;
     rows = [];
     warning.mockRestore();
   }
 });
 
-test("image reads fall back to null projection until every reader grant is available", async () => {
+test("story loaders omit unavailable image columns and pick them up after reader grants", async () => {
+  process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  const warning = jest.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    for (const ready of [false, true]) {
+      clock += 1_800_001;
+      imagesAvailable = ready;
+      rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
+      queries.length = 0;
+      await data.getStory("789");
+      assert.ok(queries.includes(imageColumnsSQL));
+      assert.ok(
+        queries.some((sql) => sql.includes(ready ? storyFields : storyFieldsWithoutImages)),
+      );
+      assert.ok(!queries.some((sql) => sql.includes("image_source_url")));
+    }
+  } finally {
+    imagesAvailable = true;
+    rows = [];
+    warning.mockRestore();
+  }
+});
+
+test("image reads fall back to null projections until every reader grant is available", async () => {
   process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
   try {
     imagesAvailable = false;
-    for (const load of [
-      () => data.getFeedStories(),
-      () => data.getArchiveStories(null, 1),
-      () => data.getCategoryStories("agents_coding", 1),
-      () => data.getStory("987"),
-      () => data.getLeaderboard(),
-      () => data.getPublicStory("987"),
+    for (const [load, fields] of [
+      [() => data.getFeedStories(), feedFieldsWithoutImages],
+      [() => data.getArchiveStories(null, 1), feedFieldsWithoutImages],
+      [() => data.getCategoryStories("agents_coding", 1), feedFieldsWithoutImages],
+      [() => data.getStory("987"), storyFieldsWithoutImages],
+      [() => data.getLeaderboard(), feedFieldsWithoutImages],
+      [() => data.getPublicStory("987"), publicStorySQL(true, false)],
     ]) {
       queries.length = 0;
       rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
       await load();
       assert.ok(queries.includes(imageColumnsSQL));
-      assert.ok(queries.some((sql) => sql.includes(storyImageProjection(false))));
-      assert.ok(queries.every((sql) => !sql.includes("public_image.image_url")));
+      assert.ok(queries.some((sql) => sql.includes(fields)));
+      assert.ok(queries.every((sql) => !sql.includes("image_source_")));
     }
   } finally {
     imagesAvailable = true;

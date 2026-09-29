@@ -138,13 +138,14 @@ available, the story enters the sitemap and becomes indexable on the page's next
 revalidation (the existing cache interval is 30 minutes). The metadata and page
 share a request-scoped read backed by the bounded per-instance story cache.
 
-Social previews use the shared 1200×630 template in `lib/og-image.tsx`.
-`/opengraph-image` renders the default brand card; `/story/:id/opengraph-image`
-renders the stored story title, source domain and a short excerpt of the summary's
-overall takeaway, revalidating every 30 minutes. Stories without a takeaway omit
-the snippet. Long headlines shrink and truncate to fit, leaving room for up to
-three lines of snippet text. Rendering uses the bundled font and
-needs no external image/font service or model call. Unknown story IDs return 404.
+Social previews use a ready stored Vercel Blob asset when one passes the public
+image contract. Pending, failed, missing, or malformed assets use the shared
+1200×630 brand card at `/opengraph-image`, rendered by `lib/og-image.tsx`.
+The story metadata declares that choice directly because a story-level
+`opengraph-image` file would take priority over it. The legacy story preview
+URL remains an ordinary route handler, so old links redirect to a ready asset or
+return the brand card without changing metadata. The brand card uses the bundled
+font and needs no external image/font service or model call.
 
 `/feed.xml` returns RSS 2.0 for the latest 50 stored stories ordered by publication
 on Hacksnap (`date_added`, then ID). Entries contain titles, canonical links,

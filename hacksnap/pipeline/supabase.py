@@ -1,5 +1,6 @@
 """Use the same TLS PostgreSQL connection pattern as the existing collector."""
 
+from datetime import datetime
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
@@ -67,6 +68,16 @@ def _validate_image_policy(max_attempts: int, stale_seconds: int, retry_seconds:
         raise ValueError("Invalid image attempt policy")
 
 
+def _validate_added_window(
+    added_from: datetime | None, added_before: datetime | None,
+) -> None:
+    for value in (added_from, added_before):
+        if value is not None and (not isinstance(value, datetime) or value.utcoffset() is None):
+            raise ValueError("Image date bounds must be timezone-aware datetimes")
+    if added_from is not None and added_before is not None and added_from >= added_before:
+        raise ValueError("Image date window must have a positive duration")
+
+
 def _discussion_record(
     analysis: DiscussionAnalysis | None, metadata: DiscussionAnalysisMetadata | None
 ) -> dict:
@@ -111,6 +122,55 @@ class Repository:
             options="-c statement_timeout=15000",
         )
 
+    @staticmethod
+    def _reconcile_legacy_image_attempts(
+        connection, *, stale_after_seconds: int = 900,
+        retry_after_seconds: int = 3600, limit: int = 100,
+        story_id: int | None = None, story_ids: list[int] | None = None,
+        added_from: datetime | None = None, added_before: datetime | None = None,
+    ) -> None:
+        """Move expired 0015 leases and failures into the durable queue.
+
+        An active old lease remains owned by its worker. Once stale, a row lock
+        decides whether that worker committed first or the queue takes over.
+        """
+        _validate_added_window(added_from, added_before)
+        connection.execute(
+            """WITH legacy AS (
+                   SELECT hn_id FROM hacker_news_threads
+                   WHERE NOT image_queue_managed
+                     AND (%(story_id)s::bigint IS NULL OR hn_id = %(story_id)s::bigint)
+                     AND (%(story_ids)s::bigint[] IS NULL OR hn_id = ANY(%(story_ids)s::bigint[]))
+                     AND (%(added_from)s::timestamptz IS NULL OR
+                          date_added >= %(added_from)s::timestamptz)
+                     AND (%(added_before)s::timestamptz IS NULL OR
+                          date_added < %(added_before)s::timestamptz)
+                     AND (
+                         (image_attempt_token IS NOT NULL AND
+                          image_attempted_at <= statement_timestamp() -
+                              make_interval(secs => %(stale_after_seconds)s))
+                         OR (image_status = 'failed' AND image_attempt_token IS NULL)
+                     )
+                   ORDER BY image_attempted_at, hn_id
+                   LIMIT %(limit)s FOR UPDATE SKIP LOCKED
+               )
+               UPDATE hacker_news_threads AS t
+               SET image_queue_managed = TRUE,
+                   image_queued_at = statement_timestamp(),
+                   image_requested_url = t.url,
+                   image_attempts = COALESCE(t.image_attempt_count, 0),
+                   image_retry_after = CASE WHEN t.image_status = 'failed' THEN
+                       t.image_attempted_at + make_interval(secs => %(retry_after_seconds)s)
+                       ELSE NULL END,
+                   image_last_error = t.image_error,
+                   image_attempt_token = NULL
+               FROM legacy WHERE t.hn_id = legacy.hn_id""",
+            {"story_id": story_id, "story_ids": story_ids,
+             "added_from": added_from, "added_before": added_before,
+             "stale_after_seconds": stale_after_seconds,
+             "retry_after_seconds": retry_after_seconds, "limit": limit},
+        )
+
     def claim_image_attempt(
         self, hn_id: int, *, replace: bool = False, max_attempts: int = 3,
         stale_after_seconds: int = 300, retry_after_seconds: int = 3600,
@@ -136,7 +196,8 @@ class Repository:
                    SET image_status = CASE WHEN image_url IS NOT NULL THEN 'ready' ELSE 'failed' END,
                        image_attempt_token = NULL,
                        image_error = 'attempt_expired'
-                   WHERE hn_id = %(hn_id)s AND image_status IN ('pending', 'ready')
+                   WHERE hn_id = %(hn_id)s AND NOT image_queue_managed
+                     AND image_status IN ('pending', 'ready')
                      AND image_attempt_token IS NOT NULL
                      AND image_attempt_count >= %(max_attempts)s
                      AND image_attempted_at <= statement_timestamp()
@@ -150,7 +211,7 @@ class Repository:
                        image_attempted_at = statement_timestamp(),
                        image_attempt_count = COALESCE(image_attempt_count, 0) + 1,
                        image_error = NULL
-                   WHERE hn_id = %(hn_id)s
+                   WHERE hn_id = %(hn_id)s AND NOT image_queue_managed
                      AND COALESCE(image_attempt_count, 0) < %(max_attempts)s
                      AND (
                          (image_status IS NULL AND image_url IS NULL)
@@ -236,24 +297,31 @@ class Repository:
             )
             return result.rowcount == 1
 
-    def list_image_candidates(
+    def list_unqueued_image_candidates(
         self, limit: int = 100, *, max_attempts: int = 3,
         stale_after_seconds: int = 300, retry_after_seconds: int = 3600,
+        added_from: datetime | None = None, added_before: datetime | None = None,
     ) -> list[dict]:
         """List image-less articles eligible for a first or retried attempt."""
         _validate_image_policy(max_attempts, stale_after_seconds, retry_after_seconds)
+        _validate_added_window(added_from, added_before)
         if not 1 <= limit <= 1000:
             raise ValueError("Image candidate limit must be between 1 and 1000")
         params = {
             "limit": limit, "max_attempts": max_attempts,
             "stale_after_seconds": stale_after_seconds,
             "retry_after_seconds": retry_after_seconds,
+            "added_from": added_from, "added_before": added_before,
         }
         with self._connect() as connection:
             connection.execute(
                 """WITH expired AS (
                        SELECT hn_id FROM hacker_news_threads
-                       WHERE image_status IN ('pending', 'ready')
+                       WHERE NOT image_queue_managed AND image_status IN ('pending', 'ready')
+                         AND (%(added_from)s::timestamptz IS NULL OR
+                              date_added >= %(added_from)s::timestamptz)
+                         AND (%(added_before)s::timestamptz IS NULL OR
+                              date_added < %(added_before)s::timestamptz)
                          AND image_attempt_token IS NOT NULL
                          AND image_attempt_count >= %(max_attempts)s
                          AND image_attempted_at <= statement_timestamp()
@@ -271,7 +339,11 @@ class Repository:
             )
             return connection.execute(
                 """SELECT hn_id, url FROM hacker_news_threads
-                   WHERE image_url IS NULL AND url ~* '^https?://'
+                   WHERE NOT image_queue_managed AND image_url IS NULL AND url ~* '^https?://'
+                     AND (%(added_from)s::timestamptz IS NULL OR
+                          date_added >= %(added_from)s::timestamptz)
+                     AND (%(added_before)s::timestamptz IS NULL OR
+                          date_added < %(added_before)s::timestamptz)
                      AND COALESCE(image_attempt_count, 0) < %(max_attempts)s
                      AND (
                          image_status IS NULL
@@ -475,3 +547,259 @@ class Repository:
                    WHERE story_id = %s AND source_fingerprint = %s""",
                 (content_hash, story_id, fingerprint),
             )
+
+    def enqueue_image(
+        self, story_id: int, article_url: str | None, *, force: bool = False,
+        reprocess_ready: bool = False,
+        added_from: datetime | None = None, added_before: datetime | None = None,
+    ) -> bool:
+        """Queue a published story. Existing ready images stay visible until replacement.
+
+        Ordinary calls only queue a never-processed story. Retryable failures retain
+        their queue and backoff; an explicit force can reopen a terminal failure.
+        """
+        if story_id <= 0:
+            raise ValueError("A positive story ID is required")
+        _validate_added_window(added_from, added_before)
+        with self._connect() as connection:
+            self._reconcile_legacy_image_attempts(
+                connection, story_id=story_id, limit=1,
+                added_from=added_from, added_before=added_before,
+            )
+            result = connection.execute(
+                """UPDATE hacker_news_threads t
+                   SET image_status = CASE WHEN image_url IS NULL THEN 'pending' ELSE 'ready' END,
+                       image_queue_managed = TRUE,
+                       image_queued_at = CURRENT_TIMESTAMP,
+                       image_requested_url = %(article_url)s,
+                       image_attempts = CASE WHEN %(force)s OR %(reprocess_ready)s OR
+                           (t.image_queue_managed AND
+                            t.image_requested_url IS DISTINCT FROM %(article_url)s)
+                           THEN 0 ELSE image_attempts END,
+                       image_retry_after = CASE WHEN %(force)s OR %(reprocess_ready)s OR
+                           (t.image_queue_managed AND
+                            t.image_requested_url IS DISTINCT FROM %(article_url)s)
+                           THEN NULL ELSE image_retry_after END,
+                       image_last_error = CASE WHEN %(force)s OR %(reprocess_ready)s OR
+                           (t.image_queue_managed AND
+                            t.image_requested_url IS DISTINCT FROM %(article_url)s)
+                           THEN NULL ELSE image_last_error END,
+                       image_lease_token = NULL, image_lease_expires_at = NULL
+                   WHERE t.hn_id = %(story_id)s
+                     AND (%(added_from)s::timestamptz IS NULL OR
+                          t.date_added >= %(added_from)s::timestamptz)
+                     AND (%(added_before)s::timestamptz IS NULL OR
+                          t.date_added < %(added_before)s::timestamptz)
+                     AND t.image_attempt_token IS NULL
+                     AND t.url IS NOT DISTINCT FROM %(article_url)s
+                     AND EXISTS (SELECT 1 FROM hacksnap_summaries s
+                                 WHERE s.story_id = t.hn_id
+                                   AND NULLIF(BTRIM(s.overall_takeaway), '') IS NOT NULL)
+                     AND (t.image_lease_token IS NULL OR
+                          t.image_lease_expires_at < CURRENT_TIMESTAMP)
+                     AND (t.image_status IS NULL OR %(force)s OR
+                          (t.image_queue_managed AND
+                           t.image_requested_url IS DISTINCT FROM %(article_url)s) OR
+                          (%(reprocess_ready)s AND t.image_status = 'ready'))""",
+                {"story_id": story_id, "article_url": article_url,
+                 "force": force, "reprocess_ready": reprocess_ready,
+                 "added_from": added_from, "added_before": added_before},
+            )
+            return result.rowcount == 1
+
+    def list_image_candidates(
+        self, *, limit: int, after_id: int = 0, max_attempts: int = 3,
+        include_failed: bool = False, reprocess_ready: bool = False,
+        added_from: datetime | None = None, added_before: datetime | None = None,
+    ) -> list[dict]:
+        """Page eligible, published stories for a backfill without locking rows."""
+        if not 1 <= limit <= 500 or after_id < 0 or max_attempts < 1:
+            raise ValueError("Invalid image candidate page")
+        _validate_added_window(added_from, added_before)
+        with self._connect() as connection:
+            return connection.execute(
+                """SELECT t.hn_id AS story_id, t.title, t.url AS article_url,
+                          t.category, t.image_status, t.image_attempts,
+                          t.image_retry_after, t.image_url AS previous_image_url
+                   FROM hacker_news_threads t
+                   JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
+                   JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+                   WHERE t.hn_id > %(after_id)s
+                     AND (%(added_from)s::timestamptz IS NULL OR
+                          t.date_added >= %(added_from)s::timestamptz)
+                     AND (%(added_before)s::timestamptz IS NULL OR
+                          t.date_added < %(added_before)s::timestamptz)
+                     AND (t.image_attempt_token IS NULL OR
+                          (NOT t.image_queue_managed AND
+                           t.image_attempted_at <= statement_timestamp() -
+                               INTERVAL '900 seconds'))
+                     AND NULLIF(BTRIM(s.overall_takeaway), '') IS NOT NULL
+                     AND (t.image_lease_token IS NULL OR
+                          t.image_lease_expires_at < CURRENT_TIMESTAMP)
+                     AND (t.image_status IS NULL
+                          OR (t.image_queue_managed AND
+                              t.image_requested_url IS DISTINCT FROM t.url)
+                          OR (NOT t.image_queue_managed AND t.image_attempt_token IS NOT NULL
+                              AND t.image_attempted_at <= statement_timestamp() -
+                                  INTERVAL '900 seconds')
+                          OR (NOT t.image_queue_managed AND t.image_status = 'failed'
+                              AND COALESCE(t.image_attempt_count, 0) < %(max_attempts)s
+                              AND t.image_attempted_at <= statement_timestamp() -
+                                  INTERVAL '3600 seconds')
+                          OR (t.image_queued_at IS NOT NULL AND
+                              t.image_attempts < %(max_attempts)s AND
+                              (t.image_retry_after IS NULL OR
+                               t.image_retry_after <= CURRENT_TIMESTAMP))
+                          OR (t.image_queued_at IS NOT NULL AND
+                              t.image_attempts >= %(max_attempts)s)
+                          OR (%(include_failed)s AND t.image_status = 'failed')
+                          OR (%(reprocess_ready)s AND t.image_status = 'ready'))
+                   ORDER BY t.hn_id LIMIT %(limit)s""",
+                {"limit": limit, "after_id": after_id, "max_attempts": max_attempts,
+                 "include_failed": include_failed, "reprocess_ready": reprocess_ready,
+                 "added_from": added_from, "added_before": added_before},
+            ).fetchall()
+
+    def claim_pending_images(
+        self, limit: int = 10, max_attempts: int = 3, lease_seconds: int = 300,
+        *, story_ids: list[int] | None = None,
+        added_from: datetime | None = None, added_before: datetime | None = None,
+    ) -> list[dict]:
+        """Atomically claim queued jobs. Expired leases are recoverable."""
+        if not 1 <= limit <= 100 or max_attempts < 1 or not 30 <= lease_seconds <= 3600:
+            raise ValueError("Invalid image claim limits")
+        if story_ids is not None and (not story_ids or any(sid <= 0 for sid in story_ids)):
+            raise ValueError("story_ids must contain positive IDs")
+        _validate_added_window(added_from, added_before)
+        with self._connect() as connection:
+            self._reconcile_legacy_image_attempts(
+                connection, limit=100, story_ids=story_ids,
+                added_from=added_from, added_before=added_before,
+            )
+            # A crashed worker on its last permitted attempt must not leave a
+            # permanently pending row. Operators can explicitly requeue it.
+            connection.execute(
+                """UPDATE hacker_news_threads
+                   SET image_status = CASE WHEN image_url IS NULL THEN 'failed' ELSE 'ready' END,
+                       image_queued_at = NULL, image_lease_token = NULL,
+                       image_lease_expires_at = NULL, image_retry_after = NULL,
+                       image_last_error = 'Image lease expired after final attempt'
+                   WHERE image_queued_at IS NOT NULL AND image_attempts >= %s
+                     AND (%s::bigint[] IS NULL OR hn_id = ANY(%s::bigint[]))
+                     AND (%s::timestamptz IS NULL OR date_added >= %s::timestamptz)
+                     AND (%s::timestamptz IS NULL OR date_added < %s::timestamptz)
+                     AND image_attempt_token IS NULL
+                     AND (image_lease_token IS NULL OR
+                          image_lease_expires_at < CURRENT_TIMESTAMP)""",
+                (max_attempts, story_ids, story_ids, added_from, added_from,
+                 added_before, added_before),
+            )
+            return connection.execute(
+                """WITH picked AS (
+                       SELECT t.hn_id FROM hacker_news_threads t
+                       JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+                       WHERE t.image_queued_at IS NOT NULL
+                         AND (%(added_from)s::timestamptz IS NULL OR
+                              t.date_added >= %(added_from)s::timestamptz)
+                         AND (%(added_before)s::timestamptz IS NULL OR
+                              t.date_added < %(added_before)s::timestamptz)
+                         AND t.image_queue_managed
+                         AND t.image_attempt_token IS NULL
+                         AND t.image_attempts < %(max_attempts)s
+                         AND (t.image_retry_after IS NULL OR
+                              t.image_retry_after <= CURRENT_TIMESTAMP)
+                         AND (t.image_lease_token IS NULL OR
+                              t.image_lease_expires_at < CURRENT_TIMESTAMP)
+                         AND t.url IS NOT DISTINCT FROM t.image_requested_url
+                         AND NULLIF(BTRIM(s.overall_takeaway), '') IS NOT NULL
+                         AND (%(story_ids)s::bigint[] IS NULL OR
+                              t.hn_id = ANY(%(story_ids)s::bigint[]))
+                       ORDER BY t.hn_id LIMIT %(limit)s FOR UPDATE OF t SKIP LOCKED
+                   )
+                   UPDATE hacker_news_threads t
+                   SET image_lease_token = gen_random_uuid(),
+                       image_lease_expires_at = CURRENT_TIMESTAMP +
+                                                (%(lease_seconds)s * INTERVAL '1 second'),
+                       image_attempts = t.image_attempts + 1,
+                       image_status = CASE WHEN t.image_url IS NULL THEN 'pending' ELSE 'ready' END
+                   FROM picked WHERE t.hn_id = picked.hn_id
+                   RETURNING t.hn_id AS story_id, t.title,
+                             t.image_requested_url AS article_url, t.category,
+                             t.image_lease_token AS lease_token, t.image_attempts AS attempts,
+                             t.image_url AS previous_image_url""",
+                {"limit": limit, "max_attempts": max_attempts,
+                 "lease_seconds": lease_seconds, "story_ids": story_ids,
+                 "added_from": added_from, "added_before": added_before},
+            ).fetchall()
+
+    def mark_image_ready(
+        self, story_id: int, lease_token: str, image_url: str, source_type: str,
+        source_url: str | None = None, *, width: int, height: int,
+        mime_type: str = "image/webp",
+    ) -> bool:
+        """Publish only the result of the current lease and source article URL."""
+        parsed = urlsplit(image_url)
+        if (story_id <= 0 or not lease_token or not _valid_canonical_blob_url(image_url)
+                or not parsed.path.startswith(f"/articles/{story_id}/hero-")
+                or not parsed.path.endswith(".webp")):
+            raise ValueError("Invalid public article Blob URL")
+        if source_type not in {"og", "twitter", "json_ld", "generated"}:
+            raise ValueError("Invalid image source type")
+        if (source_type == "generated") != (source_url is None):
+            raise ValueError("Generated images need null provenance; sourced images need a URL")
+        if source_url is not None and not _valid_http_url(source_url):
+            raise ValueError("Invalid image source URL")
+        if width <= 0 or height <= 0 or mime_type != "image/webp":
+            raise ValueError("Invalid WebP dimensions or MIME type")
+        with self._connect() as connection:
+            result = connection.execute(
+                """UPDATE hacker_news_threads
+                   SET image_url = %(image_url)s, image_source_url = %(source_url)s,
+                       image_source_type = %(source_type)s, image_status = 'ready',
+                       image_width = %(width)s, image_height = %(height)s,
+                       image_mime_type = %(mime_type)s, image_attempts = 0,
+                       image_queued_at = NULL, image_lease_token = NULL,
+                       image_lease_expires_at = NULL, image_retry_after = NULL,
+                       image_last_error = NULL
+                   WHERE hn_id = %(story_id)s AND image_lease_token = %(lease_token)s::uuid
+                     AND image_lease_expires_at >= CURRENT_TIMESTAMP
+                     AND url IS NOT DISTINCT FROM image_requested_url""",
+                {"story_id": story_id, "lease_token": lease_token, "image_url": image_url,
+                 "source_type": source_type, "source_url": source_url,
+                 "width": width, "height": height, "mime_type": mime_type},
+            )
+            return result.rowcount == 1
+
+    def mark_image_failed(
+        self, story_id: int, lease_token: str, reason: str, *, retryable: bool = True,
+    ) -> bool:
+        """Record a failed attempt while retaining any previously published asset."""
+        if story_id <= 0 or not lease_token or not reason.strip():
+            raise ValueError("Image failure needs an ID, lease token, and reason")
+        with self._connect() as connection:
+            result = connection.execute(
+                """UPDATE hacker_news_threads
+                   SET image_status = CASE WHEN image_url IS NULL THEN 'failed' ELSE 'ready' END,
+                       image_last_error = %(reason)s,
+                       image_queued_at = CASE WHEN %(retryable)s THEN image_queued_at ELSE NULL END,
+                       image_retry_after = CASE WHEN %(retryable)s THEN
+                           CURRENT_TIMESTAMP +
+                           (LEAST(3600, 300 * power(2, LEAST(image_attempts - 1, 4)))
+                            * INTERVAL '1 second') ELSE NULL END,
+                       image_lease_token = NULL, image_lease_expires_at = NULL
+                   WHERE hn_id = %(story_id)s AND image_lease_token = %(lease_token)s::uuid
+                     AND image_lease_expires_at >= CURRENT_TIMESTAMP""",
+                {"story_id": story_id, "lease_token": lease_token,
+                 "reason": reason[:500], "retryable": retryable},
+            )
+            return result.rowcount == 1
+
+    def is_image_url_current(self, story_id: int, image_url: str) -> bool:
+        """Resolve an uncertain commit before deleting a newly uploaded blob."""
+        with self._connect() as connection:
+            row = connection.execute(
+                """SELECT 1 FROM hacker_news_threads
+                   WHERE hn_id = %s AND image_url = %s AND image_status = 'ready'""",
+                (story_id, image_url),
+            ).fetchone()
+            return row is not None

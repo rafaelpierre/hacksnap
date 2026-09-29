@@ -28,13 +28,17 @@ import {
 import type { DiscussionFields } from "./discussion-analysis";
 import {
   feedFields,
+  feedFieldsWithoutImages,
   storyFields,
+  storyFieldsWithoutImages,
   legacyFeedFields,
+  legacyFeedFieldsWithoutImages,
   legacyStoryFields,
+  legacyStoryFieldsWithoutImages,
   discussionColumnsSQL,
   imageColumnsSQL,
-  storyImageProjection,
 } from "./story-projection";
+import type { StoryImageFields } from "./story-image";
 export type {
   DiscussionAnalysis,
   DiscussionAnalysisPreview,
@@ -59,7 +63,7 @@ export type Summary = DiscussionFields & {
   };
 };
 
-export type Story = {
+export type Story = StoryImageFields & {
   hn_id: string;
   title: string;
   story_slug?: string | null;
@@ -165,14 +169,18 @@ async function hasDiscussionColumns(client: PoolClient): Promise<boolean> {
   return available;
 }
 
+async function hasImageColumns(client: PoolClient): Promise<boolean> {
+  const { rows } = await client.query<{ available: boolean }>(imageColumnsSQL);
+  const available = rows[0].available;
+  if (!available) {
+    console.warn("Hacksnap stored images unavailable: apply migration 0015 and its reader grants");
+  }
+  return available;
+}
+
 async function storySlugField(client: PoolClient): Promise<string> {
   const { rows } = await client.query<{ available: boolean }>(storySlugColumnSQL);
   return storySlugProjection(rows[0]?.available === true);
-}
-
-async function storyImageFields(client: PoolClient): Promise<string> {
-  const { rows } = await client.query<{ available: boolean }>(imageColumnsSQL);
-  return storyImageProjection(rows[0]?.available === true);
 }
 
 // Check on each cache miss so applying the migration needs no process restart.
@@ -181,19 +189,27 @@ function readStories<T>(
   query: (client: PoolClient, fields: string) => Promise<T>,
 ): Promise<T> {
   return read(async (client) => {
-    const available = await hasDiscussionColumns(client);
+    const [discussionAvailable, imagesAvailable] = await Promise.all([
+      hasDiscussionColumns(client),
+      hasImageColumns(client),
+    ]);
     const fields =
       kind === "feed"
-        ? available
-          ? feedFields
-          : legacyFeedFields
-        : available
-          ? storyFields
-          : legacyStoryFields;
-    return query(
-      client,
-      `${fields}, ${await storyImageFields(client)}, ${await storySlugField(client)}`,
-    );
+        ? discussionAvailable
+          ? imagesAvailable
+            ? feedFields
+            : feedFieldsWithoutImages
+          : imagesAvailable
+            ? legacyFeedFields
+            : legacyFeedFieldsWithoutImages
+        : discussionAvailable
+          ? imagesAvailable
+            ? storyFields
+            : storyFieldsWithoutImages
+          : imagesAvailable
+            ? legacyStoryFields
+            : legacyStoryFieldsWithoutImages;
+    return query(client, `${fields}, ${await storySlugField(client)}`);
   });
 }
 
@@ -215,10 +231,12 @@ const cachedLeaderboard = unstable_cache(
       }>(`
       SELECT COALESCE((
         SELECT json_agg(story ORDER BY story.rank) FROM (
-          SELECT ${fields}, t.rank, t.is_recent, ${rankHistorySQL} AS rank_history
-          FROM hacksnap_ranked_stories t INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+          SELECT ${fields}, r.rank, r.is_recent, ${rankHistorySQL} AS rank_history
+          FROM hacksnap_ranked_stories r
+          INNER JOIN hacker_news_threads t ON t.hn_id = r.hn_id
+          INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
           WHERE s.overall_takeaway ~ '[^[:space:]]'
-          ORDER BY t.rank
+          ORDER BY r.rank
           LIMIT 10
         ) story
       ), '[]'::json) AS stories, (
@@ -235,7 +253,7 @@ const cachedLeaderboard = unstable_cache(
     });
   },
   [
-    "hacksnap-leaderboard-v15-public-images",
+    "hacksnap-leaderboard-v15-story-images",
     process.env.HACKSNAP_DISCUSSION_RENDERING === "false" ? "disabled" : "enabled",
   ],
   { revalidate: 1800 },

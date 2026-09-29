@@ -96,13 +96,15 @@ test("topics and sitemap remain available without database data", async () => {
   assert.ok(urls.includes("https://hacksnap.live/archive"));
 });
 
-test("RSS and social images return retryable, uncached 503s during outages", async () => {
+test("RSS and legacy story preview URLs return retryable, uncached 503s during an outage", async () => {
   const { GET } = await import("../app/feed.xml/route.ts");
-  const { default: Image } = await import("../app/story/[id]/opengraph-image.tsx");
+  const { GET: preview } = await import("../app/story/[id]/opengraph-image/route.ts");
   for (const response of [
     unavailableResponse(),
     await GET(),
-    await Image({ params: Promise.resolve({ id: "123" }) }),
+    await preview(new Request("https://hacksnap.live/story/123/opengraph-image"), {
+      params: Promise.resolve({ id: "123" }),
+    }),
   ]) {
     assert.equal(response.status, 503);
     assert.equal(response.headers.get("retry-after"), "60");

@@ -109,7 +109,7 @@ def test_blocked_discovery_url_still_finishes_failed_attempt(database, source_ur
 def test_backfill_scan_excludes_ready_images_and_caps_retries(database):
     repo, _, connection = database
     connection.execute.return_value.fetchall.return_value = [{"hn_id": 42, "url": "https://a.test"}]
-    assert repo.list_image_candidates(8) == [{"hn_id": 42, "url": "https://a.test"}]
+    assert repo.list_unqueued_image_candidates(8) == [{"hn_id": 42, "url": "https://a.test"}]
     assert connection.execute.call_count == 2
     reap_sql, _ = connection.execute.call_args_list[0].args
     assert "image_status IN ('pending', 'ready')" in reap_sql
@@ -148,7 +148,7 @@ def test_bad_policy_and_metadata_are_rejected_before_connecting(database):
     with pytest.raises(ValueError, match="policy"):
         repo.claim_image_attempt(42, max_attempts=0)
     with pytest.raises(ValueError, match="limit"):
-        repo.list_image_candidates(1001)
+        repo.list_unqueued_image_candidates(1001)
     with pytest.raises(ValueError, match="dimensions"):
         repo.save_image_ready(
             42, "00000000-0000-0000-0000-000000000001", image_url=BLOB_URL,
@@ -184,7 +184,7 @@ def test_postgres_claim_retry_replacement_and_stale_token(database):
             image_mime_type="image/webp",
         )),
         "failed": capture(lambda: repo.save_image_failed(1, token, reason="fetch_failed")),
-        "candidates": capture(lambda: repo.list_image_candidates(10)),
+        "candidates": capture(lambda: repo.list_unqueued_image_candidates(10)),
     }
     script = r'''
 import { readFileSync } from 'node:fs';
@@ -197,7 +197,7 @@ await db.exec(`CREATE TABLE hacker_news_threads (
   image_url text, image_source_url text, image_source_type text, image_status text,
   image_width integer, image_height integer, image_mime_type text,
   image_attempt_token uuid, image_attempt_count integer, image_attempted_at timestamptz,
-  image_error text
+  image_error text, image_queue_managed boolean NOT NULL DEFAULT false
 );
 INSERT INTO hacker_news_threads(hn_id,url) VALUES
   (1,'https://publisher.test/one'),(2,'https://publisher.test/two'),

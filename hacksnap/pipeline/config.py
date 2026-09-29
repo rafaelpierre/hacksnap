@@ -6,17 +6,18 @@ from urllib.parse import quote, urlsplit
 
 
 def database_url_from_env() -> str:
+    """Resolve database credentials without requiring inference settings."""
     database_url = os.environ.get("HACKSNAP_DATABASE_URL")
-    if not database_url:
-        password = os.environ.get("SUPABASE_PASSWORD")
-        if not password:
-            raise ValueError("Set HACKSNAP_DATABASE_URL or SUPABASE_PASSWORD")
-        database_url = (
-            "postgresql://postgres.tbihbssiluihmnseuknk:"
-            f"{quote(password, safe='')}@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
-            "?sslmode=require"
-        )
-    return database_url
+    if database_url:
+        return database_url
+    password = os.environ.get("SUPABASE_PASSWORD")
+    if not password:
+        raise ValueError("Set HACKSNAP_DATABASE_URL or SUPABASE_PASSWORD")
+    return (
+        "postgresql://postgres.tbihbssiluihmnseuknk:"
+        f"{quote(password, safe='')}@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
+        "?sslmode=require"
+    )
 
 
 @dataclass(frozen=True)

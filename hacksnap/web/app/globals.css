@@ -1686,6 +1686,13 @@ footer > span {
   height: 100%;
   object-fit: cover;
 }
+.article-image-unavailable {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font: 600 clamp(1.5rem, 3vw, 2.25rem) / 1 var(--heading);
+}
 .feed-story .story-domain {
   margin-bottom: 7px;
 }
@@ -1965,7 +1972,6 @@ footer > span {
     grid-template-columns: minmax(0, 1fr);
     column-gap: 0;
   }
-
   /* Keep the compact metrics and Share aligned at phone widths. */
   .feed-story-footer {
     flex-wrap: nowrap;
@@ -2059,6 +2065,12 @@ footer > span {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--surface);
+}
+.story-article-image.article-image-unavailable {
+  width: 100%;
+  max-height: 36rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
 }
 .discussion-heading {
   display: flex;

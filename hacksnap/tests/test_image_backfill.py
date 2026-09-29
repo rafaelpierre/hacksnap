@@ -4,12 +4,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from pipeline.image_scope import BACKFILL_END, BACKFILL_START, scope_result
 from pipeline.images import backfill
 
 
 def test_batch_scans_once_and_does_not_retry_failures_in_same_run():
     repository = MagicMock()
-    repository.list_image_candidates.return_value = [
+    repository.list_unqueued_image_candidates.return_value = [
         {"hn_id": 1, "url": "https://one.example/article"},
         {"hn_id": 2, "url": "https://two.example/article"},
         {"hn_id": 3, "url": "https://three.example/article"},
@@ -18,9 +19,11 @@ def test_batch_scans_once_and_does_not_retry_failures_in_same_run():
     ingester.ingest_article_image.side_effect = ["ready", "failed", "skipped"]
     assert backfill.run_batch(repository, ingester, 3) == {
         "scanned": 3, "ready": 1, "failed": 1, "skipped": 1, "superseded": 0,
+        **scope_result(),
     }
-    repository.list_image_candidates.assert_called_once_with(
+    repository.list_unqueued_image_candidates.assert_called_once_with(
         3, max_attempts=3, stale_after_seconds=900, retry_after_seconds=3600,
+        added_from=BACKFILL_START, added_before=BACKFILL_END,
     )
     assert ingester.ingest_article_image.call_count == 3
     ingester.ingest_article_image.assert_any_call(2, "https://two.example/article")
@@ -28,7 +31,7 @@ def test_batch_scans_once_and_does_not_retry_failures_in_same_run():
 
 def test_unexpected_story_failure_does_not_stop_batch():
     repository = MagicMock()
-    repository.list_image_candidates.return_value = [
+    repository.list_unqueued_image_candidates.return_value = [
         {"hn_id": 1, "url": "https://one.example"},
         {"hn_id": 2, "url": "https://two.example"},
     ]
@@ -41,7 +44,7 @@ def test_unexpected_story_failure_does_not_stop_batch():
 
 def test_a_later_batch_can_retry_without_a_loop_in_the_first():
     repository = MagicMock()
-    repository.list_image_candidates.side_effect = [
+    repository.list_unqueued_image_candidates.side_effect = [
         [{"hn_id": 1, "url": "https://publisher.example/article"}],
         [{"hn_id": 1, "url": "https://publisher.example/article"}],
     ]
@@ -49,7 +52,7 @@ def test_a_later_batch_can_retry_without_a_loop_in_the_first():
     ingester.ingest_article_image.side_effect = ["failed", "ready"]
     assert backfill.run_batch(repository, ingester, 1)["failed"] == 1
     assert backfill.run_batch(repository, ingester, 1)["ready"] == 1
-    assert repository.list_image_candidates.call_count == 2
+    assert repository.list_unqueued_image_candidates.call_count == 2
     assert ingester.ingest_article_image.call_count == 2
 
 
@@ -75,32 +78,33 @@ def test_rate_limiter_spaces_each_hostname_including_redirect_target(monkeypatch
     assert sleeps == [2.0, 2.0]
 
 
-def test_run_uses_image_settings_without_inference_credentials(monkeypatch):
-    settings = MagicMock(
-        database_url="postgresql://mock.invalid/test", blob_token="hidden",
-        limits=MagicMock(), batch_size=7, max_attempts=4,
-        stale_after_seconds=1000, retry_after_seconds=5400,
-        publisher_interval_seconds=3,
-    )
-    monkeypatch.setattr(backfill.ImageSettings, "from_env", lambda: settings)
+def test_run_uses_fixed_day_backfill_without_inference_credentials(monkeypatch):
+    from pipeline import backfill_images as advanced
+    from pipeline import blob, image_metadata
+    from pipeline.images import worker
+
+    settings = MagicMock(batch_size=7, publisher_interval=2, timeout=8, max_redirects=3)
+    monkeypatch.setattr(worker.ImageSettings, "from_env", lambda: settings)
+    monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "hidden")
+    monkeypatch.setenv("HACKSNAP_DATABASE_URL", "postgresql://mock.invalid/test")
     repository = MagicMock()
-    repository.list_image_candidates.return_value = []
     repository_class = MagicMock(return_value=repository)
-    uploader_class = MagicMock()
-    ingester_class = MagicMock()
+    uploader = MagicMock()
+    uploader_class = MagicMock(return_value=uploader)
+    fetcher = MagicMock()
     monkeypatch.setattr(backfill, "Repository", repository_class)
-    monkeypatch.setattr(backfill, "BlobUploader", uploader_class)
-    monkeypatch.setattr(backfill, "ImageIngester", ingester_class)
-    assert backfill.run() == {
-        "scanned": 0, "ready": 0, "failed": 0, "skipped": 0, "superseded": 0,
-        "failure_reasons": {},
-    }
-    repository_class.assert_called_once_with(settings.database_url)
-    uploader_class.assert_called_once_with(settings.blob_token)
-    assert isinstance(ingester_class.call_args.kwargs["before_request"], backfill.HostRateLimiter)
-    repository.list_image_candidates.assert_called_once_with(
-        7, max_attempts=4, stale_after_seconds=1000, retry_after_seconds=5400,
-    )
+    monkeypatch.setattr(blob, "VercelBlobStore", uploader_class)
+    monkeypatch.setattr(image_metadata, "PublicFetcher", MagicMock(return_value=fetcher))
+    process = MagicMock(return_value={"failed": 0, **scope_result()})
+    monkeypatch.setattr(advanced, "backfill_images", process)
+
+    assert backfill.run() == process.return_value
+    repository_class.assert_called_once_with("postgresql://mock.invalid/test")
+    uploader_class.assert_called_once_with("hidden")
+    assert process.call_args.args == (repository, uploader)
+    assert process.call_args.kwargs["limit"] == 7
+    assert process.call_args.kwargs["publisher_interval"] == 2
+    assert process.call_args.kwargs["settings"] is settings
 
 
 @pytest.mark.parametrize("limit", [0, 101])
@@ -108,4 +112,12 @@ def test_limit_stays_bounded_before_scanning(limit):
     repository = MagicMock()
     with pytest.raises(ValueError, match="limit"):
         backfill.run_batch(repository, MagicMock(), limit)
-    repository.list_image_candidates.assert_not_called()
+    repository.list_unqueued_image_candidates.assert_not_called()
+
+
+def test_legacy_cli_exits_nonzero_on_image_failures(monkeypatch, capsys):
+    monkeypatch.setattr(backfill, "run", lambda limit: {
+        "publisher": 0, "generated": 0, "failed": 1, "skipped": 0,
+    })
+    assert backfill.main(["--limit", "2"]) == 1
+    assert '"failed": 1' in capsys.readouterr().out

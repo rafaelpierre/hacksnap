@@ -12,11 +12,21 @@ const preview = `CASE WHEN s.discussion_analysis IS NULL THEN NULL ELSE json_bui
   )
 ) END`;
 
+const storedImageFields = `t.image_url, t.image_status, t.image_width, t.image_height,
+  t.image_mime_type`;
+const unavailableImageFields = `NULL::text AS image_url, NULL::text AS image_status,
+  NULL::integer AS image_width, NULL::integer AS image_height, NULL::text AS image_mime_type`;
+
+export function imageProjection(available: boolean): string {
+  return available ? storedImageFields : unavailableImageFields;
+}
+
 const fields = (
   analysis: string,
   analyzedAt = "s.discussion_analyzed_at",
   coverage = "s.discussion_analysis_coverage",
-) => `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added, t.category,
+  imageFields = storedImageFields,
+) => `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added, t.category, ${imageFields},
   CASE WHEN s.story_id IS NULL THEN NULL ELSE json_build_object(
     'article_summary', s.article_summary, 'article_key_points', s.article_key_points,
     'discussion_summary', s.discussion_summary, 'discussion_points', s.discussion_points,
@@ -29,6 +39,18 @@ const fields = (
 
 export const feedFields = fields(`'discussion_analysis_preview', ${preview}`);
 export const storyFields = fields("'discussion_analysis', s.discussion_analysis");
+export const feedFieldsWithoutImages = fields(
+  `'discussion_analysis_preview', ${preview}`,
+  "s.discussion_analyzed_at",
+  "s.discussion_analysis_coverage",
+  unavailableImageFields,
+);
+export const storyFieldsWithoutImages = fields(
+  "'discussion_analysis', s.discussion_analysis",
+  "s.discussion_analyzed_at",
+  "s.discussion_analysis_coverage",
+  unavailableImageFields,
+);
 
 // Resolve the same relation as the story queries and check SELECT specifically.
 // Column existence alone is insufficient during a partially applied rollout.
@@ -39,9 +61,7 @@ export const discussionColumnsSQL = `SELECT count(*) = 3 AS available
     AND NOT attisdropped
     AND has_column_privilege(attrelid, attname, 'SELECT')`;
 
-export const legacyFeedFields = fields("'discussion_analysis_preview', NULL", "NULL", "NULL");
-export const legacyStoryFields = fields("'discussion_analysis', NULL", "NULL", "NULL");
-
+// The reader grant can land separately from the additive image migration.
 export const imageColumnsSQL = `SELECT count(*) = 5 AS available
   FROM pg_attribute
   WHERE attrelid = 'hacker_news_threads'::regclass
@@ -49,12 +69,17 @@ export const imageColumnsSQL = `SELECT count(*) = 5 AS available
     AND NOT attisdropped
     AND has_column_privilege(attrelid, attname, 'SELECT')`;
 
-// Ranking views freeze their selected columns, so resolve image fields from the
-// base table using the story ID. This also keeps the reader grant scoped to five
-// explicitly public image fields.
-export function storyImageProjection(available: boolean): string {
-  if (!available) {
-    return "NULL::text AS image_url, NULL::text AS image_status, NULL::int AS image_width, NULL::int AS image_height, NULL::text AS image_mime_type";
-  }
-  return "(SELECT image_url FROM hacker_news_threads public_image WHERE public_image.hn_id = t.hn_id) AS image_url, (SELECT image_status FROM hacker_news_threads public_image WHERE public_image.hn_id = t.hn_id) AS image_status, (SELECT image_width FROM hacker_news_threads public_image WHERE public_image.hn_id = t.hn_id) AS image_width, (SELECT image_height FROM hacker_news_threads public_image WHERE public_image.hn_id = t.hn_id) AS image_height, (SELECT image_mime_type FROM hacker_news_threads public_image WHERE public_image.hn_id = t.hn_id) AS image_mime_type";
-}
+export const legacyFeedFields = fields("'discussion_analysis_preview', NULL", "NULL", "NULL");
+export const legacyStoryFields = fields("'discussion_analysis', NULL", "NULL", "NULL");
+export const legacyFeedFieldsWithoutImages = fields(
+  "'discussion_analysis_preview', NULL",
+  "NULL",
+  "NULL",
+  unavailableImageFields,
+);
+export const legacyStoryFieldsWithoutImages = fields(
+  "'discussion_analysis', NULL",
+  "NULL",
+  "NULL",
+  unavailableImageFields,
+);

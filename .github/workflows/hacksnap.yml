@@ -69,11 +69,23 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
+      - uses: actions/setup-node@v4
+        if: matrix.check == 'tests'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: hacksnap/web/package-lock.json
+      - name: Install embedded PostgreSQL test runtime
+        if: matrix.check == 'tests'
+        working-directory: hacksnap/web
+        run: npm ci --ignore-scripts
       - name: Worker lint
         if: matrix.check == 'lint'
         run: uv run ruff check pipeline tests modal_app.py ../.github/tests ../.github/scripts/modal-deploy-changes.py
       - name: Worker tests and import smoke check
         if: matrix.check == 'tests'
+        env:
+          HACKSNAP_TEST_PGLITE_MODULE: ${{ github.workspace }}/hacksnap/web/node_modules/@electric-sql/pglite/dist/index.js
         run: |
           uv run python -m unittest discover -s ../.github/tests -p "test_*.py"
           uv run pytest

@@ -1,0 +1,162 @@
+[
+  {
+    "width": 1440,
+    "theme": "light",
+    "textScale": 1,
+    "before": {
+      "viewport": 1440,
+      "width": 1440,
+      "categoryBottom": 220.078125,
+      "imageTop": 186.078125,
+      "boxes": [
+        {
+          "w": 192,
+          "h": 144
+        },
+        {
+          "w": 688,
+          "h": 362.140625
+        }
+      ],
+      "loaded": [
+        1200,
+        1200
+      ]
+    },
+    "after": {
+      "viewport": 1440,
+      "width": 1440,
+      "boxes": [
+        {
+          "w": 192,
+          "h": 144
+        },
+        {
+          "w": 688,
+          "h": 362.140625
+        }
+      ],
+      "fallbacks": 1
+    }
+  },
+  {
+    "width": 1440,
+    "theme": "dark",
+    "textScale": 2,
+    "before": {
+      "viewport": 1440,
+      "width": 1440,
+      "categoryBottom": 264.15625,
+      "imageTop": 230.15625,
+      "boxes": [
+        {
+          "w": 192,
+          "h": 144
+        },
+        {
+          "w": 688,
+          "h": 362.140625
+        }
+      ],
+      "loaded": [
+        1200,
+        1200
+      ]
+    },
+    "after": {
+      "viewport": 1440,
+      "width": 1440,
+      "boxes": [
+        {
+          "w": 192,
+          "h": 144
+        },
+        {
+          "w": 688,
+          "h": 362.140625
+        }
+      ],
+      "fallbacks": 1
+    }
+  },
+  {
+    "width": 320,
+    "theme": "light",
+    "textScale": 1,
+    "before": {
+      "viewport": 320,
+      "width": 320,
+      "categoryBottom": 237.953125,
+      "imageTop": 241.953125,
+      "boxes": [
+        {
+          "w": 224,
+          "h": 168
+        },
+        {
+          "w": 256,
+          "h": 135.34375
+        }
+      ],
+      "loaded": [
+        1200,
+        1200
+      ]
+    },
+    "after": {
+      "viewport": 320,
+      "width": 320,
+      "boxes": [
+        {
+          "w": 224,
+          "h": 168
+        },
+        {
+          "w": 256,
+          "h": 135.34375
+        }
+      ],
+      "fallbacks": 1
+    }
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "textScale": 2,
+    "before": {
+      "viewport": 320,
+      "width": 320,
+      "categoryBottom": 447.8125,
+      "imageTop": 451.8125,
+      "boxes": [
+        {
+          "w": 224,
+          "h": 168
+        },
+        {
+          "w": 256,
+          "h": 135.34375
+        }
+      ],
+      "loaded": [
+        1200,
+        1200
+      ]
+    },
+    "after": {
+      "viewport": 320,
+      "width": 320,
+      "boxes": [
+        {
+          "w": 224,
+          "h": 168
+        },
+        {
+          "w": 256,
+          "h": 135.34375
+        }
+      ],
+      "fallbacks": 1
+    }
+  }
+]

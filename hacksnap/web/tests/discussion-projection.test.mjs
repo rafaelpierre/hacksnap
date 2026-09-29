@@ -4,9 +4,11 @@ import { test } from "@jest/globals";
 import { PGlite } from "@electric-sql/pglite";
 import {
   feedFields,
+  feedFieldsWithoutImages,
   storyFields,
-  legacyFeedFields,
-  legacyStoryFields,
+  storyFieldsWithoutImages,
+  legacyFeedFieldsWithoutImages,
+  legacyStoryFieldsWithoutImages,
   discussionColumnsSQL,
 } from "../lib/story-projection.ts";
 
@@ -44,7 +46,9 @@ test("reader projections preserve shared fixtures and legacy rows while excludin
       CREATE ROLE hacksnap_reader;
       CREATE TABLE hacker_news_threads (
         hn_id bigint PRIMARY KEY, title text, url text, points int,
-        comment_count int, date_added timestamptz, category text, raw_comments jsonb
+        comment_count int, date_added timestamptz, category text, raw_comments jsonb,
+        image_url text, image_source_type text, image_status text,
+        image_width integer, image_height integer, image_mime_type text
       );
       CREATE TABLE hacksnap_summaries (
         story_id bigint PRIMARY KEY, article_summary text, article_key_points jsonb,
@@ -55,7 +59,8 @@ test("reader projections preserve shared fixtures and legacy rows while excludin
         discussion_analysis_coverage jsonb GENERATED ALWAYS AS
           (discussion_analysis_metadata -> 'coverage') STORED
       );
-      GRANT SELECT (hn_id,title,url,points,comment_count,date_added,category)
+      GRANT SELECT (hn_id,title,url,points,comment_count,date_added,category,image_url,
+        image_source_type,image_status,image_width,image_height,image_mime_type)
         ON hacker_news_threads TO hacksnap_reader;
       GRANT SELECT (story_id,article_summary,article_key_points,discussion_summary,
         discussion_points,sentiment,overall_takeaway,generated_at,model,source_coverage)
@@ -179,8 +184,8 @@ test("legacy projections work before migration and while new column grants are m
       const { rows } = await db.query(discussionColumnsSQL);
       assert.equal(rows[0].available, phase === "granted");
       for (const fields of rows[0].available
-        ? [feedFields, storyFields]
-        : [legacyFeedFields, legacyStoryFields]) {
+        ? [feedFieldsWithoutImages, storyFieldsWithoutImages]
+        : [legacyFeedFieldsWithoutImages, legacyStoryFieldsWithoutImages]) {
         const { rows: stories } = await db.query(`SELECT ${fields} FROM hacker_news_threads t
           LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id ORDER BY t.hn_id`);
         assert.equal(stories[0].summary.discussion_summary, "Existing summary");

@@ -1,6 +1,6 @@
 import type { Story, Summary } from "./data";
 import type { DiscussionFields } from "./discussion-analysis";
-import { storyImageProjection } from "./story-projection";
+import { imageProjection } from "./story-projection";
 
 export type PublicStory = Pick<
   Story,
@@ -30,7 +30,7 @@ export const publicStorySQL = (
   hasDiscussion = true,
   hasImages = true,
 ) => `SELECT t.hn_id, t.title, t.category, t.url,
-  t.points, t.comment_count, t.date_added, ${storyImageProjection(hasImages)},
+  t.points, t.comment_count, t.date_added, ${imageProjection(hasImages)},
   CASE WHEN s.story_id IS NULL THEN NULL ELSE json_build_object(
     'article_summary', s.article_summary,
     'discussion_summary', s.discussion_summary,
