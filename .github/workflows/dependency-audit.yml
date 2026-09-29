@@ -1,0 +1,63 @@
+name: Dependency audit
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python / ${{ matrix.directory }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: [data, hacksnap, mcp]
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          python-version: "3.12"
+      - name: Export locked runtime and development dependencies
+        run: >-
+          uv export --locked --all-groups --all-extras --no-emit-project
+          --no-hashes --format requirements-txt
+          --output-file "$RUNNER_TEMP/audit-requirements.txt"
+      - name: Audit Python dependencies
+        # The export includes transitive dependencies; do not install project code.
+        run: >-
+          uvx --python 3.12 pip-audit --strict --no-deps --disable-pip
+          --requirement "$RUNNER_TEMP/audit-requirements.txt"
+
+  npm:
+    name: npm / ${{ matrix.directory }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: [cloudflare/scanner-tax, hacksnap/web]
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Audit locked runtime and development dependencies
+        run: npm audit --package-lock-only --include=dev --audit-level=low
