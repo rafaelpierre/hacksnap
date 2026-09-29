@@ -685,7 +685,13 @@ Modal entry points; direct pipeline/CLI execution does not initialize it.
 
 Services are `hacksnap` (summary and image jobs), `hn-ingestion`, and
 `hn-category-backfill`. HTTP spans contain request URLs, methods, status, and
-latency; request/response bodies and headers are not captured. This provides
-HTTP telemetry, not automatic LLM token accounting or prompt/completion views.
+latency, with headers and bodies disabled for general HTTP traffic. Inference
+calls additionally create LLM spans containing full prompts, completions (including
+returned reasoning), model, inference parameters and response schema, finish reasons,
+and raw token usage. Input, output, total, cached input, and reasoning token counts
+are exposed separately when reported by the endpoint. Cached input supports both
+`prompt_tokens_details.cached_tokens` and `prompt_cache_hit_tokens`; absent usage
+stays absent rather than being reported as zero. API keys and session headers are
+excluded. Logfire's standard sensitive-data scrubbing remains enabled.
 Kestrel's subprocess requests and the remote inference server's GPU are outside
 this instrumentation. System metrics describe the workflow container.

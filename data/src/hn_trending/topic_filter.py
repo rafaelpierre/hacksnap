@@ -14,6 +14,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 from hn_trending.categories import Category
+from hn_trending.telemetry import post_chat_completion
 
 
 logger = logging.getLogger(__name__)
@@ -219,7 +220,8 @@ class TitleTopicClassifier:
             pause = self._next_request_at - time.monotonic()
             if pause > 0:
                 time.sleep(pause)
-            response = self.client.post(
+            response = post_chat_completion(
+                self.client,
                 f"{self.base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 timeout=180.0,

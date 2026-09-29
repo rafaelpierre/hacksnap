@@ -12,6 +12,7 @@ import httpx
 from .models import CommentSentiment, DiscussionAnalysis, GeneratedStorySummary, StorySummary
 from .preprocess import sample_sentiment_comments
 from .prompts import DISCUSSION_REFRESH_PROMPT, SENTIMENT_PROMPT, SYSTEM_PROMPT
+from .telemetry import post_chat_completion
 
 # Includes reasoning tokens; 8,000 truncated production summary and discussion outputs.
 MAX_RESPONSE_TOKENS = 32000
@@ -120,7 +121,8 @@ class ModalSummarizer:
 
     def _request_inference(self, source: dict, prompt: str, schema, name: str):
         started = perf_counter()
-        response = self.client.post(
+        response = post_chat_completion(
+            self.client,
             f"{self.base_url}/chat/completions",
             headers={
                 "Authorization": f"Bearer {self.api_key}",
