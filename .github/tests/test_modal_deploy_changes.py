@@ -70,7 +70,8 @@ class DeploymentChangesTests(unittest.TestCase):
     def test_dependency_app_and_deployment_configuration_changes_deploy(self):
         for path in ["hacksnap/modal_app.py", "hacksnap/pyproject.toml", "hacksnap/uv.lock",
                      ".github/workflows/hacksnap.yml", ".github/scripts/deploy-modal.sh",
-                     ".github/scripts/modal-deploy-changes.py"]:
+                     ".github/scripts/modal-deploy-changes.py", ".github/scripts/migrate-schema.sh",
+                     ".github/workflows/supabase-schema.yml"]:
             with self.subTest(path=path):
                 before = self.git("rev-parse", "HEAD")
                 self.write(path)
