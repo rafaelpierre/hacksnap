@@ -1,10 +1,70 @@
 """Use the same TLS PostgreSQL connection pattern as the existing collector."""
 
+from urllib.parse import urlsplit
+from uuid import UUID, uuid4
+
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from .models import DiscussionAnalysis, DiscussionAnalysisMetadata, StorySummary
+
+IMAGE_SOURCE_TYPES = frozenset({"og", "twitter", "json_ld", "generated"})
+
+
+def _valid_http_url(value: str) -> bool:
+    try:
+        parsed = urlsplit(value)
+        return (
+            parsed.scheme in {"http", "https"} and bool(parsed.hostname)
+            and parsed.username is None and parsed.password is None
+        )
+    except ValueError:
+        return False
+
+
+def _valid_canonical_blob_url(value: str) -> bool:
+    try:
+        parsed = urlsplit(value)
+        host = parsed.hostname or ""
+        suffix = ".public.blob.vercel-storage.com"
+        store = host.removesuffix(suffix)
+        return (
+            parsed.scheme == "https" and host.endswith(suffix)
+            and bool(store) and "." not in store
+            and all(c.isascii() and (c.isalnum() or c == "-") for c in store)
+            and parsed.netloc == host and parsed.path.startswith("/articles/")
+            and len(parsed.path) > len("/articles/") and not parsed.query and not parsed.fragment
+        )
+    except ValueError:
+        return False
+
+
+def _validate_image_source(source_url: str | None, source_type: str | None) -> None:
+    if source_type is not None and source_type not in IMAGE_SOURCE_TYPES:
+        raise ValueError("Invalid image source type")
+    if source_url is not None and not _valid_http_url(source_url):
+        raise ValueError("Image source URL must be HTTP or HTTPS")
+
+
+def _validate_ready_image(
+    image_url: str, source_url: str | None, source_type: str,
+    width: int, height: int, mime_type: str,
+) -> None:
+    _validate_image_source(source_url, source_type)
+    if source_type not in IMAGE_SOURCE_TYPES:
+        raise ValueError("Ready image requires a source type")
+    if not _valid_canonical_blob_url(image_url):
+        raise ValueError("Image URL must be a canonical public Blob article URL")
+    if width <= 0 or height <= 0:
+        raise ValueError("Image dimensions must be positive")
+    if not mime_type.startswith("image/"):
+        raise ValueError("Image MIME type must begin with image/")
+
+
+def _validate_image_policy(max_attempts: int, stale_seconds: int, retry_seconds: int) -> None:
+    if max_attempts < 1 or stale_seconds < 1 or retry_seconds < 0:
+        raise ValueError("Invalid image attempt policy")
 
 
 def _discussion_record(
@@ -50,6 +110,179 @@ class Repository:
             connect_timeout=10,
             options="-c statement_timeout=15000",
         )
+
+    def claim_image_attempt(
+        self, hn_id: int, *, replace: bool = False, max_attempts: int = 3,
+        stale_after_seconds: int = 300, retry_after_seconds: int = 3600,
+    ) -> str | None:
+        """Atomically lease an image attempt; return None when the row is ineligible.
+
+        A replacement keeps a ready image public while its new candidate is processed.
+        The token prevents an expired worker from overwriting a later attempt.
+        """
+        _validate_image_policy(max_attempts, stale_after_seconds, retry_after_seconds)
+        token = uuid4()
+        params = {
+            "hn_id": hn_id, "replace": replace, "token": token,
+            "max_attempts": max_attempts,
+            "stale_after_seconds": stale_after_seconds,
+            "retry_after_seconds": retry_after_seconds,
+        }
+        with self._connect() as connection:
+            # An abandoned final attempt must release its token, including a
+            # replacement that kept a ready image visible. This locks one row.
+            connection.execute(
+                """UPDATE hacker_news_threads
+                   SET image_status = CASE WHEN image_url IS NOT NULL THEN 'ready' ELSE 'failed' END,
+                       image_attempt_token = NULL,
+                       image_error = 'attempt_expired'
+                   WHERE hn_id = %(hn_id)s AND image_status IN ('pending', 'ready')
+                     AND image_attempt_token IS NOT NULL
+                     AND image_attempt_count >= %(max_attempts)s
+                     AND image_attempted_at <= statement_timestamp()
+                         - make_interval(secs => %(stale_after_seconds)s)""",
+                params,
+            )
+            row = connection.execute(
+                """UPDATE hacker_news_threads
+                   SET image_status = CASE WHEN image_url IS NOT NULL THEN 'ready' ELSE 'pending' END,
+                       image_attempt_token = %(token)s,
+                       image_attempted_at = statement_timestamp(),
+                       image_attempt_count = COALESCE(image_attempt_count, 0) + 1,
+                       image_error = NULL
+                   WHERE hn_id = %(hn_id)s
+                     AND COALESCE(image_attempt_count, 0) < %(max_attempts)s
+                     AND (
+                         (image_status IS NULL AND image_url IS NULL)
+                         OR (image_status = 'failed' AND image_url IS NULL
+                             AND image_attempted_at <= statement_timestamp()
+                                 - make_interval(secs => %(retry_after_seconds)s))
+                         OR (image_status = 'pending' AND image_url IS NULL
+                             AND image_attempted_at <= statement_timestamp()
+                                 - make_interval(secs => %(stale_after_seconds)s))
+                         OR (%(replace)s AND image_status = 'ready' AND image_url IS NOT NULL
+                             AND (image_attempt_token IS NULL OR image_attempted_at <=
+                                 statement_timestamp() - make_interval(secs => %(stale_after_seconds)s))
+                             AND (image_error IS NULL OR image_attempted_at <=
+                                 statement_timestamp() - make_interval(secs => %(retry_after_seconds)s)))
+                     )
+                   RETURNING image_attempt_token""",
+                params,
+            ).fetchone()
+            return str(row["image_attempt_token"]) if row else None
+
+    def save_image_ready(
+        self, hn_id: int, token: str, *, image_url: str,
+        image_source_url: str | None, image_source_type: str,
+        image_width: int, image_height: int, image_mime_type: str,
+    ) -> bool:
+        """Publish all public image metadata together only for the current lease."""
+        _validate_ready_image(
+            image_url, image_source_url, image_source_type,
+            image_width, image_height, image_mime_type,
+        )
+        with self._connect() as connection:
+            result = connection.execute(
+                """UPDATE hacker_news_threads
+                   SET image_url = %(image_url)s,
+                       image_source_url = %(image_source_url)s,
+                       image_source_type = %(image_source_type)s,
+                       image_status = 'ready', image_width = %(image_width)s,
+                       image_height = %(image_height)s,
+                       image_mime_type = %(image_mime_type)s,
+                       image_attempt_token = NULL, image_attempt_count = 0,
+                       image_attempted_at = statement_timestamp(), image_error = NULL
+                   WHERE hn_id = %(hn_id)s AND image_attempt_token = %(token)s
+                     AND image_status IN ('pending', 'ready')""",
+                {
+                    "hn_id": hn_id, "token": UUID(str(token)), "image_url": image_url,
+                    "image_source_url": image_source_url, "image_source_type": image_source_type,
+                    "image_width": image_width, "image_height": image_height,
+                    "image_mime_type": image_mime_type,
+                },
+            )
+            return result.rowcount == 1
+
+    def save_image_failed(
+        self, hn_id: int, token: str, *, reason: str,
+        image_source_url: str | None = None, image_source_type: str | None = None,
+    ) -> bool:
+        """End the current lease while retaining a previously published image."""
+        if not reason.strip():
+            raise ValueError("Image failure reason must be nonblank")
+        if image_source_type is not None and image_source_type not in IMAGE_SOURCE_TYPES:
+            raise ValueError("Invalid image source type")
+        # Discovery can yield an unsafe or malformed URL. Recording the failure
+        # must still release the lease; keep only safe HTTP provenance.
+        if image_source_url is not None and not _valid_http_url(image_source_url):
+            image_source_url = None
+        with self._connect() as connection:
+            result = connection.execute(
+                """UPDATE hacker_news_threads
+                   SET image_status = CASE WHEN image_url IS NOT NULL THEN 'ready' ELSE 'failed' END,
+                       image_source_url = CASE WHEN image_url IS NOT NULL
+                           THEN image_source_url ELSE %(image_source_url)s END,
+                       image_source_type = CASE WHEN image_url IS NOT NULL
+                           THEN image_source_type ELSE %(image_source_type)s END,
+                       image_attempt_token = NULL,
+                       image_attempted_at = statement_timestamp(),
+                       image_error = %(reason)s
+                   WHERE hn_id = %(hn_id)s AND image_attempt_token = %(token)s
+                     AND image_status IN ('pending', 'ready')""",
+                {
+                    "hn_id": hn_id, "token": UUID(str(token)), "reason": reason,
+                    "image_source_url": image_source_url, "image_source_type": image_source_type,
+                },
+            )
+            return result.rowcount == 1
+
+    def list_image_candidates(
+        self, limit: int = 100, *, max_attempts: int = 3,
+        stale_after_seconds: int = 300, retry_after_seconds: int = 3600,
+    ) -> list[dict]:
+        """List image-less articles eligible for a first or retried attempt."""
+        _validate_image_policy(max_attempts, stale_after_seconds, retry_after_seconds)
+        if not 1 <= limit <= 1000:
+            raise ValueError("Image candidate limit must be between 1 and 1000")
+        params = {
+            "limit": limit, "max_attempts": max_attempts,
+            "stale_after_seconds": stale_after_seconds,
+            "retry_after_seconds": retry_after_seconds,
+        }
+        with self._connect() as connection:
+            connection.execute(
+                """WITH expired AS (
+                       SELECT hn_id FROM hacker_news_threads
+                       WHERE image_status IN ('pending', 'ready')
+                         AND image_attempt_token IS NOT NULL
+                         AND image_attempt_count >= %(max_attempts)s
+                         AND image_attempted_at <= statement_timestamp()
+                             - make_interval(secs => %(stale_after_seconds)s)
+                       ORDER BY image_attempted_at, hn_id
+                       LIMIT %(limit)s FOR UPDATE SKIP LOCKED
+                   )
+                   UPDATE hacker_news_threads AS threads
+                   SET image_status = CASE WHEN threads.image_url IS NOT NULL
+                       THEN 'ready' ELSE 'failed' END,
+                       image_attempt_token = NULL,
+                       image_error = 'attempt_expired'
+                   FROM expired WHERE threads.hn_id = expired.hn_id""",
+                params,
+            )
+            return connection.execute(
+                """SELECT hn_id, url FROM hacker_news_threads
+                   WHERE image_url IS NULL AND url ~* '^https?://'
+                     AND COALESCE(image_attempt_count, 0) < %(max_attempts)s
+                     AND (
+                         image_status IS NULL
+                         OR (image_status = 'failed' AND image_attempted_at <=
+                             statement_timestamp() - make_interval(secs => %(retry_after_seconds)s))
+                         OR (image_status = 'pending' AND image_attempted_at <=
+                             statement_timestamp() - make_interval(secs => %(stale_after_seconds)s))
+                     )
+                   ORDER BY date_added DESC, hn_id DESC LIMIT %(limit)s""",
+                params,
+            ).fetchall()
 
     def get_current_top_stories(self, limit: int = 10) -> list[dict]:
         if not 1 <= limit <= 10:

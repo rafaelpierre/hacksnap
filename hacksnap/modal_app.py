@@ -35,3 +35,27 @@ def refresh_hacksnap():
     from pipeline.refresh import run
 
     return run()
+
+
+@app.function(
+    image=hacksnap_image,
+    schedule=modal.Cron("15 * * * *"),
+    secrets=[modal.Secret.from_name("hacksnap")],
+    timeout=900,
+    max_containers=1,
+)
+def refresh_article_images():
+    """Drain the durable image queue independently of summary generation."""
+    import logging
+    import os
+
+    # Existing installations continue serving text until the public Blob store
+    # is provisioned. Never require Blob credentials in the summarizer function.
+    if not os.environ.get("BLOB_READ_WRITE_TOKEN", "").strip():
+        logging.getLogger("hacksnap.images").info(
+            '{"event":"article_images_disabled","reason":"missing_blob_token"}'
+        )
+        return {"status": "disabled"}
+    from pipeline.images.backfill import run
+
+    return run()

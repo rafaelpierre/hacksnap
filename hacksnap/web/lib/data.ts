@@ -32,6 +32,8 @@ import {
   legacyFeedFields,
   legacyStoryFields,
   discussionColumnsSQL,
+  imageColumnsSQL,
+  storyImageProjection,
 } from "./story-projection";
 export type {
   DiscussionAnalysis,
@@ -68,6 +70,11 @@ export type Story = {
   rank?: string;
   is_recent?: boolean;
   date_added: Date;
+  image_url?: string | null;
+  image_status?: string | null;
+  image_width?: number | null;
+  image_height?: number | null;
+  image_mime_type?: string | null;
   summary: Summary | null;
   rank_history?: RankObservation[];
   observed_at?: string;
@@ -163,6 +170,11 @@ async function storySlugField(client: PoolClient): Promise<string> {
   return storySlugProjection(rows[0]?.available === true);
 }
 
+async function storyImageFields(client: PoolClient): Promise<string> {
+  const { rows } = await client.query<{ available: boolean }>(imageColumnsSQL);
+  return storyImageProjection(rows[0]?.available === true);
+}
+
 // Check on each cache miss so applying the migration needs no process restart.
 function readStories<T>(
   kind: "feed" | "story",
@@ -178,7 +190,10 @@ function readStories<T>(
         : available
           ? storyFields
           : legacyStoryFields;
-    return query(client, `${fields}, ${await storySlugField(client)}`);
+    return query(
+      client,
+      `${fields}, ${await storyImageFields(client)}, ${await storySlugField(client)}`,
+    );
   });
 }
 
@@ -220,7 +235,7 @@ const cachedLeaderboard = unstable_cache(
     });
   },
   [
-    "hacksnap-leaderboard-v14-stored-slugs",
+    "hacksnap-leaderboard-v15-public-images",
     process.env.HACKSNAP_DISCUSSION_RENDERING === "false" ? "disabled" : "enabled",
   ],
   { revalidate: 1800 },
@@ -289,7 +304,10 @@ export function getFeedStories(): Promise<Story[]> {
 const cachedPublicStory = boundedCache(
   async (id: string): Promise<PublicStory | null> =>
     read(async (client) => {
-      const sql = publicStorySQL(await hasDiscussionColumns(client));
+      const sql = publicStorySQL(
+        await hasDiscussionColumns(client),
+        (await client.query<{ available: boolean }>(imageColumnsSQL)).rows[0]?.available === true,
+      );
       return (await client.query<PublicStory>(sql, [id])).rows[0] ?? null;
     }),
   { ttl: (story) => (story ? 300_000 : 60_000), maxEntries: 512, maxPending: 8 },

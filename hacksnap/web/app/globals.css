@@ -1663,6 +1663,22 @@ footer > span {
   min-width: 0;
   width: 100%;
 }
+.feed-story-image {
+  flex: 0 0 clamp(7.5rem, 18vw, 12rem);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--surface);
+}
+.feed-story-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.feed-story-image + .story-content {
+  padding-left: var(--space-5);
+}
 .feed-story .story-domain {
   margin-bottom: 7px;
 }
@@ -1938,6 +1954,9 @@ footer > span {
   .story-row.feed-story {
     padding: var(--space-5) var(--space-4);
   }
+  .story-row.feed-story:has(.feed-story-image) {
+    flex-direction: column;
+  }
 
   /* Keep the compact metrics and Share aligned at phone widths. */
   .feed-story-footer {
@@ -1953,6 +1972,14 @@ footer > span {
   }
   .feed-story-lead h3 {
     font-size: 23px;
+  }
+  .feed-story-image {
+    flex: none;
+    width: 100%;
+    max-height: 18rem;
+  }
+  .feed-story-image + .story-content {
+    padding-left: 0;
   }
 }
 
@@ -2013,6 +2040,19 @@ footer > span {
 .story-header .standfirst {
   font-size: 20px;
   margin: 0;
+}
+.story-article-image {
+  margin-top: var(--space-6);
+}
+.story-article-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 36rem;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
 }
 .discussion-heading {
   display: flex;

@@ -6,6 +6,8 @@ import { briefExcerpt } from "../lib/brief";
 import { SkepticismPill } from "./skepticism-pill";
 import { ShareLinks } from "./share-links";
 import { BrowseStoryLink } from "./story-navigation";
+import { ArticleImage } from "./article-image";
+import { canonicalArticleImage } from "../lib/article-image";
 
 export function StoryRow({
   story,
@@ -31,11 +33,13 @@ export function StoryRow({
   const hasDebate =
     preview?.status === "available" &&
     (preview.selected_evidence.critical > 0 || preview.selected_evidence.supportive > 0);
+  const image = canonicalArticleImage(story);
 
   return (
     <article
       className={`story-row feed-story ${hasRank ? "feed-story-ranked" : "feed-story-unranked"}${rank === 1 ? " feed-story-lead" : ""}`}
     >
+      <ArticleImage image={image} alt="" className="feed-story-image" loading="lazy" />
       <div className="story-content">
         <div className="story-domain story-context">
           {hasRank && (

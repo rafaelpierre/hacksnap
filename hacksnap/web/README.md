@@ -304,6 +304,23 @@ or credentials. The test process uses America/Los_Angeles to verify hydration
 across a UTC date boundary. Jest uses ESM and SWC for TypeScript/TSX; jsdom 26
 keeps its CommonJS dependencies compatible with Jest on Node 22.
 
+## Canonical article images
+
+Migration `0015_article_images` adds nullable image fields to
+`hacker_news_threads`. The web reader checks that all five fields and their
+column grants are available on each uncached story read. Before the migration,
+or while its reader grant is unavailable, pages and public API responses use
+null image fields and keep their ordinary text layout.
+
+The interface only renders records with `image_status = 'ready'` and an HTTPS
+URL on a `*.public.blob.vercel-storage.com` host. It never reads or exposes the
+publisher source-image URL. Missing, pending, failed, malformed, and browser
+load-error images remove their image wrapper while preserving the card or story
+content. Until source descriptions are stored, the supplementary images use an
+empty alt attribute so the headline remains the accessible label. Detail images
+retain their supplied intrinsic dimensions; feed cards crop within a reserved
+responsive frame. Social Open Graph images retain the existing generated template.
+
 ## Discussion-analysis projections
 
 Deploy additive migration `0012_discussion_analysis` to enable discussion analysis.

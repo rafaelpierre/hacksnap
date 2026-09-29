@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { expect, jest, test } from "@jest/globals";
 import { storySlugColumnSQL } from "../lib/story-slug-projection.ts";
-import { discussionColumnsSQL } from "../lib/story-projection.ts";
+import { discussionColumnsSQL, imageColumnsSQL } from "../lib/story-projection.ts";
 import { publicStorySQL } from "../lib/public-story.ts";
 
 let reads = 0;
 let schemaChecks = 0;
 let discussionAvailable = true;
+let imagesAvailable = true;
 const statements = [];
 let fail = false;
 let hold;
@@ -31,6 +32,7 @@ jest.unstable_mockModule("pg", () => ({
             schemaChecks++;
             return { rows: [{ available: discussionAvailable }] };
           }
+          if (sql === imageColumnsSQL) return { rows: [{ available: imagesAvailable }] };
           if (!sql.startsWith("SELECT")) return { rows: [] };
           reads++;
           statements.push(sql);
@@ -170,6 +172,7 @@ test("minimal detail preserves discussion exports and the missing-schema fallbac
     }
   } finally {
     discussionAvailable = true;
+    imagesAvailable = true;
     warning.mockRestore();
     if (previous === undefined) delete process.env.HACKSNAP_WEB_DATABASE_URL;
     else process.env.HACKSNAP_WEB_DATABASE_URL = previous;
