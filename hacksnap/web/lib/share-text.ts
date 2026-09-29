@@ -1,5 +1,3 @@
-import twitter from "twitter-text";
-
 import { canonicalStoryUrl } from "./story-url";
 export { canonicalStoryUrl } from "./story-url";
 
@@ -14,12 +12,6 @@ export function suggestedPost(
   return summary
     ? `${title.trim()}\n\n${summary}\n\n${url}`
     : `${title.trim()}\n\nSummary pending. Read the story and Hacker News discussion: ${url}`;
-}
-
-/** X counts URLs as 23 characters and weights some Unicode characters differently. */
-export function xPostStatus(post: string) {
-  const parsed = twitter.parseTweet(post);
-  return { length: parsed.weightedLength, limit: 280, valid: parsed.valid };
 }
 
 /** Destinations are navigation only. None of these URLs publishes a post. */

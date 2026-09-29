@@ -5,8 +5,8 @@ import {
   copyText,
   shareDestinations,
   suggestedPost,
-  xPostStatus,
 } from "../lib/share-text.ts";
+import { xPostStatus } from "../lib/x-post-status.ts";
 
 test("copy link uses the canonical address and reports success only after writeText resolves", async () => {
   const url = canonicalStoryUrl("123", "headline-123");
