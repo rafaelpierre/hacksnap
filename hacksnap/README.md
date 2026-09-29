@@ -420,9 +420,10 @@ are checked against the previously read fingerprint. Legacy cleanup and seven-da
 expiry are unchanged. Collector ingestion uses the same acknowledgement to avoid
 discarding inputs before refresh.
 
-Apply the migration, then deploy the collector and enrichment worker through their
-existing manual workflows. The migration performs no cleanup or backfill. An older
-initial-generation worker remains usable after the migration; its new-format rows
+Apply the migration before deploying the collector and enrichment worker. The
+collector uses its manual workflow; the enrichment worker deploys on relevant main
+pushes or through a manual Hacksnap run. The migration performs no cleanup or
+backfill. An older initial-generation worker remains usable after the migration; its new-format rows
 without acknowledgements retain source until refreshed or expired. Roll back both
 collector and refresh worker before downgrading the cleanup function.
 
@@ -455,16 +456,43 @@ uv run modal run tests/modal_smoke.py
 
 ## GitHub Actions
 
-`hacksnap.yml` runs worker and ingestion unit tests, frontend Jest tests,
-Oxlint, Oxfmt, TypeScript checks, and the production frontend build. Pull requests and pushes to `main` run validation only.
-Production jobs in both `hacksnap.yml` and `supabase-schema.yml` run only through
-GitHub Actions **Run workflow** (`workflow_dispatch`). Merging does not deploy the
-Modal worker or apply database migrations.
+`hacksnap.yml` validates worker changes on pull requests. A push to `main`, including
+one produced by merging a PR, automatically validates and deploys the Modal worker
+when it changes any of these paths:
 
-For a production rollout, manually run **Supabase schema** against `main` first
-and wait for it to succeed. Then manually run **Hacksnap** against `main`; after
-tests pass, it verifies the schema version and deploys the Modal function using
-the existing `hacksnap` Secret in Modal.
+- `hacksnap/pipeline/**`
+- `hacksnap/modal_app.py`
+- `hacksnap/pyproject.toml`
+- `hacksnap/uv.lock`
+- `.github/workflows/hacksnap.yml`
+- `.github/scripts/deploy-modal.sh`
+
+Frontend-only, documentation-only, fixture-only and test-only changes do not trigger
+an automatic worker deployment. **Run workflow** (`workflow_dispatch`) remains
+available for manual deployment.
+
+Automatic and manual deployments both require worker and ingestion tests, frontend
+Jest tests, Oxlint, Oxfmt, TypeScript checks and the production frontend build. After
+those pass, deployment verifies the database schema version and runs `modal deploy`
+using the existing `hacksnap` Secret in Modal. The `hacksnap-production` environment
+and deployment concurrency controls apply to both paths, including any configured
+environment approval rules. Pull requests do not deploy.
+
+While holding the deployment concurrency slot, the worker queries GitHub for the
+current `main` SHA immediately before calling Modal. It deploys only if that SHA
+matches the revision validated by this run. Older runs skip deployment with a notice
+and job summary; failed or invalid revision lookups fail the job without deploying.
+This applies to automatic and manual runs, preventing an older validation run from
+rolling back a newer deployment. The job never switches to untested code.
+
+If `main` advances with a change outside the deployment paths while validation is
+running, the earlier run will also skip. Start a new **Hacksnap** manual run on current
+`main` when needed; rerunning the old run retains its old SHA and will skip again.
+
+Database migrations remain manual. For changes that need a migration, run
+**Supabase schema** against `main` before the worker deployment reaches its schema
+check. If automatic deployment stops because the schema is behind, apply the
+migration and rerun **Hacksnap** against `main`. This workflow never applies migrations.
 
 Configure these GitHub secrets in `hacksnap-production` (repository secrets are
 also inherited unless overridden):
@@ -479,8 +507,8 @@ variables or credentials and does not create or overwrite this secret.
 
 The `supabase-production` environment supplies the migration credentials.
 No database writes are performed by the web build or deployment preflight.
-The hourly daytime Modal enrichment and hourly HN ingestion schedules are unchanged by these manual
-deployment gates. No frontend deployment is configured in these workflows.
+The hourly daytime Modal enrichment and hourly HN ingestion schedules are unchanged
+by these deployment triggers. No frontend deployment is configured in these workflows.
 
 No production schema migration, persistent proxy token creation, scheduled
 deployment or public web deployment is performed by local tests.
