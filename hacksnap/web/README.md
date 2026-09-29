@@ -357,6 +357,14 @@ outside data reads still reach the normal error boundary.
 New-format story pages expose `#discussion-analysis` for feed links. They use the
 public analysis contract to show expandable, cited themes and two groups of
 paraphrased comments with explicit stance, caveats and original target claims.
+Each theme places its info icon beside the title and reserves the far-right chevron
+for expansion. The info icon opens a small source-comment popup, independently
+of the theme description. Critical and supportive highlights show the addressed
+claim in italics above their stance label and commentary. Each highlight has the
+same info popup for its original comment link. A close icon, Escape, or clicking
+outside dismisses the popup.
+Native popovers work without JavaScript; CSS anchor positioning places them beside
+the info icon, with a centered fallback in browsers without anchor support.
 Groups stack when space is limited; native disclosures and ordinary source links
 work with keyboard navigation and without JavaScript. Coverage and UTC analysis
 time come from discussion fields, independently of the article summary.

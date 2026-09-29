@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronDown, ListTree, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Info, ListTree, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import type {
   CriticalCommentHighlight,
   SupportiveCommentHighlight,
@@ -25,6 +25,57 @@ function SourceComment({ id, context }: { id: number; context: string }) {
   );
 }
 
+function SourceComments({
+  id,
+  context,
+  commentIds,
+}: {
+  id: string;
+  context: string;
+  commentIds: number[];
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className="analysis-source-info"
+        popoverTarget={id}
+        aria-label={`Source comments for ${context}`}
+      >
+        <Info size={16} strokeWidth={1.5} aria-hidden="true" />
+      </button>
+      <div
+        id={id}
+        className="analysis-source-popup"
+        popover="auto"
+        role="dialog"
+        aria-labelledby={`${id}-title`}
+      >
+        <div className="analysis-source-header">
+          <p id={`${id}-title`}>Source comments</p>
+          <button
+            type="button"
+            className="analysis-source-close"
+            popoverTarget={id}
+            popoverTargetAction="hide"
+            aria-label="Close source comments"
+            autoFocus
+          >
+            <X size={16} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        </div>
+        <ul className="analysis-sources" aria-label={`Source comments for ${context}`}>
+          {commentIds.map((commentId) => (
+            <li key={commentId}>
+              <SourceComment id={commentId} context={context} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </>
+  );
+}
+
 function HighlightGroup({
   kind,
   highlights,
@@ -48,18 +99,24 @@ function HighlightGroup({
             const claim = claims.find((item) => item.id === highlight.claim_id);
             return (
               <li key={highlight.comment_id}>
+                <div className="analysis-highlight-header">
+                  {claim && (
+                    <p className="analysis-claim">
+                      <span className="sr-only">
+                        Claim addressed ({claim.source === "article" ? "article" : "HN post"}):{" "}
+                      </span>
+                      <em>{claim.text}</em>
+                    </p>
+                  )}
+                  <SourceComments
+                    id={`highlight-source-${kind}-${highlight.comment_id}`}
+                    context={highlight.paraphrase}
+                    commentIds={[highlight.comment_id]}
+                  />
+                </div>
                 <p className="analysis-stance">{stanceLabels[highlight.stance]}</p>
                 <p className="analysis-paraphrase">{highlight.paraphrase}</p>
                 <p>{highlight.explanation}</p>
-                {claim && (
-                  <p className="analysis-claim">
-                    <strong>
-                      Claim addressed ({claim.source === "article" ? "article" : "HN post"}):
-                    </strong>{" "}
-                    {claim.text}
-                  </p>
-                )}
-                <SourceComment id={highlight.comment_id} context={highlight.paraphrase} />
               </li>
             );
           })}
@@ -137,26 +194,23 @@ export function DiscussionAnalysis({
                 <ListTree className="discussion-title-icon" aria-hidden="true" />
                 <span>Discussion themes</span>
               </h3>
-              {analysis.topics.map((topic) => (
-                <details className="analysis-theme" key={topic.key}>
-                  <summary>
-                    <span>{topic.title}</span>
-                    <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
-                  </summary>
-                  <div className="analysis-theme-body">
-                    <p>{topic.summary}</p>
-                    <ul
-                      className="analysis-sources"
-                      aria-label={`Source comments for ${topic.title}`}
-                    >
-                      {topic.comment_ids.map((id) => (
-                        <li key={id}>
-                          <SourceComment id={id} context={topic.title} />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </details>
+              {analysis.topics.map((topic, topicIndex) => (
+                <div className="analysis-theme" key={`${topic.key}-${topicIndex}`}>
+                  <details className="analysis-theme-details">
+                    <summary>
+                      <span>{topic.title}</span>
+                      <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
+                    </summary>
+                    <div className="analysis-theme-body">
+                      <p>{topic.summary}</p>
+                    </div>
+                  </details>
+                  <SourceComments
+                    id={`theme-sources-${topic.key}-${topicIndex}`}
+                    context={topic.title}
+                    commentIds={topic.comment_ids}
+                  />
+                </div>
               ))}
             </section>
           )}
