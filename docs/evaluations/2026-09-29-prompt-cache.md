@@ -46,7 +46,9 @@ completion tokens. The final full-budget test used the unmodified system prompt.
 
 Track warm-up completion separately for each system prompt, schema class, and
 schema name. Serialize cold warm-ups and reuse their real results. Requests for
-already-warmed combinations retain concurrency. Keep the 15-story concurrency
+already-warmed combinations retain concurrency. Only each combination's first
+request acquires the global warm-up lock; its followers wait on a per-combination
+event, so another cold warm-up cannot delay their release. Keep the 15-story concurrency
 limit, 50-story run cap, session affinity, and failure-release behavior.
 
 Synchronization-based regression tests cover a completed discussion/sentiment

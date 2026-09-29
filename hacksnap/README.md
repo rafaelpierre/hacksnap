@@ -216,8 +216,9 @@ summaries. Fetching and preprocessing can overlap immediately. The first
 actual model request for each prompt/schema combination completes before other
 requests using that combination begin. Summary, discussion-refresh and sentiment
 prompts have separate warm-ups: completing a discussion refresh does not warm the
-summary prefix. Cold warm-ups run one at a time; requests for a warmed prompt can
-run concurrently. Each warm-up result is used normally, with no extra inference
+summary prefix. Cold warm-ups run one at a time. Same-prompt waiters are released
+by their own completion event, so they can run concurrently even while another
+prompt is warming. Each warm-up result is used normally, with no extra inference
 request. Cached stories and failed fetches do not consume a warm-up, and a failed
 warm-up releases the remaining requests for its prompt.
 All requests retain the same run-scoped `Modal-Session-Id`; cache reuse is best
