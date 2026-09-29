@@ -6,12 +6,12 @@ import json
 from datetime import date
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from .database import MAX_RETURNED_COMMENTS, get_thread, list_snapshots, search_threads
 
 
-mcp = FastMCP(
+mcp = MCPServer(
     "Hacker News Threads",
     instructions=(
         "Use these read-only tools to find persisted Hacker News discussions and "

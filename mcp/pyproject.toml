@@ -5,7 +5,7 @@ description = "Read-only MCP server for persisted Hacker News threads."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "mcp>=1.26,<3",
+    "mcp>=2.2,<3",
     "psycopg[binary]>=3.2,<4",
 ]
 
