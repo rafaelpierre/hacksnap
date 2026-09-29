@@ -34,5 +34,5 @@ def ingest():
     main(args=[
         "--limit", "20", "--min-points", "20", "--min-comments", "20",
         "--max-comment-depth", "5", "--min-comment-descendants", "3",
-        "--classify-topic",
+        "--classify-topic", "--story-concurrency", "4",
     ], standalone_mode=False)

@@ -31,6 +31,14 @@ At least one `--title-word` value must occur in a title, without regard to case.
 Stories are selected from the first `--limit` (default: 100) IDs returned by the official
 top-stories endpoint. Direct comments are depth 1; use depth 0 to persist only
 the story payload. The default maximum comment depth is 5.
+Stories are processed concurrently with `--story-concurrency` (default: `4`, range:
+`1`–`16`). Set it to `1` for sequential ingestion. Each story still traverses its
+comments sequentially, keeping the number of simultaneous HN requests bounded by
+this setting. Original HN ranks and comment ordering are preserved, and matched
+stories are written in rank order after the scan succeeds. If a worker fails,
+ingestion stops scheduling new stories, waits for in-flight stories, and records
+a failed run without writing the collected threads or snapshots. Examined and
+matched counts include the in-flight work that finishes before failure reporting.
 `hn_thread_contents.full_raw_text_contents` stores a JSON document containing the raw official API
 payload for the story plus every retrieved comment and its depth.
 Use `--min-comment-descendants` to retain only comments with at least that many
@@ -53,7 +61,10 @@ The endpoint receives a strict Pydantic-derived JSON schema with `relevant: bool
 and a primary `category` (null for irrelevant titles). A valid decision can
 still misclassify a story because the classifier sees only its title.
 Classification requests allow up to 8,192 completion tokens, including reasoning,
-and have a minimum five-second pause after the previous response.
+and have a minimum five-second pause after the previous response. All story workers
+share one classifier: its requests and retries remain serialized so this pause and
+rate-limit cooldowns apply across the entire run. Classification can overlap with
+other stories' HN requests and comment fetching.
 HTTP 429 responses retry up to four times with 15/30/60/120-second backoff,
 honoring longer `Retry-After` values (seconds or HTTP dates). A server cooldown
 above 120 seconds fails the run instead of retrying too early. Each retry is logged.
@@ -125,7 +136,8 @@ connection URL to repository files or workflow logs.
 [modal_app.py](modal_app.py) deploys the `hn-ingestion` app. Its `ingest` function
 runs hourly at :17 from 08:17 through 23:17 UTC. It preserves the previous filters:
 20 top stories, at least 20 points and 20 comments, comment depth 5, and at least
-3 descendants per retained comment (plus ancestors).
+3 descendants per retained comment (plus ancestors). It processes up to four stories
+concurrently within the single scheduled invocation.
 
 It reuses `SUPABASE_PASSWORD` and `MODAL_LLM_API_KEY` from the existing `hacksnap`
 Modal Secret. The scheduled function explicitly selects the GLM NVFP4 endpoint and

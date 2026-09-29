@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from threading import Lock
 from typing import Any
 from urllib.parse import quote
 
@@ -83,6 +85,13 @@ def resolve_database_url() -> str:
     show_default=True,
     help="Number of top-story IDs to consider from the HN API.",
 )
+@click.option(
+    "--story-concurrency",
+    type=click.IntRange(min=1, max=16),
+    default=4,
+    show_default=True,
+    help="Maximum stories processed concurrently; use 1 for sequential ingestion.",
+)
 def main(
     title_words: tuple[str, ...],
     min_comments: int,
@@ -91,6 +100,7 @@ def main(
     min_comment_descendants: int,
     classify_topic: bool,
     limit: int,
+    story_concurrency: int,
 ) -> None:
     """Fetch filtered top HN stories and save their raw thread contents to Supabase."""
     classifier: TitleTopicClassifier | None = None
@@ -114,6 +124,7 @@ def main(
         "classify_topic": classify_topic,
         "category_version": CATEGORY_VERSION if classify_topic else None,
         "limit": limit,
+        "story_concurrency": story_concurrency,
     }
     run_id = start_ingestion_run(database_url, run_filters)
     click.echo(f"Created ingestion run {run_id}.")
@@ -124,6 +135,9 @@ def main(
     skipped = 0
     examined = 0
     snapshots_inserted = 0
+    counter_lock = Lock()
+    classification_lock = Lock()
+    classification_failed = False
     timeout = httpx.Timeout(20.0)
     try:
         with httpx.Client(timeout=timeout) as http_client:
@@ -133,38 +147,53 @@ def main(
                 f"limit={limit}, min_points={min_points}, min_comments={min_comments}, "
                 f"max_comment_depth={max_comment_depth}, "
                 f"min_comment_descendants={min_comment_descendants}, "
-                f"classify_topic={classify_topic}."
+                f"classify_topic={classify_topic}, story_concurrency={story_concurrency}."
             )
             story_ids = hn.top_story_ids()[:limit]
             saved_categories = get_category_assignments(database_url, story_ids) if classifier else {}
             click.echo(f"Received {len(story_ids)} top-story ID(s); fetching story metadata.")
 
-            for position, story_id in enumerate(story_ids, start=1):
+            def collect_story(position: int, story_id: int) -> dict[str, Any] | None:
+                nonlocal examined, detected, filtered, skipped, classification_failed
                 prefix = f"[{position}/{len(story_ids)}]"
                 click.echo(f"{prefix} Fetching story {story_id}.")
-                examined += 1
+                with counter_lock:
+                    examined += 1
                 story = hn.item(story_id)
                 if story is None or story.get("type") != "story" or story.get("dead"):
-                    skipped += 1
+                    with counter_lock:
+                        skipped += 1
                     click.echo(f"{prefix} Skipped: unavailable, non-story, or dead item.")
-                    continue
+                    return None
 
-                detected += 1
+                with counter_lock:
+                    detected += 1
                 title = story.get("title", "")
                 score = story.get("score", 0)
                 descendants = story.get("descendants", 0)
                 classification = None
                 if classifier is not None:
                     classification = reusable_category(saved_categories.get(story_id), title, classifier.model)
-                    decision = None if classification else classifier.classify(title)
+                    decision = None
+                    if classification is None:
+                        # Do not admit waiting callers after a terminal model error.
+                        with classification_lock:
+                            if classification_failed:
+                                return None
+                            try:
+                                decision = classifier.classify(title)
+                            except Exception:
+                                classification_failed = True
+                                raise
                     click.echo(
                         f"{prefix} Topic classification: "
                         f"{classification['category'] + ' (cached)' if classification else decision.model_dump()}."
                     )
                     if decision is not None and not decision.relevant:
-                        filtered += 1
+                        with counter_lock:
+                            filtered += 1
                         click.echo(f"{prefix} Filtered {title!r}: not relevant to the AI news feed.")
-                        continue
+                        return None
                     if decision is not None:
                         classification = category_metadata(title, decision.category, classifier.model)
 
@@ -176,9 +205,10 @@ def main(
                 if score < min_points:
                     filter_failures.append(f"points={score} < {min_points}")
                 if filter_failures:
-                    filtered += 1
+                    with counter_lock:
+                        filtered += 1
                     click.echo(f"{prefix} Filtered {title!r}: {', '.join(filter_failures)}.")
-                    continue
+                    return None
 
                 click.echo(
                     f"{prefix} Matched {title!r} "
@@ -202,15 +232,47 @@ def main(
                     f"{prefix} Collected {len(comments)} comment item(s); retained "
                     f"{len(retained_comments)} after subtree filtering."
                 )
-                rows.append(
-                    database_row(
-                        story,
-                        raw_thread_contents(story, retained_comments),
-                        top_story_rank=position,
-                        max_comment_depth=max_comment_depth,
-                        classification=classification,
-                    )
+                return database_row(
+                    story,
+                    raw_thread_contents(story, retained_comments),
+                    top_story_rank=position,
+                    max_comment_depth=max_comment_depth,
+                    classification=classification,
                 )
+
+            # Keep at most story_concurrency tasks in flight. Drain failures without
+            # scheduling more; the HTTP client stays open until all workers finish.
+            stories = iter(enumerate(story_ids, start=1))
+            failure: Exception | None = None
+            with ThreadPoolExecutor(max_workers=story_concurrency) as executor:
+                pending = set()
+
+                def submit_next() -> None:
+                    entry = next(stories, None)
+                    if entry is not None:
+                        pending.add(executor.submit(collect_story, *entry))
+
+                for _ in range(story_concurrency):
+                    submit_next()
+                while pending:
+                    completed, pending = wait(pending, return_when=FIRST_COMPLETED)
+                    for future in completed:
+                        try:
+                            row = future.result()
+                        except Exception as error:
+                            if failure is None:
+                                failure = error
+                        else:
+                            if row is not None:
+                                rows.append(row)
+                    if failure is None:
+                        for _ in completed:
+                            submit_next()
+                if failure is not None:
+                    raise failure
+
+            # Completion order must never change HN ranking or persistence order.
+            rows.sort(key=lambda row: row["top_story_rank"])
 
         click.echo(
             "Scan complete: "

@@ -73,7 +73,7 @@ def test_ingestion_carries_predictions_and_reuses_unchanged_titles(monkeypatch):
     monkeypatch.setattr(cli, "store_threads_and_snapshots", save)
     result = CliRunner().invoke(cli.main, ["--classify-topic"])
     assert result.exit_code == 0, result.output
-    assert calls == ["Fresh", "Unrelated", "Changed title"]
+    assert sorted(calls) == ["Changed title", "Fresh", "Unrelated"]
     assert [row["category"] for row in stored] == ["safety_privacy", "agents_coding", "safety_privacy"]
     assert stored[1]["categorized_at"] == cached["categorized_at"]
     assert all(row["category_version"] == CATEGORY_VERSION for row in stored)
