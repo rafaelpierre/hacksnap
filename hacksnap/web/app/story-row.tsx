@@ -39,19 +39,19 @@ export function StoryRow({
     <article
       className={`story-row feed-story ${hasRank ? "feed-story-ranked" : "feed-story-unranked"}${rank === 1 ? " feed-story-lead" : ""}`}
     >
+      <div className="story-domain story-context">
+        {hasRank && (
+          <span className="rank" aria-label={`Rank ${rank}`}>
+            {String(rank).padStart(2, "0")}
+          </span>
+        )}
+        {story.category && <CategoryBadge id={story.category} />}
+        {variant === "ranked" && story.is_recent === false && (
+          <span className="archive-label">Archive</span>
+        )}
+      </div>
       <ArticleImage image={image} alt="" className="feed-story-image" loading="lazy" />
       <div className="story-content">
-        <div className="story-domain story-context">
-          {hasRank && (
-            <span className="rank" aria-label={`Rank ${rank}`}>
-              {String(rank).padStart(2, "0")}
-            </span>
-          )}
-          {story.category && <CategoryBadge id={story.category} />}
-          {variant === "ranked" && story.is_recent === false && (
-            <span className="archive-label">Archive</span>
-          )}
-        </div>
         <h3>
           <BrowseStoryLink id={story.hn_id} slug={story.story_slug}>
             {story.title}
