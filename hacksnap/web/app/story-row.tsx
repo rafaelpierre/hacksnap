@@ -49,7 +49,9 @@ export function StoryRow({
           )}
         </div>
         <h3>
-          <BrowseStoryLink id={story.hn_id}>{story.title}</BrowseStoryLink>
+          <BrowseStoryLink id={story.hn_id} title={story.title}>
+            {story.title}
+          </BrowseStoryLink>
         </h3>
         {takeaway ? (
           <p className="feed-excerpt">{briefExcerpt(takeaway)}</p>
@@ -71,7 +73,7 @@ export function StoryRow({
               </div>
             )}
             {hasDebate && (
-              <BrowseStoryLink id={story.hn_id} anchor="discussion-analysis">
+              <BrowseStoryLink id={story.hn_id} title={story.title} anchor="discussion-analysis">
                 Read the debate
               </BrowseStoryLink>
             )}

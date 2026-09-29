@@ -1,3 +1,4 @@
+import { canonicalStoryUrl } from "./story-url";
 import type { Story } from "./data";
 import type { DiscussionFields } from "./discussion-analysis";
 import { hasReadySummary } from "./ready-stories.ts";
@@ -220,7 +221,7 @@ export function leaderboardMarkdown({
   for (const story of readyStories) {
     const category = categoryById(story.category);
     lines.push(
-      `### ${story.rank ?? ""}. ${link(story.title, `https://hacksnap.live/story/${story.hn_id}`)}`,
+      `### ${story.rank ?? ""}. ${link(story.title, canonicalStoryUrl(story.hn_id, story.title))}`,
       `${story.points} points · ${link(`${story.comment_count} comments`, `https://news.ycombinator.com/item?id=${story.hn_id}`)}${!story.is_recent ? " · Archive" : ""}`,
     );
     lines.push(storyIndicators(story, observed_at).map(text).join("\n\n"));

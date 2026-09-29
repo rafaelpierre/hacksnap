@@ -1,3 +1,4 @@
+import { canonicalStoryUrl } from "./story-url";
 import type { Story } from "./data";
 import { storyIndicators } from "./story-indicators.ts";
 
@@ -26,7 +27,7 @@ export function renderRSS(stories: Story[], asOf = new Date().toISOString()): st
 <atom:link href="https://hacksnap.live/feed.xml" rel="self" type="application/rss+xml" />
 ${stories
   .map((story) => {
-    const url = `https://hacksnap.live/story/${story.hn_id}`;
+    const url = canonicalStoryUrl(story.hn_id, story.title);
     const summary = story.summary;
     const description = summary
       ? [summary.overall_takeaway, summary.article_summary, summary.discussion_summary]
@@ -36,7 +37,7 @@ ${stories
     return `<item>
 <title>${xml(story.title)}</title>
 <link>${xml(url)}</link>
-<guid isPermaLink="true">${xml(url)}</guid>
+<guid isPermaLink="true">${xml(`https://hacksnap.live/story/${story.hn_id}`)}</guid>
 <pubDate>${story.date_added.toUTCString()}</pubDate>
 <description>${xml([description, `${story.points} points · ${story.comment_count} comments`, ...storyIndicators(story, story.observed_at ?? asOf)].join("\n\n"))}</description>
 </item>`;

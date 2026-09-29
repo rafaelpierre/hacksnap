@@ -1,3 +1,4 @@
+import { canonicalStoryUrl } from "./story-url";
 import type { Metadata } from "next";
 import type { Summary } from "./data";
 
@@ -57,7 +58,7 @@ export function storyPreviewMetadata(story: {
   const reaction = reactionDescription(story.summary);
   const description = previewText(reaction, 155);
   const socialDescription = previewText(reaction, 125);
-  const url = `https://hacksnap.live/story/${story.hn_id}`;
+  const url = canonicalStoryUrl(story.hn_id, story.title);
   return {
     title: { absolute: pageTitle },
     description,

@@ -41,7 +41,7 @@ export function ShareLinks({
   const draftId = useId();
   const xHintId = useId();
   const xStatus = xPostStatus(post);
-  const url = canonicalStoryUrl(id);
+  const url = canonicalStoryUrl(id, title);
 
   useEffect(() => {
     if (open) firstAction.current?.focus();

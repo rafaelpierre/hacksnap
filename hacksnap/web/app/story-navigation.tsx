@@ -3,6 +3,7 @@
 import { ChevronLeft } from "lucide-react";
 import { track } from "../lib/analytics";
 import Link from "next/link";
+import { storyPath } from "../lib/story-url";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type MouseEvent, type ReactNode } from "react";
 import { browseLabel, validBrowseContext, type BrowseContext } from "../lib/navigation-context";
@@ -80,16 +81,18 @@ function plainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
 
 export function BrowseStoryLink({
   id,
+  title,
   anchor,
   children,
 }: {
   id: string;
+  title: string;
   anchor?: "discussion-analysis";
   children: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const href = `/story/${id}${anchor ? `#${anchor}` : ""}`;
+  const href = `${storyPath(id, title)}${anchor ? `#${anchor}` : ""}`;
   function open(event: MouseEvent<HTMLAnchorElement>) {
     if (!plainClick(event)) return;
     let journey: string | null = null;
@@ -125,10 +128,18 @@ export function BrowseStoryLink({
   );
 }
 
-export function NextStoryLink({ id, children }: { id: string; children: ReactNode }) {
+export function NextStoryLink({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: ReactNode;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const href = `/story/${id}`;
+  const href = storyPath(id, title);
   function open(event: MouseEvent<HTMLAnchorElement>) {
     if (!plainClick(event)) return;
     const token = journeyToken();

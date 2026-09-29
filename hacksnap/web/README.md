@@ -36,6 +36,22 @@ Run `npm run test:theme`, `npm run typecheck` and `npm run build`. Check the she
 feeds and story at 320px and desktop widths in both themes, including 200% text,
 keyboard focus, OS appearance changes, saved preferences and blocked storage.
 
+## Story URLs
+
+Story links use `/story/<headline>-<hn-id>`, for example
+`/story/small-models-on-your-laptop-12345678`. Headlines are normalized to lowercase
+ASCII words, capped at 80 characters, with `story` as the fallback for titles with
+no ASCII letters or digits. The trailing ID disambiguates duplicate titles and
+keeps old URLs resolvable after headline edits.
+
+Numeric URLs and outdated headline slugs permanently redirect (308) to the current
+canonical address in both HTML and Markdown. When HTML streaming has already
+started, Next.js emits its standard browser redirect instead of changing the HTTP
+status. Existing query parameters survive HTML redirects. Feed cards, related stories, sharing,
+social previews, Markdown, RSS links, and the sitemap use the same address. RSS
+GUIDs retain their original numeric URLs to avoid duplicate feed entries. The
+public `/api/stories/{id}` endpoint continues to accept numeric IDs.
+
 ## Markdown content negotiation
 
 The homepage, `/story/:id`, and `/docs/api` return Markdown when requested with

@@ -103,7 +103,10 @@ test("leaderboard preserves order, links, freshness and empty states", () => {
     stories: [story, { ...story, hn_id: "124", rank: "2" }],
     ingestion: new Date(0),
   });
-  assert.ok(body.indexOf("/story/123") < body.indexOf("/story/124"));
+  assert.ok(
+    body.indexOf("/story/example-story-script-123") <
+      body.indexOf("/story/example-story-script-124"),
+  );
   assert.match(body, /Updates are delayed/);
   assert.match(body, /Top stories \(2\)/);
   assert.match(body, /The takeaway/);
@@ -121,8 +124,8 @@ test("Markdown homepage excludes pending and blank takeaways from entries and co
     ingestion: null,
   });
   assert.match(body, /Top stories \(1\)/);
-  assert.match(body, /\/story\/123/);
-  assert.doesNotMatch(body, /\/story\/(124|125|126)|Summary pending/);
+  assert.match(body, /\/story\/example-story-script-123/);
+  assert.doesNotMatch(body, /\/story\/example-story-script-(124|125|126)|Summary pending/);
   const empty = leaderboardMarkdown({ stories: pending, ingestion: null });
   assert.match(empty, /Top stories \(0\)/);
   assert.match(empty, /No stories yet/);

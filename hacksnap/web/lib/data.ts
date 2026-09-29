@@ -232,12 +232,14 @@ export async function getLeaderboard(): Promise<{
   };
 }
 
-export async function getSitemapStories(): Promise<{ hn_id: string; modified_at: Date }[]> {
+export async function getSitemapStories(): Promise<
+  { hn_id: string; title: string; modified_at: Date }[]
+> {
   return read(async (client) => {
     // Include current and archived stories only once a summary is available,
     // matching the indexing policy in storyPreviewMetadata.
-    const result = await client.query<{ hn_id: string; modified_at: Date }>(`
-      SELECT t.hn_id, GREATEST(t.date_added, s.updated_at, (
+    const result = await client.query<{ hn_id: string; title: string; modified_at: Date }>(`
+      SELECT t.hn_id, t.title, GREATEST(t.date_added, s.updated_at, (
         SELECT observed_at FROM hn_thread_snapshots
         WHERE hn_id = t.hn_id ORDER BY observed_at DESC LIMIT 1
       ), (
