@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import { test } from "@jest/globals";
 import { renderRSS } from "../lib/rss.ts";
 
+const { JSDOM, ResourceLoader } = createRequire(import.meta.url)("jsdom");
+
 const story = {
   hn_id: "123",
+  points: 42,
+  comment_count: 7,
   title: 'AI & <tools> "today" 🚀\u0000\ud800',
   date_added: new Date("2026-09-19T12:00:00Z"),
   summary: {
@@ -18,7 +23,9 @@ test("RSS escapes external text, preserves Unicode, and excludes invalid XML cha
   assert.ok(rss.includes("AI &amp; &lt;tools&gt; &quot;today&quot; 🚀"));
   assert.ok(!rss.includes("\u0000"));
   assert.ok(!rss.includes("\ud800"));
-  assert.ok(rss.includes("A &amp; B\n\nAn &lt;article&gt;\n\nDiscuss ]]&gt; safely"));
+  assert.ok(
+    rss.includes("A &amp;amp; B\n\nAn &amp;lt;article&amp;gt;\n\nDiscuss ]]&amp;gt; safely"),
+  );
   assert.ok(rss.includes('<guid isPermaLink="true">https://hacksnap.live/story/123</guid>'));
   assert.ok(rss.includes("<pubDate>Sat, 19 Sep 2026 12:00:00 GMT</pubDate>"));
 });
@@ -45,7 +52,9 @@ test("RSS preserves the opening and readable bullet lines as escaped text", () =
       },
     },
   ]);
-  assert.ok(rss.includes("The question\n\n- First argument\n- &lt;script&gt; &amp; caveat"));
+  assert.ok(
+    rss.includes("The question\n\n- First argument\n- &amp;lt;script&amp;gt; &amp;amp; caveat"),
+  );
 });
 
 test("RSS links use the title while GUIDs survive headline edits", () => {
@@ -65,5 +74,68 @@ test("RSS links use the title while GUIDs survive headline edits", () => {
   assert.equal(
     original.match(/<guid[^>]*>.*?<\/guid>/)[0],
     edited.match(/<guid[^>]*>.*?<\/guid>/)[0],
+  );
+});
+
+function assertDescriptionRendersAsText(summary, expected) {
+  const feed = new JSDOM(renderRSS([{ ...story, summary }], "2026-09-19T12:00:00Z"), {
+    contentType: "text/xml",
+  });
+  const requests = [];
+  class BlockedResources extends ResourceLoader {
+    fetch(url) {
+      requests.push(url);
+      return null;
+    }
+  }
+  const reader = new JSDOM("<body></body>", {
+    runScripts: "dangerously",
+    resources: new BlockedResources(),
+    url: "https://reader.invalid/",
+  });
+  try {
+    const description = feed.window.document.querySelector("item description");
+    assert.ok(description);
+    reader.window.document.body.innerHTML = description.textContent;
+    const body = reader.window.document.body;
+    for (const image of body.querySelectorAll("img")) {
+      image.dispatchEvent(new reader.window.Event("error"));
+    }
+    assert.equal(reader.window.rssInjected, undefined);
+    assert.equal(body.querySelectorAll("*").length, 0, "no injected elements or event attributes");
+    assert.ok(body.textContent.includes("\n\n42 points · 7 comments\n\n"));
+    assert.equal(body.textContent.split("\n\n42 points · 7 comments\n\n")[0], expected);
+    assert.deepEqual(requests, [], "no remote resources requested");
+  } finally {
+    reader.window.close();
+    feed.window.close();
+  }
+}
+
+test.each(["overall_takeaway", "article_summary", "discussion_summary"])(
+  "RSS keeps HTML in %s inert after XML and HTML parsing",
+  (field) => {
+    const payload =
+      '<img src="https://attacker.invalid/pixel" onerror="globalThis.rssInjected=1"><iframe src="https://attacker.invalid/frame"></iframe><svg onload="globalThis.rssInjected=1"></svg>';
+    assertDescriptionRendersAsText({ [field]: payload }, payload);
+  },
+);
+
+test("RSS preserves literal punctuation, entities and Unicode through both parsers", () => {
+  const text = `<article> & "quoted" 'single' café 中文 🚀 ]]> &lt;img&gt; &#60;script&#62;\tline\nnext`;
+  assertDescriptionRendersAsText({ overall_takeaway: text }, text);
+});
+
+test("RSS removes invalid XML characters without losing surrounding summary text", () => {
+  assertDescriptionRendersAsText(
+    { overall_takeaway: "a\u0000b\u0001c\u000bd\ud800e\udc00f\ufffeg\uffff🚀" },
+    "abcdefg🚀",
+  );
+});
+
+test("RSS pending descriptions survive XML and HTML parsing", () => {
+  assertDescriptionRendersAsText(
+    null,
+    "Summary pending. Read the original sources and Hacker News discussion on Hacksnap.",
   );
 });
