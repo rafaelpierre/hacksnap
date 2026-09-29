@@ -249,8 +249,12 @@ The homepage and `/story/:id` render per request so outages cannot become cached
 HTML. The homepage accepts only `/`; unmatched paths return 404 before data access.
 Builds need no database connection. Runtime requests use `HACKSNAP_WEB_DATABASE_URL`
 with the dedicated `hacksnap_reader` login. Leaderboard data uses a bounded
-60-second per-instance cache with one entry and one pending load. Concurrent callers
-share a load; after expiry they wait for fresh data, and failures use the existing
+60-second per-instance cache with one entry and one pending load. The shared selection
+contains the first ten cards, bounded continuation IDs/ranks/recency flags, ingestion
+time, and observation time from one SQL statement. `getLeaderboard()` (Markdown and
+`/api/stories`) and the first HTML/ready-stories page read that same cached snapshot;
+request order cannot populate independent first-page rankings or timestamps.
+Concurrent callers share a load; after expiry they wait for fresh data, and failures use the existing
 unavailable response rather than returning stale rankings. Separate instances can
 differ within that one-minute window. This applies to homepage HTML, Markdown and
 the list API; it also refreshes ranking changes caused by the 24-hour recency cutoff.

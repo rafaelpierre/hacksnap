@@ -231,48 +231,12 @@ type CachedLeaderboard = {
   observed_at: string;
 };
 
-// Hard expiry bounds ranking staleness, including time-based archive transitions.
-// Expired reads wait for fresh data; failures use the existing unavailable state.
-const cachedLeaderboard = boundedCache(
-  async (): Promise<CachedLeaderboard> => {
-    return readStories("feed", async (client, fields) => {
-      const result = await client.query<{
-        stories: CachedLeaderboard["stories"];
-        ingestion: Date | null;
-        ranked_at: Date;
-      }>(`
-      SELECT COALESCE((
-        SELECT json_agg(story ORDER BY story.rank) FROM (
-          SELECT ${fields}, r.rank, r.is_recent, ${rankHistorySQL} AS rank_history
-          FROM hacksnap_ranked_stories r
-          INNER JOIN hacker_news_threads t ON t.hn_id = r.hn_id
-          INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
-          WHERE s.overall_takeaway ~ '[^[:space:]]'
-          ORDER BY r.rank
-          LIMIT 10
-        ) story
-      ), '[]'::json) AS stories, (
-        SELECT finished_at FROM hn_ingestion_runs
-        WHERE status = 'succeeded' AND filters @> '{"classify_topic": true}'::jsonb
-        ORDER BY started_at DESC, run_id DESC LIMIT 1
-      ) AS ingestion, CURRENT_TIMESTAMP AS ranked_at`);
-      const { stories, ingestion, ranked_at } = result.rows[0];
-      return {
-        stories,
-        observed_at: ranked_at.toISOString(),
-        ingestion: ingestion?.toISOString() ?? null,
-      };
-    });
-  },
-  { ttl: () => 60_000, maxEntries: 1, maxPending: 1 },
-);
-
 export async function getLeaderboard(): Promise<{
   stories: (Story & { rank_history: RankObservation[] })[];
   ingestion: Date | null;
   observed_at: string;
 }> {
-  const { stories, ingestion, observed_at } = await cachedLeaderboard("leaderboard");
+  const { stories, ingestion, observed_at } = await loadReadyStorySelection();
   return {
     stories: stories.map((story) => ({ ...story, date_added: new Date(story.date_added) })),
     ingestion: ingestion ? new Date(ingestion) : null,
@@ -280,39 +244,48 @@ export async function getLeaderboard(): Promise<{
   };
 }
 
-type CachedReadyStorySelection = {
+type CachedReadyStorySelection = CachedLeaderboard & {
   items: ReadyStorySnapshotItem[];
-  ingestion: string | null;
-  observed_at: string;
   selection_limited: boolean;
 };
 
+// All homepage formats share this hard-expiring selection and its first ten cards.
+// One SQL statement captures the cards, pagination membership and timestamps together.
 // The selection itself is capped to keep its portable cursor under normal URL limits.
 // The extra row distinguishes that cap from a genuine end of the ranked pool.
 const cachedReadyStorySelection = boundedCache(
   async (): Promise<CachedReadyStorySelection> => {
-    return read(async (client) => {
+    return readStories("feed", async (client, fields) => {
       const result = await client.query<{
+        stories: CachedLeaderboard["stories"];
         items: { hn_id: string | number; rank: string | number; is_recent: boolean }[];
         ingestion: Date | null;
         ranked_at: Date;
       }>(`
+      WITH ready AS MATERIALIZED (
+        SELECT r.hn_id, r.rank, r.is_recent
+        FROM hacksnap_ranked_stories r
+        INNER JOIN hacker_news_threads t ON t.hn_id = r.hn_id
+        INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+        WHERE s.overall_takeaway ~ '[^[:space:]]'
+        ORDER BY r.rank
+        LIMIT 401
+      )
       SELECT COALESCE((
-        SELECT json_agg(item ORDER BY item.rank) FROM (
-          SELECT r.hn_id, r.rank, r.is_recent
-          FROM hacksnap_ranked_stories r
+        SELECT json_agg(item ORDER BY item.rank) FROM ready item
+      ), '[]'::json) AS items, COALESCE((
+        SELECT json_agg(story ORDER BY story.rank) FROM (
+          SELECT ${fields}, r.rank, r.is_recent, ${rankHistorySQL} AS rank_history
+          FROM (SELECT * FROM ready ORDER BY rank LIMIT 10) r
           INNER JOIN hacker_news_threads t ON t.hn_id = r.hn_id
           INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
-          WHERE s.overall_takeaway ~ '[^[:space:]]'
-          ORDER BY r.rank
-          LIMIT 401
-        ) item
-      ), '[]'::json) AS items, (
+        ) story
+      ), '[]'::json) AS stories, (
         SELECT finished_at FROM hn_ingestion_runs
         WHERE status = 'succeeded' AND filters @> '{"classify_topic": true}'::jsonb
         ORDER BY started_at DESC, run_id DESC LIMIT 1
       ) AS ingestion, CURRENT_TIMESTAMP AS ranked_at`);
-      const { items, ingestion, ranked_at } = result.rows[0];
+      const { stories, items, ingestion, ranked_at } = result.rows[0];
       let selected = items.slice(0, 400).map((item) => ({
         hn_id: String(item.hn_id),
         rank: String(item.rank),
@@ -339,6 +312,13 @@ const cachedReadyStorySelection = boundedCache(
         }
       }
       return {
+        // json_agg embeds bigint IDs/ranks as JSON numbers; keep the same string
+        // representation used by ordinary pg rows and continuation hydration.
+        stories: stories.map((story) => ({
+          ...story,
+          hn_id: String(story.hn_id),
+          rank: story.rank === undefined ? undefined : String(story.rank),
+        })),
         items: selected,
         selection_limited,
         observed_at: ranked_at.toISOString(),
@@ -476,9 +456,12 @@ export async function getReadyStoryPage({
     throw new ReadyStoryPageError("invalid_page");
   const items = selection.items;
   const pageItems = items.slice(offset, offset + size);
-  const stories = pageItems.length
-    ? await cachedReadySnapshotPage(selection.observed_at, pageItems)
-    : [];
+  const stories =
+    offset + pageItems.length <= selection.stories.length
+      ? selection.stories
+          .slice(offset, offset + pageItems.length)
+          .map((story) => ({ ...story, date_added: new Date(story.date_added) }))
+      : await cachedReadySnapshotPage(selection.observed_at, pageItems);
   const nextOffset = offset + stories.length;
   const hasMore = nextOffset < items.length;
   const expiresAt = new Date(Date.now() + READY_STORY_CURSOR_TTL_MS);

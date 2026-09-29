@@ -80,7 +80,9 @@ test("each loader uses its intended projection; older cached fields remain optio
     assert.ok(queries.some((sql) => sql.includes("t.image_url, t.image_status")));
     assert.ok(queries.every((sql) => !sql.includes("image_source_")));
 
-    rows = [{ stories: [], ingestion: null, ranked_at: new Date("2026-09-27T12:00:00Z") }];
+    rows = [
+      { items: [], stories: [], ingestion: null, ranked_at: new Date("2026-09-27T12:00:00Z") },
+    ];
     queries.length = 0;
     await data.getLeaderboard();
     assert.ok(queries.some((sql) => sql.includes(feedFields)));
@@ -88,6 +90,7 @@ test("each loader uses its intended projection; older cached fields remain optio
     clock += 60_000;
     rows = [
       {
+        items: [{ hn_id: "123", rank: "1", is_recent: true }],
         stories: [
           {
             hn_id: "123",
@@ -135,7 +138,7 @@ test("all story loaders tolerate an unmigrated database and detect migration on 
         [() => data.getStory("456"), ready ? storyFields : legacyStoryFields],
         [() => data.getLeaderboard(), ready ? feedFields : legacyFeedFields],
       ]) {
-        rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
+        rows = [{ items: [], stories: [], ingestion: null, ranked_at: new Date() }];
         queries.length = 0;
         await load();
         assert.ok(queries.includes(discussionColumnsSQL));
@@ -158,7 +161,7 @@ test("story loaders omit unavailable image columns and pick them up after reader
     for (const ready of [false, true]) {
       clock += 1_800_001;
       imagesAvailable = ready;
-      rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
+      rows = [{ items: [], stories: [], ingestion: null, ranked_at: new Date() }];
       queries.length = 0;
       await data.getStory("789");
       assert.ok(queries.includes(imageColumnsSQL));
@@ -187,7 +190,7 @@ test("image reads fall back to null projections until every reader grant is avai
       [() => data.getPublicStory("987"), publicStorySQL(true, false)],
     ]) {
       queries.length = 0;
-      rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
+      rows = [{ items: [], stories: [], ingestion: null, ranked_at: new Date() }];
       await load();
       assert.ok(queries.includes(imageColumnsSQL));
       assert.ok(queries.some((sql) => sql.includes(fields)));
@@ -269,7 +272,7 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
     for (const ready of [false, true]) {
       clock += 1_800_001;
       available = ready;
-      rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
+      rows = [{ items: [], stories: [], ingestion: null, ranked_at: new Date() }];
       queries.length = 0;
       await data.getLeaderboard();
       const sql = queries.find((query) => query.includes("json_agg(story ORDER BY story.rank)"));
@@ -321,7 +324,7 @@ test("rendering fallback uses legacy projections without reading or changing sto
       [() => data.getPublicStory("456"), publicStorySQL(false)],
       [() => data.getLeaderboard(), legacyFeedFields],
     ]) {
-      rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
+      rows = [{ items: [], stories: [], ingestion: null, ranked_at: new Date() }];
       queries.length = 0;
       await load();
       assert.ok(!queries.includes(discussionColumnsSQL));
@@ -343,7 +346,7 @@ test("rendering fallback uses legacy projections without reading or changing sto
   }
 });
 
-test("ready-story selection filters before its bound and hydrates only the requested batch", async () => {
+test("ready selection captures the first ten atomically and hydrates only requested continuation", async () => {
   const db = new PGlite();
   const warning = jest.spyOn(console, "warn").mockImplementation(() => {});
   try {
@@ -375,19 +378,13 @@ test("ready-story selection filters before its bound and hydrates only the reque
       rank: String(index + 4),
       is_recent: true,
     }));
-    readyQuery = (sql) => {
-      if (typeof sql === "string" && sql.includes("json_agg(item ORDER BY item.rank)"))
-        return { rows: [{ items: selection, ingestion: null, ranked_at: new Date() }] };
-      if (typeof sql === "string" && sql.includes("FROM unnest($1::bigint[]"))
-        return {
-          rows: selection.slice(0, 10).map((item) => ({
-            ...item,
-            date_added: new Date(),
-            rank_history: [],
-            summary: { overall_takeaway: "Ready" },
-            snapshot_ready: true,
-          })),
-        };
+    readyQuery = (sql, values) => {
+      if (
+        typeof sql === "string" &&
+        (sql.includes("json_agg(item ORDER BY item.rank)") ||
+          sql.includes("FROM unnest($1::bigint[]"))
+      )
+        return db.query(sql, values);
     };
     rows = [];
     queries.length = 0;
@@ -397,7 +394,20 @@ test("ready-story selection filters before its bound and hydrates only the reque
       page.stories.map((story) => story.hn_id),
       selection.slice(0, 10).map((x) => x.hn_id),
     );
+    assert.deepEqual(
+      page.stories.map((story) => story.rank),
+      selection.slice(0, 10).map((item) => item.rank),
+    );
     const selectionSQL = queries.find((sql) => sql.includes("json_agg(item ORDER BY item.rank)"));
+    assert.ok(
+      !queries.some((sql) => sql.includes("FROM unnest($1::bigint[]")),
+      "the first ten cards are in the selection read, not a separate hydration",
+    );
+    const next = await data.getReadyStoryPage({ cursor: page.pagination.cursor });
+    assert.deepEqual(
+      next.stories.map((story) => String(story.hn_id)),
+      ["14"],
+    );
     const pageIndex = queries.findIndex((sql) => sql.includes("FROM unnest($1::bigint[]"));
     assert.match(selectionSQL, /WHERE s\.overall_takeaway ~ '\[\^\[:space:\]\]'/);
     assert.match(selectionSQL, /LIMIT 401/);
@@ -407,7 +417,7 @@ test("ready-story selection filters before its bound and hydrates only the reque
       [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
     );
     const hydrated = await db.query(queries[pageIndex], queryValues[pageIndex]);
-    assert.equal(hydrated.rows.length, 10);
+    assert.equal(hydrated.rows.length, 1);
     assert.ok(hydrated.rows.every((story) => story.snapshot_ready));
   } finally {
     readyQuery = undefined;
@@ -434,6 +444,7 @@ test("ready-story pages freeze traversal membership and make all end states expl
       return {
         rows: [
           {
+            items: selection,
             stories: selection.slice(0, 10).map((item) => ({
               ...item,
               date_added: new Date(clock).toISOString(),
@@ -445,8 +456,6 @@ test("ready-story pages freeze traversal membership and make all end states expl
           },
         ],
       };
-    if (sql.includes("json_agg(item ORDER BY item.rank)"))
-      return { rows: [{ items: selection, ingestion: null, ranked_at: new Date(clock) }] };
     if (sql.includes("FROM unnest($1::bigint[]")) {
       hydrationReads++;
       return {
@@ -552,6 +561,7 @@ test("leaderboard coalesces reads and hard-expires ranks, scores and ingestion a
   process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
   const log = jest.spyOn(console, "error").mockImplementation(() => {});
   const snapshot = (id, points, time) => ({
+    items: [{ hn_id: id, rank: "1", is_recent: true }],
     stories: [{ hn_id: id, rank: "1", points, date_added: time, rank_history: [] }],
     ingestion: new Date(time),
     ranked_at: new Date(time),
@@ -588,6 +598,72 @@ test("leaderboard coalesces reads and hard-expires ranks, scores and ingestion a
     queryError = undefined;
     rows = [];
     log.mockRestore();
+    if (previousURL === undefined) delete process.env.HACKSNAP_WEB_DATABASE_URL;
+    else process.env.HACKSNAP_WEB_DATABASE_URL = previousURL;
+  }
+});
+
+test("HTML and legacy formats share one selection regardless of warm-up order and refresh together", async () => {
+  const previousURL = process.env.HACKSNAP_WEB_DATABASE_URL;
+  process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  const snapshot = (base, time) => {
+    const items = Array.from({ length: 12 }, (_, index) => ({
+      hn_id: String(base + index),
+      rank: String(index + 1),
+      is_recent: base === 100,
+    }));
+    return {
+      items,
+      stories: items.slice(0, 10).map((item) => ({
+        ...item,
+        points: base,
+        date_added: time,
+        rank_history: [],
+        summary: { overall_takeaway: `Snapshot ${base}` },
+      })),
+      ingestion: new Date(time),
+      ranked_at: new Date(time),
+    };
+  };
+  const firstPage = () => data.getReadyStoryPage();
+  const legacy = () => data.getLeaderboard();
+  const withoutPagination = ({ stories, ingestion, observed_at }) => ({
+    stories,
+    ingestion,
+    observed_at,
+  });
+  const reads = () => queries.filter((sql) => sql.includes("AS ranked_at")).length;
+  try {
+    for (const [warm, later] of [
+      [legacy, firstPage],
+      [firstPage, legacy],
+    ]) {
+      clock += 60_001;
+      queries.length = 0;
+      rows = [snapshot(100, "2026-09-29T17:00:00Z")];
+      const initial = await warm();
+      // Rankings, card metadata, recency flags and ingestion change before the
+      // other format gets its first request in this cache generation.
+      rows = [snapshot(200, "2026-09-29T17:01:00Z")];
+      clock += 59_999;
+      assert.deepEqual(withoutPagination(await later()), withoutPagination(initial));
+      assert.equal(reads(), 1);
+      assert.ok(!queries.some((sql) => sql.includes("FROM unnest($1::bigint[]")));
+      clock += 1;
+      const [html, api] = await Promise.all([firstPage(), legacy()]);
+      assert.equal(reads(), 2, "one coalesced refresh for both formats at hard expiry");
+      assert.deepEqual(withoutPagination(html), api);
+      assert.deepEqual(
+        html.stories.map((story) => story.hn_id),
+        rows[0].items.slice(0, 10).map((item) => item.hn_id),
+      );
+      assert.equal(html.stories[0].points, 200);
+      assert.equal(html.stories[0].is_recent, false);
+      assert.equal(html.ingestion.toISOString(), "2026-09-29T17:01:00.000Z");
+      assert.equal(html.observed_at, "2026-09-29T17:01:00.000Z");
+    }
+  } finally {
+    rows = [];
     if (previousURL === undefined) delete process.env.HACKSNAP_WEB_DATABASE_URL;
     else process.env.HACKSNAP_WEB_DATABASE_URL = previousURL;
   }
