@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { expect, jest, test } from "@jest/globals";
+import { storySlugColumnSQL } from "../lib/story-slug-projection.ts";
 import { discussionColumnsSQL } from "../lib/story-projection.ts";
 import { publicStorySQL } from "../lib/public-story.ts";
 
@@ -25,6 +26,7 @@ jest.unstable_mockModule("pg", () => ({
     async connect() {
       return {
         async query(sql, values) {
+          if (sql === storySlugColumnSQL) return { rows: [{ available: true }] };
           if (sql === discussionColumnsSQL) {
             schemaChecks++;
             return { rows: [{ available: discussionAvailable }] };

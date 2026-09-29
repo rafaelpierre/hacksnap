@@ -14,6 +14,7 @@ import {
 
 type ShareProps = {
   id: string;
+  slug?: string | null;
   title: string;
   takeaway?: string | null;
   label?: string;
@@ -23,13 +24,14 @@ type ShareProps = {
 /** A single disclosure for feed rows and both story-page placements. */
 export function ShareLinks({
   id,
+  slug,
   title,
   takeaway,
   label = "Share",
   placement = "feed",
 }: ShareProps) {
   const [open, setOpen] = useState(false);
-  const [post, setPost] = useState(() => suggestedPost(id, title, takeaway));
+  const [post, setPost] = useState(() => suggestedPost(id, title, takeaway, slug));
   const [feedback, setFeedback] = useState("");
   const [manualText, setManualText] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -41,7 +43,7 @@ export function ShareLinks({
   const draftId = useId();
   const xHintId = useId();
   const xStatus = xPostStatus(post);
-  const url = canonicalStoryUrl(id);
+  const url = canonicalStoryUrl(id, slug);
 
   useEffect(() => {
     if (open) firstAction.current?.focus();

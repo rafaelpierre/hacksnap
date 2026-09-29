@@ -1,3 +1,4 @@
+import { storyIdFromSlug } from "../../../lib/story-url";
 import { availableData, unavailableResponse } from "../../../lib/data-availability";
 import { notFound } from "next/navigation";
 import { getStory } from "../../../lib/data";
@@ -10,7 +11,9 @@ export const contentType = "image/png";
 export const revalidate = 1800;
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const { id: slug } = await params;
+  const id = storyIdFromSlug(slug);
+  if (!id) notFound();
   const result = await availableData(() => getStory(id));
   if (!result.available) return unavailableResponse();
   const story = result.value;

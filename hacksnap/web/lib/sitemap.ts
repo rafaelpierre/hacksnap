@@ -1,4 +1,7 @@
-export function sitemapEntries(stories: { hn_id: string; modified_at: Date }[]) {
+import { canonicalStoryUrl } from "./story-url";
+export function sitemapEntries(
+  stories: { hn_id: string; story_slug?: string | null; modified_at: Date }[],
+) {
   const latest = stories.reduce<Date | undefined>(
     (value, story) => (!value || story.modified_at > value ? story.modified_at : value),
     undefined,
@@ -6,7 +9,7 @@ export function sitemapEntries(stories: { hn_id: string; modified_at: Date }[]) 
   return [
     { url: "https://hacksnap.live/", ...(latest ? { lastModified: latest } : {}) },
     ...stories.map((story) => ({
-      url: `https://hacksnap.live/story/${story.hn_id}`,
+      url: canonicalStoryUrl(story.hn_id, story.story_slug),
       lastModified: story.modified_at,
     })),
   ];

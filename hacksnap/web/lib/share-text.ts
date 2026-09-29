@@ -1,12 +1,15 @@
 import twitter from "twitter-text";
 
-/** The public story address is also the address used by canonical and social metadata. */
-export function canonicalStoryUrl(id: string): string {
-  return `https://hacksnap.live/story/${id}`;
-}
+import { canonicalStoryUrl } from "./story-url";
+export { canonicalStoryUrl } from "./story-url";
 
-export function suggestedPost(id: string, title: string, takeaway?: string | null): string {
-  const url = canonicalStoryUrl(id);
+export function suggestedPost(
+  id: string,
+  title: string,
+  takeaway?: string | null,
+  slug?: string | null,
+): string {
+  const url = canonicalStoryUrl(id, slug);
   const summary = takeaway?.trim();
   return summary
     ? `${title.trim()}\n\n${summary}\n\n${url}`

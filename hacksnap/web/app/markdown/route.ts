@@ -1,3 +1,4 @@
+import { storyIdFromSlug, storyPath } from "../../lib/story-url";
 import { getLeaderboard, getStory } from "../../lib/data";
 import { leaderboardMarkdown, markdownResponse, storyMarkdown } from "../../lib/markdown";
 import { apiDocsMarkdown } from "../../lib/api-docs-markdown";
@@ -11,10 +12,20 @@ export async function GET(request: Request) {
   try {
     if (page === "/") return markdownResponse(leaderboardMarkdown(await getLeaderboard()));
     if (page === "/docs/api") return markdownResponse(apiDocsMarkdown);
-    const match = page?.match(/^\/story\/([1-9][0-9]{0,14})$/);
-    if (match) {
-      const story = await getStory(match[1]);
-      if (story) return markdownResponse(storyMarkdown(story));
+    const match = page?.match(/^\/story\/([^/]+)$/);
+    const id = match ? storyIdFromSlug(match[1]) : null;
+    if (id) {
+      const story = await getStory(id);
+      if (story) {
+        const canonical = storyPath(story.hn_id, story.story_slug);
+        if (page !== canonical) {
+          return new Response(null, {
+            status: 308,
+            headers: { Location: canonical, Vary: "Accept", "Cache-Control": "no-store" },
+          });
+        }
+        return markdownResponse(storyMarkdown(story));
+      }
     }
     return markdownResponse("# Not found\n", 404);
   } catch {

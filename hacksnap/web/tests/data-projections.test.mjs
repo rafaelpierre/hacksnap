@@ -44,7 +44,7 @@ jest.unstable_mockModule("pg", () => ({
 jest.unstable_mockModule("next/cache", () => ({
   unstable_noStore: () => {},
   unstable_cache: (fn, keys) => {
-    assert.deepEqual(keys, ["hacksnap-leaderboard-v13-discussion-rollout", "enabled"]);
+    assert.deepEqual(keys, ["hacksnap-leaderboard-v14-stored-slugs", "enabled"]);
     return () => cachedValue ?? fn();
   },
 }));

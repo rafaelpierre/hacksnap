@@ -36,6 +36,31 @@ Run `npm run test:theme`, `npm run typecheck` and `npm run build`. Check the she
 feeds and story at 320px and desktop widths in both themes, including 200% text,
 keyboard focus, OS appearance changes, saved preferences and blocked storage.
 
+## Story URLs
+
+Existing stories retain `/story/<hn-id>` permanently. Migration `0014_story_slugs`
+adds a nullable stored slug without backfilling any existing row. After the updated
+collector is deployed, only first inserts receive `/story/<headline>-<hn-id>`.
+Refreshes preserve the stored value, including NULL for older stories, so headline
+edits never change either kind of URL. Headlines are normalized to lowercase ASCII,
+capped at 80 characters, with `story` as the fallback when no ASCII letters or digits remain.
+
+Every public link uses the stored slug or falls back to the numeric ID: feed and
+related stories, sharing, metadata, social images, Markdown, RSS and the sitemap.
+Missing column/grant detection lets the website run before the migration; it uses
+numeric URLs until the column is readable. The leaderboard cache version changes
+to discard older projections. RSS GUIDs and the public API's numeric IDs remain stable.
+
+Alternate URLs redirect to the saved canonical address; an older story's numeric
+URL renders directly. Markdown GET/HEAD return 308. HTML uses Next.js permanent
+redirects, preserving query parameters; when streaming has started, Next.js emits
+its standard browser redirect. Routing still resolves the ID at the end of the slug.
+
+Apply migration 0014 before deploying the updated collector. Roll out the website
+before the collector to ensure newly inserted slugs are used immediately. No backfill
+or production migration is performed by local checks. Rolling back ingestion keeps
+saved slugs; rolling back the migration discards them and should be avoided once published.
+
 ## Markdown content negotiation
 
 The homepage, `/story/:id`, and `/docs/api` return Markdown when requested with

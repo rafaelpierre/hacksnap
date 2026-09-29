@@ -1,4 +1,5 @@
 import "server-only";
+import { storySlugColumnSQL, storySlugProjection } from "./story-slug-projection";
 import { DataUnavailableError } from "./data-availability";
 import { boundedCache } from "./bounded-cache";
 import { publicStorySQL, validStoryId, type PublicStory } from "./public-story";
@@ -59,6 +60,7 @@ export type Summary = DiscussionFields & {
 export type Story = {
   hn_id: string;
   title: string;
+  story_slug?: string | null;
   category: CategoryId | null;
   url: string;
   points: number;
@@ -156,6 +158,11 @@ async function hasDiscussionColumns(client: PoolClient): Promise<boolean> {
   return available;
 }
 
+async function storySlugField(client: PoolClient): Promise<string> {
+  const { rows } = await client.query<{ available: boolean }>(storySlugColumnSQL);
+  return storySlugProjection(rows[0]?.available === true);
+}
+
 // Check on each cache miss so applying the migration needs no process restart.
 function readStories<T>(
   kind: "feed" | "story",
@@ -171,7 +178,7 @@ function readStories<T>(
         : available
           ? storyFields
           : legacyStoryFields;
-    return query(client, fields);
+    return query(client, `${fields}, ${await storySlugField(client)}`);
   });
 }
 
@@ -213,7 +220,7 @@ const cachedLeaderboard = unstable_cache(
     });
   },
   [
-    "hacksnap-leaderboard-v13-discussion-rollout",
+    "hacksnap-leaderboard-v14-stored-slugs",
     process.env.HACKSNAP_DISCUSSION_RENDERING === "false" ? "disabled" : "enabled",
   ],
   { revalidate: 1800 },
@@ -232,12 +239,18 @@ export async function getLeaderboard(): Promise<{
   };
 }
 
-export async function getSitemapStories(): Promise<{ hn_id: string; modified_at: Date }[]> {
+export async function getSitemapStories(): Promise<
+  { hn_id: string; story_slug: string | null; modified_at: Date }[]
+> {
   return read(async (client) => {
     // Include current and archived stories only once a summary is available,
     // matching the indexing policy in storyPreviewMetadata.
-    const result = await client.query<{ hn_id: string; modified_at: Date }>(`
-      SELECT t.hn_id, GREATEST(t.date_added, s.updated_at, (
+    const result = await client.query<{
+      hn_id: string;
+      story_slug: string | null;
+      modified_at: Date;
+    }>(`
+      SELECT t.hn_id, ${await storySlugField(client)}, GREATEST(t.date_added, s.updated_at, (
         SELECT observed_at FROM hn_thread_snapshots
         WHERE hn_id = t.hn_id ORDER BY observed_at DESC LIMIT 1
       ), (
@@ -340,7 +353,7 @@ export const getCategoryStories = cache(async (category: CategoryId, page: numbe
   });
 });
 
-export type RelatedStory = Pick<Story, "hn_id" | "title" | "url" | "date_added"> & {
+export type RelatedStory = Pick<Story, "hn_id" | "title" | "url" | "date_added" | "story_slug"> & {
   takeaway: string;
 };
 
@@ -348,7 +361,11 @@ export const getRelatedStories = cache(
   async (category: CategoryId, currentStoryId: string): Promise<RelatedStory[]> =>
     read(
       async (client) =>
-        (await client.query<RelatedStory>(relatedStoriesQuery(category, currentStoryId))).rows,
+        (
+          await client.query<RelatedStory>(
+            relatedStoriesQuery(category, currentStoryId, await storySlugField(client)),
+          )
+        ).rows,
     ),
 );
 

@@ -13,6 +13,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from hn_trending.categories import CATEGORY_FIELDS
+from hn_trending.story_slugs import story_slug
 
 
 UPSERT_THREAD = """
@@ -20,14 +21,15 @@ WITH identity AS (
     INSERT INTO hn_items(hn_id) VALUES (%(hn_id)s) ON CONFLICT DO NOTHING
 )
 INSERT INTO hacker_news_threads
-    (hn_id, title, url, date_published, date_added, author,
+    (hn_id, title, story_slug, url, date_published, date_added, author,
      points, comment_count, last_seen_run_id,
      category, category_version, category_model, categorized_at, category_title_hash)
 VALUES
-    (%(hn_id)s, %(title)s, %(url)s,
+    (%(hn_id)s, %(title)s, %(story_slug)s, %(url)s,
      %(date_published)s, %(date_added)s, %(author)s, %(points)s, %(comment_count)s,
      %(last_seen_run_id)s, %(category)s, %(category_version)s, %(category_model)s,
      %(categorized_at)s, %(category_title_hash)s)
+-- Preserve story_slug on every refresh, including NULL for existing numeric URLs.
 ON CONFLICT (hn_id) DO UPDATE SET
     title = EXCLUDED.title,
     url = EXCLUDED.url,
@@ -240,6 +242,7 @@ def database_row(
         **{field: (classification or {}).get(field) for field in CATEGORY_FIELDS},
         "hn_id": story["id"],
         "title": story["title"],
+        "story_slug": story_slug(story["id"], story["title"]),
         "url": story.get("url") or fallback_url,
         "full_raw_text_contents": raw_contents,
         "date_published": published,

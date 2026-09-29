@@ -14,7 +14,9 @@ const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
 test("archive return preserves route, pagination and scroll without changing breadcrumbs", async () => {
   const token = "11111111-1111-1111-1111-111111111111";
-  const dom = new JSDOM('<div id="root"></div>', { url: `https://hacksnap.live/story/42` });
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: `https://hacksnap.live/story/headline-42`,
+  });
   const values = {
     self: dom.window,
     window: dom.window,
@@ -63,7 +65,7 @@ test("archive return preserves route, pagination and scroll without changing bre
       "/archive/2026/09",
       "/archive/2026/09?page=2",
     ]) {
-      window.history.replaceState({ hacksnapJourney: token }, "", `/story/42`);
+      window.history.replaceState({ hacksnapJourney: token }, "", `/story/headline-42`);
       const context = { url, label: browseLabel(url), scrollY: 820, savedAt: Date.now() };
       sessionStorageSet(context);
       await render(url);
@@ -111,7 +113,7 @@ test("archive return preserves route, pagination and scroll without changing bre
         window.name,
       ],
     ] as const) {
-      window.history.replaceState({ hacksnapJourney: token }, "", `/story/42`);
+      window.history.replaceState({ hacksnapJourney: token }, "", `/story/headline-42`);
       sessionStorageSet(context, tabId);
       await render(key);
       assert.equal(document.querySelectorAll("a").length, 2, key);
@@ -166,9 +168,14 @@ test("story URLs stay clean while each history entry retains its own journey", a
   const click = async () =>
     act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
   try {
-    await render(<BrowseStoryLink id="42">Story</BrowseStoryLink>, "list");
+    await render(
+      <BrowseStoryLink id="42" slug="headline-42">
+        Story
+      </BrowseStoryLink>,
+      "list",
+    );
     await click();
-    assert.deepEqual(pushes, ["/story/42"]);
+    assert.deepEqual(pushes, ["/story/headline-42"]);
     await render(<StoryReturnLink archiveOnly />, "story");
     assert.equal(window.location.search, "");
     assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
@@ -176,10 +183,15 @@ test("story URLs stay clean while each history entry retains its own journey", a
     assert.ok(firstState.hacksnapJourney);
     assert.equal(firstState.frameworkState, "preserved");
 
-    await render(<NextStoryLink id="43">Next</NextStoryLink>, "next");
+    await render(
+      <NextStoryLink id="43" slug="headline-43">
+        Next
+      </NextStoryLink>,
+      "next",
+    );
     await click();
     await render(<StoryReturnLink archiveOnly />, "next-story");
-    assert.equal(window.location.pathname, "/story/43");
+    assert.equal(window.location.pathname, "/story/headline-43");
     assert.equal(window.location.search, "");
     assert.equal(window.history.state.hacksnapJourney, firstState.hacksnapJourney);
     assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
@@ -187,17 +199,17 @@ test("story URLs stay clean while each history entry retains its own journey", a
     for (const source of ["/", "/archive?page=3", "/category/agents-coding?page=2"]) {
       window.history.replaceState({}, "", source);
       await render(
-        <BrowseStoryLink id="42" anchor="discussion-analysis">
+        <BrowseStoryLink id="42" slug="headline-42" anchor="discussion-analysis">
           Read the debate
         </BrowseStoryLink>,
         source,
       );
       assert.equal(
         document.querySelector("a")?.getAttribute("href"),
-        "/story/42#discussion-analysis",
+        "/story/headline-42#discussion-analysis",
       );
       await click();
-      assert.equal(pushes.at(-1), "/story/42#discussion-analysis");
+      assert.equal(pushes.at(-1), "/story/headline-42#discussion-analysis");
       await render(<StoryReturnLink />, `debate-${source}`);
       assert.equal(window.location.hash, "#discussion-analysis");
       assert.ok(window.history.state.hacksnapJourney);
@@ -208,29 +220,34 @@ test("story URLs stay clean while each history entry retains its own journey", a
     window.history.replaceState(
       { frameworkState: "preserved" },
       "",
-      `/story/43?journey=${firstState.hacksnapJourney}&source=saved#comments`,
+      `/story/headline-43?journey=${firstState.hacksnapJourney}&source=saved#comments`,
     );
     await render(<StoryReturnLink archiveOnly />, "legacy-url");
     assert.equal(
       window.location.pathname + window.location.search + window.location.hash,
-      "/story/43?source=saved#comments",
+      "/story/headline-43?source=saved#comments",
     );
     assert.equal(window.history.state.hacksnapJourney, firstState.hacksnapJourney);
     assert.equal(window.history.state.frameworkState, "preserved");
     assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
 
-    window.history.replaceState({}, "", "/story/43?journey=invalid");
+    window.history.replaceState({}, "", "/story/headline-43?journey=invalid");
     await render(<StoryReturnLink archiveOnly />, "invalid-legacy-url");
     assert.equal(window.location.search, "");
     assert.equal(document.querySelector("a"), null);
-    window.history.replaceState(firstState, "", "/story/43");
+    window.history.replaceState(firstState, "", "/story/headline-43");
 
     // A remount (as on reload) reads the committed entry, with no pending token.
     await render(<StoryReturnLink archiveOnly />, "reload");
     assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
 
     window.history.pushState({}, "", "/archive?page=2");
-    await render(<BrowseStoryLink id="42">Story</BrowseStoryLink>, "second-list");
+    await render(
+      <BrowseStoryLink id="42" slug="headline-42">
+        Story
+      </BrowseStoryLink>,
+      "second-list",
+    );
     await click();
     await render(<StoryReturnLink archiveOnly />, "second-visit");
     const secondState = window.history.state;
@@ -243,7 +260,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
       [secondState, "/archive?page=2"],
     ] as const) {
       await act(async () => {
-        window.history.replaceState(state, "", "/story/42");
+        window.history.replaceState(state, "", "/story/headline-42");
         window.dispatchEvent(new dom.window.PopStateEvent("popstate", { state }));
       });
       assert.equal(document.querySelector("a")?.getAttribute("href"), href);
@@ -251,10 +268,15 @@ test("story URLs stay clean while each history entry retains its own journey", a
     }
 
     // A direct arrival must not inherit a previous journey from storage.
-    window.history.pushState({}, "", "/story/42");
+    window.history.pushState({}, "", "/story/headline-42");
     await render(<StoryReturnLink archiveOnly />, "direct");
     assert.equal(document.querySelector("a"), null);
-    await render(<NextStoryLink id="44">Next</NextStoryLink>, "direct-next");
+    await render(
+      <NextStoryLink id="44" slug="headline-44">
+        Next
+      </NextStoryLink>,
+      "direct-next",
+    );
     await click();
     await render(<StoryReturnLink archiveOnly />, "direct-next-arrival");
     assert.equal(document.querySelector("a"), null);

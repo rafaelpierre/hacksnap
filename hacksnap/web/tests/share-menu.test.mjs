@@ -9,8 +9,8 @@ import {
 } from "../lib/share-text.ts";
 
 test("copy link uses the canonical address and reports success only after writeText resolves", async () => {
-  const url = canonicalStoryUrl("123");
-  assert.equal(url, "https://hacksnap.live/story/123");
+  const url = canonicalStoryUrl("123", "headline-123");
+  assert.equal(url, "https://hacksnap.live/story/headline-123");
   let resolveWrite;
   const clipboard = {
     writeText: (value) => {
@@ -52,7 +52,7 @@ test("a missing takeaway produces a complete draft with the title and canonical 
 
 test("text destinations preserve edits while LinkedIn keeps the previewable canonical URL", () => {
   const edited = "My own take — unchanged.\n\nhttps://hacksnap.live/story/789";
-  const url = canonicalStoryUrl("789");
+  const url = canonicalStoryUrl("789", "original-headline-789");
   const destinations = shareDestinations(edited, url, "Original headline");
   const x = new URL(destinations.find((item) => item.name === "X").href);
   const linkedin = new URL(destinations.find((item) => item.name === "LinkedIn").href);
@@ -78,7 +78,7 @@ test("copying a revised post writes the exact reader-authored text", async () =>
 });
 
 test("X validation accounts for transformed links and weighted Unicode without changing the draft", () => {
-  const url = canonicalStoryUrl("123");
+  const url = canonicalStoryUrl("123", "headline-123");
   const fitting = `${"a".repeat(256)} ${url}`;
   assert.deepEqual(xPostStatus(fitting), { length: 280, limit: 280, valid: true });
   assert.deepEqual(xPostStatus(`${"a".repeat(257)} ${url}`), {

@@ -80,9 +80,13 @@ export function categoryQuery(fields: string, category: CategoryId, page: number
   };
 }
 
-export function relatedStoriesQuery(category: CategoryId, currentStoryId: string) {
+export function relatedStoriesQuery(
+  category: CategoryId,
+  currentStoryId: string,
+  slugField = "NULL::text AS story_slug",
+) {
   return {
-    text: `SELECT t.hn_id, t.title, t.url, t.date_added, s.overall_takeaway AS takeaway
+    text: `SELECT t.hn_id, t.title, t.url, t.date_added, ${slugField}, s.overall_takeaway AS takeaway
     FROM hacker_news_threads t
     INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
     WHERE t.category = $1 AND t.hn_id <> $2

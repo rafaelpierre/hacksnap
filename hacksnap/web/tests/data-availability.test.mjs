@@ -23,6 +23,9 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
 }));
 const notFound = new Error("NEXT_HTTP_ERROR_FALLBACK;404");
 jest.unstable_mockModule("next/navigation", () => ({
+  permanentRedirect: () => {
+    throw new Error("Unexpected redirect");
+  },
   notFound: () => {
     throw notFound;
   },
@@ -77,8 +80,8 @@ test("story metadata distinguishes an outage from a missing story; related failu
   await assert.rejects(Page(props), (error) => error === notFound);
   getStory.mockResolvedValueOnce(null);
   await assert.rejects(generateMetadata(props), (error) => error === notFound);
-  getStory.mockResolvedValueOnce({ hn_id: "123", category: "agents_coding" });
-  const element = await Page(props);
+  getStory.mockResolvedValueOnce({ hn_id: "123", title: "Headline", category: "agents_coding" });
+  const element = await Page({ params: Promise.resolve({ id: "123" }) });
   assert.deepEqual(element.props.relatedStories, []);
   assert.equal(element.props.story.hn_id, "123");
 });

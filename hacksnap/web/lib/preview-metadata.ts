@@ -1,3 +1,4 @@
+import { canonicalStoryUrl } from "./story-url";
 import type { Metadata } from "next";
 import type { Summary } from "./data";
 
@@ -49,6 +50,7 @@ function reactionDescription(summary: PreviewSummary | null): string {
 export function storyPreviewMetadata(story: {
   hn_id: string;
   title: string;
+  story_slug?: string | null;
   summary: PreviewSummary | null;
 }): Metadata {
   // Clip only the source headline so the reaction positioning and brand always survive.
@@ -57,7 +59,7 @@ export function storyPreviewMetadata(story: {
   const reaction = reactionDescription(story.summary);
   const description = previewText(reaction, 155);
   const socialDescription = previewText(reaction, 125);
-  const url = `https://hacksnap.live/story/${story.hn_id}`;
+  const url = canonicalStoryUrl(story.hn_id, story.story_slug);
   return {
     title: { absolute: pageTitle },
     description,
