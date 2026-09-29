@@ -79,7 +79,7 @@ same public data as the pages, including source links and summary coverage.
 Markdown responses use `Cache-Control: no-store` to preserve negotiation across
 CDNs. Story data behind the handler has a bounded 30-minute cache shared by
 HTML/metadata reads in the same instance; missing stories expire after 60 seconds.
-The leaderboard retains its existing shared data cache. Homepage, story HTML,
+The leaderboard uses a bounded 60-second per-instance data cache. Homepage, story HTML,
 and `/docs/api` render per request. The proxy rewrites Markdown requests to the
 Markdown handler before rendering.
 Next.js replaces the HTML `Vary` header with its own router headers, so an
@@ -215,8 +215,12 @@ use their own dedicated tokens.
 The homepage and `/story/:id` render per request so outages cannot become cached
 HTML. The homepage accepts only `/`; unmatched paths return 404 before data access.
 Builds need no database connection. Runtime requests use `HACKSNAP_WEB_DATABASE_URL`
-with the dedicated `hacksnap_reader` login. Leaderboard data uses the existing
-shared 1,800-second revalidation cache; failed refreshes can retain stale data.
+with the dedicated `hacksnap_reader` login. Leaderboard data uses a bounded
+60-second per-instance cache with one entry and one pending load. Concurrent callers
+share a load; after expiry they wait for fresh data, and failures use the existing
+unavailable response rather than returning stale rankings. Separate instances can
+differ within that one-minute window. This applies to homepage HTML, Markdown and
+the list API; it also refreshes ranking changes caused by the 24-hour recency cutoff.
 Story data uses the bounded per-instance cache documented below.
 
 In Cloudflare, create a **Bypass cache** rule for:
@@ -367,8 +371,7 @@ without credentials or a database server. PGlite is a test-only dependency.
 Database connection and query failures become sanitized availability errors.
 Frontend pages show a retry action inside the normal navigation; these responses
 opt out of caching. Home and story pages render per request so a transient
-outage cannot become a cached page; the leaderboard retains its existing
-30-minute data cache. Empty lists remain valid empty states, and unknown stories
+outage cannot become a cached page; the leaderboard uses its 60-second cache with hard expiry. Empty lists remain valid empty states, and unknown stories
 remain 404s. Story metadata handles outages without failing rendering or claiming
 that a temporarily unavailable story does not exist. Related stories and topic
 counts are optional, so their failure does not hide otherwise available content.

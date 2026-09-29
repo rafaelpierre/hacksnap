@@ -310,13 +310,13 @@ An explicit `sslrootcert` connection parameter overrides the bundled CA path.
 Read-only mode and the statement timeout are applied within each transaction,
 so they do not depend on persistent database sessions. Each instance keeps at
 most one pooled connection and closes idle connections after 90 seconds.
-The homepage shares a persistent Next.js data cache with a 30-minute revalidation
-interval. The first request fills the cache; after it expires, a request serves
-the saved data while refreshing it in the background. Failed refreshes retain
-the last successful result. The homepage and story HTML use ISR with a 30-minute
-revalidation interval and are generated on their first visit. Builds do not connect
-to the database. The delayed-update notice is evaluated when the homepage
-regenerates. See `web/README.md` for Cloudflare cache configuration.
+The leaderboard uses a bounded 60-second per-instance data cache, shared by the
+homepage, Markdown and list API within each instance. Expired reads wait for fresh
+data; failed reads show the existing unavailable state instead of retaining stale
+rankings. Concurrent callers share one load. Separate instances may differ within
+that one-minute window. Homepage and story HTML render per request; story data keeps
+its existing 30-minute cache. Builds do not connect to the database. The delayed-update
+notice is evaluated on each homepage request. See `web/README.md` for Cloudflare caching.
 On a cache miss, the stories and ingestion timestamp use one SQL query; including
 the read-only transaction setup and commit, this takes three database round trips.
 For Vercel, configure the function region close to the Supabase database
@@ -351,7 +351,7 @@ All web responses also advertise the catalog in a Link header. These discovery
 resources do not need database access.
 
 `GET /api/stories` returns the current ranked stories and ingestion timestamp,
-using the homepage's shared 30-minute data cache. `GET /api/stories/{id}` returns
+using the homepage's 60-second per-instance data cache. `GET /api/stories/{id}` returns
 one story, including archived stories, using a minimal primary-key query with a
 five-minute bounded per-instance cache (one minute for missing stories). Successful
 responses also permit five minutes of shared HTTP caching; safe 404s permit one

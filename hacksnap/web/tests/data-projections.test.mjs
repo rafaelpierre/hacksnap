@@ -22,7 +22,6 @@ let connectionError;
 let queryError;
 let rollbackError;
 const releases = [];
-let cachedValue;
 const client = {
   query: async (sql) => {
     queries.push(typeof sql === "string" ? sql : sql.text);
@@ -44,13 +43,6 @@ jest.unstable_mockModule("pg", () => ({
       return client;
     }
     on() {}
-  },
-}));
-jest.unstable_mockModule("next/cache", () => ({
-  unstable_noStore: () => {},
-  unstable_cache: (fn, keys) => {
-    assert.deepEqual(keys, ["hacksnap-leaderboard-v15-story-images", "enabled"]);
-    return () => cachedValue ?? fn();
   },
 }));
 let clock = Date.now();
@@ -86,18 +78,21 @@ test("each loader uses its intended projection; older cached fields remain optio
     await data.getLeaderboard();
     assert.ok(queries.some((sql) => sql.includes(feedFields)));
 
-    cachedValue = {
-      stories: [
-        {
-          hn_id: "123",
-          date_added: "2026-09-27T12:00:00Z",
-          rank_history: [],
-          summary: { discussion_summary: "Legacy summary" },
-        },
-      ],
-      ingestion: null,
-      observed_at: "2026-09-27T12:00:00Z",
-    };
+    clock += 60_000;
+    rows = [
+      {
+        stories: [
+          {
+            hn_id: "123",
+            date_added: "2026-09-27T12:00:00Z",
+            rank_history: [],
+            summary: { discussion_summary: "Legacy summary" },
+          },
+        ],
+        ingestion: null,
+        ranked_at: new Date("2026-09-27T12:00:00Z"),
+      },
+    ];
     const { stories } = await data.getLeaderboard();
     assert.ok(stories[0].date_added instanceof Date);
     assert.equal(stories[0].summary.discussion_summary, "Legacy summary");
@@ -113,7 +108,6 @@ test("each loader uses its intended projection; older cached fields remain optio
     assert.equal((await data.getArchiveStories(null, 100)).hasNext, false);
     assert.equal((await data.getCategoryStories("agents_coding", 100)).hasNext, false);
   } finally {
-    cachedValue = undefined;
     rows = [];
     if (previousURL === undefined) delete process.env.HACKSNAP_WEB_DATABASE_URL;
     else process.env.HACKSNAP_WEB_DATABASE_URL = previousURL;
@@ -339,5 +333,51 @@ test("rendering fallback uses legacy projections without reading or changing sto
     if (previous === undefined) delete process.env.HACKSNAP_DISCUSSION_RENDERING;
     else process.env.HACKSNAP_DISCUSSION_RENDERING = previous;
     warning.mockRestore();
+  }
+});
+
+test("leaderboard coalesces reads and hard-expires ranks, scores and ingestion after one minute", async () => {
+  const previousURL = process.env.HACKSNAP_WEB_DATABASE_URL;
+  process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  const log = jest.spyOn(console, "error").mockImplementation(() => {});
+  const snapshot = (id, points, time) => ({
+    stories: [{ hn_id: id, rank: "1", points, date_added: time, rank_history: [] }],
+    ingestion: new Date(time),
+    ranked_at: new Date(time),
+  });
+  const reads = () => queries.filter((sql) => sql.includes("AS ranked_at")).length;
+  try {
+    queries.length = 0;
+    rows = [snapshot("123", 160, "2026-09-29T17:00:00Z")];
+    const initial = await Promise.all([data.getLeaderboard(), data.getLeaderboard()]);
+    assert.equal(reads(), 1, "concurrent callers share one database read");
+    assert.deepEqual(initial[0], initial[1]);
+    rows = [snapshot("456", 177, "2026-09-29T17:01:00Z")];
+    clock += 59_999;
+    assert.equal((await data.getLeaderboard()).stories[0].hn_id, "123");
+    assert.equal(reads(), 1);
+    clock += 1;
+    const fresh = await data.getLeaderboard();
+    assert.equal(reads(), 2);
+    assert.equal(fresh.stories[0].hn_id, "456", "expired ordering is replaced in this response");
+    assert.equal(fresh.stories[0].points, 177);
+    assert.equal(fresh.ingestion.toISOString(), "2026-09-29T17:01:00.000Z");
+    assert.equal(fresh.observed_at, "2026-09-29T17:01:00.000Z");
+    clock += 60_000;
+    queryError = new Error("database unavailable");
+    await assert.rejects(data.getLeaderboard(), /Hacksnap data is temporarily unavailable/);
+    queryError = undefined;
+    rows = [snapshot("789", 200, "2026-09-29T17:02:00Z")];
+    assert.equal(
+      (await data.getLeaderboard()).stories[0].hn_id,
+      "789",
+      "a failed refresh is retried immediately",
+    );
+  } finally {
+    queryError = undefined;
+    rows = [];
+    log.mockRestore();
+    if (previousURL === undefined) delete process.env.HACKSNAP_WEB_DATABASE_URL;
+    else process.env.HACKSNAP_WEB_DATABASE_URL = previousURL;
   }
 });

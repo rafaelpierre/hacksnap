@@ -28,9 +28,9 @@ export default function ApiDocs() {
       </pre>
       <p>
         Returns <code>{"{stories: [...], ingestion: string | null}"}</code>. Stories follow the
-        homepage ranking, with the same selection and a shared 30-minute data cache. The ingestion
-        timestamp records the last successful collection. No pagination or query parameters are
-        supported.
+        homepage ranking, with the same selection and a 60-second per-instance data cache. The
+        ingestion timestamp records the last successful collection. No pagination or query
+        parameters are supported.
       </p>
       <h2>Get a story</h2>
       <pre style={{ whiteSpace: "pre-wrap" }}>
@@ -98,9 +98,9 @@ export default function ApiDocs() {
       <h2>Errors and freshness</h2>
       <p>
         Errors return <code>{"{error: string}"}</code>: 400 for an invalid ID, 404 for an unknown
-        story, and 503 when data is unavailable. Retry a 503 after 60 seconds. Cached lists may
-        retain the last successful result during an outage. Poll the list no more frequently than
-        every 30 minutes.
+        story, and 503 when data is unavailable. Retry a 503 after 60 seconds. Expired lists wait
+        for fresh data and return 503 if that read fails. Poll the list no more frequently than
+        every 60 seconds.
       </p>
       <pre style={{ whiteSpace: "pre-wrap" }}>
         <code>curl https://hacksnap.live/api/stories</code>
