@@ -319,13 +319,11 @@ publisher source-image URL. Missing, pending, failed, and malformed records omit
 the image wrapper. Browser load errors keep a branded placeholder in the reserved
 frame while preserving the card or story content. Until source descriptions are stored, the supplementary images use an
 empty alt attribute so the headline remains the accessible label. Detail images
-retain their supplied intrinsic dimensions. Feed thumbnails keep their reserved
-responsive frame and fill it only when cropping would remove no more than 20%
-of the image area. Otherwise they show the full image against the theme's neutral
-surface. The initial HTML uses the default 4:3 frame; a resize observer adjusts
-the fit for the actual frame on mobile and with enlarged text. Fitting uses the
-stored image dimensions, requires no extra downloads or AI calls, and applies to
-Top, archive and category feeds. Social Open Graph images retain the existing generated template.
+retain their supplied intrinsic dimensions. Feed images also keep their original
+aspect ratio: their width follows the image column and their height is automatic,
+so the complete image is visible without cropping or letterboxing. Error
+placeholders preserve the stored aspect ratio. This applies to Top, archive and
+category feeds. Social Open Graph images retain the existing generated template.
 
 ## Discussion-analysis projections
 
@@ -426,23 +424,22 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 ## Feed card layout
 
 At phone widths (640px and below), cards stack the category and rank, title,
-full-width image, then subtitle/excerpt, discussion themes and footer. The image
-keeps its reserved 4:3 frame and adaptive fit, including while loading or when
-showing its error fallback. Cards without an image go directly from title to
-excerpt without an empty image row.
+full-width image, then subtitle/excerpt and footer. The image uses its original
+proportions, including while loading or showing its error fallback. Cards without
+an image go directly from title to excerpt without an empty image row.
 
-Above 640px, the category and rank occupy a full-width row above the aligned
-image and title. Narrow desktop cards give the excerpt, discussion themes and
-footer the full width. Footer controls wrap when text is enlarged.
+Above 640px, the category and rank occupy a full-width row above the image and
+content. The image column uses 30% of the available width, capped at 18rem, giving
+landscape previews more room. Image height follows its original proportions;
+text can make a row taller when needed. The footer aligns to the bottom of the
+content column. Narrow desktop cards keep the image beside the title and give
+the excerpt and footer the full width. Footer controls wrap when text is enlarged.
+Feed headlines use rem units so they scale with the excerpt and metadata when
+readers enlarge text. Light and dark themes share the same sizing and layout.
 
-## Feed discussion previews
-
-Home, archive and category cards show up to two discussion theme titles from the
-compact feed projection. Selected critical or supportive evidence adds a “Read
-the debate” link to the story’s `#discussion-analysis` section, preserving the
-list return context and scroll position. Themes use a labelled text list distinct
-from category links. Legacy, null and no-comments analysis adds no preview or
-pending state; topics without stance evidence show themes alone.
+Home, archive and category cards omit discussion themes and the “Read the debate”
+link. The title opens the full story, where discussion analysis remains available.
+The compact discussion projection and public exports are unchanged.
 
 ## Public read limits
 

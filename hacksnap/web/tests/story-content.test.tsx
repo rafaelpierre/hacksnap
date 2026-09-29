@@ -283,7 +283,7 @@ for (const variant of ["ranked", "unranked"] as const) {
     { critical: 1, supportive: 0 },
     { critical: 0, supportive: 1 },
   ]) {
-    test(`${variant} cards link selected stance evidence and show at most two themes`, () => {
+    test(`${variant} cards omit discussion previews while preserving the brief and actions`, () => {
       const card = {
         ...story,
         rank: "1",
@@ -305,10 +305,11 @@ for (const variant of ["ranked", "unranked"] as const) {
         },
       };
       const html = render(createElement(StoryRow, { story: card, variant }));
-      assert.match(html, /aria-label="Discussion themes"/);
-      assert.match(html, /Costs &amp; tradeoffs/);
-      assert.ok(html.includes("long-title".repeat(30)));
-      assert.match(html, /href="\/story\/90000001#discussion-analysis"[^>]*>Read the debate/);
+      assert.doesNotMatch(
+        html,
+        /Discussion themes|Costs &amp; tradeoffs|long-title|Read the debate|#discussion-analysis/,
+      );
+      assert.match(html, /href="\/story\/90000001"/);
       assert.match(html, /href="\/category\/agents-coding"/);
       assert.match(html, /A test takeaway/);
       assert.match(html, /aria-label="Share: A mocked story title"/);
@@ -317,7 +318,7 @@ for (const variant of ["ranked", "unranked"] as const) {
   }
 }
 
-test("topics without stance evidence show themes without a debate link", () => {
+test("topics without stance evidence also stay off the cards", () => {
   for (const status of ["available", "insufficient_context"] as const) {
     const html = render(
       createElement(StoryRow, {
@@ -334,8 +335,10 @@ test("topics without stance evidence show themes without a debate link", () => {
         },
       }),
     );
-    assert.match(html, /Operating costs/);
-    assert.doesNotMatch(html, /Read the debate|Hidden summary|pending/i);
+    assert.doesNotMatch(
+      html,
+      /Discussion themes|Operating costs|Read the debate|Hidden summary|pending/i,
+    );
   }
 });
 
