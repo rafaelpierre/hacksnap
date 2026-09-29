@@ -497,6 +497,8 @@ def test_run_returns_isolated_story_failures_with_cache_hits(monkeypatch, caplog
         database_url="unused", kestrel_binary="unused", fetch_timeout=1,
         article_chars=100, llm_timeout=1, llm_base_url="https://example.com",
         llm_model=model.model, llm_api_key="unused", llm_reasoning_effort="low",
+        sentiment_base_url="https://sentiment.example.com", sentiment_model=model.model,
+        sentiment_api_key=None, sentiment_reasoning_effort="low",
         comment_chars=48000,
     ))
     monkeypatch.setattr(module, "Repository", lambda _: repo)
@@ -622,8 +624,8 @@ def test_existing_summary_survives_prompt_and_model_changes():
     repo.saved[100]["discussion_analysis"] = None  # Legacy row.
     model.model = "another-model"
     item["title"] = "Changed title"
-    assert process_story(item, repo, fetcher, model) == "unchanged"
-    assert model.calls == 1 and model.sentiment_calls == 0
+    assert process_story(item, repo, fetcher, model) == "sentiment_updated"
+    assert model.calls == 1 and model.sentiment_calls == 1
 
 
 def test_missing_sentiment_is_backfilled_even_with_matching_comment_fingerprint():
@@ -635,16 +637,16 @@ def test_missing_sentiment_is_backfilled_even_with_matching_comment_fingerprint(
     assert model.sentiment_calls == 1
 
 
-def test_scored_legacy_row_adopts_comment_cache_without_inference():
+def test_scored_legacy_row_refreshes_once_to_establish_model_provenance():
     item = {**story(), "content_hash": "retained-hash"}
     repo, model = FakeRepository(), FakeSummarizer()
     process_story(item, repo, SimpleNamespace(fetch=lambda _: "article"), model)
     repo.saved[100]["discussion_analysis"] = None  # Legacy row.
     del repo.saved[100]["source_coverage"]["sentiment"]
+    assert process_story(item, repo, None, model) == "sentiment_updated"
     assert process_story(item, repo, None, model) == "unchanged"
-    assert process_story(item, repo, None, model) == "unchanged"
-    assert model.sentiment_calls == 0
-    assert repo.saved[100]["sentiment"] == 0
+    assert model.sentiment_calls == 1
+    assert repo.saved[100]["sentiment"] == -1
 
 
 def test_empty_comments_clear_score_without_inference_and_are_cached():

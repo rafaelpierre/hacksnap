@@ -129,16 +129,36 @@ password and inference API key. The selected model is **deepseek-ai/DeepSeek-V4.
 https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1
 ```
 
-To use GLM 5.3 Flash instead, replace both settings in your local environment or
-set these values in Modal's `hacksnap` Secret for the scheduled worker:
+Keep `MODAL_LLM_BASE_URL` and `MODAL_LLM_MODEL` on DeepSeek for initial summaries
+and discussion-analysis refreshes. Sentiment uses **nvidia/GLM-5.3-Flash-NVFP4**
+independently, with these defaults:
 
 ```dotenv
-MODAL_LLM_BASE_URL=https://rafaelpierre--ep-glm-5-3-flash-server.us-west.modal.direct/v1
-MODAL_LLM_MODEL=zai-org/GLM-5.3-Flash
+MODAL_SENTIMENT_BASE_URL=https://rafaelpierre--ep-glm-5-3-flash-nvfp4-server.us-west.modal.direct/v1
+MODAL_SENTIMENT_MODEL=nvidia/GLM-5.3-Flash-NVFP4
+MODAL_SENTIMENT_REASONING_EFFORT=low
 ```
 
 Manage the scheduled worker's endpoint, model, and inference credentials in Modal's
 `hacksnap` Secret. GitHub Actions deploys the code without modifying that secret.
+`MODAL_SENTIMENT_API_KEY` is optional and falls back to `MODAL_LLM_API_KEY`.
+The collector separately selects the GLM endpoint in `data/modal_app.py`, so its
+model does not inherit the worker's DeepSeek setting from the shared secret.
+Deploy the collector from `data/` with `uv run modal deploy modal_app.py` when its
+classification configuration changes; the worker deployment workflow deploys only
+the enrichment app. No historical category backfill is required for this switch.
+
+New summaries keep the established DeepSeek request schema, then replace its
+sentiment score with a separate GLM request over the same ten-comment sample.
+GLM receives only comments, never the article or initial-summary schema. A failed
+sentiment request prevents publishing a new summary with a misattributed score;
+existing summaries/scores are retained on sentiment failure. Empty samples need
+no GLM request. Both models keep independent prompt warm-ups and session affinity.
+
+The split passed a synthetic smoke check on 2026-09-29 using the scheduled jobs'
+credentials: GLM classification and new/refreshed sentiment, plus DeepSeek initial
+summary and discussion refresh. To repeat without database access or content writes,
+run `uv run modal run tests/modal_model_routing_smoke.py` from `hacksnap/`.
 
 Both replacement endpoints passed a live synthetic structured-summary smoke test
 on 2026-09-18 using the pipeline's exact request format: strict JSON-schema output,
@@ -221,7 +241,7 @@ by their own completion event, so they can run concurrently even while another
 prompt is warming. Each warm-up result is used normally, with no extra inference
 request. Cached stories and failed fetches do not consume a warm-up, and a failed
 warm-up releases the remaining requests for its prompt.
-All requests retain the same run-scoped `Modal-Session-Id`; cache reuse is best
+Each model retains its own run-scoped `Modal-Session-Id`; cache reuse is best
 effort and depends on the endpoint's routing and prefix-cache configuration.
 After each batch finishes, the worker re-reads the ranking for replacements,
 attempts each story at most once, and keeps the 50-story limit. Rank history and
@@ -356,21 +376,22 @@ Check that `checks.discovery.apiCatalog.status` is `"pass"`.
 
 Existing summaries are retained without fetching the article or regenerating the
 summary. For the worker’s top-50 stories, sentiment is estimated separately when a
-score is missing or the prepared comment sample has changed. Sentiment uses a
+score is missing or the prepared comment sample, sentiment model or prompt version
+has changed. Sentiment uses a
 stable pseudorandom sample of at most 10 usable comments from the prepared
 discussion; fewer comments use all available ones. The sample is selected by a
 stable hash of comment IDs, so unchanged input never resamples randomly. Summary
-generation still uses the full prepared discussion, but its sentiment field is
-restricted to the separately supplied ten-comment sample. A fingerprint of
-only the selected, normalized comments is stored in
+generation still uses the full prepared discussion; a separate GLM request supplies
+the persisted sentiment from the ten-comment sample. A fingerprint of
+the selected, normalized comments, sentiment model and sentiment prompt version is stored in
 `source_coverage.sentiment.comments_fingerprint`; unchanged scored comments skip
 inference, including a Neutral score of 0. A processed empty sample stores null
 and its fingerprint, so it also skips repeated inference. Missing retained source
 content is reported as unavailable and leaves saved data untouched.
 
-Legacy scored rows without a comment fingerprint reuse their score if the saved
-summary content hash matches the retained content; otherwise the first refresh
-establishes a separate comment fingerprint. New stories still receive a full,
+Legacy scored rows without model-aware fingerprints are rescored once during
+normal processing of retained content. The sentiment model and prompt version are
+also recorded in `source_coverage.sentiment`. New stories still receive a full,
 validated summary and sentiment together. Sentiment-only updates preserve summary
 text, generation time, source fingerprint, and summarized content hash, and keep
 sentiment sampling metadata separate from the original summary's coverage.

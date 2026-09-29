@@ -2,7 +2,7 @@
 
 The top AI stories from Hacker News, with separate article and discussion briefs.
 
-- `data/`: Modal HN ingestion with DeepSeek Flash hourly and Alembic migrations.
+- `data/`: Modal HN ingestion with GLM Flash NVFP4 classification and Alembic migrations.
 - `mcp/`: existing read-only tools for stored HN threads.
 - `hacksnap/`: Modal enrichment every four hours using Kestrel and a Modal-hosted model, plus a Next.js UI.
 
