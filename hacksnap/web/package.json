@@ -38,7 +38,7 @@
     "@jest/globals": "^30.5.2",
     "@swc/core": "^1.16.2",
     "@swc/jest": "^0.2.39",
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.6.3",
     "@types/pg": "^8.15.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

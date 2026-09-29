@@ -49,7 +49,7 @@ for (const { id, expected: analysis } of fixtures) {
       assert.ok(detail, "every theme has a native keyboard disclosure");
       assert.ok(detail.textContent?.includes(topic.summary));
       for (const id of topic.comment_ids) {
-        const link = detail
+        const link: Element | null = detail
           .closest(".analysis-theme")!
           .querySelector(`a[href="https://news.ycombinator.com/item?id=${id}"]`);
         assert.ok(link?.getAttribute("aria-label")?.includes(topic.title));
