@@ -28,30 +28,6 @@ class Summarizer(Protocol):
     def refresh_discussion(self, source: dict) -> DiscussionAnalysis: ...
 
 
-class RoutedSummarizer:
-    """Keep editorial inference separate from the model that owns sentiment."""
-
-    def __init__(self, editorial: Summarizer, sentiment: Summarizer):
-        self.editorial = editorial
-        self.sentiment = sentiment
-        self.model = editorial.model
-        self.sentiment_model = sentiment.model
-
-    def summarize(self, source: dict) -> StorySummary:
-        summary = self.editorial.summarize(source)
-        score = self.estimate_sentiment(source["comments"])
-        # Preserve the established editorial schema; replace only its score.
-        return StorySummary.model_validate({**summary.model_dump(), "sentiment": score.sentiment})
-
-    def estimate_sentiment(self, comments: list[dict]) -> CommentSentiment:
-        result = CommentSentiment.model_validate(self.sentiment.estimate_sentiment(comments))
-        result.validate_comments(comments)
-        return result
-
-    def refresh_discussion(self, source: dict) -> DiscussionAnalysis:
-        return self.editorial.refresh_discussion(source)
-
-
 class ModalSummarizer:
     def __init__(
         self,

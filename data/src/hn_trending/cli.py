@@ -74,7 +74,7 @@ def resolve_database_url() -> str:
     "--classify-topic/--no-classify-topic",
     default=False,
     show_default=True,
-    help="Use GLM Flash NVFP4 on Modal to gate titles for AI-news relevance.",
+    help="Use DeepSeek Flash on Modal to gate titles for AI-news relevance.",
 )
 @click.option(
     "--limit",

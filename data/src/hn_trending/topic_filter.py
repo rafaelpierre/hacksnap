@@ -22,8 +22,8 @@ MAX_RETRY_DELAY_SECONDS = 120.0
 MAX_COMPLETION_TOKENS = 8192
 
 
-MODAL_LLM_BASE_URL = "https://rafaelpierre--ep-glm-5-3-flash-nvfp4-server.us-west.modal.direct/v1"
-MODAL_LLM_MODEL = "nvidia/GLM-5.3-Flash-NVFP4"
+MODAL_LLM_BASE_URL = "https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1"
+MODAL_LLM_MODEL = "deepseek-ai/DeepSeek-V4.1-Flash"
 CLASSIFIER_SYSTEM_PROMPT = """You classify Hacker News titles for a broad AI news feed.
 This is a high-recall first-pass filter using only a title, not the article or comments.
 Missing a potentially relevant AI story is worse than retaining an uncertain candidate.
@@ -189,7 +189,7 @@ def retry_delay(response: httpx.Response, attempt: int) -> float:
 
 
 class TitleTopicClassifier:
-    """Classify HN titles using Modal's OpenAI-compatible inference endpoint."""
+    """Classify HN titles using Modal's OpenAI-compatible DeepSeek endpoint."""
 
     def __init__(
         self, api_key: str, *, base_url: str = MODAL_LLM_BASE_URL,
@@ -233,7 +233,7 @@ class TitleTopicClassifier:
                 delay = retry_delay(response, attempt)
                 self._next_request_at = time.monotonic() + delay
                 logger.warning(
-                    "Title classifier rate limited (429); retrying in %.1fs (attempt %d/%d).",
+                    "DeepSeek rate limited (429); retrying in %.1fs (attempt %d/%d).",
                     delay, attempt + 2, MAX_ATTEMPTS,
                 )
                 continue

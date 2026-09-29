@@ -39,7 +39,7 @@ context. The official API has no comment vote-score field; descendant counts are
 therefore the available API-only signal. A value of `0` (the CLI default) retains
 every fetched comment.
 
-For a less brittle topic gate, use `--classify-topic`. It calls GLM 5.3 Flash NVFP4
+For a less brittle topic gate, use `--classify-topic`. It calls DeepSeek V4.1 Flash
 through your Modal endpoint with the title only. This high-recall first-pass filter retains
 AI, ML research, LLM, agent, AI-security, and AI-impact stories, including indirect model
 signals such as parameter counts and compression, with model-name hints for Astra,
@@ -47,8 +47,8 @@ Fable, and Mythos. It favors inclusion when AI signals are ambiguous, accepting 
 false positives to avoid losing AI stories with sparse titles. Product launches and
 coding-workflow changes alone do not establish AI relevance. Clearly unrelated
 technology is excluded. Set `MODAL_LLM_API_KEY`. `MODAL_LLM_BASE_URL` defaults to
-`https://rafaelpierre--ep-glm-5-3-flash-nvfp4-server.us-west.modal.direct/v1`
-and `MODAL_LLM_MODEL` defaults to `nvidia/GLM-5.3-Flash-NVFP4`.
+`https://rafaelpierre--ep-deepseek-v4-1-flash-server.us-west.modal.direct/v1`
+and `MODAL_LLM_MODEL` defaults to `deepseek-ai/DeepSeek-V4.1-Flash`.
 The endpoint receives a strict Pydantic-derived JSON schema with `relevant: bool`
 and a primary `category` (null for irrelevant titles). A valid decision can
 still misclassify a story because the classifier sees only its title.
@@ -128,7 +128,7 @@ runs hourly at :17 from 08:17 through 23:17 UTC. It preserves the previous filte
 3 descendants per retained comment (plus ancestors).
 
 It reuses `SUPABASE_PASSWORD` and `MODAL_LLM_API_KEY` from the existing `hacksnap`
-Modal Secret. The scheduled function explicitly selects the GLM NVFP4 endpoint and
+Modal Secret. The scheduled function explicitly selects the DeepSeek endpoint and
 model above, independently of the enrichment app's model settings.
 
 ```sh
