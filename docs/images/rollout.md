@@ -152,6 +152,28 @@ duplicate completion, but a command's pacing applies only to that command.
   Cleanup diagnostics identify this case. Inspect the authoritative stored URL
   before manually deleting an orphan; never delete the currently referenced URL.
 
+### Retrying generated fallbacks after the downloader fix
+
+A completed download with `Content-Length` and `Connection: close` previously
+could raise `Bad file descriptor` on the next loop iteration. Logs reported
+`fetch_network_error`, and the worker stored generated artwork as a ready image.
+The fixed downloader stops at the completed HTTP response before touching the
+closed socket. Existing generated images stay ready, so ordinary runs skip them.
+
+After deploying the fix (or updating the local checkout used by the CLI), preview
+and then reprocess a small batch from the repository root:
+
+```sh
+uv run --directory hacksnap python -m pipeline.backfill_images --dry-run --reprocess-ready --limit 5
+uv run --directory hacksnap python -m pipeline.backfill_images --reprocess-ready --limit 5
+```
+
+Inside `hacksnap/`, omit `--directory hacksnap`. These commands still enforce the
+fixed 29 September 2026 London window. `--reprocess-ready` includes all eligible
+ready images in that batch, including publisher images. Verify `publisher_derived`
+and per-article `source_type` after the run. The existing asset remains available
+until a replacement commits; the normal site cache can delay its appearance.
+
 ## Validation before enabling broad processing
 
 Use representative Open Graph, Twitter, JSON-LD, no-image, invalid-image,

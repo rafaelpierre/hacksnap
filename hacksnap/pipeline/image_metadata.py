@@ -231,7 +231,10 @@ class PublicFetcher:
                         raise ImageFetchError("too_large")
                 chunks: list[bytes] = []
                 size = 0
-                while True:
+                # A final Content-Length read closes HTTPResponse's file and,
+                # with Connection: close, the retained socket too. Stop before
+                # attempting another timeout update on that closed descriptor.
+                while not response.isclosed():
                     remaining = deadline - self._clock()
                     if remaining <= 0:
                         raise ImageFetchError("timeout")
