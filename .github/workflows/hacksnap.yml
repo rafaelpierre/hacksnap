@@ -8,21 +8,43 @@ on:
       - ".github/workflows/hacksnap.yml"
       - ".github/scripts/deploy-modal.sh"
       - ".github/tests/test_modal_deploy.py"
+      - ".github/scripts/modal-deploy-changes.py"
+      - ".github/tests/test_modal_deploy_changes.py"
   push:
     branches: [main]
     paths:
-      - "hacksnap/pipeline/**"
-      - "hacksnap/modal_app.py"
-      - "hacksnap/pyproject.toml"
-      - "hacksnap/uv.lock"
+      - "hacksnap/**"
+      - "!hacksnap/web/**"
       - ".github/workflows/hacksnap.yml"
       - ".github/scripts/deploy-modal.sh"
+      - ".github/tests/test_modal_deploy.py"
+      - ".github/scripts/modal-deploy-changes.py"
+      - ".github/tests/test_modal_deploy_changes.py"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  deployment_changes:
+    name: Deployment changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.changes.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check production changes across the full push
+        id: changes
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: python3 .github/scripts/modal-deploy-changes.py
+
   test:
     name: Worker / ${{ matrix.check }}
     runs-on: ubuntu-latest
@@ -43,33 +65,29 @@ jobs:
       - run: uv sync --locked
       - name: Worker lint
         if: matrix.check == 'lint'
-        run: uv run ruff check pipeline tests modal_app.py ../.github/tests/test_modal_deploy.py
+        run: uv run ruff check pipeline tests modal_app.py ../.github/tests ../.github/scripts/modal-deploy-changes.py
       - name: Worker tests and import smoke check
         if: matrix.check == 'tests'
         run: |
-          uv run python ../.github/tests/test_modal_deploy.py
+          uv run python -m unittest discover -s ../.github/tests -p "test_*.py"
           uv run pytest
           uv run python -c 'import modal_app'
 
   # Automatic and manual production deployments share all validation gates.
   ingestion:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: deployment_changes
+    if: needs.deployment_changes.outputs.deploy == 'true'
     uses: ./.github/workflows/ingestion.yml
 
   frontend:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: deployment_changes
+    if: needs.deployment_changes.outputs.deploy == 'true'
     uses: ./.github/workflows/frontend.yml
 
   deploy:
     # Deploy matching main pushes and explicit manual runs after all checks pass.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    needs: [test, ingestion, frontend]
+    if: needs.deployment_changes.outputs.deploy == 'true'
+    needs: [deployment_changes, test, ingestion, frontend]
     runs-on: ubuntu-latest
     environment: hacksnap-production
     concurrency:

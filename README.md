@@ -30,7 +30,7 @@ changed paths. Each workflow also runs when its own YAML file changes.
 
 | Workflow | Related paths | Checks |
 | --- | --- | --- |
-| Hacksnap worker | `hacksnap/**`, excluding `hacksnap/web/**` | Ruff lint and pytest/import checks in parallel |
+| Hacksnap worker | `hacksnap/**`, excluding `hacksnap/web/**`, plus worker deployment helpers/tests | Ruff lint and pytest/import checks in parallel |
 | Ingestion | `data/**`, plus `hacksnap/web/lib/categories.ts` used by the category consistency test | pytest |
 | Frontend | `hacksnap/web/**`, shared `hacksnap/fixtures/**`, and migration `0012_discussion_analysis.py` used by the projection tests | Oxlint, Oxfmt, Jest, and typecheck/build in four parallel jobs |
 | MCP | `mcp/**` | pytest |
@@ -38,8 +38,10 @@ changed paths. Each workflow also runs when its own YAML file changes.
 Schema validation, scanner-tax, and Spamhaus keep their existing scoped workflows.
 Matrix jobs use `fail-fast: false` so a lint or formatting failure does not cancel
 the test results. Ingestion and MCP currently have no configured lint/format checks.
-Manual runs of **Hacksnap** still require worker, ingestion, and frontend checks
-before the existing production deployment can proceed. Frontend and ingestion
+Main pushes keep worker checks for tests, fixtures and documentation changes.
+Production-path changes additionally enable automatic Modal deployment; manual
+**Hacksnap** runs can also deploy. Both require worker, ingestion and frontend checks
+before deployment can proceed. Frontend and ingestion
 workflows are reusable so this deployment uses the same checks as pull requests.
 
 If branch protection requires the former `test` check, update its required checks

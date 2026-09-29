@@ -456,9 +456,12 @@ uv run modal run tests/modal_smoke.py
 
 ## GitHub Actions
 
-`hacksnap.yml` validates worker changes on pull requests. A push to `main`, including
-one produced by merging a PR, automatically validates and deploys the Modal worker
-when it changes any of these paths:
+`hacksnap.yml` runs worker lint and tests for pull requests and pushes to `main`
+that change `hacksnap/**` outside `hacksnap/web/**`, or the worker workflow and its
+deployment helpers/tests. This includes direct test-only pushes to `main`.
+
+A separate job checks the full before/after commit range of a main push. Only changes
+to these production paths enable deployment and its ingestion/frontend prerequisites:
 
 - `hacksnap/pipeline/**`
 - `hacksnap/modal_app.py`
@@ -466,9 +469,12 @@ when it changes any of these paths:
 - `hacksnap/uv.lock`
 - `.github/workflows/hacksnap.yml`
 - `.github/scripts/deploy-modal.sh`
+- `.github/scripts/modal-deploy-changes.py`
 
 Frontend-only, documentation-only, fixture-only and test-only changes do not trigger
-an automatic worker deployment. **Run workflow** (`workflow_dispatch`) remains
+an automatic worker deployment; matching worker paths still run worker validation.
+Failed change detection blocks deployment without suppressing the independent worker
+checks. **Run workflow** (`workflow_dispatch`) remains
 available for manual deployment.
 
 Automatic and manual deployments both require worker and ingestion tests, frontend
