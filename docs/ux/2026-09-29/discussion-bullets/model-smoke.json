@@ -1,0 +1,6 @@
+{
+  "scope": "newly authored fictional example; no repository fixture or production data",
+  "prompt_version": "v8-discussion-bullets",
+  "discussion_summary": "The central tension is whether a warmed-cache benchmark can support a general latency claim.\n\n- The baseline includes startup time while the new engine is warmed up, so the comparison does not establish the reported latency improvement.\n- The result may still be useful for long-lived services, but a fair warmed-cache comparison and tail-latency measurements would strengthen the evidence.",
+  "validation": "passed"
+}

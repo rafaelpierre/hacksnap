@@ -3,6 +3,7 @@ import type { DiscussionFields } from "./discussion-analysis";
 import { hasReadySummary } from "./ready-stories.ts";
 import { storyIndicators } from "./story-indicators.ts";
 import { storyMetricsText } from "./story-metrics.ts";
+import { discussionBriefBlocks } from "./discussion-brief.ts";
 import { categoryById, categoryURL } from "./categories.ts";
 
 // Wildcards alone keep the browser default. An explicit Markdown preference
@@ -167,7 +168,14 @@ export function storyMarkdown(story: Story): string {
   );
   if (summary.article_summary && summary.article_key_points.length)
     lines.push(summary.article_key_points.map((p) => `- ${text(p)}`).join("\n"));
-  lines.push("## In the discussion", text(summary.discussion_summary));
+  lines.push(
+    "## In the discussion",
+    ...discussionBriefBlocks(summary.discussion_summary).map((block) =>
+      block.type === "paragraph"
+        ? text(block.text)
+        : block.items.map((item) => `- ${text(item)}`).join("\n"),
+    ),
+  );
   if (summary.discussion_analysis) lines.push(...discussionMarkdown(summary));
   for (const point of summary.discussion_analysis ? [] : summary.discussion_points) {
     lines.push(`### ${text(point.title)}`, text(point.summary));

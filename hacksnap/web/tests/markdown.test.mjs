@@ -239,3 +239,20 @@ test("Discussion introduction preserves paragraph breaks and escapes source mark
   assert.ok(body.includes("The central question\n\nA separate concern \\<script\\>"));
   assert.ok(!body.includes("<script>"));
 });
+
+test("Discussion bullets remain list items while their contents are escaped", () => {
+  const body = storyMarkdown({
+    ...story,
+    summary: {
+      ...story.summary,
+      discussion_summary:
+        "The central question\n\n- One argument\n- <script> and [unsafe](javascript:alert)",
+    },
+  });
+  assert.ok(
+    body.includes(
+      "The central question\n\n- One argument\n- \\<script\\> and \\[unsafe\\](javascript:alert)",
+    ),
+  );
+  assert.ok(!body.includes("<script>"));
+});

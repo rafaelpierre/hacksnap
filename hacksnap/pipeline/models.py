@@ -173,14 +173,17 @@ class CommentSentiment(StrictModel):
             raise ValueError("Summary omits discussion sentiment")
 
 
-class StorySummary(StrictModel):
+class SummaryContent(StrictModel):
     discussion_analysis: DiscussionAnalysis
     article_summary: Text | None
     article_key_points: list[Text] = Field(max_length=6)
-    discussion_summary: Text
     discussion_points: list[DiscussionPoint] = Field(max_length=6)
     sentiment: Annotated[int, Field(strict=True, ge=-1, le=1)] | None
     overall_takeaway: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=220)]
+
+
+class StorySummary(SummaryContent):
+    discussion_summary: Text
 
     def validate_sources(
         self, article: str | None, comments: list[dict], story_text: str | None = None
@@ -199,3 +202,28 @@ class StorySummary(StrictModel):
         if comments and not self.discussion_points:
             raise ValueError("Summary omits the supplied discussion")
         self.discussion_analysis.validate_sources(article, story_text, comments)
+
+
+class DiscussionBrief(StrictModel):
+    """Inference-only structure; the application inserts list markers and line breaks."""
+
+    opening: Annotated[str, StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=300, pattern=r"^[^\r\n]+$"
+    )]
+    bullets: list[Annotated[str, StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=450, pattern=r"^[^\r\n]+$"
+    )]] = Field(max_length=4)
+
+
+class GeneratedStorySummary(SummaryContent):
+    discussion_summary: DiscussionBrief
+
+    def to_summary(self) -> StorySummary:
+        """Keep the persisted/public string contract, including existing legacy prose."""
+        brief = self.discussion_summary
+        discussion = brief.opening
+        if brief.bullets:
+            discussion += "\n\n" + "\n".join(f"- {bullet}" for bullet in brief.bullets)
+        return StorySummary.model_validate({
+            **self.model_dump(), "discussion_summary": discussion,
+        })

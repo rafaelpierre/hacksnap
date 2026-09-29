@@ -337,10 +337,12 @@ work with keyboard navigation and without JavaScript. Coverage and UTC analysis
 time come from discussion fields, independently of the article summary.
 
 New themes replace legacy discussion points, keeping the discussion summary as
-the introduction. Blank-line-separated introduction paragraphs render as separate
-paragraphs in HTML and Markdown, including for legacy summaries. Null or absent
-analysis preserves legacy rendering without promising a backfill. No-comments and insufficient-context states explain their
-limits; empty groups only describe missing evidence within the analyzed sample.
+the introduction. New summaries contain a short opening followed by plain-text
+`- ` bullet lines. HTML renders semantic lists and Markdown retains list markers,
+while escaping each item's content. Legacy prose remains separate paragraphs.
+The stored summary string, RSS and public API contract remain unchanged. Null or
+absent analysis preserves legacy rendering without promising a backfill. No-comments
+and insufficient-context states explain their limits; empty groups only describe missing evidence within the analyzed sample.
 Legacy skepticism is never treated as explicit support.
 
 Run `npm test -- tests/discussion-analysis.test.tsx tests/story-content.test.tsx`.

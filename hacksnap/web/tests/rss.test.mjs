@@ -34,3 +34,16 @@ test("summary updates preserve item identity and publication date", () => {
   assert.equal(renderRSS([]).includes("<item>"), false);
   assert.ok(renderRSS([]).includes("<channel>"));
 });
+
+test("RSS preserves the opening and readable bullet lines as escaped text", () => {
+  const rss = renderRSS([
+    {
+      ...story,
+      summary: {
+        ...story.summary,
+        discussion_summary: "The question\n\n- First argument\n- <script> & caveat",
+      },
+    },
+  ]);
+  assert.ok(rss.includes("The question\n\n- First argument\n- &lt;script&gt; &amp; caveat"));
+});
