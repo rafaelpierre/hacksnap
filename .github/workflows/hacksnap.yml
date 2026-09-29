@@ -69,7 +69,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: matrix.check == 'tests'
         with:
           node-version: "22"
