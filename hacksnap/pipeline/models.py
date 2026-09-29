@@ -182,8 +182,17 @@ class SummaryContent(StrictModel):
     overall_takeaway: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=220)]
 
 
+ARTICLE_UNAVAILABLE_NOTICE = (
+    "Article unavailable: the retrieved page did not contain usable article text."
+)
+
+
 class StorySummary(SummaryContent):
     discussion_summary: Text
+
+    @property
+    def article_unavailable(self) -> bool:
+        return self.article_summary == ARTICLE_UNAVAILABLE_NOTICE
 
     def validate_sources(
         self, article: str | None, comments: list[dict], story_text: str | None = None
@@ -197,7 +206,14 @@ class StorySummary(SummaryContent):
             raise ValueError("Summary cites comments not supplied to the model")
         if article is None and (self.article_summary is not None or self.article_key_points):
             raise ValueError("Summary contains article claims without an article")
-        if article and (not self.article_summary or not self.article_key_points):
+        if self.article_unavailable:
+            if not article:
+                raise ValueError("Unavailable-article notice requires a retrieved page")
+            if self.article_key_points or any(
+                claim.source == "article" for claim in self.discussion_analysis.reference_claims
+            ):
+                raise ValueError("Unavailable article cannot contain article claims")
+        elif article and (not self.article_summary or not self.article_key_points):
             raise ValueError("Summary omits the supplied article")
         if comments and not self.discussion_points:
             raise ValueError("Summary omits the supplied discussion")

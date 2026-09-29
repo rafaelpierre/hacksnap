@@ -99,7 +99,13 @@ test("discussion-only pages do not promise an article summary", () => {
       }),
     });
     assert.match(metadata.description, /^Hacker News reactions from 1 sampled comment\. Topics:/);
-    assert.doesNotMatch(metadata.description, /[Aa]rticle summary/);
+    for (const description of [
+      metadata.description,
+      metadata.openGraph.description,
+      metadata.twitter.description,
+    ]) {
+      assert.doesNotMatch(description, /[Aa]rticle summary/);
+    }
     assert.equal(metadata.robots.index, true);
   }
 });

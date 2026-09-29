@@ -738,3 +738,22 @@ The pipeline disables Vercel SDK usage telemetry with
 `VERCEL_TELEMETRY_DISABLED=1` before importing the SDK. This applies to local
 runs and Modal workers, including both Blob adapters. Blob storage operations
 continue normally. Existing workers need a deployment to pick up this change.
+
+## Retrieved pages without article text
+
+The summary prompt distinguishes real article body text from navigation-only pages,
+bot challenges, access/login/paywall notices, and JavaScript fallback pages. When a
+retrieved page is unusable, the structured output uses the fixed notice
+“Article unavailable: the retrieved page did not contain usable article text.”
+with no article key points or article-sourced reference claims. The notice is an
+inference-only marker: after validation, the pipeline persists `article_summary: null`
+and `article_status: unavailable`. Existing web consumers then show unavailable copy
+and the source link, and describe the page as discussion-only in preview metadata.
+Available comments (and substantive HN story text) can still be summarized. True
+fetch failures retain the existing `fetch_skipped` behavior.
+
+This is a model judgment within the existing inference call, not a deterministic
+pre-inference content filter. Short genuine articles remain eligible. Normal
+summaries still require article content and key points. Existing saved summaries
+are not regenerated automatically, so the unavailable state is retained by later
+discussion-only refreshes; recovering the article requires explicit regeneration.

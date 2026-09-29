@@ -405,3 +405,20 @@ test("Discussion opening and bullets render as a safe list for current and legac
     assert.doesNotMatch(html, /<script>unsafe|<p>- Evidence/);
   }
 });
+
+test("unavailable article retains the source CTA and discussion without an article brief", () => {
+  const unavailable: Story = {
+    ...story,
+    summary: {
+      ...story.summary!,
+      article_summary: null,
+      article_key_points: [],
+      source_coverage: { ...story.summary!.source_coverage, article_status: "unavailable" },
+    },
+  };
+  const html = render(createElement(StoryContent, { story: unavailable, relatedStories: [] }));
+  assert.match(html, /The original article was unavailable to summarize/);
+  assert.match(html, /href="https:\/\/example.com\/article"[^>]*>Open the original source/);
+  assert.match(html, /The mocked discussion brief/);
+  assert.doesNotMatch(html, /The mocked article brief|class="key-points"/);
+});
