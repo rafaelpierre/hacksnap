@@ -18,9 +18,10 @@ signed query values. The website renders only ready canonical assets; it never f
 URLs. Runtime load failures use the site's image fallback.
 
 Image work has its own durable claim and retry lifecycle. Article summarization
-commits before image handoff. A scheduled image sweep recovers jobs if the initial
-handoff fails or a worker stops. Image failures never enter the article fetch
-failure table and never remove a story from ranking. Claims use expiring leases;
+commits before image handoff. Each completed Modal summary run asynchronously
+starts a bounded image sweep, including quiet runs with no new summaries. The next
+completed run recovers jobs if dispatch fails or a worker stops. Image failures
+never enter the article fetch failure table and never remove a story from ranking. Claims use expiring leases;
 completion checks the lease token to reject stale workers.
 
 Blob uploads use unique URLs beneath `articles/<hn_id>/hero.webp`. Replacements
@@ -42,7 +43,7 @@ URLs must remain usable while those caches expire.
    metadata and load each canonical Blob asset directly. Verify homepage, story,
    social preview, and runtime image failure behavior.
 5. Set `HACKSNAP_IMAGES_ENABLED=true` in the worker environment and deploy the
-   worker when ready to enable scheduled image ingestion. The enabled worker
+   worker when ready to enable automatic image ingestion. The enabled worker
    requires a valid Blob token. Monitor outcomes before expanding the backfill.
 
 Local maintenance needs only `HACKSNAP_DATABASE_URL` (or `SUPABASE_PASSWORD`) and,
@@ -51,9 +52,13 @@ Load credentials from the normal private environment file without printing them.
 
 ### Image processing limits
 
-The existing `refresh_article_images` Modal function runs every ten minutes, with
-one container and ten processed jobs per invocation by default (configurable up to
-100). Its deployment updates the existing hourly image function. Its disabled flag is checked before database
+The existing `refresh_article_images` Modal function is triggered after
+`refresh_hacksnap` completes, with one container and ten processed jobs per
+invocation by default (configurable up to 100). It has no separate schedule;
+automatic runs follow summary starts from 09:00 through midnight in Europe/London,
+including completion of the midnight run. Deploying removes the old image cron.
+Dispatch failures are logged without failing summary publication; recovery waits
+for the next completed summary run. Its disabled flag is checked before database
 access. Enabling it without a Blob token raises a configuration error. Publishers
 are limited to one request every two seconds by default in that sweep; backfill uses the requested
 publisher interval, including image candidates and redirects.
@@ -94,7 +99,7 @@ recovery and claim. `--include-failed`, `--reprocess-ready` and `--after-id` do 
 widen it. Running tomorrow still targets 29 September; there is no moving
 "today" default. Results report the date and timezone alongside the counts.
 
-The scheduled worker and summary handoff exclude articles added before
+The triggered worker and summary handoff exclude articles added before
 29 September. Normal image ingestion continues for articles added on later days;
 the one-day upper bound applies to backfill commands.
 
@@ -125,8 +130,9 @@ permitted attempt is marked failed by the next sweep; explicitly use
 ascending scans. Always do a final pass from zero, because a skipped or
 interrupted earlier job may still need recovery.
 
-Run one backfill command at a time and pause the scheduled image worker while
-bulk backfilling if publisher pacing must hold across all workers. Claims prevent
+Run one backfill command at a time. Disable automatic image handoffs
+(`HACKSNAP_IMAGES_ENABLED=false`) and let active image runs finish before bulk
+backfilling if publisher pacing must hold across all workers. Claims prevent
 duplicate completion, but a command's pacing applies only to that command.
 
 ## Recovery
@@ -137,8 +143,8 @@ duplicate completion, but a command's pacing applies only to that command.
 - **Blob outage:** published stories remain available. Retryable image failures
   stay observable and are bounded by the queue's attempt cap and retry delay.
   Repair credentials/storage before requesting more work.
-- **Expired lease:** the scheduled sweep or next backfill recovers the pending
-  job after lease expiry while attempts remain. Exhausted jobs become failed and
+- **Expired lease:** the next summary-triggered sweep or backfill recovers the
+  pending job after lease expiry while attempts remain. Exhausted jobs become failed and
   require an explicit retry. A stale worker cannot replace a newer job's result.
 - **Exhausted failures:** after fixing the cause, explicitly reset the selected
   failures with `--include-failed --limit 5`. Do not schedule an endless loop with

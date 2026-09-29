@@ -39,14 +39,25 @@ image_worker_image = (
     max_containers=1,
 )
 def refresh_hacksnap():
+    import logging
+    import os
+
     from pipeline.refresh import run
 
-    return run()
+    result = run()
+    if os.environ.get("HACKSNAP_IMAGES_ENABLED", "").lower() == "true":
+        try:
+            # Summaries have committed. Dispatch even on quiet runs to recover retries.
+            refresh_article_images.spawn()
+        except Exception as exc:  # noqa: BLE001 - image dispatch cannot fail publication
+            logging.getLogger("hacksnap.images").warning(
+                "image_dispatch_failed error_type=%s", type(exc).__name__,
+            )
+    return result
 
 
 @app.function(
     image=image_worker_image,
-    schedule=modal.Cron("*/10 * * * *", timezone="Europe/London"),
     secrets=[modal.Secret.from_name("hacksnap")],
     timeout=2400,
     max_containers=1,

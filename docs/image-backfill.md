@@ -1,8 +1,10 @@
 # Article image backfill
 
 The publisher-image backfill now uses the durable image queue, shared with the
-independent `refresh_article_images` Modal worker. That worker runs every ten
-minutes when `HACKSNAP_IMAGES_ENABLED=true` and a server-only Blob token is set.
+independent `refresh_article_images` Modal worker. Each completed Modal summary
+run triggers that worker when `HACKSNAP_IMAGES_ENABLED=true`; processing requires
+a server-only Blob token. There is no separate image schedule. Pending jobs and
+eligible retries resume after the next completed summary run.
 
 Apply migrations through `0016_image_queue` before using the updated worker. The
 original `0015_article_images` migration is unchanged. Existing ready images keep
@@ -15,7 +17,7 @@ falls on **29 September 2026 in Europe/London**. The fixed window is inclusive a
 day does not change this selection. Dry runs, cursor scans, retries and explicit
 replacements all retain that boundary.
 
-The scheduled worker excludes articles added before this window starts. It can
+The triggered worker excludes articles added before this window starts. It can
 still process newly added articles on subsequent days through normal ingestion.
 
 The existing command remains available:
@@ -39,8 +41,9 @@ credentials. Dry runs require only database access.
 
 Follow the [rollout and recovery guide](images/rollout.md) for configuration,
 canary checks, publisher pacing, interrupted jobs, exhausted retries and safe
-replacement. Run one backfill at a time and pause the scheduled image worker
-while backfilling when pacing must hold across processes.
+replacement. Run one backfill at a time. Disable automatic image handoffs
+(`HACKSNAP_IMAGES_ENABLED=false`) and let active image runs finish before
+backfilling when pacing must hold across processes.
 
 Local validation uses synthetic fixtures. Production migration, real Blob uploads
 and a production backfill require their own authorized rollout.
