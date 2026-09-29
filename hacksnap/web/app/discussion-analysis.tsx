@@ -194,8 +194,8 @@ export function DiscussionAnalysis({
                 <ListTree className="discussion-title-icon" aria-hidden="true" />
                 <span>Discussion themes</span>
               </h3>
-              {analysis.topics.map((topic) => (
-                <div className="analysis-theme" key={topic.key}>
+              {analysis.topics.map((topic, topicIndex) => (
+                <div className="analysis-theme" key={`${topic.key}-${topicIndex}`}>
                   <details className="analysis-theme-details">
                     <summary>
                       <span>{topic.title}</span>
@@ -206,7 +206,7 @@ export function DiscussionAnalysis({
                     </div>
                   </details>
                   <SourceComments
-                    id={`theme-sources-${topic.key}`}
+                    id={`theme-sources-${topic.key}-${topicIndex}`}
                     context={topic.title}
                     commentIds={topic.comment_ids}
                   />

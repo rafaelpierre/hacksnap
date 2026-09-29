@@ -198,3 +198,31 @@ test("both highlight groups put italic claims before the stance and keep links i
     );
   }
 });
+
+test("topics sharing a category key target their own source popup", () => {
+  const original = fixture("one_sided_criticism");
+  const analysis = {
+    ...original,
+    topics: [
+      { ...original.topics[0], title: "Benchmark conditions", comment_ids: [101] },
+      { ...original.topics[0], title: "Benchmark reproducibility", comment_ids: [102, 103] },
+    ],
+  };
+  const document = render(analysis);
+  const themes = [...document.querySelectorAll(".analysis-theme")];
+  const ids = [...document.querySelectorAll("[id]")].map((element) => element.id);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const [index, theme] of themes.entries()) {
+    const trigger = theme.querySelector(".analysis-source-info")!;
+    const panel = document.getElementById(trigger.getAttribute("popovertarget")!)!;
+    assert.equal(panel, theme.querySelector(".analysis-source-popup"));
+    assert.deepEqual(
+      [...panel.querySelectorAll("a")].map((link) => link.getAttribute("href")),
+      analysis.topics[index].comment_ids.map((id) => `https://news.ycombinator.com/item?id=${id}`),
+    );
+    const close = panel.querySelector(".analysis-source-close")!;
+    assert.equal(document.getElementById(close.getAttribute("popovertarget")!), panel);
+    const label = document.getElementById(panel.getAttribute("aria-labelledby")!)!;
+    assert.ok(panel.contains(label), "each popup resolves its own accessible heading");
+  }
+});
