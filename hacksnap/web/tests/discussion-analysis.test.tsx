@@ -49,7 +49,9 @@ for (const { id, expected: analysis } of fixtures) {
       assert.ok(detail, "every theme has a native keyboard disclosure");
       assert.ok(detail.textContent?.includes(topic.summary));
       for (const id of topic.comment_ids) {
-        const link = detail.querySelector(`a[href="https://news.ycombinator.com/item?id=${id}"]`);
+        const link = detail
+          .closest(".analysis-theme")!
+          .querySelector(`a[href="https://news.ycombinator.com/item?id=${id}"]`);
         assert.ok(link?.getAttribute("aria-label")?.includes(topic.title));
       }
     }
@@ -138,4 +140,33 @@ test("source text is rendered as text, never executable markup", () => {
   const document = render(analysis);
   assert.equal(document.querySelector("img, script"), null);
   assert.ok(document.body.textContent?.includes("<script>"));
+});
+
+test("theme sources use an independent popup with a named trigger and close button", () => {
+  const analysis = fixture("one_sided_criticism");
+  const document = render(analysis);
+  for (const [index, theme] of [...document.querySelectorAll(".analysis-theme")].entries()) {
+    const description = theme.querySelector(".analysis-theme-details")!;
+    const trigger = theme.querySelector(".analysis-theme-info")!;
+    const panel = theme.querySelector(".analysis-theme-source-panel")!;
+    const close = panel.querySelector("button")!;
+    assert.equal(description.hasAttribute("open"), false);
+    assert.equal(description.querySelector("a, button"), null);
+    assert.equal(
+      trigger.getAttribute("aria-label"),
+      `Source comments for ${analysis.topics[index].title}`,
+    );
+    assert.equal(trigger.getAttribute("popovertarget"), panel.id);
+    assert.equal(panel.getAttribute("popover"), "auto");
+    assert.equal(panel.getAttribute("role"), "dialog");
+    assert.equal(
+      document.getElementById(panel.getAttribute("aria-labelledby")!)?.textContent,
+      "Source comments",
+    );
+    assert.equal(close.getAttribute("aria-label"), "Close source comments");
+    assert.equal(close.getAttribute("popovertarget"), panel.id);
+    assert.equal(close.getAttribute("popovertargetaction"), "hide");
+    assert.equal(close.querySelector("svg")?.getAttribute("aria-hidden"), "true");
+    assert.equal(panel.querySelectorAll("a").length, analysis.topics[index].comment_ids.length);
+  }
 });

@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronDown, ListTree, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Info, ListTree, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import type {
   CriticalCommentHighlight,
   SupportiveCommentHighlight,
@@ -138,13 +138,44 @@ export function DiscussionAnalysis({
                 <span>Discussion themes</span>
               </h3>
               {analysis.topics.map((topic) => (
-                <details className="analysis-theme" key={topic.key}>
-                  <summary>
-                    <span>{topic.title}</span>
-                    <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
-                  </summary>
-                  <div className="analysis-theme-body">
-                    <p>{topic.summary}</p>
+                <div className="analysis-theme" key={topic.key}>
+                  <details className="analysis-theme-details">
+                    <summary>
+                      <span>{topic.title}</span>
+                      <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
+                    </summary>
+                    <div className="analysis-theme-body">
+                      <p>{topic.summary}</p>
+                    </div>
+                  </details>
+                  <button
+                    type="button"
+                    className="analysis-theme-info"
+                    popoverTarget={`theme-sources-${topic.key}`}
+                    aria-label={`Source comments for ${topic.title}`}
+                  >
+                    <Info size={16} strokeWidth={1.5} aria-hidden="true" />
+                  </button>
+                  <div
+                    id={`theme-sources-${topic.key}`}
+                    className="analysis-theme-source-panel"
+                    popover="auto"
+                    role="dialog"
+                    aria-labelledby={`theme-sources-title-${topic.key}`}
+                  >
+                    <div className="analysis-theme-source-header">
+                      <p id={`theme-sources-title-${topic.key}`}>Source comments</p>
+                      <button
+                        type="button"
+                        className="analysis-theme-source-close"
+                        popoverTarget={`theme-sources-${topic.key}`}
+                        popoverTargetAction="hide"
+                        aria-label="Close source comments"
+                        autoFocus
+                      >
+                        <X size={16} strokeWidth={1.5} aria-hidden="true" />
+                      </button>
+                    </div>
                     <ul
                       className="analysis-sources"
                       aria-label={`Source comments for ${topic.title}`}
@@ -156,7 +187,7 @@ export function DiscussionAnalysis({
                       ))}
                     </ul>
                   </div>
-                </details>
+                </div>
               ))}
             </section>
           )}
