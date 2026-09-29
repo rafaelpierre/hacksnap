@@ -1,0 +1,112 @@
+name: Deploy ingestion
+
+on:
+  pull_request:
+    paths:
+      - "data/src/**"
+      - "data/modal_app.py"
+      - "data/pyproject.toml"
+      - "data/uv.lock"
+      - "data/migrations/**"
+      - "data/alembic.ini"
+      - ".github/workflows/ingestion.yml"
+      - ".github/workflows/ingestion-deploy.yml"
+      - ".github/workflows/supabase-schema.yml"
+      - ".github/scripts/migrate-schema.sh"
+      - ".github/scripts/deploy-modal.sh"
+      - ".github/tests/ingestion_deploy_contract.py"
+      - ".github/tests/test_modal_deploy.py"
+      - ".github/tests/test_schema_deploy.py"
+  push:
+    branches: [main]
+    paths:
+      - "data/src/**"
+      - "data/modal_app.py"
+      - "data/pyproject.toml"
+      - "data/uv.lock"
+      - "data/migrations/**"
+      - "data/alembic.ini"
+      - ".github/workflows/ingestion.yml"
+      - ".github/workflows/ingestion-deploy.yml"
+      - ".github/workflows/supabase-schema.yml"
+      - ".github/scripts/migrate-schema.sh"
+      - ".github/scripts/deploy-modal.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/ingestion.yml
+
+  deployment_tests:
+    name: Ingestion deployment guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: Validate deployment wiring and guards without production access
+        working-directory: data
+        run: |
+          uv run python -m unittest discover -s ../.github/tests -p "test_*deploy.py"
+          uv run --with pyyaml==6.0.3 python ../.github/tests/ingestion_deploy_contract.py
+
+  schema:
+    # Reusable ingestion tests never deploy; only this top-level workflow does.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [test, deployment_tests]
+    uses: ./.github/workflows/supabase-schema.yml
+    with:
+      apply_migrations: true
+    secrets:
+      SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+
+  deploy:
+    # Deploy matching main pushes and explicit manual runs after all checks pass.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [test, deployment_tests, schema]
+    runs-on: ubuntu-latest
+    environment: hacksnap-production
+    concurrency:
+      group: hn-ingestion-modal-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+      - name: Verify the schema deployment has completed
+        working-directory: data
+        env:
+          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+        run: |
+          uv sync --locked
+          uv run python - <<'PY'
+          import psycopg
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+          from hn_trending.cli import resolve_database_url
+          expected = set(ScriptDirectory.from_config(Config("alembic.ini")).get_heads())
+          with psycopg.connect(resolve_database_url(), connect_timeout=10) as connection:
+              connection.execute("SET TRANSACTION READ ONLY")
+              connection.execute("SET LOCAL statement_timeout = '10s'")
+              versions = {row[0] for row in connection.execute("SELECT version_num FROM alembic_version")}
+              if versions != expected:
+                  raise SystemExit("Schema version differs after migration; inspect the schema job before starting a new Deploy ingestion run on main.")
+          PY
+      - name: Deploy the scheduled ingestion function
+        working-directory: data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: bash ../.github/scripts/deploy-modal.sh
