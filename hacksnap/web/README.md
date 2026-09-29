@@ -150,7 +150,9 @@ font and needs no external image/font service or model call.
 `/feed.xml` returns RSS 2.0 for the latest 50 stored stories ordered by publication
 on Hacksnap (`date_added`, then ID). Entries contain titles, canonical links,
 stable GUIDs, publication dates, and the takeaway, article brief, and discussion
-summary when available. XML values are escaped and invalid XML characters removed.
+summary when available. Descriptions are HTML-escaped plain text before XML
+serialization, so feed readers preserve literal markup without creating elements
+or loading embedded resources. XML values are escaped and invalid XML characters removed.
 The feed uses a five-minute per-instance data cache and declares
 `Cache-Control: public, max-age=0, s-maxage=300`. Data and HTTP caching can add up
 to ten minutes of delay for additions, summary edits, and removals. Failures return
