@@ -11,6 +11,8 @@ import { briefExcerpt } from "../../../lib/brief";
 import { StoryAddedTime } from "../../story-added-time";
 import { RelatedStories } from "../../related-stories";
 import { StoryReturnLink } from "../../story-navigation";
+import { ArticleImage } from "../../article-image";
+import { canonicalArticleImage } from "../../../lib/article-image";
 
 function DiscussionIntroduction({ text }: { text: string }) {
   return discussionBriefBlocks(text).map((block, index) =>
@@ -54,6 +56,7 @@ export function StoryContent({
   const hasDiscussion = Boolean(
     summary?.discussion_summary?.trim() && summary.source_coverage.included_comments > 0,
   );
+  const image = canonicalArticleImage(story);
 
   return (
     <article className="detail">
@@ -77,6 +80,7 @@ export function StoryContent({
         </nav>
         <h1>{story.title}</h1>
         {deck && <p className="standfirst">{deck}</p>}
+        <ArticleImage image={image} alt="" className="story-article-image" loading="eager" />
         <div className="story-metadata">
           <div className="story-source-date">
             {article ? (

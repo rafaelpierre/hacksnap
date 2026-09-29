@@ -9,11 +9,14 @@ import {
   legacyFeedFields,
   legacyStoryFields,
   discussionColumnsSQL,
+  imageColumnsSQL,
+  storyImageProjection,
 } from "../lib/story-projection.ts";
 
 const queries = [];
 let rows = [];
 let available = true;
+let imagesAvailable = true;
 let connectionError;
 let queryError;
 let rollbackError;
@@ -25,6 +28,7 @@ const client = {
     if (sql === "ROLLBACK" && rollbackError) throw rollbackError;
     if (sql !== "ROLLBACK" && queryError) throw queryError;
     if (sql === discussionColumnsSQL) return { rows: [{ available }] };
+    if (sql === imageColumnsSQL) return { rows: [{ available: imagesAvailable }] };
     return { rows };
   },
   release(discard) {
@@ -44,7 +48,7 @@ jest.unstable_mockModule("pg", () => ({
 jest.unstable_mockModule("next/cache", () => ({
   unstable_noStore: () => {},
   unstable_cache: (fn, keys) => {
-    assert.deepEqual(keys, ["hacksnap-leaderboard-v14-stored-slugs", "enabled"]);
+    assert.deepEqual(keys, ["hacksnap-leaderboard-v15-public-images", "enabled"]);
     return () => cachedValue ?? fn();
   },
 }));
@@ -141,6 +145,32 @@ test("all story loaders tolerate an unmigrated database and detect migration on 
   }
 });
 
+test("image reads fall back to null projection until every reader grant is available", async () => {
+  process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  try {
+    imagesAvailable = false;
+    for (const load of [
+      () => data.getFeedStories(),
+      () => data.getArchiveStories(null, 1),
+      () => data.getCategoryStories("agents_coding", 1),
+      () => data.getStory("987"),
+      () => data.getLeaderboard(),
+      () => data.getPublicStory("987"),
+    ]) {
+      queries.length = 0;
+      rows = [{ stories: [], ingestion: null, ranked_at: new Date() }];
+      await load();
+      assert.ok(queries.includes(imageColumnsSQL));
+      assert.ok(queries.some((sql) => sql.includes(storyImageProjection(false))));
+      assert.ok(queries.every((sql) => !sql.includes("public_image.image_url")));
+    }
+  } finally {
+    imagesAvailable = true;
+    rows = [];
+    delete process.env.HACKSNAP_WEB_DATABASE_URL;
+  }
+});
+
 test("connection, query and rollback failures stay sanitized and release broken clients", async () => {
   const { DataUnavailableError } = await import("../lib/data-availability.ts");
   const log = jest.spyOn(console, "error").mockImplementation(() => {});
@@ -176,7 +206,8 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
     await db.exec(`
       CREATE TABLE hacker_news_threads (
         hn_id bigint PRIMARY KEY, title text, url text, points int,
-        comment_count int, date_added timestamptz, category text
+        comment_count int, date_added timestamptz, category text,
+        image_url text, image_status text, image_width int, image_height int, image_mime_type text
       );
       CREATE VIEW hacksnap_ranked_stories AS
         SELECT *, date_added >= CURRENT_TIMESTAMP - INTERVAL '24 hours' AS is_recent,
@@ -241,6 +272,7 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
     assert.deepEqual((await db.query(sql)).rows[0].stories, []);
   } finally {
     available = true;
+    imagesAvailable = true;
     rows = [];
     warning.mockRestore();
     await db.close();

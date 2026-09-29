@@ -1,9 +1,21 @@
 import type { Story, Summary } from "./data";
 import type { DiscussionFields } from "./discussion-analysis";
+import { storyImageProjection } from "./story-projection";
 
 export type PublicStory = Pick<
   Story,
-  "hn_id" | "title" | "category" | "url" | "points" | "comment_count" | "date_added"
+  | "hn_id"
+  | "title"
+  | "category"
+  | "url"
+  | "points"
+  | "comment_count"
+  | "date_added"
+  | "image_url"
+  | "image_status"
+  | "image_width"
+  | "image_height"
+  | "image_mime_type"
 > & {
   summary:
     | (Pick<Summary, "article_summary" | "discussion_summary" | "overall_takeaway"> &
@@ -14,8 +26,11 @@ export type PublicStory = Pick<
 export const validStoryId = (id: string) => /^[1-9][0-9]{0,14}$/.test(id);
 
 // Only the public contract, looked up by the two existing primary keys.
-export const publicStorySQL = (hasDiscussion = true) => `SELECT t.hn_id, t.title, t.category, t.url,
-  t.points, t.comment_count, t.date_added,
+export const publicStorySQL = (
+  hasDiscussion = true,
+  hasImages = true,
+) => `SELECT t.hn_id, t.title, t.category, t.url,
+  t.points, t.comment_count, t.date_added, ${storyImageProjection(hasImages)},
   CASE WHEN s.story_id IS NULL THEN NULL ELSE json_build_object(
     'article_summary', s.article_summary,
     'discussion_summary', s.discussion_summary,

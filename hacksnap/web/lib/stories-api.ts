@@ -6,6 +6,7 @@ import {
   NEGATIVE_CACHE_CONTROL,
 } from "./public-story";
 import type { DiscussionFields } from "./discussion-analysis";
+import { canonicalArticleImage } from "./article-image";
 
 // Explicitly copy every nested field: cached/query objects may contain private extras.
 function publicDiscussion(summary: DiscussionFields) {
@@ -57,6 +58,7 @@ function publicDiscussion(summary: DiscussionFields) {
 
 // Keep the public contract independent of internal query fields and diagnostics.
 export function publicStory(story: PublicStory, includeDiscussion = false) {
+  const image = canonicalArticleImage(story);
   return {
     hn_id: String(story.hn_id),
     title: story.title,
@@ -65,6 +67,11 @@ export function publicStory(story: PublicStory, includeDiscussion = false) {
     points: story.points,
     comment_count: story.comment_count,
     date_added: story.date_added.toISOString(),
+    image_url: image?.url ?? null,
+    image_status: image ? "ready" : null,
+    image_width: image?.width ?? null,
+    image_height: image?.height ?? null,
+    image_mime_type: image?.mimeType ?? null,
     summary: story.summary
       ? {
           article_summary: story.summary.article_summary,

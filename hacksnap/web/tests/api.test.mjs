@@ -29,6 +29,12 @@ const story = {
   hn_id: "123",
   title: "Example",
   url: "https://example.com",
+  image_url: "https://store.public.blob.vercel-storage.com/articles/123.webp",
+  image_status: "ready",
+  image_width: 1200,
+  image_height: 675,
+  image_mime_type: "image/webp",
+  image_source_url: "https://publisher.example/private-provenance.jpg",
   points: 2,
   category: "agents_coding",
   category_model: "private-classifier",
@@ -59,6 +65,9 @@ test("list and detail expose only documented fields and preserve pending summari
   assert.equal(list.stories[0].category, "agents_coding");
   assert.equal(list.stories[0].category_model, undefined);
   assert.equal(list.stories[0].summary.model, undefined);
+  assert.equal(list.stories[0].image_url, story.image_url);
+  assert.equal(list.stories[0].image_status, "ready");
+  assert.equal(list.stories[0].image_source_url, undefined);
   const detail = await (await api.detail("123")).json();
   assert.equal(detail.summary.discussion_analysis, null);
   delete detail.summary.discussion_analysis;

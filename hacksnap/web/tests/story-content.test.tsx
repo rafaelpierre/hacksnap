@@ -96,6 +96,36 @@ test("mocked feed row preserves a story link, category and shared Share control"
   assert.match(html, /aria-label="Share: A mocked story title"/);
 });
 
+test("cards and detail use a ready canonical image while invalid states keep the text fallback", () => {
+  const withImage = {
+    ...story,
+    image_status: "ready",
+    image_url: "https://store.public.blob.vercel-storage.com/articles/90000001.webp",
+    image_width: 1200,
+    image_height: 675,
+    image_mime_type: "image/webp",
+  };
+  const card = render(createElement(StoryRow, { story: withImage, variant: "ranked" }));
+  const detail = render(createElement(StoryContent, { story: withImage, relatedStories: [] }));
+  assert.match(card, /class="feed-story-image"/);
+  assert.match(detail, /class="story-article-image"/);
+  assert.match(detail, /width="1200" height="675"/);
+  assert.match(card, /alt=""/);
+  for (const image_status of [null, "pending", "failed"] as const) {
+    const html = render(
+      createElement(StoryRow, { story: { ...withImage, image_status }, variant: "ranked" }),
+    );
+    assert.doesNotMatch(html, /feed-story-image|blob\.vercel-storage/);
+  }
+  const invalid = render(
+    createElement(StoryContent, {
+      story: { ...withImage, image_url: "https://publisher.example/private-image.jpg" },
+      relatedStories: [],
+    }),
+  );
+  assert.doesNotMatch(invalid, /story-article-image|publisher\.example/);
+});
+
 test("compact header and recommendations preserve the new story component and tracking", () => {
   const html = render(createElement(StoryContent, { story, relatedStories }));
   const header = html.match(/<header class="story-header">([\s\S]*?)<\/header>/)?.[1] ?? "";

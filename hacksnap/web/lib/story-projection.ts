@@ -41,3 +41,20 @@ export const discussionColumnsSQL = `SELECT count(*) = 3 AS available
 
 export const legacyFeedFields = fields("'discussion_analysis_preview', NULL", "NULL", "NULL");
 export const legacyStoryFields = fields("'discussion_analysis', NULL", "NULL", "NULL");
+
+export const imageColumnsSQL = `SELECT count(*) = 5 AS available
+  FROM pg_attribute
+  WHERE attrelid = 'hacker_news_threads'::regclass
+    AND attname IN ('image_url', 'image_status', 'image_width', 'image_height', 'image_mime_type')
+    AND NOT attisdropped
+    AND has_column_privilege(attrelid, attname, 'SELECT')`;
+
+// Ranking views freeze their selected columns, so resolve image fields from the
+// base table using the story ID. This also keeps the reader grant scoped to five
+// explicitly public image fields.
+export function storyImageProjection(available: boolean): string {
+  if (!available) {
+    return "NULL::text AS image_url, NULL::text AS image_status, NULL::int AS image_width, NULL::int AS image_height, NULL::text AS image_mime_type";
+  }
+  return "(SELECT image_url FROM hacker_news_threads public_image WHERE public_image.hn_id = t.hn_id) AS image_url, (SELECT image_status FROM hacker_news_threads public_image WHERE public_image.hn_id = t.hn_id) AS image_status, (SELECT image_width FROM hacker_news_threads public_image WHERE public_image.hn_id = t.hn_id) AS image_width, (SELECT image_height FROM hacker_news_threads public_image WHERE public_image.hn_id = t.hn_id) AS image_height, (SELECT image_mime_type FROM hacker_news_threads public_image WHERE public_image.hn_id = t.hn_id) AS image_mime_type";
+}

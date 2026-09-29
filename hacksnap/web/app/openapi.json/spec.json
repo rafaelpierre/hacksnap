@@ -146,7 +146,12 @@
           "comment_count",
           "date_added",
           "summary",
-          "category"
+          "category",
+          "image_url",
+          "image_status",
+          "image_width",
+          "image_height",
+          "image_mime_type"
         ],
         "properties": {
           "hn_id": {
@@ -208,6 +213,28 @@
               null
             ],
             "description": "Primary AI topic; null while awaiting classification."
+          },
+          "image_url": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "Canonical public Vercel Blob URL for a ready article image; null when unavailable."
+          },
+          "image_status": {
+            "type": ["string", "null"],
+            "enum": ["ready", null],
+            "description": "Ready only when image_url is safe to render; null for pending, failed, missing, or invalid images."
+          },
+          "image_width": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          },
+          "image_height": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          },
+          "image_mime_type": {
+            "type": ["string", "null"],
+            "pattern": "^image/"
           }
         }
       },
