@@ -585,6 +585,10 @@ migrate production, upload assets, or enable scheduled image processing.
 Existing articles can be processed with the bounded
 `python -m pipeline.backfill_images` command; it needs no inference credentials.
 The previous `python -m pipeline.images.backfill` entrypoint remains available.
+Both backfill commands target only articles added on **29 September 2026 in
+Europe/London**, including dry runs, retries and replacements. This is a fixed
+calendar date. The scheduled worker excludes older articles while normal image
+ingestion continues for articles added on subsequent days.
 Image failures do not change article fetch-failure exclusions or published summaries.
 A replacement preserves the previous public asset until the new one commits.
 

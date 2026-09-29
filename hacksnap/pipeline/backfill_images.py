@@ -1,4 +1,4 @@
-"""Bounded, restartable image backfill using the normal leased image processor."""
+"""Backfill only articles added on 29 September 2026 in Europe/London."""
 
 import argparse
 import json
@@ -10,6 +10,7 @@ from functools import partial
 from urllib.parse import urlsplit
 
 from .config import database_url_from_env
+from .image_scope import BACKFILL_END, BACKFILL_START, scope_result
 
 logger = logging.getLogger("hacksnap")
 
@@ -47,11 +48,13 @@ def backfill_images(
         include_failed=include_failed,
         reprocess_ready=reprocess_ready,
         max_attempts=settings.max_attempts if settings else 3,
+        added_from=BACKFILL_START,
+        added_before=BACKFILL_END,
     )
     counts = {
         "selected": len(rows), "processed": 0, "publisher_derived": 0,
         "generated": 0, "failed": 0, "skipped": 0, "next_after_id": after_id,
-        "dry_run": dry_run,
+        "dry_run": dry_run, **scope_result(),
     }
     previous_start: dict[str, float] = {}
     for row in rows:
@@ -73,11 +76,15 @@ def backfill_images(
                 story_id, row.get("article_url"),
                 force=include_failed and row.get("image_status") != "ready",
                 reprocess_ready=reprocess_ready,
+                added_from=BACKFILL_START,
+                added_before=BACKFILL_END,
             )
             jobs = repository.claim_pending_images(
                 limit=1, story_ids=[story_id],
                 max_attempts=settings.max_attempts if settings else 3,
                 lease_seconds=settings.lease_seconds(publisher_interval) if settings else 300,
+                added_from=BACKFILL_START,
+                added_before=BACKFILL_END,
             )
             if not jobs:
                 counts["skipped"] += 1

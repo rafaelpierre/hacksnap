@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -33,7 +34,7 @@ def query_templates():
             sql, params = call.args
             keys = []
             if isinstance(params, dict):
-                def replace(match):
+                def replace(match, keys=keys):
                     key = match.group(1)
                     if key not in keys:
                         keys.append(key)
@@ -49,13 +50,23 @@ def query_templates():
 
     capture("enqueue", repository.enqueue_image, 1, "https://publisher.test/1")
     capture("list", repository.list_image_candidates, limit=25)
-    capture("claim", repository.claim_pending_images, limit=1, story_ids=[1])
+    capture("claim", repository.claim_pending_images, limit=1)
     capture("ready", repository.mark_image_ready, 1, "00000000-0000-4000-8000-000000000001",
             "https://store.public.blob.vercel-storage.com/articles/1/hero-first.webp",
             "og", "https://publisher.test/photo.jpg", width=1200, height=630)
     capture("failed", repository.mark_image_failed, 1,
             "00000000-0000-4000-8000-000000000001", "blob_upload_failed")
     capture("legacy_claim", repository.claim_image_attempt, 1)
+    start = datetime(2026, 9, 28, 23, tzinfo=UTC)
+    end = datetime(2026, 9, 29, 23, tzinfo=UTC)
+    capture("day_enqueue", repository.enqueue_image, 1, "https://publisher.test/1",
+            force=True, added_from=start, added_before=end)
+    capture("day_claim_one", repository.claim_pending_images, limit=10, story_ids=[7],
+            added_from=start, added_before=end)
+    capture("day_claim_all", repository.claim_pending_images, limit=10,
+            added_from=start, added_before=end)
+    capture("day_legacy_candidates", repository.list_unqueued_image_candidates, 25,
+            added_from=start, added_before=end)
     return result
 
 
@@ -82,7 +93,9 @@ async function execute(name, overrides = {}) {
   let result;
   for (const query of input.queries[name]) {
     const params = query.keys.map((key, index) =>
-      Object.hasOwn(overrides, key) ? overrides[key] : query.params[index]);
+      Object.hasOwn(overrides, key) ? overrides[key] :
+      (name === 'claim' && (key === '1' || key === '2') &&
+       Object.hasOwn(overrides, 'story_ids')) ? overrides.story_ids : query.params[index]);
     result = await db.query(query.sql, params);
   }
   return result;
@@ -189,6 +202,7 @@ try {
     result = subprocess.run(
         ["node", "--input-type=module", "-e", script], capture_output=True, text=True,
         input=json.dumps({"migration": migration_sql(), "queries": query_templates()}, default=str),
+        check=False,
     )
     assert result.returncode == 0, result.stderr[-2500:]
 
@@ -205,7 +219,9 @@ async function execute(name, overrides={}) {
   let result;
   for (const query of input.queries[name]) {
     const params = query.keys.map((key, index) =>
-      Object.hasOwn(overrides, key) ? overrides[key] : query.params[index]);
+      Object.hasOwn(overrides, key) ? overrides[key] :
+      (name === 'claim' && (key === '1' || key === '2') &&
+       Object.hasOwn(overrides, 'story_ids')) ? overrides.story_ids : query.params[index]);
     result = await db.query(query.sql, params);
   }
   return result;
@@ -264,6 +280,10 @@ try {
   assert.equal((await execute('claim', {story_ids:[2]})).rows.length, 0,
     'active legacy claim remains owned by the old worker');
   assert.equal((await row(2)).image_queue_managed, false);
+  assert.equal((await row(3)).image_queue_managed, false,
+    'story filter leaves unrelated expired legacy claims untouched');
+  const handoff = (await execute('claim')).rows[0];
+  assert.equal(Number(handoff.story_id), 3);
   assert.equal((await row(3)).image_queue_managed, true);
   assert.equal((await row(3)).image_attempt_token, null);
   assert.equal((await row(4)).image_status, 'failed', 'exhausted legacy claim is terminal');
@@ -272,7 +292,7 @@ try {
   assert.equal((await row(7)).image_queued_at, null);
   assert.equal((await execute('legacy_claim', {hn_id:3})).affectedRows, 0,
     'old worker cannot reclaim queue-owned work');
-  assert.equal((await execute('claim', {story_ids:[3]})).rows[0].attempts, 3);
+  assert.equal(handoff.attempts, 3);
   assert.equal((await execute('claim', {story_ids:[5]})).rows[0].attempts, 2);
   const replacement = (await execute('claim', {story_ids:[6]})).rows[0];
   assert.equal(replacement.previous_image_url,
@@ -285,5 +305,6 @@ try {
         input=json.dumps({"base": migration_sql("0015_article_images.py"),
                           "queue": migration_sql("0016_image_queue.py"),
                           "queries": query_templates()}, default=str),
+        check=False,
     )
     assert result.returncode == 0, result.stderr[-2500:]

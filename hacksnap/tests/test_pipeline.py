@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
+from pipeline.image_scope import BACKFILL_START
 from pipeline.kestrel import FetchError, KestrelFetcher, external_article_url
 from pipeline.models import CommentSentiment, DiscussionAnalysis, StorySummary
 from pipeline.preprocess import prepare_comments, source_fingerprint
@@ -17,8 +18,9 @@ def test_image_enqueue_happens_after_summary_commit_and_cannot_block_publication
     repo = FakeRepository()
     order = []
 
-    def enqueue_image(story_id, article_url):
+    def enqueue_image(story_id, article_url, *, added_from):
         assert story_id in repo.saved
+        assert added_from == BACKFILL_START
         order.append((story_id, article_url))
         raise RuntimeError("image queue unavailable")
 

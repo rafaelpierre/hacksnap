@@ -6,8 +6,10 @@ import logging
 import os
 import threading
 import time
+from functools import partial
 from urllib.parse import urlsplit
 
+from ..image_scope import BACKFILL_END, BACKFILL_START, scope_result
 from ..supabase import Repository
 from .ingest import ImageIngester
 
@@ -44,15 +46,16 @@ def run_batch(
     repository: Repository, ingester: ImageIngester, limit: int = 10, *,
     max_attempts: int = 3, stale_after_seconds: int = 900,
     retry_after_seconds: int = 3600,
-) -> dict[str, int]:
+) -> dict[str, int | str | None]:
     """Scan once and process at most `limit` articles; retries wait for another run."""
     if not 1 <= limit <= 100:
         raise ValueError("Image backfill limit must be between 1 and 100")
     candidates = repository.list_unqueued_image_candidates(
         limit, max_attempts=max_attempts, stale_after_seconds=stale_after_seconds,
         retry_after_seconds=retry_after_seconds,
+        added_from=BACKFILL_START, added_before=BACKFILL_END,
     )
-    counts = {"scanned": len(candidates), **dict.fromkeys(STATUSES, 0)}
+    counts = {"scanned": len(candidates), **dict.fromkeys(STATUSES, 0), **scope_result()}
     for candidate in candidates:
         try:
             status = ingester.ingest_article_image(candidate["hn_id"], candidate["url"])
@@ -65,12 +68,14 @@ def run_batch(
     return counts
 
 
-def run(limit: int | None = None) -> dict[str, int]:
-    """Run one bounded batch through the durable image queue."""
+def run(limit: int | None = None) -> dict:
+    """Run the legacy CLI through the fixed-day durable queue backfill."""
+    from ..backfill_images import backfill_images
     from ..blob import VercelBlobStore
     from ..config import database_url_from_env
+    from ..image_metadata import PublicFetcher
     from .worker import ImageSettings as WorkerSettings
-    from .worker import process_pending_images
+    from .worker import process_image_job
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     settings = WorkerSettings.from_env()
@@ -80,14 +85,22 @@ def run(limit: int | None = None) -> dict[str, int]:
     token = os.environ.get("BLOB_READ_WRITE_TOKEN", "").strip()
     if not token:
         raise ValueError("Set BLOB_READ_WRITE_TOKEN for the image worker")
-    return process_pending_images(
+    fetcher = PublicFetcher(
+        settings.timeout, settings.max_redirects,
+        publisher_interval=settings.publisher_interval,
+    )
+    return backfill_images(
         Repository(database_url_from_env()), VercelBlobStore(token),
-        limit=batch_limit, settings=settings,
+        process_job=partial(process_image_job, fetcher=fetcher),
+        limit=batch_limit, publisher_interval=settings.publisher_interval,
+        settings=settings,
     )
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Process one bounded article-image batch")
+    parser = argparse.ArgumentParser(
+        description="Process articles added on 29 September 2026 in Europe/London",
+    )
     parser.add_argument("--limit", type=int, help="maximum stories in this batch (1–100)")
     args = parser.parse_args(argv)
     if args.limit is not None and not 1 <= args.limit <= 100:

@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 from PIL import Image, ImageDraw, ImageFont, ImageOps, UnidentifiedImageError
 
 from ..image_metadata import ImageFetchError, PublicFetcher, extract_candidates, safe_url
+from ..image_scope import BACKFILL_START, scope_result
 
 logger = logging.getLogger("hacksnap.images")
 Image.MAX_IMAGE_PIXELS = 30_000_000
@@ -358,24 +359,29 @@ def _mark_failed(job: dict, repository, reason: str) -> None:
 def process_pending_images(
     repository, uploader, *, limit: int = 10, settings: ImageSettings | None = None,
     fetcher: PublicFetcher | None = None,
-) -> dict[str, int]:
+) -> dict[str, int | str | None]:
     """Claim pending and expired image leases, including jobs from earlier runs."""
     settings = settings or ImageSettings()
-    counts = {"publisher": 0, "generated": 0, "failed": 0, "skipped": 0}
+    counts = {"publisher": 0, "generated": 0, "failed": 0, "skipped": 0,
+              **scope_result(scheduled=True)}
     fetcher = fetcher or PublicFetcher(settings.timeout, settings.max_redirects, publisher_interval=settings.publisher_interval)
     # A summary can commit even if its initial enqueue fails. Reconcile published
     # stories on every independent sweep so the missing queue row is recovered.
     for candidate in repository.list_image_candidates(
-        limit=max(limit, 100), max_attempts=settings.max_attempts
+        limit=max(limit, 100), max_attempts=settings.max_attempts,
+        added_from=BACKFILL_START,
     ):
         try:
-            repository.enqueue_image(candidate["story_id"], candidate["article_url"])
+            repository.enqueue_image(
+                candidate["story_id"], candidate["article_url"], added_from=BACKFILL_START,
+            )
         except Exception as exc:  # noqa: BLE001 - one DB row must not stop others
             _log(candidate, None, "queue", type(exc).__name__)
     for _ in range(limit):
         claimed = repository.claim_pending_images(
             limit=1, max_attempts=settings.max_attempts,
             lease_seconds=settings.lease_seconds(getattr(fetcher, "publisher_interval", 1.0)),
+            added_from=BACKFILL_START,
         )
         if not claimed:
             break

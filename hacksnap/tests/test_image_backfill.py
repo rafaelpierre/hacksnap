@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from pipeline.image_scope import BACKFILL_END, BACKFILL_START, scope_result
 from pipeline.images import backfill
 
 
@@ -18,9 +19,11 @@ def test_batch_scans_once_and_does_not_retry_failures_in_same_run():
     ingester.ingest_article_image.side_effect = ["ready", "failed", "skipped"]
     assert backfill.run_batch(repository, ingester, 3) == {
         "scanned": 3, "ready": 1, "failed": 1, "skipped": 1, "superseded": 0,
+        **scope_result(),
     }
     repository.list_unqueued_image_candidates.assert_called_once_with(
         3, max_attempts=3, stale_after_seconds=900, retry_after_seconds=3600,
+        added_from=BACKFILL_START, added_before=BACKFILL_END,
     )
     assert ingester.ingest_article_image.call_count == 3
     ingester.ingest_article_image.assert_any_call(2, "https://two.example/article")
@@ -75,11 +78,12 @@ def test_rate_limiter_spaces_each_hostname_including_redirect_target(monkeypatch
     assert sleeps == [2.0, 2.0]
 
 
-def test_run_uses_durable_queue_without_inference_credentials(monkeypatch):
-    from pipeline import blob
+def test_run_uses_fixed_day_backfill_without_inference_credentials(monkeypatch):
+    from pipeline import backfill_images as advanced
+    from pipeline import blob, image_metadata
     from pipeline.images import worker
 
-    settings = MagicMock(batch_size=7)
+    settings = MagicMock(batch_size=7, publisher_interval=2, timeout=8, max_redirects=3)
     monkeypatch.setattr(worker.ImageSettings, "from_env", lambda: settings)
     monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "hidden")
     monkeypatch.setenv("HACKSNAP_DATABASE_URL", "postgresql://mock.invalid/test")
@@ -87,15 +91,20 @@ def test_run_uses_durable_queue_without_inference_credentials(monkeypatch):
     repository_class = MagicMock(return_value=repository)
     uploader = MagicMock()
     uploader_class = MagicMock(return_value=uploader)
-    process = MagicMock(return_value={"publisher": 0, "generated": 0, "failed": 0, "skipped": 0})
+    fetcher = MagicMock()
     monkeypatch.setattr(backfill, "Repository", repository_class)
     monkeypatch.setattr(blob, "VercelBlobStore", uploader_class)
-    monkeypatch.setattr(worker, "process_pending_images", process)
+    monkeypatch.setattr(image_metadata, "PublicFetcher", MagicMock(return_value=fetcher))
+    process = MagicMock(return_value={"failed": 0, **scope_result()})
+    monkeypatch.setattr(advanced, "backfill_images", process)
 
     assert backfill.run() == process.return_value
     repository_class.assert_called_once_with("postgresql://mock.invalid/test")
     uploader_class.assert_called_once_with("hidden")
-    process.assert_called_once_with(repository, uploader, limit=7, settings=settings)
+    assert process.call_args.args == (repository, uploader)
+    assert process.call_args.kwargs["limit"] == 7
+    assert process.call_args.kwargs["publisher_interval"] == 2
+    assert process.call_args.kwargs["settings"] is settings
 
 
 @pytest.mark.parametrize("limit", [0, 101])

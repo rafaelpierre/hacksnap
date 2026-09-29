@@ -8,6 +8,16 @@ Apply migrations through `0016_image_queue` before using the updated worker. The
 original `0015_article_images` migration is unchanged. Existing ready images keep
 their public URLs and dimensions; new images use the 1200 × 630 WebP pipeline.
 
+Both backfill commands are restricted to articles whose canonical `date_added`
+falls on **29 September 2026 in Europe/London**. The fixed window is inclusive at
+`2026-09-29 00:00 BST` and exclusive at `2026-09-30 00:00 BST`
+(`2026-09-28T23:00:00Z` through `2026-09-29T23:00:00Z`). Rerunning on another
+day does not change this selection. Dry runs, cursor scans, retries and explicit
+replacements all retain that boundary.
+
+The scheduled worker excludes articles added before this window starts. It can
+still process newly added articles on subsequent days through normal ingestion.
+
 The existing command remains available:
 
 ```sh

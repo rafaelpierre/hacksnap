@@ -85,6 +85,19 @@ unsupported emoji are replaced with a visible star marker.
 
 ## Bounded backfill
 
+The authorized backfill is limited to articles added on **29 September 2026,
+Europe/London**, using the canonical `hacker_news_threads.date_added`. Its fixed
+bounds are `2026-09-29 00:00 BST` inclusive and `2026-09-30 00:00 BST` exclusive:
+`2026-09-28T23:00:00Z <= date_added < 2026-09-29T23:00:00Z`.
+Both CLI entrypoints enforce this window during selection, queue handoff, lease
+recovery and claim. `--include-failed`, `--reprocess-ready` and `--after-id` do not
+widen it. Running tomorrow still targets 29 September; there is no moving
+"today" default. Results report the date and timezone alongside the counts.
+
+The scheduled worker and summary handoff exclude articles added before
+29 September. Normal image ingestion continues for articles added on later days;
+the one-day upper bound applies to backfill commands.
+
 Run from the repository root:
 
 ```sh

@@ -2,6 +2,7 @@
 
 import sys
 import types
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -98,3 +99,18 @@ def test_blob_adapter_uploads_immutable_public_webp_and_deletes_by_url(monkeypat
     client.delete.assert_called_once_with(url)
     with pytest.raises(ValueError, match="non-article"):
         store.delete("https://example.com/elsewhere.webp")
+
+
+def test_date_window_requires_aware_ordered_bounds_before_database_access(database):
+    repo, connection = database
+    naive = datetime(2026, 9, 29)  # noqa: DTZ001 - invalid input under test
+    start = datetime(2026, 9, 28, 23, tzinfo=UTC)
+    with pytest.raises(ValueError, match="timezone-aware"):
+        repo.list_image_candidates(limit=1, added_from=naive)
+    with pytest.raises(ValueError, match="timezone-aware"):
+        repo.claim_pending_images(added_before=naive)
+    with pytest.raises(ValueError, match="timezone-aware"):
+        repo.enqueue_image(42, "https://example.com", added_from=naive)
+    with pytest.raises(ValueError, match="positive duration"):
+        repo.list_unqueued_image_candidates(added_from=start, added_before=start)
+    connection.execute.assert_not_called()

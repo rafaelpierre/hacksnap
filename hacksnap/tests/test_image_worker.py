@@ -8,6 +8,7 @@ import pytest
 from PIL import Image
 
 from pipeline.image_metadata import ImageFetchError, PublicFetcher, extract_candidates, public_url
+from pipeline.image_scope import BACKFILL_START, scope_result
 from pipeline.images.worker import (
     ImageSettings,
     generate_artwork,
@@ -253,11 +254,11 @@ def test_sweep_reconciles_missing_queue_entry_and_claims_one_at_a_time():
         def list_image_candidates(self, **kwargs):
             return [{"story_id": 123, "article_url": None}]
 
-        def enqueue_image(self, story_id, article_url):
-            self.enqueued.append((story_id, article_url))
+        def enqueue_image(self, story_id, article_url, *, added_from):
+            self.enqueued.append((story_id, article_url, added_from))
 
-        def claim_pending_images(self, *, limit, max_attempts, lease_seconds):
-            self.claim_limits.append(limit)
+        def claim_pending_images(self, *, limit, max_attempts, lease_seconds, added_from):
+            self.claim_limits.append((limit, added_from))
             if self.issued:
                 return []
             self.issued = True
@@ -267,9 +268,12 @@ def test_sweep_reconciles_missing_queue_entry_and_claims_one_at_a_time():
 
     repository = QueueRepository()
     counts = process_pending_images(repository, FakeUploader(), limit=3)
-    assert counts == {"publisher": 0, "generated": 1, "failed": 0, "skipped": 0}
-    assert repository.enqueued == [(123, None)]
-    assert repository.claim_limits == [1, 1]
+    assert counts == {
+        "publisher": 0, "generated": 1, "failed": 0, "skipped": 0,
+        **scope_result(scheduled=True),
+    }
+    assert repository.enqueued == [(123, None, BACKFILL_START)]
+    assert repository.claim_limits == [(1, BACKFILL_START), (1, BACKFILL_START)]
 
 
 def test_public_fetcher_paces_repeated_requests_for_same_host(monkeypatch):

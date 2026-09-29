@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from pipeline.backfill_images import backfill_images, database_url_from_env, main
+from pipeline.image_scope import BACKFILL_END, BACKFILL_START, scope_result
 
 
 class Repository:
@@ -12,8 +13,11 @@ class Repository:
         self.rows = {row["story_id"]: dict(row) for row in rows}
         self.claimed = set()
         self.enqueued = []
+        self.list_options = []
+        self.claim_options = []
 
     def list_image_candidates(self, **options):
+        self.list_options.append(options)
         return [
             dict(row) for story_id, row in sorted(self.rows.items())
             if story_id > options["after_id"]
@@ -23,7 +27,9 @@ class Repository:
     def enqueue_image(self, story_id, url, **options):
         self.enqueued.append((story_id, options))
 
-    def claim_pending_images(self, *, limit, story_ids, max_attempts=3, lease_seconds=300):
+    def claim_pending_images(self, *, limit, story_ids, max_attempts=3, lease_seconds=300,
+                             added_from=None, added_before=None):
+        self.claim_options.append((added_from, added_before))
         story_id = story_ids[0]
         if story_id in self.claimed:
             return []
@@ -130,7 +136,10 @@ def test_reprocess_ready_requires_explicit_flag():
     result = backfill_images(repository, None, process_job=finish, reprocess_ready=True,
                              include_failed=True)
     assert result["processed"] == 1
-    assert repository.enqueued == [(1, {"force": False, "reprocess_ready": True})]
+    assert repository.enqueued == [(1, {
+        "force": False, "reprocess_ready": True,
+        "added_from": BACKFILL_START, "added_before": BACKFILL_END,
+    })]
 
 
 @pytest.mark.parametrize("options", [{"limit": 0}, {"limit": 101}, {"after_id": -1},
@@ -152,3 +161,25 @@ def test_cli_rejects_invalid_limit_before_accessing_database():
     with pytest.raises(SystemExit) as error:
         main(["--limit", "1000"])
     assert error.value.code == 2
+
+
+def test_backfill_scope_is_fixed_for_late_reruns_and_all_queue_calls():
+    repository = Repository(rows()[:1])
+    result = backfill_images(
+        repository, None, process_job=finish,
+        clock=lambda: 20_000_000_000.0,
+    )
+    assert (BACKFILL_START.isoformat(), BACKFILL_END.isoformat()) == (
+        "2026-09-28T23:00:00+00:00", "2026-09-29T23:00:00+00:00",
+    )
+    assert all(result[key] == value for key, value in scope_result().items())
+    assert repository.list_options[0]["added_from"] == BACKFILL_START
+    assert repository.list_options[0]["added_before"] == BACKFILL_END
+    assert repository.enqueued[0][1]["added_from"] == BACKFILL_START
+    assert repository.enqueued[0][1]["added_before"] == BACKFILL_END
+    assert repository.claim_options == [(BACKFILL_START, BACKFILL_END)]
+    dry_run = backfill_images(repository, None, process_job=None, dry_run=True)
+    assert dry_run["article_added_before"] == "2026-09-29T23:00:00Z"
+    assert repository.list_options[-1]["added_before"] == BACKFILL_END
+    assert len(repository.enqueued) == 1
+    assert len(repository.claim_options) == 1

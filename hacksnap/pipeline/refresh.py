@@ -9,6 +9,7 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 
 from .config import Settings
+from .image_scope import BACKFILL_START
 from .kestrel import FetchError, KestrelFetcher, external_article_url
 from .models import (
     DISCUSSION_ANALYSIS_SCHEMA_VERSION,
@@ -228,7 +229,9 @@ def process_story(
             # Publication has committed. A queue error cannot hide this story;
             # the independent image sweep reconciles missing queue entries.
             try:
-                repository.enqueue_image(story["hn_id"], article_url)
+                repository.enqueue_image(
+                    story["hn_id"], article_url, added_from=BACKFILL_START,
+                )
             except Exception as exc:  # noqa: BLE001 - image work is isolated
                 log_event(story, "image_enqueue", "failed", exc)
         log_event(story, stage, "generated")
