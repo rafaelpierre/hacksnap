@@ -731,3 +731,10 @@ Threaded summary, image and ingestion work inherits the parent tracing context.
 The image worker still starts after the summary batch completes. No change to
 Modal container limits, model routing, publisher pacing or inference rate limits
 is required to enable these internal workers.
+
+## Vercel Python SDK telemetry
+
+The pipeline disables Vercel SDK usage telemetry with
+`VERCEL_TELEMETRY_DISABLED=1` before importing the SDK. This applies to local
+runs and Modal workers, including both Blob adapters. Blob storage operations
+continue normally. Existing workers need a deployment to pick up this change.
