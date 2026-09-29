@@ -217,3 +217,57 @@ def test_cache_acknowledgement_does_not_advance_discussion_or_article_time(datab
     connection.execute.return_value.rowcount = 0
     with pytest.raises(ValueError, match="changed during cache"):
         repo.mark_discussion_contents(200, "a" * 64, "b" * 64)
+
+
+@pytest.mark.parametrize("limit", [0, 51])
+def test_worker_story_limit_rejects_out_of_bounds_before_connecting(database, limit):
+    repo, connect, _ = database
+    with pytest.raises(ValueError, match="between 1 and 50"):
+        repo.get_current_top_stories(limit)
+    connect.assert_not_called()
+
+
+def test_worker_reads_fifty_ranked_stories_with_retained_content(database):
+    import os
+    import subprocess
+
+    module = os.environ.get("HACKSNAP_TEST_PGLITE_MODULE")
+    if not module:
+        pytest.skip("optional PGlite runtime")
+    repo, _, connection = database
+    repo.get_current_top_stories()
+    sql, params = connection.execute.call_args.args
+    # Execute the real query against more than fifty ranked rows, in reverse ID
+    # order, with a missing content row to exercise the LEFT JOIN as well.
+    script = r'''
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const { PGlite } = await import(process.env.HACKSNAP_TEST_PGLITE_MODULE);
+const { sql, params } = JSON.parse(readFileSync(0, 'utf8'));
+const db = new PGlite();
+await db.exec(`
+  CREATE TABLE hacksnap_ranked_stories (
+    hn_id integer PRIMARY KEY, title text, url text, rank integer
+  );
+  CREATE TABLE hn_thread_contents (
+    hn_id integer PRIMARY KEY, full_raw_text_contents text, content_hash text
+  );
+  INSERT INTO hacksnap_ranked_stories
+    SELECT id, 'Story ' || id, 'https://example.com/' || id, 61 - id
+    FROM generate_series(1, 60) AS id;
+  INSERT INTO hn_thread_contents VALUES (60, 'retained', 'hash');
+`);
+const { rows } = await db.query(sql.replace('%s', '$1'), params);
+assert.equal(rows.length, 50);
+assert.deepEqual(rows.map(row => row.hn_id), Array.from({length: 50}, (_, i) => 60 - i));
+assert.equal(rows[0].full_raw_text_contents, 'retained');
+assert.equal(rows[0].content_hash, 'hash');
+assert.equal(rows[1].full_raw_text_contents, null);
+assert.equal(rows[1].content_hash, null);
+await db.close();
+'''
+    subprocess.run(
+        ["node", "--input-type=module", "-e", script],
+        input=json.dumps({"sql": sql, "params": params}), text=True,
+        capture_output=True, check=True, timeout=30,
+    )
