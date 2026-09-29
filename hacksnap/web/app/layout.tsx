@@ -94,7 +94,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main id="main">{children}</main>
-        <footer>
+        <footer id="site-footer" tabIndex={-1}>
           <Link className="footer-brand" href="/">
             hacksnap
           </Link>

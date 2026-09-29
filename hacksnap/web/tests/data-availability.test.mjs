@@ -3,6 +3,7 @@ import { jest, test } from "@jest/globals";
 
 const noStore = jest.fn();
 jest.unstable_mockModule("next/cache", () => ({ unstable_noStore: noStore }));
+jest.unstable_mockModule("server-only", () => ({}));
 const { DataUnavailableError, availableData, unavailableResponse } =
   await import("../lib/data-availability.ts");
 const fail = async () => {
@@ -12,6 +13,7 @@ const getStory = jest.fn(fail);
 const getRelatedStories = jest.fn(fail);
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getLeaderboard: fail,
+  getReadyStoryPage: fail,
   getStory,
   getRelatedStories,
   getFeedStories: fail,

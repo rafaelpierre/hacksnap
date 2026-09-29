@@ -3,7 +3,9 @@ import { expect, test } from "@jest/globals";
 import { readFileSync } from "node:fs";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import { storiesHandlers } from "../lib/stories-api.ts";
+import { readyStoriesHandler, storiesHandlers } from "../lib/stories-api.ts";
+import { ReadyStoryPageError } from "../lib/ready-story-pagination-errors.ts";
+import { latestRankChange } from "../lib/rank-history.ts";
 import { GET, HEAD } from "../app/.well-known/api-catalog/route.ts";
 
 test("catalog advertises the actual API, spec and documentation; HEAD supports discovery", async () => {
@@ -103,6 +105,75 @@ test("empty lists succeed and database failures return sanitized, uncacheable 50
     assert.equal(response.headers.get("cache-control"), "no-store");
     expect(await response.json()).toEqual({ error: "Stories are temporarily unavailable" });
   }
+});
+
+test("ready-story pagination exposes card fields and explicit continuation failures", async () => {
+  const inputs = [];
+  const api = readyStoriesHandler({
+    getReadyStoryPage: async (input) => {
+      inputs.push(input);
+      if (input.cursor === "expired") throw new ReadyStoryPageError("snapshot_expired");
+      if (!Number.isFinite(input.pageSize ?? 10))
+        throw new ReadyStoryPageError("invalid_page_size");
+      return {
+        stories: [
+          {
+            ...story,
+            rank: "12",
+            is_recent: false,
+            rank_history: [
+              { observed_at: "2026-09-29T08:00:00.000Z", rank: 18 },
+              { observed_at: "not a timestamp", rank: 17 },
+              { observed_at: "2026-09-29T09:00:00.000Z", rank: 16 },
+              { observed_at: "2026-09-29T10:00:00.000Z", rank: 14 },
+              { observed_at: "2026-09-29T11:00:00.000Z", rank: 13 },
+            ],
+          },
+        ],
+        ingestion: null,
+        observed_at: "2026-09-29T12:00:00.000Z",
+        pagination: {
+          cursor: "next",
+          previousCursor: null,
+          hasMore: true,
+          page: 1,
+          expiresAt: "2026-09-29T20:00:00.000Z",
+          selectionLimited: false,
+        },
+      };
+    },
+  });
+  const response = await api(new Request("https://hacksnap.live/api/ready-stories?pageSize=10"));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const body = await response.json();
+  assert.equal(body.stories[0].rank, "12");
+  assert.equal(body.stories[0].is_recent, false);
+  assert.equal(body.stories[0].story_slug, null);
+  assert.equal(body.stories[0].summary.overall_takeaway, "Takeaway");
+  expect(body.stories[0].rank_history).toEqual([
+    { observed_at: "2026-09-29T10:00:00.000Z", rank: 14 },
+    { observed_at: "2026-09-29T11:00:00.000Z", rank: 13 },
+  ]);
+  assert.equal(
+    latestRankChange(body.stories[0].rank_history, body.stories[0].rank),
+    1,
+    "the compact history preserves the ranked-card movement badge",
+  );
+  assert.equal(body.pagination.cursor, "next");
+  assert.deepEqual(inputs, [{ cursor: undefined, pageSize: 10 }]);
+
+  const expired = await api(new Request("https://hacksnap.live/api/ready-stories?cursor=expired"));
+  assert.equal(expired.status, 410);
+  expect(await expired.json()).toEqual({
+    error: "Story selection has expired. Start again.",
+    code: "snapshot_expired",
+  });
+  const invalid = await api(
+    new Request("https://hacksnap.live/api/ready-stories?cursor=one&cursor=two"),
+  );
+  assert.equal(invalid.status, 400);
+  assert.equal(inputs.length, 2, "invalid query inputs do not call data access");
 });
 
 const analysisFixtures = JSON.parse(

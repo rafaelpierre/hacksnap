@@ -54,6 +54,20 @@ test("sharing preserves action counts but strips arbitrary content fields", () =
     false,
   );
 });
+test("continuation events describe opens and load outcomes without forwarding content", () => {
+  const j = fixture();
+  j.route("/");
+  j.emit("home_feed_load", { trigger: "auto", outcome: "success", position: 20, title: "private" });
+  j.emit("home_story_open", { story_id: "42", position: 17, placement: "home_feed" });
+  j.emit("home_feed_end", { outcome: "exhausted", position: 30 }, "home-end:1");
+  assert.deepEqual(
+    j.events.slice(1).map((event) => event.name),
+    ["home_feed_load", "home_story_open", "home_feed_end"],
+  );
+  assert.equal(j.events[1].trigger, "auto");
+  assert.equal(j.events[2].story_id, "42");
+  assert.equal(JSON.stringify(j.events).includes("private"), false);
+});
 test("missing browser and throwing analytics do not interrupt user actions", () => {
   assert.doesNotThrow(() => track("share_menu_open"));
   const j = createJourney(

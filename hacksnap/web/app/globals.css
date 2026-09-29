@@ -1100,6 +1100,57 @@ footer > span {
 .archive-cta {
   margin: var(--space-6) 0 0;
 }
+.home-feed-top-skip,
+.home-feed-footer-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  color: var(--muted);
+  font: var(--text-sm)/1.5 var(--sans);
+  text-underline-offset: 0.2em;
+}
+.home-feed-top-skip {
+  margin-top: var(--space-2);
+}
+.home-feed-sentinel {
+  height: 1px;
+}
+.home-feed-continuation {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+}
+.home-feed-status,
+.home-feed-hint {
+  color: var(--muted);
+  font: var(--text-sm)/1.5 var(--sans);
+  margin: 0;
+}
+.home-feed-status:empty {
+  display: none;
+}
+.home-feed-actions,
+.home-feed-pages {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.home-feed-pages a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  color: var(--accent);
+  font: var(--text-sm)/1.5 var(--sans);
+  text-underline-offset: 0.2em;
+}
+.home-feed-expired {
+  margin: var(--space-8) 0;
+}
+#site-footer {
+  scroll-margin-top: var(--space-4);
+}
 .archive-story {
   display: block;
 }
