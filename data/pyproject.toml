@@ -24,7 +24,7 @@ build-backend = "hatchling.build"
 packages = ["src/hn_trending"]
 
 [dependency-groups]
-dev = ["pytest>=8.0,<9"]
+dev = ["pytest>=9.0.3,<10"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
