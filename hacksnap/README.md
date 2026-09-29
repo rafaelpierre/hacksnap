@@ -93,7 +93,7 @@ pipeline/kestrel.py     bounded JSON CLI adapter
 pipeline/preprocess.py  comment selection + deterministic fingerprint
 pipeline/prompts.py     versioned editorial instructions
 pipeline/summarise.py   schema-constrained Modal inference
-pipeline/refresh.py     sequential, isolated per-story processing
+pipeline/refresh.py     bounded parallel, isolated per-story processing
 web/                    Next.js homepage and /story/[id]
 ```
 
@@ -207,8 +207,20 @@ uv run modal deploy modal_app.py
 ```
 
 This deploys one function at `0 0,9-23 * * *` in `Europe/London`.
-It processes stories sequentially;
-one container prevents overlapping refresh executions. The 40-minute timeout
+It processes stories concurrently with a hard limit of **15 active story jobs**.
+The existing top-ten selection remains unchanged, so each ranking batch currently
+has at most ten jobs. Fetching and preprocessing can overlap immediately. The first
+actual model request in a run completes before later model requests begin, giving
+the endpoint a chance to warm its prompt cache. Its result is used normally; no
+extra inference request is sent. Cached stories and failed fetches do not consume
+this warm-up, and a failed warm-up releases the remaining requests.
+All requests retain the same run-scoped `Modal-Session-Id`; cache reuse is best
+effort and depends on the endpoint's routing and prefix-cache configuration.
+After each batch finishes, the worker re-reads the ranking for replacements,
+attempts each story at most once, and keeps the 50-story limit. Rank history and
+retention cleanup run after all story jobs finish. Database operations use separate
+connections and model requests share the HTTP client's connection pool.
+One container prevents overlapping refresh executions. The 40-minute timeout
 bounds a run. Kestrel compilation happens while building the image, never per
 scheduled invocation. It installs the exact published crates.io source release
 with `cargo install kestrel-rs --version =10.1.0 --locked --bin kestrel`.

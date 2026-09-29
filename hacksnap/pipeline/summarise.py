@@ -2,6 +2,7 @@
 
 import json
 import logging
+from threading import Event, Lock
 from time import perf_counter
 from typing import Protocol
 from uuid import uuid4
@@ -40,6 +41,8 @@ class ModalSummarizer:
         self.reasoning_effort = reasoning_effort
         # run() creates one summarizer per batch; affinity is scoped to that run.
         self.session_id = str(uuid4())
+        self._warmup_complete = Event()
+        self._warmup_lock = Lock()
 
     def summarize(self, source: dict) -> StorySummary:
         source = {**source, "sentiment_comments": sample_sentiment_comments(source["comments"])}
@@ -70,6 +73,19 @@ class ModalSummarizer:
         return result
 
     def _infer(self, source: dict, prompt: str, schema, name: str):
+        # Gate the first actual inference, not the first story: cache hits and
+        # fetch failures must not consume the warm-up. Reuse its normal result.
+        if not self._warmup_complete.is_set():
+            with self._warmup_lock:
+                if not self._warmup_complete.is_set():
+                    try:
+                        return self._request_inference(source, prompt, schema, name)
+                    finally:
+                        # Warm-up is best effort; a failure cannot stall other stories.
+                        self._warmup_complete.set()
+        return self._request_inference(source, prompt, schema, name)
+
+    def _request_inference(self, source: dict, prompt: str, schema, name: str):
         started = perf_counter()
         response = self.client.post(
             f"{self.base_url}/chat/completions",

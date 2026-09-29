@@ -1,8 +1,9 @@
-"""Sequential, failure-isolated refresh with validated writes and inference caching."""
+"""Bounded parallel refresh with failure isolation, validated writes and inference caching."""
 
 import json
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from urllib.parse import urlsplit, urlunsplit
 
@@ -24,6 +25,7 @@ from .summarise import ModalSummarizer, Summarizer
 from .supabase import Repository
 
 logger = logging.getLogger("hacksnap")
+MAX_PARALLELISM = 15
 
 
 def log_event(story: dict, stage: str, status: str, error: Exception | None = None):
@@ -248,22 +250,27 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = 48000,
         "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0,
     }
     attempted = set()
-    # Re-read the shared ranking after failures so replacements are processed now.
-    # Bound work even if many articles are inaccessible or ingestion changes the queue.
-    while len(attempted) < 50:
-        candidates = [
-            story for story in repository.get_current_top_stories(limit=10)
-            if story["hn_id"] not in attempted
-        ]
-        if not candidates:
-            break
-        for story in candidates[:50 - len(attempted)]:
-            attempted.add(story["hn_id"])
-            result = process_story(
-                story, repository, fetcher, summarizer, comment_budget,
-                image_enabled=image_enabled,
-            )
-            counts[result] += 1
+    # Repository methods open their own connections; the HTTP client and fetcher
+    # are safe to share. Only this coordinating thread updates counts/attempted.
+    with ThreadPoolExecutor(max_workers=MAX_PARALLELISM) as executor:
+        # Re-read the ranking after each completed batch to replace failed articles.
+        # Bound work even if many articles fail or ingestion changes the queue.
+        while len(attempted) < 50:
+            candidates = [
+                story for story in repository.get_current_top_stories(limit=10)
+                if story["hn_id"] not in attempted
+            ]
+            if not candidates:
+                break
+            futures = []
+            for story in candidates[:50 - len(attempted)]:
+                attempted.add(story["hn_id"])
+                futures.append(executor.submit(
+                    process_story, story, repository, fetcher, summarizer, comment_budget,
+                    image_enabled=image_enabled,
+                ))
+            for future in as_completed(futures):
+                counts[future.result()] += 1
     if len(attempted) == 50:
         logger.warning(json.dumps({"event": "refresh_attempt_limit", "limit": 50}))
     # Capture the final ordering after failed articles have been excluded.
