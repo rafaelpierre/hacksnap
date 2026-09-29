@@ -574,6 +574,11 @@ public Vercel Blob store. Existing ready images retain their URLs and dimensions
 The website and public API receive only canonical image metadata; publisher source
 URLs and retry diagnostics remain private.
 
+The image queue sweep runs hourly on the same schedule as summarization: 09:00
+through midnight, inclusive, in `Europe/London` (16 runs per day, following
+GMT/BST). No image sweep starts from 01:00 through 08:59. Jobs queued after a
+sweep wait for the next run; work left after the midnight sweep resumes at 09:00.
+
 Apply migrations through `0016_image_queue` before deploying the updated worker.
 Migration `0015_article_images` from the initial publisher-image release is preserved;
 the next migration adds the durable queue while preserving existing image state.

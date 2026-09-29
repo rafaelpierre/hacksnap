@@ -46,7 +46,7 @@ def refresh_hacksnap():
 
 @app.function(
     image=image_worker_image,
-    schedule=modal.Cron("*/10 * * * *", timezone="Europe/London"),
+    schedule=modal.Cron("0 0,9-23 * * *", timezone="Europe/London"),
     secrets=[modal.Secret.from_name("hacksnap")],
     timeout=2400,
     max_containers=1,
