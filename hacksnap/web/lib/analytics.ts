@@ -11,7 +11,10 @@ export type JourneyEvent =
   | "share_copy_failure"
   | "share_manual_fallback"
   | "story_return"
-  | "return_visit";
+  | "return_visit"
+  | "home_story_open"
+  | "home_feed_load"
+  | "home_feed_end";
 type Params = {
   placement?: string;
   observation_window_days?: 30;
@@ -21,6 +24,8 @@ type Params = {
   position?: number;
   destination?: string;
   copy_kind?: "link" | "post";
+  outcome?: "success" | "empty" | "failure" | "expired" | "exhausted" | "selection_limited";
+  trigger?: "auto" | "manual";
 };
 type Sink = (name: JourneyEvent, params: Record<string, string | number>) => void;
 
@@ -43,6 +48,8 @@ export function createJourney(sink: Sink, makeId: () => string) {
       "placement",
       "observation_window_days",
       "days_since_visit_anchor",
+      "outcome",
+      "trigger",
     ] as const) {
       const value = params[key];
       if (value !== undefined) safe[key] = value;

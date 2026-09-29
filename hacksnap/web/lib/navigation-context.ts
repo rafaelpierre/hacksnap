@@ -14,11 +14,20 @@ export function browseLabel(url: string): string | null {
   }
   if (parsed.origin !== "https://hacksnap.invalid" || parsed.hash) return null;
   const params = [...parsed.searchParams.keys()];
-  if (params.some((key) => key !== "page") || params.filter((key) => key === "page").length > 1)
+  if (
+    params.some((key) => key !== "page" && key !== "cursor") ||
+    params.filter((key) => key === "page").length > 1 ||
+    params.filter((key) => key === "cursor").length > 1
+  )
     return null;
   const page = parsed.searchParams.get("page");
+  const cursor = parsed.searchParams.get("cursor");
   if (page !== null && (!/^[1-9][0-9]*$/.test(page) || Number(page) > 10000)) return null;
-  if (parsed.pathname === "/") return page ? null : "Top stories";
+  if (parsed.pathname === "/") {
+    if (cursor !== null && (!page || !/^[A-Za-z0-9_-]{1,6000}$/.test(cursor))) return null;
+    return page && page !== "1" ? `Top stories · page ${page}` : "Top stories";
+  }
+  if (cursor !== null) return null;
   const pageSuffix = page && page !== "1" ? ` · page ${page}` : "";
   if (parsed.pathname === "/archive") return `Latest stories${pageSuffix}`;
   const archive = /^\/archive\/([1-9]\d{3})\/(0[1-9]|1[0-2])$/.exec(parsed.pathname);

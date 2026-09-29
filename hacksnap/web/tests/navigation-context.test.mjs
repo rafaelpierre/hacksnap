@@ -4,6 +4,8 @@ import { browseLabel, validBrowseContext } from "../lib/navigation-context.ts";
 
 test("browse context retains list selection and page", () => {
   assert.equal(browseLabel("/"), "Top stories");
+  assert.equal(browseLabel("/?page=2&cursor=frozen_123"), "Top stories · page 2");
+  assert.equal(browseLabel("/?page=1&cursor=frozen_123"), "Top stories");
   assert.equal(browseLabel("/archive?page=3"), "Latest stories · page 3");
   assert.equal(browseLabel("/archive/2026/09?page=2"), "September 2026 archive · page 2");
   assert.equal(browseLabel("/category/agents-coding?page=4"), "Agents & Coding · page 4");
@@ -27,6 +29,8 @@ test("return destination must be a recent internal browse route", () => {
     "https://evil.example",
     "/story/123",
     "/archive?next=https://evil.example",
+    "/?cursor=frozen_123",
+    "/?page=2&cursor=unsafe!",
     "/archive/2026/13",
     "/category/unknown",
   ]) {

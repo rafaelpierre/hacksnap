@@ -1,0 +1,88 @@
+{
+  "browser": "154.0.8037.58",
+  "results": [
+    {
+      "name": "desktop infinite scroll, order, no runaway loading, exhaustion",
+      "pass": true,
+      "detail": {
+        "batches": [
+          10,
+          20,
+          30,
+          37
+        ],
+        "requests": 3
+      }
+    },
+    {
+      "name": "deep-story Back, Forward and site return restore cards, scroll and focus",
+      "pass": true,
+      "detail": {
+        "story": "90000015",
+        "scrollY": 2761,
+        "count": 20
+      }
+    },
+    {
+      "name": "keyboard footer skip, paused manual loading, resume",
+      "pass": true,
+      "detail": {
+        "keyboard": true,
+        "pausedAt": 10,
+        "manual": 20,
+        "resumed": 30
+      }
+    },
+    {
+      "name": "slow request cannot duplicate; HTTP failure keeps cards; retry succeeds",
+      "pass": true,
+      "detail": {
+        "requests": 2,
+        "recovered": 20
+      }
+    },
+    {
+      "name": "network disconnection and recovery",
+      "pass": true
+    },
+    {
+      "name": "expired cursor keeps loaded stories and fresh selection works",
+      "pass": true
+    },
+    {
+      "name": "footer skip aborts pending append",
+      "pass": true
+    },
+    {
+      "name": "blocked session storage: site return, story reload and browser Back",
+      "pass": true,
+      "detail": {
+        "scrollY": 2761,
+        "cards": 20
+      }
+    },
+    {
+      "name": "home reload starts fresh initial selection",
+      "pass": true
+    },
+    {
+      "name": "modified click opens canonical story in a new tab without changing source",
+      "pass": true
+    },
+    {
+      "name": "JavaScript disabled: next/newer pages and deep canonical story",
+      "pass": true
+    },
+    {
+      "name": "mobile dark: repeated scrolling, exhaustion, deep-story return",
+      "pass": true,
+      "detail": {
+        "cards": 37,
+        "scrollY": 9118,
+        "width": 320,
+        "touch": true
+      }
+    }
+  ],
+  "errors": []
+}

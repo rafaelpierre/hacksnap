@@ -322,10 +322,12 @@ the read-only transaction setup and commit, this takes three database round trip
 For Vercel, configure the function region close to the Supabase database
 (the current database is in Ireland) to reduce the remaining network latency.
 
-Vercel's Git integration can deploy automatically, independently of the manual
-GitHub Actions workflows. Configure its deployment policy to match your intended
-release process. After changing environment variables, redeploy and check both
-the homepage and a story detail page against real data.
+Vercel's Git integration deploys `main` automatically, independently of the manual
+GitHub Actions workflows. `web/vercel.json` disables automatic deployments for all
+other branches, including pull-request previews, using `git.deploymentEnabled`.
+Keep `main` configured as the Vercel project's Production Branch. This Git policy
+does not block explicit CLI/API deployments. After changing environment variables,
+redeploy and check both the homepage and a story detail page against real data.
 
 ### Sitemap
 
@@ -360,6 +362,16 @@ Both are public and read-only, exposing
 an explicit set of story fields and summary text. Invalid IDs return 400,
 unknown stories return 404, and data failures return a sanitized 503 with
 `Retry-After: 60`. See `/docs/api` for the response contract and polling guidance.
+
+`GET /api/ready-stories` is an additive pagination endpoint for the existing
+summary-ready ranked pool. Its `pagination.cursor` is a portable, unsigned public
+selection of ordered IDs, ranks and recency flags; it is not a credential. Send it
+back as `cursor` to receive the next batch. The cursor freezes membership and rank
+order for eight hours, while card details can refresh. Invalid cursors return 400;
+expired or no-longer-ready selected rows return 410, so callers restart from the
+first batch. The response exposes `selectionLimited` when its bounded 400-story
+selection ends before the full pool; this is distinct from `hasMore: false` for an
+exhausted selection. Existing `/api/stories`, Markdown, and RSS formats are unchanged.
 
 Run `npm run test:api`, `npm run typecheck`, and `npm run build` from `web/`.
 After deploying the frontend, validate the public catalog with:

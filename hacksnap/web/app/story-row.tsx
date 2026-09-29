@@ -1,5 +1,6 @@
 import { ChevronsDown, ChevronsUp, MessageCircle, Minus, Star } from "lucide-react";
 import type { Story } from "../lib/data";
+import type { PublicReadyStory } from "../lib/stories-api";
 import { CategoryBadge } from "./categories";
 import { formatRankChange, latestRankChange } from "../lib/rank-history";
 import { briefExcerpt } from "../lib/brief";
@@ -12,13 +13,15 @@ import { canonicalArticleImage } from "../lib/article-image";
 export function StoryRow({
   story,
   variant = "unranked",
+  feedPosition,
 }: {
-  story: Story;
+  story: Story | PublicReadyStory;
   variant?: "ranked" | "unranked";
+  feedPosition?: number;
 }) {
   const rank = variant === "ranked" ? Number(story.rank) : null;
   const hasRank = rank !== null && Number.isInteger(rank) && rank > 0;
-  const movement = latestRankChange(story.rank_history ?? [], story.rank);
+  const movement = latestRankChange(story.rank_history ?? [], story.rank ?? undefined);
   const MovementIcon =
     movement === null || movement === 0 ? Minus : movement > 0 ? ChevronsUp : ChevronsDown;
   const movementLabel =
@@ -48,7 +51,7 @@ export function StoryRow({
       <ArticleImage image={image} alt="" className="feed-story-image" loading="lazy" />
       <div className="story-content">
         <h3>
-          <BrowseStoryLink id={story.hn_id} slug={story.story_slug}>
+          <BrowseStoryLink id={story.hn_id} slug={story.story_slug} feedPosition={feedPosition}>
             {story.title}
           </BrowseStoryLink>
         </h3>

@@ -27,6 +27,9 @@ GA supplies pseudonymous reader/session IDs and device/acquisition dimensions.
 | share_manual_fallback | Failed attempt offers selectable text | same as attempt |
 | return_visit | Existing anchor qualifies after 24 hours through 30 days; same-day loads preserve it | observation_window_days=30, days_since_visit_anchor |
 | story_return | Contextual return link activated | none |
+| home_story_open | Homepage story after the first ten activated by primary, keyboard, or middle click; modified clicks count when the link opens | story_id, position (1-based), placement=home_feed |
+| home_feed_load | A continuation request settles; fetched cards alone are not story opens | trigger (auto/manual), outcome (success/empty/failure/expired), position (loaded card count after success, prior count otherwise) |
+| home_feed_end | The rendered selection has no next page, once per route occurrence | outcome (exhausted/selection_limited), position (loaded card count) |
 
 Clicks establish exposure if the observer has not fired. Without IntersectionObserver,
 only clicked recommendations are observed; exclude unsupported browsers from CTR
@@ -35,6 +38,13 @@ menu opening is not a click; context-menu navigation cannot be measured reliably
 Repeated intentional share/copy actions count independently. Destination selection
 is not evidence of publication. Manual fallback is not evidence of a completed copy.
 Pending-summary story pages count; missing/404 stories do not.
+Homepage continuation events distinguish actual deeper-story opens from background
+batch requests. `home_story_open` measures link activation in the feed; `story_view`
+measures a mounted story page, so navigation failures and new-tab blocking can
+produce different counts. An `empty` load means a successful page contained no
+cards. `selection_limited` means the frozen 400-story cap was reached; it does not
+claim that all archived content is exhausted. Loading events are absent when
+JavaScript is disabled, even though ordinary page links remain available.
 
 Share events preserve placement=feed/story_top/story_end; recommendation events
 preserve placement=read_next. Destination values remain lowercase.

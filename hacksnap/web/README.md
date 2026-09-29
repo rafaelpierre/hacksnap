@@ -61,6 +61,39 @@ before the collector to ensure newly inserted slugs are used immediately. No bac
 or production migration is performed by local checks. Rolling back ingestion keeps
 saved slugs; rolling back the migration discards them and should be avoided once published.
 
+## Homepage continuation and return navigation
+
+The homepage server-renders ten ready stories from the existing ranking. Near the
+bottom, it loads the next ten into the same list. A visible Load more button works
+when automatic loading is unavailable, and ordinary Next page/Newer stories links
+work without JavaScript. A direct `/?page=N` request uses the current selection;
+page links carry a frozen cursor so successive pages retain their ranking and order.
+The cursor is portable across instances and expires after eight hours. An expired or
+invalidated continuation keeps already loaded cards visible and offers a fresh
+selection. The selection is bounded to 400 stories; if it reaches that cap, the UI
+points readers to the archive instead of claiming the site has no more stories.
+
+Opening a homepage story saves the loaded cards, position, and focused story in the
+browser history entry. Browser Back/Forward reconstructs those cards before
+restoring position. The contextual return link carries the same snapshot through
+history and, when available, tab-scoped session storage. Blocked session storage
+does not prevent browsing or same-tab returns. Story URLs stay canonical, and
+modified clicks use their normal browser behavior. Reloading `/` starts a fresh
+selection. Pause automatic loading or use Skip to footer at the top of the list to
+reach footer navigation without chasing a growing list.
+
+Analytics events `home_story_open` record actual activations of stories after the
+first ten (`story_id`, 1-based `position`, `placement=home_feed`). Rendering or
+fetching a card never emits that event. `home_feed_load` records each attempted
+automatic or manual request with `trigger`, `outcome` (success, empty, failure,
+expired) and resulting `position`; `home_feed_end` records exhausted versus capped
+selections once per route occurrence. These are client events and do not fire
+without JavaScript. Existing `story_view` still records a rendered story page.
+
+Run `npm test -- tests/home-feed-state.test.mjs tests/story-navigation.test.tsx
+tests/navigation-context.test.mjs tests/analytics.test.mjs` for continuation,
+return, and event contract coverage.
+
 ## Markdown content negotiation
 
 The homepage, `/story/:id`, and `/docs/api` return Markdown when requested with
@@ -216,12 +249,34 @@ The homepage and `/story/:id` render per request so outages cannot become cached
 HTML. The homepage accepts only `/`; unmatched paths return 404 before data access.
 Builds need no database connection. Runtime requests use `HACKSNAP_WEB_DATABASE_URL`
 with the dedicated `hacksnap_reader` login. Leaderboard data uses a bounded
-60-second per-instance cache with one entry and one pending load. Concurrent callers
-share a load; after expiry they wait for fresh data, and failures use the existing
+60-second per-instance cache with one entry and one pending load. The shared selection
+contains the first ten cards, bounded continuation IDs/ranks/recency flags, ingestion
+time, and observation time from one SQL statement. `getLeaderboard()` (Markdown and
+`/api/stories`) and the first HTML/ready-stories page read that same cached snapshot;
+request order cannot populate independent first-page rankings or timestamps.
+Concurrent callers share a load; after expiry they wait for fresh data, and failures use the existing
 unavailable response rather than returning stale rankings. Separate instances can
 differ within that one-minute window. This applies to homepage HTML, Markdown and
 the list API; it also refreshes ranking changes caused by the 24-hour recency cutoff.
 Story data uses the bounded per-instance cache documented below.
+
+`/api/ready-stories` is an additive ranked-feed endpoint for continuous browsing.
+It returns up to ten summary-ready cards and a continuation cursor. An initial
+`pageSize` may be 1–10 (default 10). The cursor retains that size: follow either
+`cursor` or `previousCursor` without resending `pageSize`. If supplied on a
+continuation, `pageSize` must match the original size or the endpoint returns 400
+(`invalid_page_size`). Page numbers and backward cursors use the retained size,
+including a shorter final batch. Version 1 cursors, which did not encode a size,
+are rejected; start a fresh selection to obtain a version 2 cursor.
+The first request captures ordered story IDs, canonical ranks and recency flags; the cursor preserves
+that membership and ordering for eight hours while card metadata may refresh through
+a bounded 60-second cache. Cursors are portable, validated encodings of an already
+public selection, not authentication or tamper-proof credentials. Invalid cursors
+return 400; an expired cursor or a selected story that becomes unavailable returns
+410 so clients restart instead of combining selections. The selection is capped at
+400 stories to keep URLs bounded. `selectionLimited: true` distinguishes that cap
+from the actual end of the pool. Continuation responses are `no-store`; only 64
+recent page reads and 8 concurrent misses are admitted per instance.
 
 In Cloudflare, create a **Bypass cache** rule for:
 
