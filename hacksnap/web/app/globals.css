@@ -1628,11 +1628,20 @@ footer > span {
 
 /* Shared feed row: the same content and actions on Top, archive and topic pages. */
 .story-row.feed-story {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 0;
   padding: var(--space-6) var(--space-5);
   min-width: 0;
+}
+.story-row.feed-story:has(.feed-story-image) {
+  grid-template-columns: clamp(7.5rem, 18vw, 12rem) minmax(0, 1fr);
+  column-gap: var(--space-5);
+}
+.feed-story > .story-context,
+.feed-story > .story-content {
+  grid-column: -2 / -1;
 }
 .story-row.feed-story:focus-within {
   z-index: 2;
@@ -1664,7 +1673,8 @@ footer > span {
   width: 100%;
 }
 .feed-story-image {
-  flex: 0 0 clamp(7.5rem, 18vw, 12rem);
+  grid-column: 1;
+  grid-row: 1 / span 2;
   aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: 5px;
@@ -1675,9 +1685,6 @@ footer > span {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-.feed-story-image + .story-content {
-  padding-left: var(--space-5);
 }
 .feed-story .story-domain {
   margin-bottom: 7px;
@@ -1955,7 +1962,8 @@ footer > span {
     padding: var(--space-5) var(--space-4);
   }
   .story-row.feed-story:has(.feed-story-image) {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
   }
 
   /* Keep the compact metrics and Share aligned at phone widths. */
@@ -1974,12 +1982,10 @@ footer > span {
     font-size: 23px;
   }
   .feed-story-image {
-    flex: none;
+    grid-row: 2;
     width: 100%;
     max-height: 18rem;
-  }
-  .feed-story-image + .story-content {
-    padding-left: 0;
+    margin-bottom: var(--space-3);
   }
 }
 
@@ -2188,13 +2194,26 @@ footer > span {
   font: inherit;
 }
 @media (max-width: 40rem) {
+  .story-metadata {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 var(--space-2);
+  }
   .story-source-date {
-    flex: 1 1 12rem;
-    flex-direction: column;
-    align-items: flex-start;
+    display: contents;
+  }
+  .story-source {
+    grid-column: 1 / -1;
   }
   .story-added {
-    padding-top: 0;
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .story-metadata > .share-menu {
+    grid-column: 2;
+    grid-row: 2;
   }
 }
 
