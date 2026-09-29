@@ -327,3 +327,26 @@ and error spans, including story failures caught so the batch can continue.
 Application logging and retry warnings are forwarded into the current trace;
 existing console logging remains intact. Exception details use Logfire's default
 sensitive-data scrubbing. Thread-pool work retains parent trace context.
+
+### Deployment verification and throughput
+
+The `Ingestion` GitHub workflow validates code but does not deploy `hn-ingestion`.
+A successful CI run alone does not update the scheduled collector. After an
+authorized deployment from `data/`, verify the Modal deployment history and the
+startup log's `story_concurrency=4` value:
+
+```sh
+uv run modal app history hn-ingestion --json
+uv run modal app logs hn-ingestion --since 1d --search story_concurrency --timestamps
+```
+
+At the 29 September 2026 investigation, production was still v3, deployed on
+27 September at commit `6b02d45`, before the parallel collector changes.
+The image and summary app deploys separately and cannot update this collector.
+
+`ingestion_completed` reports run ID, success/failure, examined and matched
+stories, persisted snapshots, elapsed seconds, concurrency and examined items
+per minute. `classification_timing` separates shared-lock waiting from the
+classification request/retry/cooldown sequence and includes failures. Four story
+workers can overlap HN requests, but classification remains serialized for its
+shared rate limit and comments within each story are fetched sequentially.

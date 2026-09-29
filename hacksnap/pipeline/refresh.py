@@ -4,7 +4,9 @@ import json
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 from datetime import UTC, datetime
+from time import perf_counter
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -246,6 +248,20 @@ def process_story(
 @traced_operation("enrichment_batch")
 def refresh(repository, fetcher, summarizer, comment_budget: int = 48000,
             *, image_enabled: bool = False) -> dict:
+    started = perf_counter()
+
+    def process_timed(story, queued_at):
+        job_started = perf_counter()
+        result = process_story(
+            story, repository, fetcher, summarizer, comment_budget, image_enabled=image_enabled,
+        )
+        logger.info(json.dumps({
+            "event": "summary_job_completed", "story_id": story["hn_id"], "status": result,
+            "executor_wait_seconds": round(job_started - queued_at, 3),
+            "elapsed_seconds": round(perf_counter() - job_started, 3),
+        }))
+        return result
+
     counts = {
         "generated": 0, "unchanged": 0, "failed": 0, "fetch_skipped": 0,
         "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0,
@@ -267,8 +283,7 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = 48000,
             for story in candidates[:MAX_STORIES_PER_RUN - len(attempted)]:
                 attempted.add(story["hn_id"])
                 futures.append(executor.submit(
-                    process_story, story, repository, fetcher, summarizer, comment_budget,
-                    image_enabled=image_enabled,
+                    copy_context().run, process_timed, story, perf_counter(),
                 ))
             for future in as_completed(futures):
                 counts[future.result()] += 1
@@ -276,9 +291,14 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = 48000,
         logger.info(json.dumps({"event": "refresh_attempt_limit", "limit": MAX_STORIES_PER_RUN}))
     # Capture the final ordering after failed articles have been excluded.
     repository.record_rank_history()
+    elapsed = perf_counter() - started
     logger.log(
         logging.ERROR if counts["failed"] else logging.INFO,
-        json.dumps({"event": "refresh_completed", "status": "failed" if counts["failed"] else "succeeded", **counts}),
+        json.dumps({"event": "refresh_completed", "status": "failed" if counts["failed"] else "succeeded",
+                    "processed": len(attempted), "concurrency": MAX_PARALLELISM,
+                    "elapsed_seconds": round(elapsed, 3),
+                    "items_per_minute": round(len(attempted) * 60 / elapsed, 3) if elapsed else 0,
+                    **counts}),
     )
     return counts
 

@@ -207,8 +207,23 @@ class TitleTopicClassifier:
     @traced_operation("classification")
     def classify(self, title: str, *, already_relevant: bool = False) -> TopicDecision:
         # Serialize the full retry sequence so workers share pauses and cooldowns.
-        with self._request_lock:
-            return self._classify(title, already_relevant=already_relevant)
+        started = time.perf_counter()
+        request_started = None
+        status = "failed"
+        try:
+            with self._request_lock:
+                request_started = time.perf_counter()
+                result = self._classify(title, already_relevant=already_relevant)
+                status = "succeeded"
+                return result
+        finally:
+            finished = time.perf_counter()
+            logger.info(json.dumps({
+                "event": "classification_timing", "status": status,
+                "lock_wait_seconds": round((request_started if request_started is not None else finished) - started, 3),
+                "request_and_cooldown_seconds": round(finished - request_started, 3) if request_started is not None else 0,
+                "total_seconds": round(finished - started, 3),
+            }))
 
     def _classify(self, title: str, *, already_relevant: bool) -> TopicDecision:
         system_prompt = CLASSIFIER_SYSTEM_PROMPT

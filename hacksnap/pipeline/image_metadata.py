@@ -157,13 +157,21 @@ class PublicFetcher:
         self._clock = clock
         self._sleep = sleep
         self._next_request: dict[str, float] = {}
+        self._pace_locks: dict[str, threading.Lock] = {}
+        self._pace_locks_guard = threading.Lock()
 
     def _pace(self, host: str) -> float:
-        wait = max(0.0, self._next_request.get(host, 0.0) - self._clock())
-        if wait:
-            self._sleep(wait)
-        self._next_request[host] = self._clock() + self.publisher_interval
-        return wait
+        # Hold only this host's lock while sleeping; unrelated publishers overlap.
+        started = self._clock()
+        with self._pace_locks_guard:
+            lock = self._pace_locks.setdefault(host, threading.Lock())
+        with lock:
+            wait = max(0.0, self._next_request.get(host, 0.0) - self._clock())
+            if wait:
+                self._sleep(wait)
+            self._next_request[host] = self._clock() + self.publisher_interval
+        # Include lock contention in courtesy time, outside the network deadline.
+        return self._clock() - started
 
     def get(self, url: str, max_bytes: int, *, accepted_types: tuple[str, ...]) -> tuple[bytes, str, str]:
         deadline = self._clock() + self.timeout

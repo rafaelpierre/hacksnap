@@ -11,7 +11,10 @@ import logging
 import math
 import os
 import re
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from contextvars import copy_context
 from dataclasses import dataclass
+from time import perf_counter
 from urllib.parse import urlsplit
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps, UnidentifiedImageError
@@ -40,6 +43,7 @@ class ImageSettings:
     max_redirects: int = 3
     max_attempts: int = 3
     batch_size: int = 10
+    concurrency: int = 4
     publisher_interval: float = 2.0
 
     def lease_seconds(self, publisher_interval: float = 1.0) -> int:
@@ -60,6 +64,7 @@ class ImageSettings:
             return value
 
         return cls(
+            concurrency=integer("HACKSNAP_IMAGE_CONCURRENCY", defaults.concurrency, 1, 8),
             batch_size=integer("HACKSNAP_IMAGE_BATCH_SIZE", defaults.batch_size, 1, 100),
             publisher_interval=float(integer("HACKSNAP_IMAGE_PUBLISHER_INTERVAL", int(defaults.publisher_interval), 0, 10)),
             min_width=integer("HACKSNAP_IMAGE_MIN_WIDTH", defaults.min_width, 300, 2400),
@@ -361,10 +366,20 @@ def process_pending_images(
     fetcher: PublicFetcher | None = None,
 ) -> dict[str, int | str | None]:
     """Claim pending and expired image leases, including jobs from earlier runs."""
+    started = perf_counter()
     settings = settings or ImageSettings()
+    if not 1 <= settings.concurrency <= 8:
+        raise ValueError("Image concurrency must be between 1 and 8")
     counts = {"publisher": 0, "generated": 0, "failed": 0, "skipped": 0,
               **scope_result(scheduled=True)}
     fetcher = fetcher or PublicFetcher(settings.timeout, settings.max_redirects, publisher_interval=settings.publisher_interval)
+    # Shared-host pacing can involve every active worker. Fail before touching
+    # the queue if custom settings exceed the repository's supported lease cap.
+    lease_seconds = settings.lease_seconds(
+        getattr(fetcher, "publisher_interval", 1.0) * settings.concurrency,
+    )
+    if lease_seconds > 3600:
+        raise ValueError("Image concurrency and fetch settings require a lease longer than 3600 seconds")
     # A summary can commit even if its initial enqueue fails. Reconcile published
     # stories on every independent sweep so the missing queue row is recovered.
     for candidate in repository.list_image_candidates(
@@ -377,20 +392,46 @@ def process_pending_images(
             )
         except Exception as exc:  # noqa: BLE001 - one DB row must not stop others
             _log(candidate, None, "queue", type(exc).__name__)
-    for _ in range(limit):
-        claimed = repository.claim_pending_images(
-            limit=1, max_attempts=settings.max_attempts,
-            lease_seconds=settings.lease_seconds(getattr(fetcher, "publisher_interval", 1.0)),
-            added_from=BACKFILL_START,
-        )
-        if not claimed:
-            break
-        job = claimed[0]
+    def process(job):
+        job_started = perf_counter()
         try:
             result = process_image_job(job, repository, uploader, settings=settings, fetcher=fetcher)
         except Exception as exc:  # noqa: BLE001 - recover next claimed job
             _log(job, None, "worker", type(exc).__name__)
             _mark_failed(job, repository, "worker_failed")
             result = "failed"
-        counts[result] += 1
+        logger.info(json.dumps({
+            "event": "image_job_completed", "story_id": job["story_id"],
+            "status": result, "elapsed_seconds": round(perf_counter() - job_started, 3),
+        }))
+        return result
+
+    processed = 0
+    exhausted = False
+    with ThreadPoolExecutor(max_workers=settings.concurrency) as executor:
+        pending = set()
+        while pending or (processed < limit and not exhausted):
+            # Claim only free worker slots, never a batch waiting on the executor.
+            while len(pending) < settings.concurrency and processed < limit and not exhausted:
+                claimed = repository.claim_pending_images(
+                    limit=1, max_attempts=settings.max_attempts,
+                    lease_seconds=lease_seconds,
+                    added_from=BACKFILL_START,
+                )
+                if not claimed:
+                    exhausted = True
+                    break
+                processed += 1
+                pending.add(executor.submit(copy_context().run, process, claimed[0]))
+            if pending:
+                completed, pending = wait(pending, return_when=FIRST_COMPLETED)
+                for future in completed:
+                    counts[future.result()] += 1
+    elapsed = perf_counter() - started
+    logger.info(json.dumps({
+        "event": "image_batch_completed", "processed": processed,
+        "concurrency": settings.concurrency, "elapsed_seconds": round(elapsed, 3),
+        "items_per_minute": round(processed * 60 / elapsed, 3) if elapsed else 0,
+        **counts,
+    }))
     return counts
