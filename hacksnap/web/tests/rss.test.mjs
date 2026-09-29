@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { test } from "@jest/globals";
 import { renderRSS } from "../lib/rss.ts";
 
-const { JSDOM, ResourceLoader } = createRequire(import.meta.url)("jsdom");
+const { JSDOM, requestInterceptor } = createRequire(import.meta.url)("jsdom");
 
 const story = {
   hn_id: "123",
@@ -77,22 +77,45 @@ test("RSS links use the title while GUIDs survive headline edits", () => {
   );
 });
 
+function createReader(requests) {
+  return new JSDOM("<body></body>", {
+    runScripts: "dangerously",
+    resources: {
+      interceptors: [
+        requestInterceptor((request) => {
+          requests.push(request.url);
+          return new Response("", { headers: { "Content-Type": "text/html" } });
+        }),
+      ],
+    },
+    url: "https://reader.invalid/",
+  });
+}
+
+test("RSS reader records and intercepts remote resources", async () => {
+  const requests = [];
+  const reader = createReader(requests);
+  try {
+    const frame = reader.window.document.createElement("iframe");
+    const loaded = new Promise((resolve) =>
+      frame.addEventListener("load", resolve, { once: true }),
+    );
+    frame.src = "https://attacker.invalid/frame";
+    reader.window.document.body.append(frame);
+    await loaded;
+    assert.deepEqual(requests, ["https://attacker.invalid/frame"]);
+    assert.equal(frame.contentDocument.body.textContent, "");
+  } finally {
+    reader.window.close();
+  }
+});
+
 function assertDescriptionRendersAsText(summary, expected) {
   const feed = new JSDOM(renderRSS([{ ...story, summary }], "2026-09-19T12:00:00Z"), {
     contentType: "text/xml",
   });
   const requests = [];
-  class BlockedResources extends ResourceLoader {
-    fetch(url) {
-      requests.push(url);
-      return null;
-    }
-  }
-  const reader = new JSDOM("<body></body>", {
-    runScripts: "dangerously",
-    resources: new BlockedResources(),
-    url: "https://reader.invalid/",
-  });
+  const reader = createReader(requests);
   try {
     const description = feed.window.document.querySelector("item description");
     assert.ok(description);

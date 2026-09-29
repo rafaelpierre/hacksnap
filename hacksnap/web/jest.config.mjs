@@ -2,7 +2,18 @@ export default {
   testEnvironment: "node",
   testMatch: ["<rootDir>/tests/**/*.test.mjs", "<rootDir>/tests/**/*.test.tsx"],
   extensionsToTreatAsEsm: [".ts", ".tsx"],
+  // jsdom requires ESM dependencies; Jest on Node 22 needs them compiled to CJS.
+  transformIgnorePatterns: [
+    "/node_modules/(?!(@exodus/bytes|@asamuzakjp/[^/]+|@csstools/[^/]+|@bramus/specificity|css-tree|parse5|entities)/)",
+  ],
   transform: {
+    "/node_modules/.+\\.m?js$": [
+      "@swc/jest",
+      {
+        jsc: { parser: { syntax: "ecmascript" }, target: "es2022" },
+        module: { type: "commonjs" },
+      },
+    ],
     "^.+\\.tsx?$": [
       "@swc/jest",
       {

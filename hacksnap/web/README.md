@@ -289,7 +289,7 @@ Run `npm run test:categories` for category routing and navigation context unit t
 
 ## Frontend checks
 
-Use Node.js 22 and `npm ci`, then run:
+Use Node.js 22.22.2 or newer in the Node 22 line and `npm ci`, then run:
 
 ```sh
 npm run lint
@@ -305,8 +305,10 @@ Run `npm run format` to apply formatting locally. Jest discovers all
 handlers with injected data access, and React components in jsdom. Database and
 live HTTP integration suites have been removed; tests need no server, database,
 or credentials. The test process uses America/Los_Angeles to verify hydration
-across a UTC date boundary. Jest uses ESM and SWC for TypeScript/TSX; jsdom 26
-keeps its CommonJS dependencies compatible with Jest on Node 22.
+across a UTC date boundary. Jest uses ESM and SWC for TypeScript/TSX. For jsdom 30 on Node 22, the Jest
+configuration also uses SWC to compile the allowlisted ESM dependencies in
+jsdom's encoding, CSS, and HTML parser dependency chain to CommonJS. Application
+code and test modules continue to run as ESM.
 
 ## Canonical article images
 
