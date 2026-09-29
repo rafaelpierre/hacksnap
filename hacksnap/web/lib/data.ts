@@ -299,6 +299,7 @@ const cachedReadyStorySelection = boundedCache(
           createReadyStoryCursor({
             items: selected,
             offset: READY_STORY_PAGE_SIZE,
+            pageSize: READY_STORY_PAGE_SIZE,
             observedAt: ranked_at.toISOString(),
             ingestion: ingestion?.toISOString() ?? null,
             selectionLimited: selection_limited,
@@ -412,9 +413,11 @@ export async function getReadyStoryPage({
   page?: number;
   pageSize?: number;
 } = {}): Promise<ReadyStoryPage> {
-  const size = assertReadyStoryPageSize(pageSize);
   if (cursor !== undefined) {
     const snapshot = parseReadyStoryCursor(cursor);
+    const size = snapshot.pageSize;
+    if (pageSize !== undefined && assertReadyStoryPageSize(pageSize) !== size)
+      throw new ReadyStoryPageError("invalid_page_size");
     const cursorPage = Math.floor(snapshot.offset / size) + 1;
     if (page !== undefined && assertReadyStoryPage(page) !== cursorPage)
       throw new ReadyStoryPageError("invalid_page");
@@ -449,6 +452,7 @@ export async function getReadyStoryPage({
     };
   }
 
+  const size = assertReadyStoryPageSize(pageSize);
   const requestedPage = assertReadyStoryPage(page);
   const selection = await loadReadyStorySelection();
   const offset = (requestedPage - 1) * size;
@@ -474,6 +478,7 @@ export async function getReadyStoryPage({
         ? createReadyStoryCursor({
             items,
             offset: nextOffset,
+            pageSize: size,
             observedAt: selection.observed_at,
             ingestion: selection.ingestion,
             selectionLimited: selection.selection_limited,
@@ -487,6 +492,7 @@ export async function getReadyStoryPage({
           ? createReadyStoryCursor({
               items,
               offset: Math.max(0, offset - size),
+              pageSize: size,
               observedAt: selection.observed_at,
               ingestion: selection.ingestion,
               selectionLimited: selection.selection_limited,

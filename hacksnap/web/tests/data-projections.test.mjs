@@ -668,3 +668,100 @@ test("HTML and legacy formats share one selection regardless of warm-up order an
     else process.env.HACKSNAP_WEB_DATABASE_URL = previousURL;
   }
 });
+
+test("ready API cursors retain page size through forward and backward traversal", async () => {
+  const { readyStoriesHandler } = await import("../lib/stories-api.ts");
+  const handle = readyStoriesHandler(data);
+  const selection = Array.from({ length: 12 }, (_, index) => ({
+    hn_id: String(index + 1),
+    rank: String(index + 1),
+    is_recent: true,
+  }));
+  const card = (item) => ({
+    ...item,
+    title: `Story ${item.hn_id}`,
+    url: "https://example.com/story",
+    points: 10,
+    comment_count: 2,
+    date_added: new Date(clock),
+    rank_history: [],
+    summary: { overall_takeaway: "Ready", sentiment: 0 },
+  });
+  readyQuery = (sql, values) => {
+    if (typeof sql !== "string") return;
+    if (sql.includes("AS ranked_at"))
+      return {
+        rows: [
+          {
+            items: selection,
+            stories: selection
+              .slice(0, 10)
+              .map((item) => ({ ...card(item), date_added: new Date(clock).toISOString() })),
+            ingestion: new Date(clock),
+            ranked_at: new Date(clock),
+          },
+        ],
+      };
+    if (sql.includes("FROM unnest($1::bigint[]"))
+      return {
+        rows: values[0].map((id, index) => ({
+          ...card({ hn_id: id, rank: values[1][index], is_recent: values[2][index] }),
+          snapshot_ready: true,
+        })),
+      };
+  };
+  const request = (params) =>
+    handle(new Request(`https://hacksnap.live/api/ready-stories?${new URLSearchParams(params)}`));
+  const ok = async (params) => {
+    const response = await request(params);
+    assert.equal(response.status, 200);
+    return response.json();
+  };
+  try {
+    for (const size of [1, 5, 10]) {
+      clock += 60_001;
+      const pages = [await ok({ pageSize: String(size) })];
+      while (pages.at(-1).pagination.cursor) {
+        // The documented client flow returns only the opaque cursor.
+        pages.push(await ok({ cursor: pages.at(-1).pagination.cursor }));
+      }
+      assert.equal(pages.length, Math.ceil(selection.length / size));
+      assert.deepEqual(
+        pages.flatMap((page) => page.stories.map((story) => story.hn_id)),
+        selection.map((item) => item.hn_id),
+      );
+      for (const [index, page] of pages.entries()) {
+        assert.equal(page.pagination.page, index + 1);
+        assert.equal(page.stories.length, Math.min(size, selection.length - index * size));
+        assert.equal(Boolean(page.pagination.previousCursor), index > 0);
+        assert.equal(
+          Math.floor(Date.parse(page.pagination.expiresAt) / 1000),
+          Math.floor(Date.parse(pages[0].pagination.expiresAt) / 1000),
+        );
+      }
+      let backward = pages.at(-1);
+      for (let index = pages.length - 2; index >= 0; index--) {
+        backward = await ok({ cursor: backward.pagination.previousCursor });
+        assert.equal(backward.pagination.page, index + 1);
+        assert.deepEqual(
+          backward.stories.map((story) => story.hn_id),
+          pages[index].stories.map((story) => story.hn_id),
+        );
+      }
+      assert.equal(backward.pagination.previousCursor, null);
+      const cursor = pages[0].pagination.cursor;
+      const sameSize = await ok({ cursor, pageSize: String(size) });
+      assert.deepEqual(sameSize, pages[1]);
+      for (const mismatch of [size === 10 ? 5 : 10, 0, 11]) {
+        queries.length = 0;
+        const rejected = await request({ cursor, pageSize: String(mismatch) });
+        assert.equal(rejected.status, 400);
+        assert.equal((await rejected.json()).code, "invalid_page_size");
+        assert.equal(queries.length, 0, "mismatched sizes fail before a database read");
+      }
+    }
+  } finally {
+    readyQuery = undefined;
+    rows = [];
+  }
+});

@@ -21,6 +21,7 @@ function cursor(overrides = {}) {
   return createReadyStoryCursor({
     items,
     offset: 1,
+    pageSize: 1,
     observedAt: "2026-09-29T11:59:00.000Z",
     ingestion: "2026-09-29T11:30:00.000Z",
     selectionLimited: false,
@@ -34,6 +35,7 @@ test("ready-story cursor round-trips as a portable frozen selection", () => {
   const parsed = parseReadyStoryCursor(encoded, now);
   assert.deepEqual(parsed.items, items);
   assert.equal(parsed.offset, 1);
+  assert.equal(parsed.pageSize, 1);
   assert.equal(parsed.ingestion, "2026-09-29T11:30:00.000Z");
   assert.equal(parsed.observedAt, "2026-09-29T11:59:00.000Z");
   assert.equal(parsed.selectionLimited, false);
@@ -73,5 +75,27 @@ test("ready-story pagination rejects malformed selections, invalid inputs and ex
   assert.throws(
     () => parseReadyStoryCursor(cursor({ expiresAt: new Date(now - 1) }), now),
     (error) => error instanceof ReadyStoryPageError && error.code === "snapshot_expired",
+  );
+});
+
+test("cursor rejects invalid sizes, unaligned offsets and the ambiguous legacy version", () => {
+  for (const pageSize of [0, 11, -1, 1.5, Number.NaN]) {
+    assert.throws(() => cursor({ pageSize }), ReadyStoryPageError);
+  }
+  assert.throws(() => cursor({ pageSize: 2, offset: 1 }), ReadyStoryPageError);
+  const bytes = Buffer.from(cursor(), "base64url");
+  for (const pageSize of [0, 11, 2]) {
+    const malformed = Buffer.from(bytes);
+    malformed[18] = pageSize;
+    assert.throws(
+      () => parseReadyStoryCursor(malformed.toString("base64url"), now),
+      (error) => error instanceof ReadyStoryPageError && error.code === "invalid_cursor",
+    );
+  }
+  const legacy = Buffer.concat([bytes.subarray(0, 18), bytes.subarray(19)]);
+  legacy[0] = 1;
+  assert.throws(
+    () => parseReadyStoryCursor(legacy.toString("base64url"), now),
+    (error) => error instanceof ReadyStoryPageError && error.code === "invalid_cursor",
   );
 });

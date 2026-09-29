@@ -261,8 +261,14 @@ the list API; it also refreshes ranking changes caused by the 24-hour recency cu
 Story data uses the bounded per-instance cache documented below.
 
 `/api/ready-stories` is an additive ranked-feed endpoint for continuous browsing.
-It returns up to ten summary-ready cards and a continuation cursor. The first request
-captures ordered story IDs, canonical ranks and recency flags; the cursor preserves
+It returns up to ten summary-ready cards and a continuation cursor. An initial
+`pageSize` may be 1–10 (default 10). The cursor retains that size: follow either
+`cursor` or `previousCursor` without resending `pageSize`. If supplied on a
+continuation, `pageSize` must match the original size or the endpoint returns 400
+(`invalid_page_size`). Page numbers and backward cursors use the retained size,
+including a shorter final batch. Version 1 cursors, which did not encode a size,
+are rejected; start a fresh selection to obtain a version 2 cursor.
+The first request captures ordered story IDs, canonical ranks and recency flags; the cursor preserves
 that membership and ordering for eight hours while card metadata may refresh through
 a bounded 60-second cache. Cursors are portable, validated encodings of an already
 public selection, not authentication or tamper-proof credentials. Invalid cursors

@@ -10,8 +10,8 @@ export const MAX_READY_STORY_CURSOR_LENGTH = 6_000;
 // A fixed deadline survives a typical reading session and never extends on use.
 export const READY_STORY_CURSOR_TTL_MS = 8 * 60 * 60_000;
 
-const CURSOR_VERSION = 1;
-const HEADER_BYTES = 18;
+const CURSOR_VERSION = 2;
+const HEADER_BYTES = 19;
 
 export type ReadyStorySnapshotItem = {
   hn_id: string;
@@ -22,6 +22,7 @@ export type ReadyStorySnapshotItem = {
 export type ReadyStoryCursor = {
   items: ReadyStorySnapshotItem[];
   offset: number;
+  pageSize: number;
   expiresAt: string;
   observedAt: string;
   ingestion: string | null;
@@ -85,7 +86,9 @@ function encodeBytes(cursor: Omit<ReadyStoryCursor, "expiresAt"> & { expiresAtMs
   if (
     cursor.items.length === 0 ||
     cursor.items.length > MAX_READY_STORY_SNAPSHOT_SIZE ||
+    !validPageSize(cursor.pageSize) ||
     !Number.isInteger(cursor.offset) ||
+    cursor.offset % cursor.pageSize !== 0 ||
     cursor.offset < 0 ||
     cursor.offset >= cursor.items.length ||
     !Number.isSafeInteger(cursor.expiresAtMs) ||
@@ -114,6 +117,7 @@ function encodeBytes(cursor: Omit<ReadyStoryCursor, "expiresAt"> & { expiresAtMs
   writeUint32(expiry, bytes);
   writeUint32(observed, bytes);
   writeUint32(ingestion, bytes);
+  bytes.push(cursor.pageSize);
   if (!validSnapshot(cursor.items)) throw new ReadyStoryPageError("invalid_cursor");
   for (const item of cursor.items) {
     writeVarint(Number(item.hn_id), bytes);
@@ -151,7 +155,14 @@ export function parseReadyStoryCursor(value: string, now = Date.now()): ReadySto
   const expiresAtMs = readUint32(bytes, 6) * 1000;
   const observedSeconds = readUint32(bytes, 10);
   const ingestionSeconds = readUint32(bytes, 14);
-  if (!count || count > MAX_READY_STORY_SNAPSHOT_SIZE || offset >= count)
+  const pageSize = bytes[18];
+  if (
+    !count ||
+    count > MAX_READY_STORY_SNAPSHOT_SIZE ||
+    offset >= count ||
+    !validPageSize(pageSize) ||
+    offset % pageSize !== 0
+  )
     throw new ReadyStoryPageError("invalid_cursor");
   if (expiresAtMs <= now) throw new ReadyStoryPageError("snapshot_expired");
   if (expiresAtMs > now + READY_STORY_CURSOR_TTL_MS + 60_000)
@@ -178,6 +189,7 @@ export function parseReadyStoryCursor(value: string, now = Date.now()): ReadySto
   return {
     items,
     offset,
+    pageSize,
     expiresAt: new Date(expiresAtMs).toISOString(),
     observedAt: new Date(observedSeconds * 1000).toISOString(),
     ingestion: ingestionSeconds ? new Date(ingestionSeconds * 1000).toISOString() : null,
@@ -185,10 +197,13 @@ export function parseReadyStoryCursor(value: string, now = Date.now()): ReadySto
   };
 }
 
+function validPageSize(value: number) {
+  return Number.isSafeInteger(value) && value >= 1 && value <= MAX_READY_STORY_PAGE_SIZE;
+}
+
 export function assertReadyStoryPageSize(value: number | undefined) {
   if (value === undefined) return READY_STORY_PAGE_SIZE;
-  if (!Number.isSafeInteger(value) || value < 1 || value > MAX_READY_STORY_PAGE_SIZE)
-    throw new ReadyStoryPageError("invalid_page_size");
+  if (!validPageSize(value)) throw new ReadyStoryPageError("invalid_page_size");
   return value;
 }
 
