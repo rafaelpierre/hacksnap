@@ -7,8 +7,28 @@ import { storyPreviewMetadata } from "../../../lib/preview-metadata";
 import { getRelatedStories, getStory } from "../../../lib/data";
 import { categoryById } from "../../../lib/categories";
 import { StoryContent } from "./story-content";
+import { RelatedStories } from "../../related-stories";
+import { Suspense } from "react";
+import type { Category } from "../../../lib/categories";
 
 export const dynamic = "force-dynamic";
+
+async function StoryRecommendations({
+  category,
+  currentId,
+}: {
+  category: Category;
+  currentId: string;
+}) {
+  const result = await availableData(() => getRelatedStories(category.id, currentId));
+  return (
+    <RelatedStories
+      category={category}
+      stories={result.available ? result.value : []}
+      currentId={currentId}
+    />
+  );
+}
 
 export async function generateMetadata({
   params,
@@ -47,11 +67,24 @@ async function StoryPage({
     permanentRedirect(canonical + (query.size ? `?${query}` : ""));
   }
   const category = categoryById(story.category);
-  const related = await availableData(async () =>
-    category ? getRelatedStories(category.id, story.hn_id) : [],
+  return (
+    <StoryContent
+      story={story}
+      relatedSection={
+        category ? (
+          <Suspense
+            fallback={
+              <RelatedStories category={category} stories={[]} currentId={story.hn_id} pending />
+            }
+          >
+            <StoryRecommendations category={category} currentId={story.hn_id} />
+          </Suspense>
+        ) : (
+          <RelatedStories stories={[]} currentId={story.hn_id} />
+        )
+      }
+    />
   );
-  const relatedStories = related.available ? related.value : [];
-  return <StoryContent story={story} relatedStories={relatedStories} />;
 }
 
 export default withDataFallback(StoryPage);

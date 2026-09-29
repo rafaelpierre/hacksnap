@@ -268,6 +268,11 @@ footer {
   color: var(--muted);
   margin-left: 10px;
 }
+.feed-bar h2 .category-count-placeholder {
+  display: inline-block;
+  min-width: 3ch;
+  min-height: 1em;
+}
 .feed-bar p {
   color: var(--muted);
   font: var(--text-xs)/1.6 var(--sans);
@@ -641,6 +646,9 @@ footer > span {
   margin-top: var(--space-10);
   padding-top: 28px;
   border-top: 1px solid var(--line);
+}
+.related-stories-placeholder {
+  min-height: 15rem;
 }
 .related-stories h2 {
   font-size: var(--text-section);

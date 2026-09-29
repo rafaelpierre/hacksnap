@@ -221,7 +221,17 @@ share a load; after expiry they wait for fresh data, and failures use the existi
 unavailable response rather than returning stale rankings. Separate instances can
 differ within that one-minute window. This applies to homepage HTML, Markdown and
 the list API; it also refreshes ranking changes caused by the 24-hour recency cutoff.
-Story data uses the bounded per-instance cache documented below.
+Story data uses the bounded per-instance cache documented below. Story HTML waits
+for the required story and canonical URL check, then streams the article while
+the optional "Read next" query resolves. Category HTML waits for its required
+story list and page check, then streams the optional count. This ordering matters
+because each instance has one pooled database connection: optional reads begin
+only after required reads finish. A failed optional read keeps the article or list
+and renders its local fallback. The first HTML stream remains useful without
+JavaScript; recommendation cards still use the existing exposure tracking when
+they arrive and become visible. The reserved recommendation space reduces layout
+movement during a delayed read, though very long titles or an empty/error result
+can still change its height.
 
 In Cloudflare, create a **Bypass cache** rule for:
 

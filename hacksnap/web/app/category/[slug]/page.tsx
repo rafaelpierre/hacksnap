@@ -10,6 +10,17 @@ import { archivePage } from "../../../lib/archive";
 import { StoryRow } from "../../story-row";
 import { BrowseLayout } from "../../topic-sidebar";
 import { ListPositionRestorer } from "../../story-navigation";
+import { Suspense } from "react";
+import type { CategoryId } from "../../../lib/categories";
+
+async function CategoryCount({ categoryId }: { categoryId: CategoryId }) {
+  const result = await availableData(getCategoryCounts);
+  return result.available ? (
+    <span>{result.value[categoryId] ?? 0}</span>
+  ) : (
+    <span className="category-count-placeholder" aria-hidden="true" />
+  );
+}
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -40,10 +51,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 async function CategoryPage(props: Props) {
   const { category, page } = await selection(props);
-  const [counts, { stories, hasNext }] = await Promise.all([
-    availableData(getCategoryCounts),
-    getCategoryStories(category.id, page),
-  ]);
+  const { stories, hasNext } = await getCategoryStories(category.id, page);
   if (page > 1 && !stories.length) notFound();
   return (
     <BrowseLayout active={category.id}>
@@ -62,7 +70,10 @@ async function CategoryPage(props: Props) {
       <section aria-labelledby="category-stories-heading">
         <div className="feed-bar">
           <h2 id="category-stories-heading">
-            Latest stories {counts.available && <span>{counts.value[category.id] ?? 0}</span>}
+            Latest stories{" "}
+            <Suspense fallback={<span className="category-count-placeholder" aria-hidden="true" />}>
+              <CategoryCount categoryId={category.id} />
+            </Suspense>
           </h2>
           <p>Newest first</p>
         </div>
