@@ -40,3 +40,13 @@ reads resolve, that required queries finish before optional ones start, and that
 optional database errors do not become unhandled stream errors. It also covers
 canonical redirects and missing stories. Existing analytics tests cover exposure
 after recommendation cards become visible.
+
+The paired production-fixture screenshots show the reserved loading space and
+the two cards after resolution at 320px with 200% text in dark mode. The viewport
+was scrolled to the recommendation section for each capture; a temporary page
+padding allowed both states to be shown at that scroll position. These images
+illustrate the section layout and are separate from the shift measurement above.
+
+![Recommendation fallback at 320px and 200% text](issue-141-fallback-320-200.png)
+
+![Resolved recommendations at 320px and 200% text](issue-141-resolved-320-200.png)
