@@ -14,7 +14,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 from hn_trending.categories import Category
-from hn_trending.telemetry import post_chat_completion
+from hn_trending.telemetry import post_chat_completion, traced_operation
 
 
 logger = logging.getLogger(__name__)
@@ -204,6 +204,7 @@ class TitleTopicClassifier:
         self._next_request_at = 0.0
         self._request_lock = Lock()
 
+    @traced_operation("classification")
     def classify(self, title: str, *, already_relevant: bool = False) -> TopicDecision:
         # Serialize the full retry sequence so workers share pauses and cooldowns.
         with self._request_lock:

@@ -695,3 +695,11 @@ stays absent rather than being reported as zero. API keys and session headers ar
 excluded. Logfire's standard sensitive-data scrubbing remains enabled.
 Kestrel's subprocess requests and the remote inference server's GPU are outside
 this instrumentation. System metrics describe the workflow container.
+
+Operation spans cover ingestion (including each story), classification,
+summarization, discussion analysis, and sentiment analysis through validation.
+Failures emit error logs with exception tracebacks, operation/model/story context,
+and error spans, including story failures caught so the batch can continue.
+Application logging and retry warnings are forwarded into the current trace;
+existing console logging remains intact. Exception details use Logfire's default
+sensitive-data scrubbing. Thread-pool work retains parent trace context.

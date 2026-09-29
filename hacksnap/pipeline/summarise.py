@@ -12,7 +12,7 @@ import httpx
 from .models import CommentSentiment, DiscussionAnalysis, GeneratedStorySummary, StorySummary
 from .preprocess import sample_sentiment_comments
 from .prompts import DISCUSSION_REFRESH_PROMPT, SENTIMENT_PROMPT, SYSTEM_PROMPT
-from .telemetry import post_chat_completion
+from .telemetry import post_chat_completion, traced_operation
 
 # Includes reasoning tokens; 8,000 truncated production summary and discussion outputs.
 MAX_RESPONSE_TOKENS = 32000
@@ -38,17 +38,20 @@ class RoutedSummarizer:
         self.model = editorial.model
         self.sentiment_model = sentiment.model
 
+    @traced_operation("summarization_pipeline")
     def summarize(self, source: dict) -> StorySummary:
         summary = self.editorial.summarize(source)
         score = self.estimate_sentiment(source["comments"])
         # Preserve the established editorial schema; replace only its score.
         return StorySummary.model_validate({**summary.model_dump(), "sentiment": score.sentiment})
 
+    @traced_operation("sentiment_pipeline", model_attribute="sentiment_model")
     def estimate_sentiment(self, comments: list[dict]) -> CommentSentiment:
         result = CommentSentiment.model_validate(self.sentiment.estimate_sentiment(comments))
         result.validate_comments(comments)
         return result
 
+    @traced_operation("discussion_pipeline")
     def refresh_discussion(self, source: dict) -> DiscussionAnalysis:
         return self.editorial.refresh_discussion(source)
 
@@ -70,6 +73,7 @@ class ModalSummarizer:
         self._warmup_states_lock = Lock()
         self._warmup_lock = Lock()
 
+    @traced_operation("summarization")
     def summarize(self, source: dict) -> StorySummary:
         source = {**source, "sentiment_comments": sample_sentiment_comments(source["comments"])}
         generated = self._infer(source, SYSTEM_PROMPT, GeneratedStorySummary, "hacksnap_summary")
@@ -81,6 +85,7 @@ class ModalSummarizer:
         result.validate_sources(source["article"], source["comments"], source.get("story_text"))
         return result
 
+    @traced_operation("discussion_analysis")
     def refresh_discussion(self, source: dict) -> DiscussionAnalysis:
         result = self._infer(
             source, DISCUSSION_REFRESH_PROMPT, DiscussionAnalysis, "hacksnap_discussion_refresh"
@@ -88,6 +93,7 @@ class ModalSummarizer:
         result.validate_refresh(source["reference_claims"], source["comments"])
         return result
 
+    @traced_operation("sentiment_analysis")
     def estimate_sentiment(self, comments: list[dict]) -> CommentSentiment:
         comments = sample_sentiment_comments(comments)
         if not comments:

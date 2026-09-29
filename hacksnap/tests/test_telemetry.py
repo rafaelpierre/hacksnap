@@ -159,3 +159,108 @@ def test_llm_telemetry_preserves_error_responses_for_caller_retries(monkeypatch,
     assert result.status_code == status
     assert result.content == body
     sdk.span.return_value.__enter__.return_value.set_level.assert_called_once_with("error")
+
+
+@pytest.fixture
+def error_spans(monkeypatch):
+    exporter = SpanExporter()
+    logfire.configure(
+        send_to_logfire=False, console=False,
+        additional_span_processors=[SimpleSpanProcessor(exporter)],
+    )
+    monkeypatch.setattr(telemetry, "_configured", True)
+    return exporter.exported_spans
+
+
+def test_caught_failure_keeps_exception_and_log_in_story_trace(error_spans):
+    from concurrent.futures import ThreadPoolExecutor
+
+    @telemetry.traced_operation("ingestion_story")
+    def fail(story_id):
+        raise ValueError("invalid story payload")
+
+    with (
+        telemetry.operation_span("batch"),
+        ThreadPoolExecutor(max_workers=1) as executor,
+        pytest.raises(ValueError, match="invalid story payload"),
+    ):
+        executor.submit(fail, 123).result()
+    spans = [s for s in error_spans if s.attributes.get("logfire.span_type") == "span"]
+    batch = next(s for s in spans if s.attributes.get("operation") == "batch")
+    child = next(s for s in spans if s.attributes.get("operation") == "ingestion_story")
+    assert child.parent.span_id == batch.context.span_id
+    assert child.attributes["story_id"] == 123
+    assert child.attributes["error.type"] == "ValueError"
+    assert any(event.name == "exception" for event in child.events)
+    logs = [s for s in error_spans if s.attributes.get("logfire.span_type") == "log"]
+    error_log = next(s for s in logs if s.attributes.get("error_type") == "ValueError")
+    assert error_log.parent.span_id == child.context.span_id
+    assert error_log.attributes["logfire.level_num"] == 17
+
+
+def test_handled_failure_marks_span_even_when_operation_returns(error_spans):
+    with telemetry.operation_span("story_enrichment", story_id=123):
+        try:
+            raise RuntimeError("storage unavailable")
+        except RuntimeError as error:
+            telemetry.report_error(error, operation="sentiment_persist", story_id=123)
+    span = next(s for s in error_spans if s.attributes.get("logfire.span_type") == "span")
+    assert span.attributes["logfire.level_num"] == 17
+    assert any(event.name == "exception" for event in span.events)
+    assert any(s.attributes.get("handled") is True and
+               s.attributes.get("operation") == "sentiment_persist" for s in error_spans)
+
+
+def test_application_logs_are_forwarded_once_with_trace_context(error_spans, monkeypatch):
+    import logging
+
+    logger = logging.getLogger(telemetry.LOGGER_NAME)
+    monkeypatch.setattr(logger, "handlers", [])
+    monkeypatch.setattr(logger, "level", logging.WARNING)
+    telemetry._configure_logging()
+    telemetry._configure_logging()
+    with telemetry.operation_span("classification"):
+        logger.warning("Retrying inference after rate limit", extra={"attempt": 2})
+    matches = [s for s in error_spans
+               if s.attributes.get("logfire.msg") == "Retrying inference after rate limit"]
+    assert len(matches) == 1
+    assert matches[0].attributes["attempt"] == 2
+    parent = next(s for s in error_spans if s.attributes.get("logfire.span_type") == "span")
+    assert matches[0].parent.span_id == parent.context.span_id
+
+
+@pytest.mark.parametrize("operation", ["summarization", "sentiment_analysis"])
+def test_model_validation_failure_has_operation_error_trace(error_spans, operation):
+    from pipeline.summarise import ModalSummarizer
+
+    response = {"choices": [{"finish_reason": "stop", "message": {"content": "{}"}}]}
+    with httpx.Client(transport=httpx.MockTransport(
+        lambda _: httpx.Response(200, json=response),
+    )) as client:
+        summarizer = ModalSummarizer(client, "https://inference.example/v1", "test-model", "key")
+        with pytest.raises(ValueError):
+            if operation == "summarization":
+                summarizer.summarize({"comments": [], "article": "Article"})
+            else:
+                summarizer.estimate_sentiment([{"id": 1, "depth": 0, "text": "Comment"}])
+    span = next(s for s in error_spans if s.attributes.get("operation") == operation
+                and s.attributes.get("logfire.span_type") == "span")
+    assert span.attributes["model"] == "test-model"
+    assert span.attributes["error.type"] == "ValidationError"
+    assert any(event.name == "exception" for event in span.events)
+    assert any(s.parent and s.parent.span_id == span.context.span_id and
+               s.attributes.get("error_type") == "ValidationError" for s in error_spans)
+
+
+def test_enrichment_reports_failure_that_it_catches(error_spans):
+    from pipeline.refresh import process_story
+
+    result = process_story(
+        {"hn_id": 321, "full_raw_text_contents": "invalid JSON"}, None, None, None,
+    )
+    assert result == "failed"
+    assert any(s.attributes.get("operation") == "preprocess" and
+               s.attributes.get("story_id") == 321 and
+               s.attributes.get("handled") is True for s in error_spans)
+    span = next(s for s in error_spans if s.attributes.get("logfire.span_type") == "span")
+    assert span.attributes["logfire.level_num"] == 17

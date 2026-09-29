@@ -1,10 +1,17 @@
 """Logfire lifecycle for Modal jobs (one configuration per warm container)."""
 
+import inspect
+import logging
 from contextlib import contextmanager
+from contextvars import ContextVar
+from functools import wraps
 
 import logfire
+from logfire import LogfireLoggingHandler
 
+LOGGER_NAME = "hn_trending"
 _configured = False
+_operation_span = ContextVar("operation_span", default=None)
 
 
 @contextmanager
@@ -23,10 +30,15 @@ def telemetry_run(service_name: str, job_name: str):
         logfire.instrument_httpx(
             capture_headers=False, capture_request_body=False, capture_response_body=False,
         )
+        _configure_logging()
         _configured = True
     try:
         with logfire.span("Modal job {job_name}", job_name=job_name):
-            yield
+            try:
+                yield
+            except Exception as error:
+                report_error(error, operation=job_name, handled=False)
+                raise
     finally:
         # Modal can suspend or stop the container as soon as the function returns.
         logfire.force_flush(timeout_millis=5000)
@@ -115,3 +127,68 @@ def _completion_attributes(payload: dict) -> dict:
         if type(reasoning) is int and reasoning >= 0:
             attributes["gen_ai.usage.reasoning_tokens"] = reasoning
     return attributes
+
+
+@contextmanager
+def operation_span(operation: str, **attributes):
+    """Keep validation and persistence failures inside the operation's trace."""
+    if not _configured:
+        yield
+        return
+    with logfire.span("Workflow {operation}", operation=operation, **attributes) as span:
+        token = _operation_span.set(span)
+        try:
+            yield
+        except Exception as error:
+            report_error(error, operation=operation, handled=False, **attributes)
+            raise
+        finally:
+            _operation_span.reset(token)
+
+
+def traced_operation(operation: str, *, model_attribute: str = "model"):
+    """Trace synchronous operations without capturing their arguments or credentials."""
+    def decorate(function):
+        signature = inspect.signature(function)
+
+        @wraps(function)
+        def wrapped(*args, **kwargs):
+            if not _configured:
+                return function(*args, **kwargs)
+            arguments = signature.bind(*args, **kwargs).arguments
+            attributes = {}
+            story = arguments.get("story")
+            if isinstance(story, dict) and "hn_id" in story:
+                attributes["story_id"] = story["hn_id"]
+            if "story_id" in arguments:
+                attributes["story_id"] = arguments["story_id"]
+            model = getattr(arguments.get("self"), model_attribute, None)
+            if isinstance(model, str):
+                attributes["model"] = model
+            with operation_span(operation, **attributes):
+                return function(*args, **kwargs)
+        return wrapped
+    return decorate
+
+
+def report_error(error: Exception, *, operation: str, handled: bool = True, **attributes):
+    """Record isolated failures even when the enclosing Modal job succeeds."""
+    if not _configured:
+        return
+    attributes = {**attributes, "operation": operation, "error_type": type(error).__name__,
+                  "handled": handled}
+    span = _operation_span.get()
+    if span is not None:
+        span.set_level("error")
+        span.set_attribute("error.type", type(error).__name__)
+        if handled:
+            span.record_exception(error)
+    logfire.exception("Workflow {operation} failed", _exc_info=error, **attributes)
+
+
+def _configure_logging():
+    logger = logging.getLogger(LOGGER_NAME)
+    # Keep stdout handlers intact and avoid duplicates across warm invocations.
+    if not any(isinstance(handler, LogfireLoggingHandler) for handler in logger.handlers):
+        logger.addHandler(LogfireLoggingHandler())
+    logger.setLevel(logging.INFO)
