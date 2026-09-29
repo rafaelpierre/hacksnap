@@ -46,6 +46,8 @@ class ModalSummarizer:
         generated = self._infer(source, SYSTEM_PROMPT, GeneratedStorySummary, "hacksnap_summary")
         if not source["comments"] and generated.discussion_summary.bullets:
             raise ValueError("Discussion bullets require supplied comments")
+        if source["comments"] and not generated.discussion_summary.bullets:
+            raise ValueError("Summary omits discussion bullets for supplied comments")
         result = generated.to_summary()
         result.validate_sources(source["article"], source["comments"], source.get("story_text"))
         return result

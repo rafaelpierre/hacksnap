@@ -165,6 +165,8 @@ The source and underlying technical questions lead the coverage.
   1–2 short sentences. Aim for 100–180 words total; leave secondary tangents to the
   detailed analysis. Sparse discussions need fewer bullets; no comments means none.
   The inference schema caps the opening at 300 characters and each bullet at 450.
+  Source validation requires at least one bullet when comments are supplied and
+  rejects bullets when no comments are supplied, before any summary is saved.
   The worker inserts blank lines and bullet markers into the stored summary string.
   HTML renders a semantic list, Markdown preserves list syntax, and RSS/API retain
   the same plain-text content. Existing prose continues to render as paragraphs.

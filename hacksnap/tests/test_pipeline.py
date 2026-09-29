@@ -80,6 +80,8 @@ def inference_output(summary=None):
     discussion = result.get("discussion_summary")
     if isinstance(discussion, str):
         opening, *bullets = discussion.split("\n\n")
+        if not bullets:
+            bullets = [point["summary"] for point in result.get("discussion_points", [])[:4]]
         result["discussion_summary"] = {"opening": opening, "bullets": bullets}
     return result
 

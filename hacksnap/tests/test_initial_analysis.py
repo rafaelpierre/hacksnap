@@ -275,6 +275,30 @@ def test_invalid_discussion_brief_never_saves_partial_summary(brief):
     assert repo.saved == {}
 
 
+def test_comments_require_a_discussion_bullet_before_saving():
+    fixture = VALID[0]
+    assert fixture["inputs"]["comments"]
+    result = fixture_output(fixture)
+    assert result["discussion_points"]
+    result["discussion_summary"] = {"opening": "The central question.", "bullets": []}
+    status, repo = generate(fixture, result)
+    assert status == "failed"
+    assert repo.saved == {}
+
+
+@pytest.mark.parametrize("has_comments", [False, True])
+def test_discussion_bullet_minimum_depends_on_supplied_comments(has_comments):
+    fixture = VALID[0] if has_comments else next(f for f in VALID if f["id"] == "no_comments")
+    result = fixture_output(fixture)
+    opening = "The central question." if has_comments else "No usable discussion was available."
+    bullets = ["The baseline comparison needs clarification."] if has_comments else []
+    result["discussion_summary"] = {"opening": opening, "bullets": bullets}
+    status, repo = generate(fixture, result)
+    assert status == "generated"
+    expected = opening + ("\n\n- " + bullets[0] if bullets else "")
+    assert repo.saved[100]["summary"].discussion_summary == expected
+
+
 def test_no_comments_cannot_generate_discussion_bullets():
     fixture = next(f for f in VALID if f["id"] == "no_comments")
     result = fixture_output(fixture)
