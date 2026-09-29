@@ -39,7 +39,7 @@ test("only a ready public Blob image enters the rendering contract", () => {
   assert.equal(canonicalArticleImage({ ...ready, image_mime_type: null }), null);
 });
 
-test("a browser image error removes only the image wrapper", async () => {
+test("a browser image error keeps the branded media space", async () => {
   const dom = new JSDOM('<div id="root"></div>');
   const keys = ["window", "document", "navigator", "IS_REACT_ACT_ENVIRONMENT"] as const;
   const descriptors = keys.map((key) => Object.getOwnPropertyDescriptor(globalThis, key));
@@ -69,7 +69,10 @@ test("a browser image error removes only the image wrapper", async () => {
     assert.equal(image.getAttribute("decoding"), "async");
     assert.equal(image.alt, "Article image for a test story");
     await act(async () => image.dispatchEvent(new dom.window.Event("error", { bubbles: true })));
-    assert.equal(document.querySelector(".card-image"), null);
+    const placeholder = document.querySelector(".card-image.article-image-unavailable");
+    assert.equal(placeholder?.getAttribute("role"), "img");
+    assert.match(placeholder?.getAttribute("aria-label") ?? "", /Image unavailable/);
+    assert.equal(placeholder?.getAttribute("style"), null);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
@@ -115,7 +118,7 @@ test("an already failed browser image is removed after hydration", async () => {
         />,
       ),
     );
-    assert.equal(document.querySelector(".card-image"), null);
+    assert.ok(document.querySelector(".card-image.article-image-unavailable"));
   } finally {
     await act(async () => root.unmount());
     if (complete)

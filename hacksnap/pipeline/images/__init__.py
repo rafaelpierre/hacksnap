@@ -12,3 +12,10 @@ __all__ = [
     "fetch_image",
     "normalize_image",
 ]
+
+# The durable queue worker shares this package with the original publisher
+# image helpers. Its canonical 1200 x 630 transform lives in worker.py, while
+# normalize_image above remains available to callers of the original API.
+from .worker import ImageSettings, generate_artwork, process_image_job, process_pending_images
+
+__all__ += ["ImageSettings", "generate_artwork", "process_image_job", "process_pending_images"]

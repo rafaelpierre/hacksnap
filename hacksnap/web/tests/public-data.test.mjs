@@ -38,7 +38,7 @@ jest.unstable_mockModule("pg", () => ({
           statements.push(sql);
           if (fail) throw new Error("private connection failure");
           if (hold) await hold;
-          if (sql === publicStorySQL(discussionAvailable)) {
+          if (sql === publicStorySQL(discussionAvailable, imagesAvailable)) {
             assert.ok(values && values.length === 1);
             return {
               rows:
@@ -163,7 +163,7 @@ test("minimal detail preserves discussion exports and the missing-schema fallbac
           : null,
       );
       const sql = statements.at(-1);
-      assert.equal(sql, publicStorySQL(available));
+      assert.equal(sql, publicStorySQL(available, imagesAvailable));
       assert.doesNotMatch(
         sql,
         /hacksnap_ranked_stories|hacksnap_rank_history|article_key_points|source_coverage|s\.model/,

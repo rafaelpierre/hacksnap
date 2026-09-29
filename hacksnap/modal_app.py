@@ -23,6 +23,13 @@ hacksnap_image = (
     .add_local_python_source("pipeline")
 )
 
+image_worker_image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .apt_install("fonts-noto-core", "fonts-noto-cjk", "ca-certificates")
+    .uv_sync(uv_project_dir=ROOT)
+    .add_local_python_source("pipeline")
+)
+
 
 @app.function(
     image=hacksnap_image,
@@ -38,10 +45,10 @@ def refresh_hacksnap():
 
 
 @app.function(
-    image=hacksnap_image,
-    schedule=modal.Cron("15 * * * *"),
+    image=image_worker_image,
+    schedule=modal.Cron("*/10 * * * *", timezone="Europe/London"),
     secrets=[modal.Secret.from_name("hacksnap")],
-    timeout=900,
+    timeout=2400,
     max_containers=1,
 )
 def refresh_article_images():
@@ -49,13 +56,21 @@ def refresh_article_images():
     import logging
     import os
 
-    # Existing installations continue serving text until the public Blob store
-    # is provisioned. Never require Blob credentials in the summarizer function.
-    if not os.environ.get("BLOB_READ_WRITE_TOKEN", "").strip():
-        logging.getLogger("hacksnap.images").info(
-            '{"event":"article_images_disabled","reason":"missing_blob_token"}'
-        )
+    if os.environ.get("HACKSNAP_IMAGES_ENABLED", "").lower() != "true":
         return {"status": "disabled"}
-    from pipeline.images.backfill import run
+    if not os.environ.get("BLOB_READ_WRITE_TOKEN", "").strip():
+        raise ValueError("BLOB_READ_WRITE_TOKEN is required when images are enabled")
 
-    return run()
+    from pipeline.blob import VercelBlobStore
+    from pipeline.config import database_url_from_env
+    from pipeline.images.worker import ImageSettings, process_pending_images
+    from pipeline.supabase import Repository
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    settings = ImageSettings.from_env()
+    return process_pending_images(
+        Repository(database_url_from_env()),
+        VercelBlobStore(os.environ["BLOB_READ_WRITE_TOKEN"]),
+        limit=settings.batch_size,
+        settings=settings,
+    )

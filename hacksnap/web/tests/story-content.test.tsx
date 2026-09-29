@@ -111,6 +111,10 @@ test("cards and detail use a ready canonical image while invalid states keep the
   assert.match(detail, /class="story-article-image"/);
   assert.match(detail, /width="1200" height="675"/);
   assert.match(card, /alt=""/);
+  assert.ok(
+    card.indexOf('href="/category/agents-coding"') < card.indexOf('class="feed-story-image"'),
+    "the category context precedes the image in the feed row DOM",
+  );
   for (const image_status of [null, "pending", "failed"] as const) {
     const html = render(
       createElement(StoryRow, { story: { ...withImage, image_status }, variant: "ranked" }),

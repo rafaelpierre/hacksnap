@@ -5,12 +5,18 @@ on:
     paths:
       - "data/**"
       - "hacksnap/web/lib/categories.ts"
+      - "hacksnap/pipeline/supabase.py"
+      - "hacksnap/web/package.json"
+      - "hacksnap/web/package-lock.json"
       - ".github/workflows/ingestion.yml"
   push:
     branches: [main]
     paths:
       - "data/**"
       - "hacksnap/web/lib/categories.ts"
+      - "hacksnap/pipeline/supabase.py"
+      - "hacksnap/web/package.json"
+      - "hacksnap/web/package-lock.json"
       - ".github/workflows/ingestion.yml"
   workflow_dispatch:
   workflow_call:
@@ -32,5 +38,16 @@ jobs:
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: hacksnap/web/package-lock.json
+      - name: Install embedded PostgreSQL test runtime
+        working-directory: hacksnap/web
+        run: npm ci --ignore-scripts
       - run: uv sync --locked
-      - run: uv run pytest
+      - name: Ingestion and database lifecycle tests
+        env:
+          HACKSNAP_TEST_PGLITE_MODULE: ${{ github.workspace }}/hacksnap/web/node_modules/@electric-sql/pglite/dist/index.js
+        run: uv run pytest

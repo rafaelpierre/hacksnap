@@ -13,6 +13,25 @@ from pipeline.refresh import process_story, refresh
 from pipeline.summarise import ModalSummarizer
 
 
+def test_image_enqueue_happens_after_summary_commit_and_cannot_block_publication():
+    repo = FakeRepository()
+    order = []
+
+    def enqueue_image(story_id, article_url):
+        assert story_id in repo.saved
+        order.append((story_id, article_url))
+        raise RuntimeError("image queue unavailable")
+
+    repo.enqueue_image = enqueue_image
+    result = process_story(
+        story(), repo, SimpleNamespace(fetch=lambda url: "article"),
+        FakeSummarizer(), image_enabled=True,
+    )
+    assert result == "generated"
+    assert order == [(100, "https://example.com/article")]
+    assert 100 in repo.saved
+
+
 def payload():
     return {
         "story": {"id": 100},

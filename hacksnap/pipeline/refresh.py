@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from datetime import UTC, datetime
 from urllib.parse import urlsplit, urlunsplit
 
@@ -106,6 +107,7 @@ def process_story(
     summarizer: Summarizer,
     comment_budget: int = 48000,
     prompt_version: str = PROMPT_VERSION,
+    image_enabled: bool = False,
 ) -> str:
     stage = "preprocess"
     try:
@@ -222,6 +224,13 @@ def process_story(
             discussion_analysis=summary.discussion_analysis,
             discussion_analysis_metadata=metadata,
         )
+        if image_enabled:
+            # Publication has committed. A queue error cannot hide this story;
+            # the independent image sweep reconciles missing queue entries.
+            try:
+                repository.enqueue_image(story["hn_id"], article_url)
+            except Exception as exc:  # noqa: BLE001 - image work is isolated
+                log_event(story, "image_enqueue", "failed", exc)
         log_event(story, stage, "generated")
         return "generated"
     except Exception as error:  # noqa: BLE001 - isolate each story as required by the job contract
@@ -229,7 +238,8 @@ def process_story(
         return "failed"
 
 
-def refresh(repository, fetcher, summarizer, comment_budget: int = 48000) -> dict:
+def refresh(repository, fetcher, summarizer, comment_budget: int = 48000,
+            *, image_enabled: bool = False) -> dict:
     counts = {
         "generated": 0, "unchanged": 0, "failed": 0, "fetch_skipped": 0,
         "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0,
@@ -246,7 +256,10 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = 48000) -> dic
             break
         for story in candidates[:50 - len(attempted)]:
             attempted.add(story["hn_id"])
-            result = process_story(story, repository, fetcher, summarizer, comment_budget)
+            result = process_story(
+                story, repository, fetcher, summarizer, comment_budget,
+                image_enabled=image_enabled,
+            )
             counts[result] += 1
     if len(attempted) == 50:
         logger.warning(json.dumps({"event": "refresh_attempt_limit", "limit": 50}))
@@ -276,7 +289,14 @@ def run() -> dict:
             settings.llm_api_key,
             settings.llm_reasoning_effort,
         )
-        counts = refresh(repository, fetcher, summarizer, settings.comment_chars)
+        image_enabled = (
+            os.environ.get("HACKSNAP_IMAGES_ENABLED", "").lower() == "true"
+            and bool(os.environ.get("BLOB_READ_WRITE_TOKEN"))
+        )
+        counts = refresh(
+            repository, fetcher, summarizer, settings.comment_chars,
+            image_enabled=image_enabled,
+        )
         cleanup = repository.cleanup_contents()
         logger.info(json.dumps({"event": "contents_cleanup", **cleanup}))
     # Individual stories are failure-isolated. Return their count for monitoring without

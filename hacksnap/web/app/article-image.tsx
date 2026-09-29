@@ -23,7 +23,24 @@ export function ArticleImage({
     if (image && element?.complete && element.naturalWidth === 0) setFailedURL(image.url);
   }, [image]);
 
-  if (!image || failed) return null;
+  if (!image) return null;
+  if (failed) {
+    return (
+      <div
+        className={`${className} article-image-unavailable`}
+        style={
+          className.includes("story-article-image")
+            ? { aspectRatio: `${image.width} / ${image.height}` }
+            : undefined
+        }
+        {...(alt
+          ? { role: "img", "aria-label": `${alt}. Image unavailable.` }
+          : { "aria-hidden": true })}
+      >
+        <span aria-hidden="true">h/</span>
+      </div>
+    );
+  }
   return (
     <div className={className}>
       <img
