@@ -289,7 +289,10 @@ export function HomeStoryFeed({
               className="button"
               type="button"
               aria-pressed={autoPaused}
-              onClick={() => setAutoPaused((value) => !value)}
+              onClick={() => {
+                if (autoPaused) setAutoReady(true);
+                setAutoPaused((value) => !value);
+              }}
             >
               {autoPaused ? "Resume automatic loading" : "Pause automatic loading"}
             </button>

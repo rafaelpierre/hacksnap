@@ -49,9 +49,22 @@ function pagination(page: number, hasMore: boolean) {
   };
 }
 
-test("manual batches append once, failure preserves cards, and remount restores the loaded list", async () => {
+test("footer resume restarts automatic loading, failure preserves cards, and remount restores the list", async () => {
   const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
+  let onIntersection: IntersectionObserverCallback | null = null;
+  let observations = 0;
   const values = {
+    IntersectionObserver: class {
+      constructor(callback: IntersectionObserverCallback) {
+        onIntersection = callback;
+      }
+      observe() {
+        observations++;
+      }
+      disconnect() {
+        onIntersection = null;
+      }
+    },
     self: dom.window,
     window: dom.window,
     document: dom.window.document,
@@ -99,9 +112,25 @@ test("manual batches append once, failure preserves cards, and remount restores 
   try {
     await render(root);
     assert.equal(document.querySelectorAll(".story-list > li").length, 10);
+    assert.equal(observations, 1);
     await act(async () =>
-      (document.querySelector(".home-feed-actions button") as HTMLButtonElement).click(),
+      (document.querySelector(".home-feed-top-skip") as HTMLAnchorElement).click(),
     );
+    assert.equal(onIntersection, null);
+    assert.equal(calls, 0);
+    await act(async () =>
+      (
+        document.querySelector(".home-feed-actions button:nth-child(2)") as HTMLButtonElement
+      ).click(),
+    );
+    assert.equal(observations, 2);
+    assert.ok(onIntersection);
+    await act(async () => {
+      (onIntersection as IntersectionObserverCallback)(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+    });
     assert.equal(document.querySelectorAll(".story-list > li").length, 12);
     assert.match(
       document.querySelector("[role=status]")!.textContent!,
