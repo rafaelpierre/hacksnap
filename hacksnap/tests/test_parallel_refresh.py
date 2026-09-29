@@ -10,7 +10,8 @@ import pytest
 from test_pipeline import FakeRepository, FakeSummarizer, output, process_story, story
 
 import pipeline.refresh as refresh_module
-from pipeline.models import StorySummary
+from pipeline.models import CommentSentiment, StorySummary
+from pipeline.prompts import DISCUSSION_REFRESH_PROMPT, SENTIMENT_PROMPT, SYSTEM_PROMPT
 from pipeline.summarise import ModalSummarizer
 
 
@@ -136,11 +137,11 @@ def test_cached_and_unavailable_stories_do_not_consume_warmup():
         model = ModalSummarizer(client, "https://test.modal.run/v1", "test-model", "fake")
         assert process_story(repo.stories[0], repo, fetcher, model) == "unchanged"
         assert process_story(repo.stories[1], repo, fetcher, model) == "unavailable"
-        assert not model._warmup_complete.is_set()
+        assert not model._warmup_states
         assert not requests
         # The first real inference can be a sentiment refresh as well as a summary.
         model.estimate_sentiment([{"id": 1, "text": "Evidence", "parent": 100, "depth": 1}])
-        assert model._warmup_complete.is_set()
+        assert all(state.is_set() for state in model._warmup_states.values())
         assert len(requests) == 1
 
 
@@ -182,3 +183,71 @@ def test_refresh_enriches_fifty_stories_without_attempting_the_fifty_first():
     assert set(repo.saved) == set(range(50))
     # Rank history still captures every eligible story, beyond the workload cap.
     assert repo.rank_observations == [list(range(60))]
+
+
+@pytest.mark.parametrize("first_status", [200, 429])
+def test_each_prompt_gets_a_completed_warmup_before_its_parallel_requests(first_status):
+    """A finished discussion refresh must not release a cold summary burst."""
+    first_started, release_first, all_waiting = Event(), Event(), Event()
+    state_lock = Lock()
+    parallel = Barrier(3, timeout=5)
+    calls = []
+    entered = 0
+
+    class ObservedLock:
+        def __init__(self):
+            self.lock = Lock()
+
+        def __enter__(self):
+            nonlocal entered
+            with state_lock:
+                entered += 1
+                if entered == 4:
+                    all_waiting.set()
+            self.lock.acquire()
+
+        def __exit__(self, *args):
+            self.lock.release()
+
+    def handler(request):
+        prompt = json.loads(request.content)["messages"][0]["content"]
+        with state_lock:
+            calls.append((prompt, request.headers["Modal-Session-Id"]))
+            index = sum(p == SYSTEM_PROMPT for p, _ in calls)
+        if prompt == SYSTEM_PROMPT:
+            if index == 1:
+                first_started.set()
+                assert release_first.wait(5)
+                if first_status != 200:
+                    return httpx.Response(first_status)
+            else:
+                parallel.wait()
+        return httpx.Response(200, json={"choices": [{
+            "finish_reason": "stop", "message": {"content": '{"sentiment": 0}'},
+        }]})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        model = ModalSummarizer(client, "https://test.modal.run/v1", "test-model", "fake")
+        # Use a small response schema to isolate prompt warm-up from validation.
+        for prompt in (DISCUSSION_REFRESH_PROMPT, SENTIMENT_PROMPT):
+            model._infer({}, prompt, CommentSentiment, "test")
+        model._warmup_lock = ObservedLock()
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            first = executor.submit(model._infer, {}, SYSTEM_PROMPT, CommentSentiment, "test")
+            try:
+                assert first_started.wait(5)
+                rest = [executor.submit(
+                    model._infer, {}, SYSTEM_PROMPT, CommentSentiment, "test",
+                ) for _ in range(3)]
+                assert all_waiting.wait(5)
+                assert len(calls) == 3  # Two other prompts plus one summary warm-up.
+            finally:
+                release_first.set()
+            if first_status == 200:
+                assert first.result(timeout=5).sentiment == 0
+            else:
+                with pytest.raises(httpx.HTTPStatusError):
+                    first.result(timeout=5)
+            assert [future.result(timeout=5).sentiment for future in rest] == [0, 0, 0]
+    assert len(calls) == 6
+    assert len({session for _, session in calls}) == 1
