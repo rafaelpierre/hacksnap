@@ -425,11 +425,15 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 
 ## Feed card layout
 
-The category and rank occupy a full-width row above the image and title. The
-image and title share a top edge at every viewport width. When the card has limited space, a
-compact thumbnail stays beside the title while the excerpt, discussion themes
-and footer use the full card width. Cards without an image retain full-width
-text, and footer controls wrap when text is enlarged.
+At phone widths (640px and below), cards stack the category and rank, title,
+full-width image, then subtitle/excerpt, discussion themes and footer. The image
+keeps its reserved 4:3 frame and adaptive fit, including while loading or when
+showing its error fallback. Cards without an image go directly from title to
+excerpt without an empty image row.
+
+Above 640px, the category and rank occupy a full-width row above the aligned
+image and title. Narrow desktop cards give the excerpt, discussion themes and
+footer the full width. Footer controls wrap when text is enlarged.
 
 ## Feed discussion previews
 
