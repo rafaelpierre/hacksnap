@@ -11,15 +11,22 @@ export function RelatedStories({
   category,
   stories,
   currentId,
+  pending = false,
 }: {
   category?: Category;
   stories: RelatedStory[];
   currentId: string;
+  pending?: boolean;
 }) {
   const next = stories.filter((story) => story.hn_id !== currentId).slice(0, 2);
   return (
-    <section className="related-stories" aria-labelledby="related-stories-heading">
+    <section
+      className={`related-stories${pending ? " related-stories-pending" : ""}`}
+      aria-labelledby="related-stories-heading"
+      aria-busy={pending || undefined}
+    >
       <h2 id="related-stories-heading">Read next</h2>
+      {pending && <div className="related-stories-placeholder" aria-hidden="true" />}
       {next.length > 0 && (
         <ul className="related-story-list">
           {next.map((story, index) => (

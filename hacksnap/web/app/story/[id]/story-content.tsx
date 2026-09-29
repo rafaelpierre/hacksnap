@@ -13,6 +13,7 @@ import { RelatedStories } from "../../related-stories";
 import { StoryReturnLink } from "../../story-navigation";
 import { ArticleImage } from "../../article-image";
 import { canonicalArticleImage } from "../../../lib/article-image";
+import type { ReactNode } from "react";
 
 function DiscussionIntroduction({ text }: { text: string }) {
   return discussionBriefBlocks(text).map((block, index) =>
@@ -43,9 +44,11 @@ function StoryShare({ story, placement }: { story: Story; placement: "story_top"
 export function StoryContent({
   story,
   relatedStories,
+  relatedSection,
 }: {
   story: Story;
-  relatedStories: RelatedStory[];
+  relatedStories?: RelatedStory[];
+  relatedSection?: ReactNode;
 }) {
   const summary = story.summary;
   const deck = briefExcerpt(summary?.overall_takeaway);
@@ -231,7 +234,13 @@ export function StoryContent({
       <div className="story-end-share">
         <StoryShare story={story} placement="story_end" />
       </div>
-      <RelatedStories category={category} stories={relatedStories} currentId={story.hn_id} />
+      {relatedSection ?? (
+        <RelatedStories
+          category={category}
+          stories={relatedStories ?? []}
+          currentId={story.hn_id}
+        />
+      )}
     </article>
   );
 }

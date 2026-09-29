@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { jest, test } from "@jest/globals";
+import { Suspense } from "react";
 
 const noStore = jest.fn();
 jest.unstable_mockModule("next/cache", () => ({ unstable_noStore: noStore }));
@@ -83,8 +84,10 @@ test("story metadata distinguishes an outage from a missing story; related failu
   getStory.mockResolvedValueOnce(null);
   await assert.rejects(generateMetadata(props), (error) => error === notFound);
   getStory.mockResolvedValueOnce({ hn_id: "123", title: "Headline", category: "agents_coding" });
+  getRelatedStories.mockClear();
   const element = await Page({ params: Promise.resolve({ id: "123" }) });
-  assert.deepEqual(element.props.relatedStories, []);
+  assert.equal(element.props.relatedSection.type, Suspense);
+  assert.equal(getRelatedStories.mock.calls.length, 0);
   assert.equal(element.props.story.hn_id, "123");
 });
 
