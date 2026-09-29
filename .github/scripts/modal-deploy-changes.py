@@ -10,6 +10,8 @@ PRODUCTION_FILES = {
     "hacksnap/uv.lock",
     ".github/workflows/hacksnap.yml",
     ".github/scripts/deploy-modal.sh",
+    ".github/scripts/migrate-schema.sh",
+    ".github/workflows/supabase-schema.yml",
     ".github/scripts/modal-deploy-changes.py",
 }
 

@@ -41,8 +41,9 @@ the test results. Ingestion and MCP currently have no configured lint/format che
 Main pushes keep worker checks for tests, fixtures and documentation changes.
 Production-path changes additionally enable automatic Modal deployment; manual
 **Hacksnap** runs can also deploy. Both require worker, ingestion and frontend checks
-before deployment can proceed. Frontend and ingestion
-workflows are reusable so this deployment uses the same checks as pull requests.
+before the reusable Supabase schema workflow applies pending migrations, followed
+by Modal deployment. Frontend and ingestion workflows are reusable so this deployment
+uses the same checks as pull requests.
 
 If branch protection requires the former `test` check, update its required checks
 to match the new names. Path-filtered workflows do not report checks for unrelated

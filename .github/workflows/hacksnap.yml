@@ -7,6 +7,9 @@ on:
       - "!hacksnap/web/**"
       - ".github/workflows/hacksnap.yml"
       - ".github/scripts/deploy-modal.sh"
+      - ".github/scripts/migrate-schema.sh"
+      - ".github/tests/test_schema_deploy.py"
+      - ".github/workflows/supabase-schema.yml"
       - ".github/tests/test_modal_deploy.py"
       - ".github/scripts/modal-deploy-changes.py"
       - ".github/tests/test_modal_deploy_changes.py"
@@ -17,6 +20,9 @@ on:
       - "!hacksnap/web/**"
       - ".github/workflows/hacksnap.yml"
       - ".github/scripts/deploy-modal.sh"
+      - ".github/scripts/migrate-schema.sh"
+      - ".github/tests/test_schema_deploy.py"
+      - ".github/workflows/supabase-schema.yml"
       - ".github/tests/test_modal_deploy.py"
       - ".github/scripts/modal-deploy-changes.py"
       - ".github/tests/test_modal_deploy_changes.py"
@@ -84,10 +90,19 @@ jobs:
     if: needs.deployment_changes.outputs.deploy == 'true'
     uses: ./.github/workflows/frontend.yml
 
+  schema:
+    needs: [deployment_changes, test, ingestion, frontend]
+    if: needs.deployment_changes.outputs.deploy == 'true'
+    uses: ./.github/workflows/supabase-schema.yml
+    with:
+      apply_migrations: true
+    secrets:
+      SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+
   deploy:
     # Deploy matching main pushes and explicit manual runs after all checks pass.
     if: needs.deployment_changes.outputs.deploy == 'true'
-    needs: [deployment_changes, test, ingestion, frontend]
+    needs: [deployment_changes, test, ingestion, frontend, schema]
     runs-on: ubuntu-latest
     environment: hacksnap-production
     concurrency:
@@ -117,7 +132,7 @@ jobs:
               connection.execute("SET LOCAL statement_timeout = '10s'")
               versions = {row[0] for row in connection.execute("SELECT version_num FROM alembic_version")}
               if versions != expected:
-                  raise SystemExit("Run the existing Supabase schema workflow, then rerun Hacksnap deployment.")
+                  raise SystemExit("Schema version differs after migration; inspect the schema job before starting a new Hacksnap run on main.")
           PY
       - name: Deploy the scheduled Modal function
         working-directory: hacksnap

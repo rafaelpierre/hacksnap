@@ -470,6 +470,8 @@ to these production paths enable deployment and its ingestion/frontend prerequis
 - `.github/workflows/hacksnap.yml`
 - `.github/scripts/deploy-modal.sh`
 - `.github/scripts/modal-deploy-changes.py`
+- `.github/scripts/migrate-schema.sh`
+- `.github/workflows/supabase-schema.yml`
 
 Frontend-only, documentation-only, fixture-only and test-only changes do not trigger
 an automatic worker deployment; matching worker paths still run worker validation.
@@ -479,9 +481,11 @@ available for manual deployment.
 
 Automatic and manual deployments both require worker and ingestion tests, frontend
 Jest tests, Oxlint, Oxfmt, TypeScript checks and the production frontend build. After
-those pass, deployment verifies the database schema version and runs `modal deploy`
-using the existing `hacksnap` Secret in Modal. The `hacksnap-production` environment
-and deployment concurrency controls apply to both paths, including any configured
+those pass, the reusable **Supabase schema** workflow validates the migration graph
+and applies pending Alembic upgrades. Deployment then verifies the database schema
+version and runs `modal deploy` using the existing `hacksnap` Secret in Modal.
+The `hacksnap-production` environment and deployment concurrency controls apply to
+both paths, including any configured
 environment approval rules. Pull requests do not deploy.
 
 While holding the deployment concurrency slot, the worker queries GitHub for the
@@ -495,10 +499,19 @@ If `main` advances with a change outside the deployment paths while validation i
 running, the earlier run will also skip. Start a new **Hacksnap** manual run on current
 `main` when needed; rerunning the old run retains its old SHA and will skip again.
 
-Database migrations remain manual. For changes that need a migration, run
-**Supabase schema** against `main` before the worker deployment reaches its schema
-check. If automatic deployment stops because the schema is behind, apply the
-migration and rerun **Hacksnap** against `main`. This workflow never applies migrations.
+Every eligible automatic or manual worker deployment calls **Supabase schema** at
+the same commit after validation. `alembic upgrade head` applies only pending
+migrations and makes no schema changes when already current. Migration failure
+blocks Modal deployment. The migration job retains the `supabase-production`
+environment and shared `supabase-schema-production` concurrency group, including
+any configured approval rules. It checks the current `main` SHA before database
+access; a stale run fails and requires a new run on current `main`.
+
+Standalone schema pushes and pull requests validate only. **Supabase schema** can
+still be run manually against `main` for a separate schema rollout. Test-only worker
+pushes skip both schema migration and Modal deployment. If a previous worker run
+failed at the old schema preflight, start a new **Hacksnap** run on current `main`
+after this workflow change is merged.
 
 Configure these GitHub secrets in `hacksnap-production` (repository secrets are
 also inherited unless overridden):

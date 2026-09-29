@@ -104,8 +104,15 @@ enabled and no Data API policies are created.
 ## GitHub Actions
 
 The [schema workflow](../.github/workflows/supabase-schema.yml) validates changes
-to migrations on pull requests. Once a matching change reaches `main`, it applies
-the pending migrations through the IPv4 pooler. Configure `SUPABASE_PASSWORD` as
+to migrations on pull requests and matching pushes to `main`. These standalone
+push runs validate only. The Hacksnap worker calls this reusable workflow after
+its validation jobs pass and waits for pending migrations to be applied before
+Modal deployment. Manual schema runs on `main` remain available.
+
+Both rollout paths use `alembic upgrade head` through the IPv4 pooler, which is a
+no-op when the schema is current. They share the production migration concurrency
+group and reject stale revisions before database access. A failed migration blocks
+the calling worker deployment. Configure `SUPABASE_PASSWORD` as
 a GitHub Actions secret, preferably scoped to the `supabase-production`
 environment and protected by a required reviewer.
 

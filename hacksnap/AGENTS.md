@@ -135,9 +135,10 @@ npm run build
    Address failures, or report the specific blocker. Summarize the change, checks,
    PR link, and remaining work for the user.
 7. Merging changes matched by `.github/workflows/hacksnap.yml` into `main`
-   triggers automatic Modal deployment after validation, the schema preflight and
-   a check that the run still matches current `main`.
+   triggers pending schema migrations through the reusable Supabase workflow after
+   validation, then Modal deployment after the schema preflight. Both production
+   steps check that the run still matches current `main`.
    Follow the user's authorization before merging or manually deploying; approval
-   to create or push a PR does not authorize merging it. Database migrations remain
-   a separate manual action. Follow the rollout instructions in `hacksnap/README.md`
+   to create or push a PR does not authorize merging it. Standalone manual schema
+   rollouts still require authorization. Follow the instructions in `hacksnap/README.md`
    and never trigger a production workflow as part of local validation.

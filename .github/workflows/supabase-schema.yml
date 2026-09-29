@@ -8,6 +8,8 @@ on:
       - "data/pyproject.toml"
       - "data/uv.lock"
       - ".github/workflows/supabase-schema.yml"
+      - ".github/scripts/migrate-schema.sh"
+      - ".github/tests/test_schema_deploy.py"
   push:
     branches: [main]
     paths:
@@ -16,7 +18,18 @@ on:
       - "data/pyproject.toml"
       - "data/uv.lock"
       - ".github/workflows/supabase-schema.yml"
+      - ".github/scripts/migrate-schema.sh"
+      - ".github/tests/test_schema_deploy.py"
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      apply_migrations:
+        description: Apply pending migrations before a validated worker deployment
+        type: boolean
+        default: false
+    secrets:
+      SUPABASE_PASSWORD:
+        required: false
 
 permissions:
   contents: read
@@ -47,11 +60,14 @@ jobs:
           uv run alembic heads
           uv run alembic history
           uv run pytest
+          uv run python -m unittest discover -s ../.github/tests -p "test_schema_deploy.py"
 
   migrate:
     name: Apply schema migrations
-    # Production changes require an explicit manual workflow run.
-    if: github.event_name == 'workflow_dispatch'
+    # Direct pushes validate only; the worker caller opts into migration after its checks.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || inputs.apply_migrations)
     needs: validate
     runs-on: ubuntu-latest
     environment: supabase-production
@@ -78,8 +94,6 @@ jobs:
         run: uv sync --locked
 
       - name: Apply Alembic migrations through the IPv4 pooler
-        run: |
-          test -n "$SUPABASE_PASSWORD"
-          uv run alembic current
-          uv run alembic upgrade head
-          uv run alembic current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash ../.github/scripts/migrate-schema.sh
