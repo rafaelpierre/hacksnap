@@ -1,16 +1,10 @@
 "use client";
 
-import { Copy, Link2, Mail, Share2, X } from "lucide-react";
-import { FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
+import { Share2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { copyShareText, track } from "../lib/analytics";
-import {
-  canonicalStoryUrl,
-  copyText,
-  shareDestinations,
-  suggestedPost,
-  xPostStatus,
-} from "../lib/share-text";
+import { canonicalStoryUrl, copyText, shareDestinations, suggestedPost } from "../lib/share-text";
+import { loadShareEditor } from "./share-editor-loader";
 
 type ShareProps = {
   id: string;
@@ -21,7 +15,9 @@ type ShareProps = {
   placement?: string;
 };
 
-/** A single disclosure for feed rows and both story-page placements. */
+type ShareEditorComponent = typeof import("./share-editor").ShareEditor;
+
+/** The feed mounts only this small trigger; the editor and X parser load on first open. */
 export function ShareLinks({
   id,
   slug,
@@ -34,20 +30,33 @@ export function ShareLinks({
   const [post, setPost] = useState(() => suggestedPost(id, title, takeaway, slug));
   const [feedback, setFeedback] = useState("");
   const [manualText, setManualText] = useState<string | null>(null);
+  const [Editor, setEditor] = useState<ShareEditorComponent | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const firstAction = useRef<HTMLButtonElement>(null);
   const manualField = useRef<HTMLTextAreaElement>(null);
-  const draftField = useRef<HTMLTextAreaElement>(null);
+  const pendingEditorFocus = useRef<string | null>(null);
+  const retryHadFocus = useRef(false);
   const panelId = useId();
-  const draftId = useId();
-  const xHintId = useId();
-  const xStatus = xPostStatus(post);
   const url = canonicalStoryUrl(id, slug);
 
   useEffect(() => {
     if (open) firstAction.current?.focus();
   }, [open]);
+
+  useEffect(() => {
+    const label = pendingEditorFocus.current;
+    pendingEditorFocus.current = null;
+    if (!open || !Editor || !label) return;
+    const actions = root.current?.querySelectorAll<HTMLButtonElement>(
+      ".share-actions button, .share-copy-post",
+    );
+    const matchingAction = [...(actions ?? [])].find(
+      (button) => button.textContent?.trim() === label,
+    );
+    (matchingAction ?? firstAction.current)?.focus();
+  }, [Editor, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -64,6 +73,38 @@ export function ShareLinks({
       manualField.current?.select();
     }
   }, [manualText]);
+
+  function loadEditor() {
+    const active = document.activeElement;
+    retryHadFocus.current = Boolean(
+      active instanceof HTMLElement &&
+      root.current?.contains(active) &&
+      active.tagName === "BUTTON" &&
+      active.textContent?.trim() === "Retry editor",
+    );
+    setLoadFailed(false);
+    void loadShareEditor()
+      .then(({ ShareEditor }) => {
+        const active = document.activeElement;
+        pendingEditorFocus.current = null;
+        if (
+          active instanceof HTMLElement &&
+          root.current?.contains(active) &&
+          active.tagName === "BUTTON" &&
+          (active.closest(".share-actions") || active.classList.contains("share-copy-post"))
+        ) {
+          pendingEditorFocus.current = active.textContent?.trim() || "Copy link";
+        } else if (active === document.body && retryHadFocus.current) {
+          pendingEditorFocus.current = "Copy link";
+        }
+        retryHadFocus.current = false;
+        setEditor(() => ShareEditor);
+      })
+      .catch(() => {
+        retryHadFocus.current = false;
+        setLoadFailed(true);
+      });
+  }
 
   function close(returnFocus: boolean) {
     setOpen(false);
@@ -84,6 +125,17 @@ export function ShareLinks({
       setManualText(value);
       setFeedback("Couldn’t copy automatically. Select and copy the text below.");
     }
+  }
+
+  function selectDestination(name: string, href: string) {
+    track("share_destination_select", {
+      story_id: id,
+      destination: name.toLowerCase(),
+      placement,
+    });
+    // Keep edited drafts out of DOM URLs and GA automatic outbound-link events.
+    if (name === "Email") window.location.assign(href);
+    else window.open(href, "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -108,7 +160,10 @@ export function ShareLinks({
         aria-controls={panelId}
         aria-label={`${label}: ${title}`}
         onClick={() => {
-          if (!open) track("share_menu_open", { story_id: id, placement });
+          if (!open) {
+            track("share_menu_open", { story_id: id, placement });
+            if (!Editor && !loadFailed) loadEditor();
+          }
           setOpen(!open);
           setFeedback("");
           setManualText(null);
@@ -129,84 +184,59 @@ export function ShareLinks({
               <X size={18} aria-hidden="true" />
             </button>
           </div>
-          <div className="share-actions">
-            <button type="button" ref={firstAction} onClick={() => void copy(url, "link")}>
-              <Link2 size={20} aria-hidden="true" />
-              <span>Copy link</span>
-            </button>
-            {shareDestinations(post, url, title).map((destination) => {
-              const Icon =
-                destination.name === "X"
-                  ? FaXTwitter
-                  : destination.name === "LinkedIn"
-                    ? FaLinkedinIn
-                    : Mail;
-              return destination.name === "X" && !xStatus.valid ? (
-                <button
-                  key="X"
-                  type="button"
-                  aria-describedby={xHintId}
-                  onClick={() => {
-                    setFeedback(
-                      `X needs a shorter post (${xStatus.length}/${xStatus.limit}). Edit the suggested post to continue.`,
-                    );
-                    draftField.current?.focus();
-                  }}
-                >
-                  <Icon size={20} aria-hidden="true" />
-                  <span>
-                    X <small>(edit first)</small>
-                  </span>
+          {Editor ? (
+            <Editor
+              title={title}
+              url={url}
+              post={post}
+              onPostChange={(value) => {
+                setPost(value);
+                setFeedback("");
+                setManualText(null);
+              }}
+              onCopy={(value, kind) => void copy(value, kind)}
+              onDestination={selectDestination}
+              onFeedback={setFeedback}
+              firstActionRef={firstAction}
+            />
+          ) : (
+            <>
+              <p className="share-load-status" role="status">
+                {loadFailed
+                  ? "The post editor couldn’t load. Link and other sharing options still work."
+                  : "Loading post editor…"}
+              </p>
+              <div className="share-actions">
+                <button type="button" ref={firstAction} onClick={() => void copy(url, "link")}>
+                  Copy link
                 </button>
-              ) : (
-                <button
-                  key={destination.name}
-                  type="button"
-                  onClick={() => {
-                    track("share_destination_select", {
-                      story_id: id,
-                      destination: destination.name.toLowerCase(),
-                      placement,
-                    });
-                    // Keep edited drafts out of DOM URLs and GA automatic outbound-link events.
-                    if (destination.name === "Email") window.location.assign(destination.href);
-                    else window.open(destination.href, "_blank", "noopener,noreferrer");
-                  }}
-                  aria-label={`${destination.name}${destination.name === "Email" ? "" : " (opens in a new tab)"}`}
-                >
-                  <Icon size={20} aria-hidden="true" />
-                  <span>{destination.name}</span>
+                {shareDestinations(post, url, title)
+                  .filter((destination) => destination.name !== "X")
+                  .map((destination) => (
+                    <button
+                      key={destination.name}
+                      type="button"
+                      onClick={() => selectDestination(destination.name, destination.href)}
+                      aria-label={`${destination.name}${destination.name === "Email" ? "" : " (opens in a new tab)"}`}
+                    >
+                      {destination.name}
+                    </button>
+                  ))}
+              </div>
+              <button
+                type="button"
+                className="share-copy-post"
+                onClick={() => void copy(post, "post")}
+              >
+                Copy suggested post
+              </button>
+              {loadFailed && (
+                <button type="button" className="share-copy-post" onClick={loadEditor}>
+                  Retry editor
                 </button>
-              );
-            })}
-          </div>
-          <div className="share-draft-heading">
-            <label htmlFor={draftId}>Suggested post</label>
-            <span className="share-count" data-over-limit={!xStatus.valid}>
-              {xStatus.length}/{xStatus.limit} on X
-            </span>
-          </div>
-          <textarea
-            id={draftId}
-            ref={draftField}
-            className="share-draft"
-            aria-describedby={xHintId}
-            value={post}
-            rows={5}
-            onChange={(event) => {
-              setPost(event.target.value);
-              setFeedback("");
-              setManualText(null);
-            }}
-          />
-          <p id={xHintId} className="share-destination-hint">
-            {!xStatus.valid ? "Shorten the draft to share on X. " : ""}LinkedIn shares the link;
-            paste your copied post there.
-          </p>
-          <button type="button" className="share-copy-post" onClick={() => void copy(post, "post")}>
-            <Copy size={16} aria-hidden="true" />
-            Copy suggested post
-          </button>
+              )}
+            </>
+          )}
           <p className="share-feedback" role="status" aria-live="polite">
             {feedback}
           </p>
