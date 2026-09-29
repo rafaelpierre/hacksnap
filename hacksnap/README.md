@@ -657,3 +657,49 @@ HACKSNAP_TEST_PGLITE_MODULE="$PWD/hacksnap/web/node_modules/@electric-sql/pglite
 
 These tests use synthetic fixtures without production credentials. Live
 publisher-to-Blob verification remains a rollout check.
+
+## Logfire telemetry
+
+Modal jobs configure Logfire once per container, collect system metrics, and
+trace outgoing HTTPX requests beneath a job span. Each invocation flushes
+telemetry before returning, including failed jobs. The summary and classification
+clients call HTTPX directly, so this uses `logfire.instrument_httpx()` rather than
+the OpenAI SDK integration. Both images install `logfire[httpx,system-metrics]`
+from their locked dependencies.
+
+Add `LOGFIRE_TOKEN` for the `kestrel/hacksnap` Logfire project to the existing
+**hacksnap** Modal Secret shared by these workflows. Redeploy the apps after
+adding it. Without a token or local project credentials, remote export is disabled
+and jobs can still run. Never put the token in source or the container image.
+
+For local Logfire authentication, run these commands from this Python project:
+
+```sh
+uv run logfire --region eu auth
+uv run logfire --region eu projects use --org 'kestrel' 'hacksnap'
+```
+
+The generated `.logfire/` credentials are ignored by Git. Modal uses the secret's
+token and does not need an interactive login. Telemetry is initialized by the
+Modal entry points; direct pipeline/CLI execution does not initialize it.
+
+Services are `hacksnap` (summary and image jobs), `hn-ingestion`, and
+`hn-category-backfill`. HTTP spans contain request URLs, methods, status, and
+latency, with headers and bodies disabled for general HTTP traffic. Inference
+calls additionally create LLM spans containing full prompts, completions (including
+returned reasoning), model, inference parameters and response schema, finish reasons,
+and raw token usage. Input, output, total, cached input, and reasoning token counts
+are exposed separately when reported by the endpoint. Cached input supports both
+`prompt_tokens_details.cached_tokens` and `prompt_cache_hit_tokens`; absent usage
+stays absent rather than being reported as zero. API keys and session headers are
+excluded. Logfire's standard sensitive-data scrubbing remains enabled.
+Kestrel's subprocess requests and the remote inference server's GPU are outside
+this instrumentation. System metrics describe the workflow container.
+
+Operation spans cover ingestion (including each story), classification,
+summarization, discussion analysis, and sentiment analysis through validation.
+Failures emit error logs with exception tracebacks, operation/model/story context,
+and error spans, including story failures caught so the batch can continue.
+Application logging and retry warnings are forwarded into the current trace;
+existing console logging remains intact. Exception details use Logfire's default
+sensitive-data scrubbing. Thread-pool work retains parent trace context.

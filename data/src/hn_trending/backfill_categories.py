@@ -7,12 +7,14 @@ import click
 from hn_trending.categories import category_metadata, reusable_category
 from hn_trending.cli import resolve_database_url
 from hn_trending.storage import category_backfill_batch, save_category
+from hn_trending.telemetry import traced_operation
 from hn_trending.topic_filter import MODAL_LLM_BASE_URL, MODAL_LLM_MODEL, TitleTopicClassifier
 
 
 @click.command()
 @click.option("--limit", type=click.IntRange(min=1), default=None, help="Maximum titles to classify this run.")
 @click.option("--dry-run", is_flag=True, help="Predict and print categories without saving them.")
+@traced_operation("classification_backfill")
 def main(limit: int | None, dry_run: bool) -> None:
     """Categorize stored titles, skipping current predictions and committing each success."""
     key = os.environ.get("MODAL_LLM_API_KEY")

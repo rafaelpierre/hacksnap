@@ -39,21 +39,24 @@ image_worker_image = (
     max_containers=1,
 )
 def refresh_hacksnap():
-    import logging
-    import os
+    from pipeline.telemetry import telemetry_run
 
-    from pipeline.refresh import run
+    with telemetry_run("hacksnap", "refresh_hacksnap"):
+        import logging
+        import os
 
-    result = run()
-    if os.environ.get("HACKSNAP_IMAGES_ENABLED", "").lower() == "true":
-        try:
-            # Summaries have committed. Dispatch even on quiet runs to recover retries.
-            refresh_article_images.spawn()
-        except Exception as exc:  # noqa: BLE001 - image dispatch cannot fail publication
-            logging.getLogger("hacksnap.images").warning(
-                "image_dispatch_failed error_type=%s", type(exc).__name__,
-            )
-    return result
+        from pipeline.refresh import run
+
+        result = run()
+        if os.environ.get("HACKSNAP_IMAGES_ENABLED", "").lower() == "true":
+            try:
+                # Summaries have committed. Dispatch even on quiet runs to recover retries.
+                refresh_article_images.spawn()
+            except Exception as exc:  # noqa: BLE001 - image dispatch cannot fail publication
+                logging.getLogger("hacksnap.images").warning(
+                    "image_dispatch_failed error_type=%s", type(exc).__name__,
+                )
+        return result
 
 
 @app.function(
@@ -64,24 +67,27 @@ def refresh_hacksnap():
 )
 def refresh_article_images():
     """Drain the durable image queue independently of summary generation."""
-    import logging
-    import os
+    from pipeline.telemetry import telemetry_run
 
-    if os.environ.get("HACKSNAP_IMAGES_ENABLED", "").lower() != "true":
-        return {"status": "disabled"}
-    if not os.environ.get("BLOB_READ_WRITE_TOKEN", "").strip():
-        raise ValueError("BLOB_READ_WRITE_TOKEN is required when images are enabled")
+    with telemetry_run("hacksnap", "refresh_article_images"):
+        import logging
+        import os
 
-    from pipeline.blob import VercelBlobStore
-    from pipeline.config import database_url_from_env
-    from pipeline.images.worker import ImageSettings, process_pending_images
-    from pipeline.supabase import Repository
+        if os.environ.get("HACKSNAP_IMAGES_ENABLED", "").lower() != "true":
+            return {"status": "disabled"}
+        if not os.environ.get("BLOB_READ_WRITE_TOKEN", "").strip():
+            raise ValueError("BLOB_READ_WRITE_TOKEN is required when images are enabled")
 
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-    settings = ImageSettings.from_env()
-    return process_pending_images(
-        Repository(database_url_from_env()),
-        VercelBlobStore(os.environ["BLOB_READ_WRITE_TOKEN"]),
-        limit=settings.batch_size,
-        settings=settings,
-    )
+        from pipeline.blob import VercelBlobStore
+        from pipeline.config import database_url_from_env
+        from pipeline.images.worker import ImageSettings, process_pending_images
+        from pipeline.supabase import Repository
+
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
+        settings = ImageSettings.from_env()
+        return process_pending_images(
+            Repository(database_url_from_env()),
+            VercelBlobStore(os.environ["BLOB_READ_WRITE_TOKEN"]),
+            limit=settings.batch_size,
+            settings=settings,
+        )

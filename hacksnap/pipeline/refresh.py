@@ -23,6 +23,7 @@ from .preprocess import plain_text, prepare_comments, sample_sentiment_comments,
 from .prompts import DISCUSSION_REFRESH_PROMPT_VERSION, PROMPT_VERSION, SENTIMENT_PROMPT_VERSION
 from .summarise import ModalSummarizer, RoutedSummarizer, Summarizer
 from .supabase import Repository
+from .telemetry import report_error, traced_operation
 
 logger = logging.getLogger("hacksnap")
 MAX_PARALLELISM = 15
@@ -43,6 +44,7 @@ def log_event(story: dict, stage: str, status: str, error: Exception | None = No
         "status": status,
     }
     if error:
+        report_error(error, operation=stage, story_id=story["hn_id"], status=status)
         event["error_type"] = type(error).__name__
         if isinstance(error, httpx.HTTPStatusError):
             event["http_status"] = error.response.status_code
@@ -103,6 +105,7 @@ def refresh_discussion(story, existing, comments, coverage, repository, summariz
     return True
 
 
+@traced_operation("story_enrichment")
 def process_story(
     story: dict,
     repository,
@@ -240,6 +243,7 @@ def process_story(
         return "failed"
 
 
+@traced_operation("enrichment_batch")
 def refresh(repository, fetcher, summarizer, comment_budget: int = 48000,
             *, image_enabled: bool = False) -> dict:
     counts = {

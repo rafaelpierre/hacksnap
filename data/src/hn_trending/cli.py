@@ -21,6 +21,7 @@ from hn_trending.storage import (
     start_ingestion_run,
     store_threads_and_snapshots,
 )
+from hn_trending.telemetry import traced_operation
 from hn_trending.topic_filter import MODAL_LLM_BASE_URL, MODAL_LLM_MODEL, TitleTopicClassifier
 
 
@@ -92,6 +93,7 @@ def resolve_database_url() -> str:
     show_default=True,
     help="Maximum stories processed concurrently; use 1 for sequential ingestion.",
 )
+@traced_operation("ingestion")
 def main(
     title_words: tuple[str, ...],
     min_comments: int,
@@ -153,6 +155,7 @@ def main(
             saved_categories = get_category_assignments(database_url, story_ids) if classifier else {}
             click.echo(f"Received {len(story_ids)} top-story ID(s); fetching story metadata.")
 
+            @traced_operation("ingestion_story")
             def collect_story(position: int, story_id: int) -> dict[str, Any] | None:
                 nonlocal examined, detected, filtered, skipped, classification_failed
                 prefix = f"[{position}/{len(story_ids)}]"
