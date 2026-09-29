@@ -190,6 +190,8 @@ def process_story(
         # Round-trip also revalidates nested models returned by custom summarizers.
         summary = StorySummary.model_validate_json(summary.model_dump_json())
         summary.validate_sources(article, comments, source["story_text"])
+        if summary.article_unavailable:
+            coverage["article_status"] = "unavailable"
         source_version = source_fingerprint(
             {"article": article, "story_text": source["story_text"]}, "", ""
         )
