@@ -574,10 +574,15 @@ public Vercel Blob store. Existing ready images retain their URLs and dimensions
 The website and public API receive only canonical image metadata; publisher source
 URLs and retry diagnostics remain private.
 
-The image queue sweep runs hourly on the same schedule as summarization: 09:00
-through midnight, inclusive, in `Europe/London` (16 runs per day, following
-GMT/BST). No image sweep starts from 01:00 through 08:59. Jobs queued after a
-sweep wait for the next run; work left after the midnight sweep resumes at 09:00.
+After each completed Modal summarization run, `refresh_hacksnap` asynchronously
+triggers `refresh_article_images` when images are enabled. Images require published
+summaries, so the handoff follows summarization rather than raw HN collection.
+The image worker has no separate schedule: automatic runs follow the hourly
+09:00-through-midnight `Europe/London` summary starts, including completion of the
+midnight run. Quiet summary runs also trigger a bounded sweep to recover pending
+jobs, expired leases and eligible retries. A dispatch failure is logged without
+failing publication; recovery waits for the next completed summary run. Manual
+image-worker and backfill invocations remain available.
 
 Apply migrations through `0016_image_queue` before deploying the updated worker.
 Migration `0015_article_images` from the initial publisher-image release is preserved;
@@ -585,14 +590,14 @@ the next migration adds the durable queue while preserving existing image state.
 The worker adopts expired attempts and retryable failures when processing resumes.
 The existing release workflow applies pending migrations and deploys Modal after
 an authorized merge to main and successful checks. Local validation does not
-migrate production, upload assets, or enable scheduled image processing.
+migrate production, upload assets, or enable automatic image processing.
 
 Existing articles can be processed with the bounded
 `python -m pipeline.backfill_images` command; it needs no inference credentials.
 The previous `python -m pipeline.images.backfill` entrypoint remains available.
 Both backfill commands target only articles added on **29 September 2026 in
 Europe/London**, including dry runs, retries and replacements. This is a fixed
-calendar date. The scheduled worker excludes older articles while normal image
+calendar date. The triggered worker excludes older articles while normal image
 ingestion continues for articles added on subsequent days.
 Image failures do not change article fetch-failure exclusions or published summaries.
 A replacement preserves the previous public asset until the new one commits.
