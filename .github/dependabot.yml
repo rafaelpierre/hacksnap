@@ -1,0 +1,27 @@
+version: 2
+
+# Enable the dependency graph, Dependabot alerts, and Dependabot security updates
+# in the repository's GitHub security settings for vulnerability-triggered PRs.
+# The schedule below controls routine version updates, not security alerts.
+updates:
+  - package-ecosystem: uv
+    directories:
+      - /data
+      - /hacksnap
+      - /mcp
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: npm
+    directories:
+      - /cloudflare/scanner-tax
+      - /hacksnap/web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
