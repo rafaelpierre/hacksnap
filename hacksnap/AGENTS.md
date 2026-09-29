@@ -134,6 +134,9 @@ npm run build
 6. Confirm the PR is conflict-free and required CI checks pass after the final push.
    Address failures, or report the specific blocker. Summarize the change, checks,
    PR link, and remaining work for the user.
-7. Merging and production deployment are separate actions. Follow the user's
-   authorization and the rollout instructions in `hacksnap/README.md`; never
-   trigger a production workflow as part of local validation.
+7. Merging changes matched by `.github/workflows/hacksnap.yml` into `main`
+   triggers automatic Modal deployment after validation and the schema preflight.
+   Follow the user's authorization before merging or manually deploying; approval
+   to create or push a PR does not authorize merging it. Database migrations remain
+   a separate manual action. Follow the rollout instructions in `hacksnap/README.md`
+   and never trigger a production workflow as part of local validation.
