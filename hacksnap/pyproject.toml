@@ -5,6 +5,7 @@ description = "Hourly article and discussion enrichment for the Hacksnap leaderb
 requires-python = ">=3.12"
 dependencies = [
   "httpx>=0.28,<1",
+  "logfire[httpx,system-metrics]>=5.1.1",
   "modal>=1.5.5,<2",
   "pillow>=12.0,<13",
   "psycopg[binary]>=3.2,<4",

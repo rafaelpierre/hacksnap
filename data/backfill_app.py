@@ -23,14 +23,17 @@ image = (
 )
 def backfill_categories(limit: int = 0, dry_run: bool = False):
     """Manually categorize existing titles using the ingestion credentials; safe to resume."""
-    import os
+    from hn_trending.telemetry import telemetry_run
 
-    from hn_trending.backfill_categories import main
-    from hn_trending.topic_filter import MODAL_LLM_BASE_URL, MODAL_LLM_MODEL
+    with telemetry_run("hn-category-backfill", "backfill_categories"):
+        import os
 
-    os.environ["MODAL_LLM_BASE_URL"] = MODAL_LLM_BASE_URL
-    os.environ["MODAL_LLM_MODEL"] = MODAL_LLM_MODEL
-    args = ["--limit", str(limit)] if limit else []
-    if dry_run:
-        args.append("--dry-run")
-    main(args=args, standalone_mode=False)
+        from hn_trending.backfill_categories import main
+        from hn_trending.topic_filter import MODAL_LLM_BASE_URL, MODAL_LLM_MODEL
+
+        os.environ["MODAL_LLM_BASE_URL"] = MODAL_LLM_BASE_URL
+        os.environ["MODAL_LLM_MODEL"] = MODAL_LLM_MODEL
+        args = ["--limit", str(limit)] if limit else []
+        if dry_run:
+            args.append("--dry-run")
+        main(args=args, standalone_mode=False)

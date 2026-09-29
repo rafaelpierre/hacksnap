@@ -23,16 +23,19 @@ image = (
     max_containers=1,
 )
 def ingest():
-    import os
+    from hn_trending.telemetry import telemetry_run
 
-    from hn_trending.cli import main
-    from hn_trending.topic_filter import MODAL_LLM_BASE_URL, MODAL_LLM_MODEL
+    with telemetry_run("hn-ingestion", "ingest"):
+        import os
 
-    # Reuse credentials, but do not inherit another app's model selection.
-    os.environ["MODAL_LLM_BASE_URL"] = MODAL_LLM_BASE_URL
-    os.environ["MODAL_LLM_MODEL"] = MODAL_LLM_MODEL
-    main(args=[
-        "--limit", "20", "--min-points", "20", "--min-comments", "20",
-        "--max-comment-depth", "5", "--min-comment-descendants", "3",
-        "--classify-topic", "--story-concurrency", "4",
-    ], standalone_mode=False)
+        from hn_trending.cli import main
+        from hn_trending.topic_filter import MODAL_LLM_BASE_URL, MODAL_LLM_MODEL
+
+        # Reuse credentials, but do not inherit another app's model selection.
+        os.environ["MODAL_LLM_BASE_URL"] = MODAL_LLM_BASE_URL
+        os.environ["MODAL_LLM_MODEL"] = MODAL_LLM_MODEL
+        main(args=[
+            "--limit", "20", "--min-points", "20", "--min-comments", "20",
+            "--max-comment-depth", "5", "--min-comment-descendants", "3",
+            "--classify-topic", "--story-concurrency", "4",
+        ], standalone_mode=False)

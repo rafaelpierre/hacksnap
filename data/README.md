@@ -281,3 +281,35 @@ from the repository root after installing the frontend dependencies:
 HACKSNAP_TEST_PGLITE_MODULE="$(pwd)/hacksnap/web/node_modules/@electric-sql/pglite/dist/index.js" \
   uv run --directory data pytest
 ```
+
+## Logfire telemetry
+
+Modal jobs configure Logfire once per container, collect system metrics, and
+trace outgoing HTTPX requests beneath a job span. Each invocation flushes
+telemetry before returning, including failed jobs. The summary and classification
+clients call HTTPX directly, so this uses `logfire.instrument_httpx()` rather than
+the OpenAI SDK integration. Both images install `logfire[httpx,system-metrics]`
+from their locked dependencies.
+
+Add `LOGFIRE_TOKEN` for the `kestrel/hacksnap` Logfire project to the existing
+**hacksnap** Modal Secret shared by these workflows. Redeploy the apps after
+adding it. Without a token or local project credentials, remote export is disabled
+and jobs can still run. Never put the token in source or the container image.
+
+For local Logfire authentication, run these commands from this Python project:
+
+```sh
+uv run logfire --region eu auth
+uv run logfire --region eu projects use --org 'kestrel' 'hacksnap'
+```
+
+The generated `.logfire/` credentials are ignored by Git. Modal uses the secret's
+token and does not need an interactive login. Telemetry is initialized by the
+Modal entry points; direct pipeline/CLI execution does not initialize it.
+
+Services are `hacksnap` (summary and image jobs), `hn-ingestion`, and
+`hn-category-backfill`. HTTP spans contain request URLs, methods, status, and
+latency; request/response bodies and headers are not captured. This provides
+HTTP telemetry, not automatic LLM token accounting or prompt/completion views.
+Kestrel's subprocess requests and the remote inference server's GPU are outside
+this instrumentation. System metrics describe the workflow container.

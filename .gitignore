@@ -228,3 +228,6 @@ test-results/
 !hacksnap/web/lib/
 !hacksnap/web/lib/**
 .vercel
+
+# Local Logfire project credentials
+.logfire/
