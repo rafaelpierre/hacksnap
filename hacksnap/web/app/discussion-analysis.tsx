@@ -25,6 +25,57 @@ function SourceComment({ id, context }: { id: number; context: string }) {
   );
 }
 
+function SourceComments({
+  id,
+  context,
+  commentIds,
+}: {
+  id: string;
+  context: string;
+  commentIds: number[];
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className="analysis-source-info"
+        popoverTarget={id}
+        aria-label={`Source comments for ${context}`}
+      >
+        <Info size={16} strokeWidth={1.5} aria-hidden="true" />
+      </button>
+      <div
+        id={id}
+        className="analysis-source-popup"
+        popover="auto"
+        role="dialog"
+        aria-labelledby={`${id}-title`}
+      >
+        <div className="analysis-source-header">
+          <p id={`${id}-title`}>Source comments</p>
+          <button
+            type="button"
+            className="analysis-source-close"
+            popoverTarget={id}
+            popoverTargetAction="hide"
+            aria-label="Close source comments"
+            autoFocus
+          >
+            <X size={16} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        </div>
+        <ul className="analysis-sources" aria-label={`Source comments for ${context}`}>
+          {commentIds.map((commentId) => (
+            <li key={commentId}>
+              <SourceComment id={commentId} context={context} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </>
+  );
+}
+
 function HighlightGroup({
   kind,
   highlights,
@@ -48,18 +99,24 @@ function HighlightGroup({
             const claim = claims.find((item) => item.id === highlight.claim_id);
             return (
               <li key={highlight.comment_id}>
+                <div className="analysis-highlight-header">
+                  {claim && (
+                    <p className="analysis-claim">
+                      <span className="sr-only">
+                        Claim addressed ({claim.source === "article" ? "article" : "HN post"}):{" "}
+                      </span>
+                      <em>{claim.text}</em>
+                    </p>
+                  )}
+                  <SourceComments
+                    id={`highlight-source-${kind}-${highlight.comment_id}`}
+                    context={highlight.paraphrase}
+                    commentIds={[highlight.comment_id]}
+                  />
+                </div>
                 <p className="analysis-stance">{stanceLabels[highlight.stance]}</p>
                 <p className="analysis-paraphrase">{highlight.paraphrase}</p>
                 <p>{highlight.explanation}</p>
-                {claim && (
-                  <p className="analysis-claim">
-                    <strong>
-                      Claim addressed ({claim.source === "article" ? "article" : "HN post"}):
-                    </strong>{" "}
-                    {claim.text}
-                  </p>
-                )}
-                <SourceComment id={highlight.comment_id} context={highlight.paraphrase} />
               </li>
             );
           })}
@@ -148,45 +205,11 @@ export function DiscussionAnalysis({
                       <p>{topic.summary}</p>
                     </div>
                   </details>
-                  <button
-                    type="button"
-                    className="analysis-theme-info"
-                    popoverTarget={`theme-sources-${topic.key}`}
-                    aria-label={`Source comments for ${topic.title}`}
-                  >
-                    <Info size={16} strokeWidth={1.5} aria-hidden="true" />
-                  </button>
-                  <div
+                  <SourceComments
                     id={`theme-sources-${topic.key}`}
-                    className="analysis-theme-source-panel"
-                    popover="auto"
-                    role="dialog"
-                    aria-labelledby={`theme-sources-title-${topic.key}`}
-                  >
-                    <div className="analysis-theme-source-header">
-                      <p id={`theme-sources-title-${topic.key}`}>Source comments</p>
-                      <button
-                        type="button"
-                        className="analysis-theme-source-close"
-                        popoverTarget={`theme-sources-${topic.key}`}
-                        popoverTargetAction="hide"
-                        aria-label="Close source comments"
-                        autoFocus
-                      >
-                        <X size={16} strokeWidth={1.5} aria-hidden="true" />
-                      </button>
-                    </div>
-                    <ul
-                      className="analysis-sources"
-                      aria-label={`Source comments for ${topic.title}`}
-                    >
-                      {topic.comment_ids.map((id) => (
-                        <li key={id}>
-                          <SourceComment id={id} context={topic.title} />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                    context={topic.title}
+                    commentIds={topic.comment_ids}
+                  />
                 </div>
               ))}
             </section>

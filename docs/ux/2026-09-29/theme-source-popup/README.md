@@ -14,3 +14,16 @@ summary collapsed. This preview contains no JavaScript.
 
 - `desktop-light.png`: 1280px, light, 100% text.
 - `mobile-dark-200.png`: 320px, dark, 200% text.
+
+## Critical and supportive highlights
+
+The extended fixture includes both groups. Each begins with the addressed claim
+in italics, followed by the stance, paraphrase, and explanation. Original comment
+links are inside the shared popup, with separate targets for each highlight.
+
+Verified both popup controls with Enter, Tab to the original comment, Escape,
+focus restoration, and the close button. Both groups' popups fit at 320px and
+1280px in light/dark at 100% and 200% text, without horizontal overflow.
+
+- `highlights-desktop.png`: both groups in light mode, with popups closed.
+- `highlight-popup-mobile.png`: critical comment popup in dark mode at 320px.

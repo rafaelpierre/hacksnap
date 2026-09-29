@@ -61,7 +61,7 @@ for (const { id, expected: analysis } of fixtures) {
       );
       assert.ok(link?.getAttribute("aria-label")?.includes(highlight.paraphrase));
       assert.ok(link);
-      const item = link.closest("li")!;
+      const item = link.closest(".analysis-highlights > li")!;
       assert.ok(item.textContent?.includes(highlight.explanation));
       assert.ok(
         item.textContent?.includes(
@@ -103,7 +103,7 @@ test("both groups preserve qualifications and identify the source of each claim"
   assert.match(document.body.textContent!, /Most supportive/);
   assert.match(document.body.textContent!, /Agrees with reservations/);
   assert.match(document.body.textContent!, /Claim addressed \(article\)/);
-  assert.equal(document.querySelectorAll(".analysis-highlights li").length, 2);
+  assert.equal(document.querySelectorAll(".analysis-highlights > li").length, 2);
 });
 
 test("coverage uses discussion counts and an explicit UTC timestamp", () => {
@@ -128,7 +128,7 @@ test("missing metadata never borrows article-summary coverage or invents a times
 test("neutral questions and ethical concern provide themes without supportive evidence", () => {
   for (const id of ["neutral_question", "ethical_concern"]) {
     const document = render(fixture(id));
-    assert.equal(document.querySelectorAll(".analysis-highlights li").length, 0);
+    assert.equal(document.querySelectorAll(".analysis-highlights > li").length, 0);
     assert.match(document.body.textContent!, /No clear supportive examples/);
   }
 });
@@ -147,8 +147,8 @@ test("theme sources use an independent popup with a named trigger and close butt
   const document = render(analysis);
   for (const [index, theme] of [...document.querySelectorAll(".analysis-theme")].entries()) {
     const description = theme.querySelector(".analysis-theme-details")!;
-    const trigger = theme.querySelector(".analysis-theme-info")!;
-    const panel = theme.querySelector(".analysis-theme-source-panel")!;
+    const trigger = theme.querySelector(".analysis-source-info")!;
+    const panel = theme.querySelector(".analysis-source-popup")!;
     const close = panel.querySelector("button")!;
     assert.equal(description.hasAttribute("open"), false);
     assert.equal(description.querySelector("a, button"), null);
@@ -168,5 +168,33 @@ test("theme sources use an independent popup with a named trigger and close butt
     assert.equal(close.getAttribute("popovertargetaction"), "hide");
     assert.equal(close.querySelector("svg")?.getAttribute("aria-hidden"), "true");
     assert.equal(panel.querySelectorAll("a").length, analysis.topics[index].comment_ids.length);
+  }
+});
+
+test("both highlight groups put italic claims before the stance and keep links in popups", () => {
+  const analysis = {
+    ...fixture("one_sided_criticism"),
+    supportive_comments: fixture("qualified_agreement").supportive_comments,
+  };
+  const document = render(analysis);
+  const ids = [...document.querySelectorAll("[id]")].map((element) => element.id);
+  assert.equal(new Set(ids).size, ids.length, "every popup has a distinct target");
+  for (const item of document.querySelectorAll(".analysis-highlights > li")) {
+    const header = item.firstElementChild!;
+    assert.ok(header.matches(".analysis-highlight-header"));
+    assert.ok(header.querySelector(".analysis-claim em")?.textContent);
+    assert.ok(header.nextElementSibling?.matches(".analysis-stance"));
+    assert.ok(header.nextElementSibling?.nextElementSibling?.matches(".analysis-paraphrase"));
+    const panel = header.querySelector("[popover]")!;
+    const trigger = header.querySelector(".analysis-source-info")!;
+    assert.equal(trigger.getAttribute("popovertarget"), panel.id);
+    assert.equal(panel.getAttribute("popover"), "auto");
+    assert.equal(panel.querySelectorAll("a").length, 1);
+    assert.equal(item.querySelectorAll("a").length, 1);
+    assert.equal(panel.querySelector(".analysis-claim"), null);
+    assert.equal(
+      panel.querySelector(".analysis-source-close")?.getAttribute("popovertargetaction"),
+      "hide",
+    );
   }
 });

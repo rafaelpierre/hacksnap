@@ -2202,7 +2202,7 @@ footer > span {
   margin-block: var(--space-8);
 }
 .analysis-theme {
-  anchor-scope: --theme-source-trigger;
+  anchor-scope: --analysis-source-trigger;
   position: relative;
   border-top: 1px solid var(--line);
 }
@@ -2246,8 +2246,8 @@ footer > span {
 .analysis-theme-body {
   padding: var(--space-3) var(--space-2);
 }
-.analysis-theme-info,
-.analysis-theme-source-close {
+.analysis-source-info,
+.analysis-source-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2261,22 +2261,25 @@ footer > span {
   border-radius: var(--radius-control);
   cursor: pointer;
 }
-.analysis-theme-info {
-  anchor-name: --theme-source-trigger;
+.analysis-source-info {
+  anchor-name: --analysis-source-trigger;
+}
+.analysis-theme > .analysis-source-info {
   position: absolute;
   top: var(--space-1);
   right: 0;
 }
-.analysis-theme-info:hover,
-.analysis-theme-source-close:hover {
+.analysis-source-info:hover,
+.analysis-source-close:hover {
   color: var(--accent);
   background: var(--surface);
 }
-.analysis-theme-source-panel {
+.analysis-source-popup {
+  --source-popup-width: min(20rem, calc(100vw - 2rem));
   position: fixed;
   inset: 0;
   margin: auto;
-  width: min(20rem, calc(100vw - 2rem));
+  width: var(--source-popup-width);
   max-height: min(24rem, calc(100dvh - 2rem));
   overflow: auto;
   padding: var(--space-3);
@@ -2286,23 +2289,27 @@ footer > span {
   border-radius: var(--radius-control);
   box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
 }
-@supports (anchor-scope: --theme-source-trigger) {
-  .analysis-theme-source-panel {
-    position-anchor: --theme-source-trigger;
+@supports (anchor-scope: --analysis-source-trigger) {
+  .analysis-source-popup {
+    position-anchor: --analysis-source-trigger;
     inset: auto;
     top: clamp(var(--space-4), anchor(bottom), calc(100dvh - 26rem));
-    right: anchor(right);
+    right: clamp(
+      var(--space-4),
+      anchor(right),
+      calc(100vw - var(--source-popup-width) - var(--space-4))
+    );
     margin: var(--space-1) 0;
   }
 }
-.analysis-theme-source-header {
+.analysis-source-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
   margin-bottom: var(--space-2);
 }
-.analysis-theme-source-header > p {
+.analysis-source-header > p {
   min-width: 0;
   overflow-wrap: anywhere;
   margin: 0;
@@ -2356,11 +2363,11 @@ footer > span {
   flex-shrink: 0;
   color: var(--muted);
 }
-.analysis-highlights li {
+.analysis-highlights > li {
   border-top: 1px solid var(--line);
   padding-block: var(--space-4);
 }
-.analysis-highlights p {
+.analysis-highlights > li > p {
   margin-bottom: var(--space-3);
 }
 .analysis-stance {
@@ -2372,8 +2379,17 @@ footer > span {
   font-weight: 600;
   color: var(--ink);
 }
+.analysis-highlight-header {
+  anchor-scope: --analysis-source-trigger;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
 .analysis-claim {
-  font-size: var(--text-label);
-  border-left: 2px solid var(--line);
-  padding-left: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  color: var(--prose);
+  overflow-wrap: anywhere;
 }
