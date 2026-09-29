@@ -319,11 +319,11 @@ publisher source-image URL. Missing, pending, failed, and malformed records omit
 the image wrapper. Browser load errors keep a branded placeholder in the reserved
 frame while preserving the card or story content. Until source descriptions are stored, the supplementary images use an
 empty alt attribute so the headline remains the accessible label. Detail images
-retain their supplied intrinsic dimensions. Feed thumbnails crop with `object-fit:
-cover` to fill their frame without letterboxing. Desktop images stretch to the
-height of the adjacent content; phone images use a reserved 16:9 frame. This
-applies to Top, archive and category feeds. Social Open Graph images retain the
-existing generated template.
+retain their supplied intrinsic dimensions. Feed images also keep their original
+aspect ratio: their width follows the image column and their height is automatic,
+so the complete image is visible without cropping or letterboxing. Error
+placeholders preserve the stored aspect ratio. This applies to Top, archive and
+category feeds. Social Open Graph images retain the existing generated template.
 
 ## Discussion-analysis projections
 
@@ -424,14 +424,16 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 ## Feed card layout
 
 At phone widths (640px and below), cards stack the category and rank, title,
-full-width 16:9 image, then subtitle/excerpt and footer. The image keeps its
-reserved frame while loading or showing its error fallback. Cards without an
-image go directly from title to excerpt without an empty image row.
+full-width image, then subtitle/excerpt and footer. The image uses its original
+proportions, including while loading or showing its error fallback. Cards without
+an image go directly from title to excerpt without an empty image row.
 
 Above 640px, the category and rank occupy a full-width row above the image and
-content. Images fill the height of the adjacent title, excerpt and footer.
-Narrow desktop cards keep the image beside the title and give the excerpt and
-footer the full width. Footer controls wrap when text is enlarged.
+content. The image column uses 30% of the available width, capped at 18rem, giving
+landscape previews more room. Image height follows its original proportions;
+text can make a row taller when needed. The footer aligns to the bottom of the
+content column. Narrow desktop cards keep the image beside the title and give
+the excerpt and footer the full width. Footer controls wrap when text is enlarged.
 
 Home, archive and category cards omit discussion themes and the “Read the debate”
 link. The title opens the full story, where discussion analysis remains available.

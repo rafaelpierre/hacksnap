@@ -28,11 +28,7 @@ export function ArticleImage({
     return (
       <div
         className={`${className} article-image-unavailable`}
-        style={
-          className.includes("story-article-image")
-            ? { aspectRatio: `${image.width} / ${image.height}` }
-            : undefined
-        }
+        style={{ aspectRatio: `${image.width} / ${image.height}` }}
         {...(alt
           ? { role: "img", "aria-label": `${alt}. Image unavailable.` }
           : { "aria-hidden": true })}

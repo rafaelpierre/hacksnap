@@ -76,12 +76,12 @@ test("ready social metadata uses Blob while unavailable assets use the site bran
   }
 });
 
-test("ranked and unranked feed images leave filling the frame to the stylesheet", () => {
+test("ranked and unranked feed images preserve source dimensions without a fitting override", () => {
   for (const variant of ["ranked", "unranked"] as const) {
     for (const image_height of [630, 800, 1200, 1800]) {
       const html = render(<StoryRow story={{ ...story, image_height }} variant={variant} />);
       assert.match(html, /class="feed-story-image"/);
-      assert.doesNotMatch(html, /object-fit:contain/);
+      assert.doesNotMatch(html, /object-fit:/);
       assert.match(html, new RegExp(`width="1200" height="${image_height}"`));
     }
   }

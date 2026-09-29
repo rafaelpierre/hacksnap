@@ -72,7 +72,7 @@ test("a browser image error keeps the branded media space", async () => {
     const placeholder = document.querySelector(".card-image.article-image-unavailable");
     assert.equal(placeholder?.getAttribute("role"), "img");
     assert.match(placeholder?.getAttribute("aria-label") ?? "", /Image unavailable/);
-    assert.equal(placeholder?.getAttribute("style"), null);
+    assert.equal((placeholder as HTMLElement).style.aspectRatio, "1200 / 675");
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
