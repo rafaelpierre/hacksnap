@@ -177,26 +177,22 @@ for (const [active, expected] of [
   });
 }
 
-test("ranked card footer separates points, comments and movement between updates", () => {
-  const history = (ranks: number[]) =>
-    ranks.map((rank, i) => ({ rank, observed_at: `2026-09-26T${10 + i}:00:00Z` }));
-  for (const [ranks, label, value] of [
-    [[9, 7, 3], "Climbed 4 positions", "+4"],
-    [[2, 3, 6], "Dropped 3 positions", "−3"],
-    [[2, 3, 3], "Hacksnap rank unchanged", "0"],
-    [[3], "Hacksnap rank movement unavailable", "—"],
-  ] as const) {
-    const ranked = { ...story, rank: String(ranks.at(-1)), rank_history: history([...ranks]) };
-    const html = render(createElement(StoryRow, { story: ranked, variant: "ranked" }));
-    assert.ok(html.includes(label));
-    assert.ok(html.includes(`<span aria-hidden="true">${value}</span>`));
-    assert.match(html, /lucide-star/);
-    assert.match(html.replace(/<[^>]*>/g, ""), /12 comments/);
-    assert.doesNotMatch(render(createElement(StoryRow, { story: ranked })), /rank-movement/);
-  }
+test("ranked card footer shows points and comments without rank movement", () => {
+  const ranked = {
+    ...story,
+    rank: "3",
+    rank_history: [
+      { rank: 9, observed_at: "2026-09-26T10:00:00Z" },
+      { rank: 3, observed_at: "2026-09-26T11:00:00Z" },
+    ],
+  };
+  const html = render(createElement(StoryRow, { story: ranked, variant: "ranked" }));
+  assert.match(html, /lucide-star/);
+  assert.match(html.replace(/<[^>]*>/g, ""), /12 comments/);
+  assert.doesNotMatch(html, /rank-movement|Climbed|Dropped|lucide-chevrons/);
 });
 
-test("leading card uses the same styling without a rank badge and retains movement", () => {
+test("leading card uses the same styling without a rank badge", () => {
   const ranked = {
     ...story,
     rank: "1",
@@ -208,9 +204,7 @@ test("leading card uses the same styling without a rank badge and retains moveme
   const html = render(createElement(StoryRow, { story: ranked, variant: "ranked" }));
   assert.match(html, /<article class="story-row feed-story">/);
   assert.doesNotMatch(html, /class="rank"|aria-label="Rank 1"|feed-story-lead/);
-  assert.match(html, /Climbed 1 position in Hacksnap since the previous update/);
-  assert.match(html, /<span aria-hidden="true">\+1<\/span>/);
-  assert.match(html, /lucide-chevrons-up/);
+  assert.doesNotMatch(html, /rank-movement|Climbed|lucide-chevrons-up/);
 });
 
 const discussionFixtures: { id: string; expected: DiscussionAnalysis }[] = JSON.parse(

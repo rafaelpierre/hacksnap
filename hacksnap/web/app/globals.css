@@ -1796,16 +1796,11 @@ body:has(#browse-content) .skip-browse {
   gap: 8px 16px;
   min-width: 0;
 }
-.feed-story .story-meta .rank-movement,
 .feed-story .story-meta .points,
 .feed-story .story-meta a:not(.category-badge) {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-}
-.feed-story .story-meta .rank-movement {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 .feed-story .story-meta .points {
   min-height: var(--touch-target);

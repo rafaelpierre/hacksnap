@@ -1,8 +1,7 @@
-import { ChevronsDown, ChevronsUp, MessageCircle, Minus, Star } from "lucide-react";
+import { MessageCircle, Star } from "lucide-react";
 import type { CardStory } from "../lib/story-domain";
 import type { PublicFeedStory } from "../lib/stories-api";
 import { CategoryBadge } from "./categories";
-import { formatRankChange, latestRankChange } from "../lib/rank-history";
 import { briefExcerpt } from "../lib/brief";
 import { SkepticismPill } from "./skepticism-pill";
 import { ShareLinks } from "./share-links";
@@ -20,17 +19,6 @@ export function StoryRow({
   variant?: "ranked" | "unranked";
   feedPosition?: number;
 }) {
-  const rank = variant === "ranked" ? Number(story.rank) : null;
-  const hasRank = rank !== null && Number.isInteger(rank) && rank > 0;
-  const movement = latestRankChange(story.rank_history ?? [], story.rank ?? undefined);
-  const MovementIcon =
-    movement === null || movement === 0 ? Minus : movement > 0 ? ChevronsUp : ChevronsDown;
-  const movementLabel =
-    movement === null
-      ? "Hacksnap rank movement unavailable: waiting for two updates"
-      : movement === 0
-        ? "Hacksnap rank unchanged since the previous update"
-        : `${movement > 0 ? "Climbed" : "Dropped"} ${Math.abs(movement)} ${Math.abs(movement) === 1 ? "position" : "positions"} in Hacksnap since the previous update`;
   const takeaway = story.summary?.overall_takeaway?.trim();
   const image = canonicalArticleImage(story);
 
@@ -75,14 +63,6 @@ export function StoryRow({
                 <span className="sr-only"> comments</span>
               </span>
             </a>
-            {hasRank && (
-              <span className="rank-movement" aria-label={movementLabel} title={movementLabel}>
-                <MovementIcon size={16} aria-hidden="true" />
-                <span aria-hidden="true">
-                  {movement === null ? "—" : formatRankChange(movement)}
-                </span>
-              </span>
-            )}
             <SkepticismPill story={story} />
             <StoryAge
               dateTime={

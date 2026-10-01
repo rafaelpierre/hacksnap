@@ -369,8 +369,8 @@ including a shorter final batch. Version 1 cursors, which did not encode a size,
 are rejected; start a fresh selection to obtain a version 2 cursor.
 The first request captures ordered story IDs, canonical ranks and recency flags; the cursor preserves
 that membership and ordering for eight hours while card metadata may refresh through
-a bounded 60-second cache. Card movement uses the two latest rank observations
-within the 24-hour window ending at the cursor observation time. Cursors are portable, validated encodings of an already
+a bounded 60-second cache. Rank history uses observations within the 24-hour window
+ending at the cursor observation time. Cursors are portable, validated encodings of an already
 public selection, not authentication or tamper-proof credentials. Invalid cursors
 return 400; an expired cursor or a selected story that becomes unavailable returns
 410 so clients restart instead of combining selections. The selection is capped at
@@ -615,12 +615,12 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 
 ## Feed card layout
 
-At phone widths (640px and below), cards stack the category and rank, title,
+At phone widths (640px and below), cards stack the category, title,
 full-width image, then subtitle/excerpt and footer. The image uses its original
 proportions, including while loading or showing its error fallback. Cards without
 an image go directly from title to excerpt without an empty image row.
 
-Above 640px, the category and rank occupy a full-width row above the image and
+Above 640px, the category occupies a full-width row above the image and
 content. The image column uses 30% of the available width, capped at 18rem, giving
 landscape previews more room. Image height follows its original proportions;
 text can make a row taller when needed. The footer aligns to the bottom of the
