@@ -147,8 +147,28 @@ settling deadline cannot overwrite an unpositioned checkpoint.
 Durable resume applies only to `/`; explicit paginated URLs keep their existing
 history-based behavior. Progress is local to this browser, with no login or
 cross-device synchronization. Unavailable storage, malformed records, and quota
-failures leave ordinary browsing functional. Seen/opened history is a separate
-planned feature and is not inferred from the reading checkpoint.
+failures leave ordinary browsing functional. The reading checkpoint does not imply
+that a story was seen or opened.
+
+## Browser-local opened stories
+
+A story title changes to a slightly muted theme color after a valid story detail
+page mounts, including direct links and new tabs. Unopened titles keep their
+normal color; hover and keyboard focus restore the normal title color. Feed
+exposure and scrolling do not create history or change a card. The feed shows
+no Seen/Opened labels, history controls, or filters.
+
+Opened history uses independent versioned `hacksnap:story-opened:<HN ID>`
+local-storage records. Each tab writes only the story it opened, so simultaneous
+visits to different stories cannot overwrite one another. The browser retains
+up to 4,000 IDs and 320 KiB of UTF-16 keys and values, dropping oldest records
+first; timestamps older than 180 days expire. Earlier shared-map records at
+`hacksnap:story-history` migrate their valid openings to per-story keys while
+saved feed-exposure records and Hide seen preferences are discarded. Readers
+can clear this history through browser site-data settings. Blocked or full
+storage falls back to same-tab memory. Feed instances re-read storage on mount;
+live tabs also receive `storage` events. Same-tab writes emit
+`hacksnap:story-history-change`. Visit baselines use a separate key and event.
 
 Analytics events `home_story_open` record actual activations of stories after the
 first ten (`story_id`, 1-based `position`, `placement=home_feed`). Rendering or

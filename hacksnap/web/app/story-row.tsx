@@ -14,10 +14,12 @@ export function StoryRow({
   story,
   variant = "unranked",
   feedPosition,
+  opened = false,
 }: {
   story: CardStory | PublicFeedStory;
   variant?: "ranked" | "unranked";
   feedPosition?: number;
+  opened?: boolean;
 }) {
   const takeaway = story.summary?.overall_takeaway?.trim();
   const image = canonicalArticleImage(story);
@@ -32,7 +34,7 @@ export function StoryRow({
       </div>
       <ArticleImage image={image} alt="" className="feed-story-image" loading="lazy" />
       <div className="story-content">
-        <h3>
+        <h3 className={opened ? "story-title-opened" : undefined}>
           <BrowseStoryLink id={story.hn_id} slug={story.story_slug} feedPosition={feedPosition}>
             {story.title}
           </BrowseStoryLink>

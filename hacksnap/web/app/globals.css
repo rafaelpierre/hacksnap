@@ -376,6 +376,12 @@ footer {
 .story-row h3 a {
   text-decoration: none;
 }
+.story-row h3.story-title-opened a {
+  color: var(--prose);
+}
+.story-row h3.story-title-opened a:is(:hover, :focus-visible) {
+  color: var(--ink);
+}
 .feed-excerpt {
   font-size: var(--text-base);
   line-height: 1.6;

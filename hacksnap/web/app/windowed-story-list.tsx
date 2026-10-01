@@ -34,6 +34,7 @@ type StoryItemProps = {
   feedPosition?: number;
   onHeight: (id: string, height: number) => void;
   onFocus: (index: number) => void;
+  opened: boolean;
 };
 
 function StoryItem({
@@ -46,6 +47,7 @@ function StoryItem({
   feedPosition,
   onHeight,
   onFocus,
+  opened,
 }: StoryItemProps) {
   const ref = useRef<HTMLLIElement>(null);
 
@@ -76,6 +78,7 @@ function StoryItem({
         story={story}
         variant={ranked ? "ranked" : "unranked"}
         feedPosition={feedPosition}
+        opened={opened}
       />
     </li>
   );
@@ -134,6 +137,7 @@ export function WindowedStoryList({
   groupByDay,
   pinnedStoryId,
   onStoryTitleClickCapture,
+  openedIds = new Set<string>(),
 }: {
   stories: PublicFeedStory[];
   ranked: boolean;
@@ -141,6 +145,7 @@ export function WindowedStoryList({
   groupByDay: boolean;
   pinnedStoryId?: string | null;
   onStoryTitleClickCapture?: MouseEventHandler<HTMLOListElement>;
+  openedIds?: ReadonlySet<string>;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const heights = useRef(new Map<string, number>());
@@ -287,6 +292,7 @@ export function WindowedStoryList({
         feedPosition={ranked ? (initialPage - 1) * 10 + index + 1 : undefined}
         onHeight={onStoryHeight}
         onFocus={onStoryFocus}
+        opened={openedIds.has(story.hn_id)}
       />
     );
   };

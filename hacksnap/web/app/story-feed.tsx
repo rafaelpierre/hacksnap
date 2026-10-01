@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type MouseEvent,
@@ -27,6 +28,7 @@ import {
 } from "../lib/home-feed-checkpoint";
 import { consumeFeedReturn, saveFeedHistory } from "./story-navigation";
 import { WindowedStoryList } from "./windowed-story-list";
+import { emptyStoryHistory, readStoryHistory, subscribeStoryHistory } from "../lib/story-history";
 
 type FeedState = {
   stories: PublicFeedStory[];
@@ -87,6 +89,7 @@ export function StoryFeed({
     initialPagination.page > 1 && (!ranked || !!initialPagination.previousCursor);
   const hasOlderPage = !ranked && feed.pagination.hasMore;
   const [restored, setRestored] = useState(false);
+  const [history, setHistory] = useState(emptyStoryHistory);
   const [positionPending, setPositionPending] = useState(false);
   const feedRef = useRef(feed);
   const initialized = useRef(false);
@@ -103,6 +106,15 @@ export function StoryFeed({
   const [automaticLoadingAvailable, setAutomaticLoadingAvailable] = useState(true);
   const activeTrigger = useRef<"auto" | "manual" | null>(null);
   feedRef.current = feed;
+  const openedIds = useMemo(
+    () => new Set(Object.keys(history.entries).filter((id) => !!history.entries[id]?.openedAt)),
+    [history],
+  );
+
+  useEffect(() => {
+    setHistory(readStoryHistory());
+    return subscribeStoryHistory(() => setHistory(readStoryHistory()));
+  }, []);
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") setAutomaticLoadingAvailable(false);
@@ -479,6 +491,7 @@ export function StoryFeed({
         <WindowedStoryList
           stories={feed.stories}
           ranked={ranked}
+          openedIds={openedIds}
           initialPage={initialPagination.page}
           groupByDay={groupByDay}
           pinnedStoryId={pinnedStoryId}
