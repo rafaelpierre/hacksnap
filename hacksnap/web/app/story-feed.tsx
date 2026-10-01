@@ -85,10 +85,8 @@ export function StoryFeed({
   });
   const [restored, setRestored] = useState(false);
   const [positionPending, setPositionPending] = useState(false);
-  const [resumeNotice, setResumeNotice] = useState<"none" | "older" | "expired">("none");
   const feedRef = useRef(feed);
   const initialized = useRef(false);
-  const pendingOlder = useRef<HomeFeedCheckpoint | null>(null);
   const canPersist = useRef(false);
   const suppressPersistence = useRef(false);
   const positionSettled = useRef(true);
@@ -146,14 +144,6 @@ export function StoryFeed({
     }, CHECKPOINT_DELAY_MS);
   }
 
-  function useFreshFeed() {
-    pendingOlder.current = null;
-    canPersist.current = true;
-    setResumeNotice("none");
-    saveFeedHistory(snapshotNow());
-    persistNow();
-  }
-
   useEffect(() => {
     const applySnapshot = (snapshot: FeedSnapshot, anchor: HomeFeedCheckpoint["anchor"]) => {
       scrollTarget.current = {
@@ -197,12 +187,8 @@ export function StoryFeed({
           if (result?.status === "recent") {
             applySnapshot(result.checkpoint.snapshot, result.checkpoint.anchor);
             canPersist.current = true;
-          } else if (result?.status === "older") {
-            pendingOlder.current = result.checkpoint;
-            setResumeNotice("older");
-          } else if (result?.status === "expired") {
+          } else if (result) {
             clearHomeFeedCheckpoint();
-            setResumeNotice("expired");
             canPersist.current = true;
           } else {
             canPersist.current = true;
@@ -219,9 +205,7 @@ export function StoryFeed({
       requestId.current++;
       const restoredPage = consumeFeedReturn(window.location.pathname + window.location.search);
       if (!restoredPage) return;
-      pendingOlder.current = null;
       canPersist.current = true;
-      setResumeNotice("none");
       applySnapshot(restoredPage, null);
     };
     window.addEventListener("popstate", onPopState);
@@ -315,7 +299,7 @@ export function StoryFeed({
   }, [feed.stories, restored]);
 
   useEffect(() => {
-    if (!restored || pendingOlder.current) return;
+    if (!restored) return;
     saveFeedHistory(snapshotNow());
     if (!positionPending) persistNow();
   }, [feed.stories, feed.pagination, positionPending, restored]);
@@ -323,7 +307,6 @@ export function StoryFeed({
   useEffect(() => {
     if (!restored) return;
     const onScroll = () => {
-      if (pendingOlder.current) return;
       scheduleCheckpoint();
     };
     const flush = () => {
@@ -366,7 +349,6 @@ export function StoryFeed({
       if (
         activeRequest.current ||
         !positionSettled.current ||
-        pendingOlder.current ||
         current.phase === "expired" ||
         !current.pagination.hasMore ||
         (ranked && !current.pagination.cursor)
@@ -434,42 +416,6 @@ export function StoryFeed({
     [listingPath, ranked],
   );
 
-  function resumeOlder() {
-    const checkpoint = pendingOlder.current;
-    if (!checkpoint) return;
-    if (
-      !checkpoint.snapshot.pagination.expiresAt ||
-      Date.parse(checkpoint.snapshot.pagination.expiresAt) <= Date.now()
-    ) {
-      pendingOlder.current = null;
-      canPersist.current = true;
-      clearHomeFeedCheckpoint();
-      setResumeNotice("expired");
-      persistNow();
-      return;
-    }
-    pendingOlder.current = null;
-    canPersist.current = true;
-    positionSettled.current = false;
-    scrollTarget.current = {
-      y: checkpoint.snapshot.scrollY,
-      storyId: checkpoint.anchor?.storyId ?? null,
-      offset: checkpoint.anchor?.offset ?? null,
-      focusStoryId: checkpoint.anchor?.storyId ?? checkpoint.snapshot.stories[0]?.hn_id ?? null,
-    };
-    setPinnedStoryId(scrollTarget.current.storyId ?? scrollTarget.current.focusStoryId);
-    setPositionPending(true);
-    setResumeNotice("none");
-    const next: FeedState = {
-      stories: checkpoint.snapshot.stories,
-      pagination: checkpoint.snapshot.pagination,
-      phase: "idle",
-      announcement: "",
-    };
-    feedRef.current = next;
-    setFeed(next);
-  }
-
   function startLatest(event: MouseEvent<HTMLAnchorElement>) {
     if (
       event.button !== 0 ||
@@ -489,7 +435,6 @@ export function StoryFeed({
     if (
       !restored ||
       positionPending ||
-      resumeNotice === "older" ||
       !feed.pagination.hasMore ||
       feed.phase !== "idle" ||
       continuationFocused ||
@@ -500,7 +445,7 @@ export function StoryFeed({
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
-        if (!positionSettled.current || pendingOlder.current) return;
+        if (!positionSettled.current) return;
         void load("auto");
         observer.disconnect();
       },
@@ -516,31 +461,10 @@ export function StoryFeed({
     load,
     positionPending,
     restored,
-    resumeNotice,
   ]);
 
   return (
     <>
-      {resumeNotice === "older" && (
-        <div className="home-feed-resume">
-          <p role="status">
-            Your previous reading place is still available. The latest stories are shown below.
-          </p>
-          <div className="home-feed-actions">
-            <button className="button" type="button" onClick={resumeOlder}>
-              Continue where you left off
-            </button>
-            <button className="button" type="button" onClick={useFreshFeed}>
-              Keep latest stories
-            </button>
-          </div>
-        </div>
-      )}
-      {resumeNotice === "expired" && (
-        <p className="home-feed-resume" role="status">
-          Your saved story selection expired. The latest stories are shown below.
-        </p>
-      )}
       {feed.stories.length === 0 ? (
         (emptyState ?? (
           <div className="empty">
@@ -568,7 +492,6 @@ export function StoryFeed({
                     !(event.target as Element).closest("[data-home-story-id] h3 a")
                   )
                     return;
-                  if (pendingOlder.current) useFreshFeed();
                   cancelCheckpointTimer();
                   persistNow();
                 }
@@ -620,7 +543,6 @@ export function StoryFeed({
                 type="button"
                 disabled={feed.phase === "loading"}
                 onClick={() => {
-                  if (pendingOlder.current) useFreshFeed();
                   setContinuationFocused(false);
                   void load("manual");
                 }}

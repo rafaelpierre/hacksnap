@@ -121,11 +121,9 @@ also works without JavaScript, using UTC.
 The root homepage also saves a browser-local reading checkpoint under
 `hacksnap:home-feed-checkpoint`. Reloading or reopening `/` within 30 minutes
 restores the loaded selection and the visible story's offset in the viewport.
-Older checkpoints with a valid selection offer **Continue where you left off**
-and **Keep latest stories**. Scrolling, modified title clicks, category links and
-HN comment links preserve the offer. Choosing latest, opening a fresh story with
-an unmodified primary title activation, or loading more commits the new
-reading session.
+Older or expired checkpoints silently start a fresh reading session with the latest
+stories. Saving the new reading position and automatic loading begin immediately,
+without a resume prompt or confirmation.
 The **Start a fresh selection** link on an expired continuation explicitly requests
 a fresh selection; its temporary query flag is removed after initialization.
 Browser Back/Forward and explicit story returns take precedence over the durable
@@ -136,8 +134,8 @@ signed viewport offset, and a save timestamp. Position writes are debounced by
 400ms and flushed when opening a feed story or when the page is hidden or left.
 Storage is limited to one record, at most 400 stories and a conservative 2 MiB serialized UTF-16 size;
 records older than seven days are ignored. This retention does not extend the
-selection's eight-hour cursor lifetime. An expired saved selection shows fresh
-stories with an explanation; a continuation invalidated by the server keeps its
+selection's eight-hour cursor lifetime. An expired saved selection silently shows fresh
+stories; a continuation invalidated by the server keeps its
 loaded cards and offers a fresh selection. Missing anchors fall back to the saved
 scroll coordinate. Initial layout/font changes can correct the anchor for up to
 two seconds after the first positioning frame, or until the reader interacts.
