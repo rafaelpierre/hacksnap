@@ -1645,6 +1645,7 @@ body:has(#browse-content) .skip-browse {
 /* Shared feed row: the same content and actions on Top, archive and topic pages. */
 .story-row.feed-story {
   container: feed-card / inline-size;
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
@@ -1656,6 +1657,7 @@ body:has(#browse-content) .skip-browse {
 }
 .story-row.feed-story:has(.feed-story-image) {
   grid-template-columns: min(30%, 18rem) minmax(0, 1fr);
+  grid-template-rows: auto max-content auto;
   column-gap: var(--space-5);
 }
 .feed-story > .story-context {
@@ -1671,7 +1673,7 @@ body:has(#browse-content) .skip-browse {
   grid-row: 3;
 }
 .feed-story:has(.feed-story-image) > h3 {
-  grid-column: 2;
+  grid-column: 1 / -1;
   grid-row: 2;
 }
 .feed-story:has(.feed-story-image) > .story-content {
@@ -1690,7 +1692,7 @@ body:has(#browse-content) .skip-browse {
 }
 .feed-story-image {
   grid-column: 1;
-  grid-row: 2 / 4;
+  grid-row: 3;
   align-self: start;
   min-width: 0;
   overflow: hidden;
@@ -1981,22 +1983,6 @@ body:has(#browse-content) .skip-browse {
 .share-manual {
   margin-top: var(--space-2);
 }
-@container feed-card (max-width: 36rem) {
-  /* Keep the title beside the image; let the excerpt and footer use the full row. */
-  .feed-story:has(.feed-story-image) > h3 {
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .feed-story:has(.feed-story-image) > .story-content {
-    grid-column: 1 / -1;
-    grid-row: 3;
-  }
-  .feed-story-image {
-    grid-row: 2;
-    margin-bottom: var(--space-3);
-  }
-}
-
 @media (max-width: 640px) {
   .story-row.feed-story {
     padding: var(--space-5) var(--space-4);

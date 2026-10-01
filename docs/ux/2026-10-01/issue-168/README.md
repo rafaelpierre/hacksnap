@@ -3,8 +3,10 @@
 Top Stories (`/`), Latest (`/archive`) and the Agents & Coding topic
 (`/category/agents-coding`) all render the same `StoryRow`. Before and after
 screenshots confirm the shared card styling in each route. The visible card
-layout stays consistent; the change makes its document order match the visual
-order and removes the old row layout rules that could override the feed grid.
+layout stays consistent across routes, with the title in its own content-sized
+row above the image and excerpt on desktop. The image and excerpt share the next
+row, so portrait or square image height cannot create excess space after the
+headline. On mobile they stack in title, image, excerpt order.
 Top Stories retains its Archive label for older ranked stories.
 
 The screenshots use five synthetic stories, a locally intercepted 1200 × 675
@@ -19,28 +21,38 @@ reading order in each route.
 
 The complete recorded matrices are available as [before](results-before.json)
 and [after](results-after.json) JSON files. The after matrix includes the final
-separator styling. The reusable [preview preparer](prepare-preview.py) and
+card layout and separator styling. The reusable [preview preparer](prepare-preview.py) and
 [capture script](capture-matrix.cjs) are included here.
 
 The BrowseLoading skeleton was also checked at 320px and 1280px, in both themes
 at 200% text. The title, image and excerpt follow the shared card order on
-mobile; on desktop the title and image sit side by side with the excerpt below.
+mobile; on desktop the full-width title sits above the image and excerpt row.
 All three cards fit the viewport and the measured regions do not overlap.
 Captures: [320px light](screenshots/after/skeleton-320-light.png),
 [320px dark](screenshots/after/skeleton-320-dark.png),
 [1280px light](screenshots/after/skeleton-1280-light.png),
 [1280px dark](screenshots/after/skeleton-1280-dark.png).
 
+The image-track regression was checked with square, portrait and landscape
+fixtures at 320px and 1280px, in both themes at 200% text (12 cases). The
+headline remains above the image, and desktop excerpts start beside the image;
+no case overflowed. [Portrait desktop capture](screenshots/after/portrait-desktop-light-200.png)
+shows the tall image sharing a row with the excerpt. A focused share-panel
+control remained clickable while overlapping the next card; its
+[overlap capture](screenshots/after/share-panel-overlap.png) and the
+[browser results](final-review-results.json) record the hit-tested point and
+click. Run these checks with [verify-final-review.cjs](verify-final-review.cjs).
+
 ## Before and after
 
 All screenshots use 200% root text size and the light theme. The full matrix also
 checked the dark theme and normal text size.
 
-| Feed        | 320px before                                | 320px after                               | 1280px before                                | 1280px after                               |
-| ----------- | ------------------------------------------- | ----------------------------------------- | -------------------------------------------- | ------------------------------------------ |
-| Top Stories | [before](screenshots/before/top-320.png)    | [after](screenshots/after/top-320.png)    | [before](screenshots/before/top-1280.png)    | [after](screenshots/after/top-1280.png)    |
-| Latest      | [before](screenshots/before/latest-320.png) | [after](screenshots/after/latest-320.png) | [before](screenshots/before/latest-1280.png) | [after](screenshots/after/latest-1280.png) |
-| Topic       | [before](screenshots/before/topic-320.png)  | [after](screenshots/after/topic-320.png)  | [before](screenshots/before/topic-1280.png)  | [after](screenshots/after/topic-1280.png)  |
+| Feed        | 320px before                                | 320px after                                          | 1280px before                                | 1280px after                                          |
+| ----------- | ------------------------------------------- | ---------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------- |
+| Top Stories | [before](screenshots/before/top-320.png)    | [after](screenshots/after/top-320-light-200.png)     | [before](screenshots/before/top-1280.png)    | [after](screenshots/after/top-1280-light-200.png)     |
+| Latest      | [before](screenshots/before/latest-320.png) | [after](screenshots/after/latest-320-light-200.png)  | [before](screenshots/before/latest-1280.png) | [after](screenshots/after/latest-1280-light-200.png)  |
+| Topic       | [before](screenshots/before/topic-320.png)  | [after](screenshots/after/topic-320-light-200.png)   | [before](screenshots/before/topic-1280.png)  | [after](screenshots/after/topic-1280-light-200.png)   |
 
 ## Reproduction
 
