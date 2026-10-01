@@ -27,7 +27,8 @@ type Group = {
 type StoryItemProps = {
   story: PublicFeedStory;
   index: number;
-  total: number;
+  listPosition: number;
+  listSize: number;
   measure: boolean;
   ranked: boolean;
   feedPosition?: number;
@@ -38,7 +39,8 @@ type StoryItemProps = {
 function StoryItem({
   story,
   index,
-  total,
+  listPosition,
+  listSize,
   measure,
   ranked,
   feedPosition,
@@ -66,8 +68,8 @@ function StoryItem({
     <li
       ref={ref}
       data-home-story-id={story.hn_id}
-      aria-posinset={index + 1}
-      aria-setsize={total}
+      aria-posinset={listPosition}
+      aria-setsize={listSize}
       onFocusCapture={() => onFocus(index)}
     >
       <StoryRow
@@ -265,14 +267,15 @@ export function WindowedStoryList({
     [renderedRange.end, renderedRange.start, stories.length],
   );
 
-  const renderStory = (index: number) => {
+  const renderStory = (index: number, group?: Group) => {
     const story = stories[index]!;
     return (
       <StoryItem
         key={story.hn_id}
         story={story}
         index={index}
-        total={stories.length}
+        listPosition={group ? index - group.start + 1 : index + 1}
+        listSize={group ? group.end - group.start : stories.length}
         measure={stories.length > MAX_RENDERED_STORIES}
         ranked={ranked}
         feedPosition={ranked ? (initialPage - 1) * 10 + index + 1 : undefined}
@@ -332,19 +335,24 @@ export function WindowedStoryList({
         const before = layout.storyOffsets[start]! - layout.storyOffsets[group.start]!;
         const after = layout.storyOffsets[group.end]! - layout.storyOffsets[end]!;
         return (
-          <section key={group.day} aria-labelledby={`day-${group.day}`}>
+          <section
+            key={`${group.day}-${group.start}`}
+            aria-labelledby={`day-${group.day}-${group.start}`}
+          >
             <MeasuredDayHeading
               day={group.day}
               measure={stories.length > MAX_RENDERED_STORIES}
               onHeight={onDayHeight}
             >
-              <h2 id={`day-${group.day}`}>
+              <h2 id={`day-${group.day}-${group.start}`}>
                 <time dateTime={group.day}>{dayLabel(group.day)}</time>
               </h2>
             </MeasuredDayHeading>
             <ul className="story-list">
               <StorySpacer height={before} />
-              {Array.from({ length: end - start }, (_, offset) => renderStory(start + offset))}
+              {Array.from({ length: end - start }, (_, offset) =>
+                renderStory(start + offset, group),
+              )}
               <StorySpacer height={after} />
             </ul>
           </section>

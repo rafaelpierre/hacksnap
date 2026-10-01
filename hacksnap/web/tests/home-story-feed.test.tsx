@@ -361,6 +361,11 @@ test("deep feeds keep a bounded interactive window, retain archive day headings,
     assert.equal(Number(rendered()[0]!.dataset.homeStoryId) > 1400, true);
     assert.equal(document.querySelectorAll(".windowed-story-spacer").length > 0, true);
     assert.equal(document.querySelectorAll("section .feed-bar time").length >= 2, true);
+    for (const row of rendered()) {
+      const storyId = Number(row.dataset.homeStoryId);
+      assert.equal(row.getAttribute("aria-posinset"), String(((storyId - 1) % 30) + 1));
+      assert.equal(row.getAttribute("aria-setsize"), "30");
+    }
 
     const nearEnd = rendered()[78]!.querySelector<HTMLAnchorElement>("h3 a")!;
     await act(async () => nearEnd.focus());
