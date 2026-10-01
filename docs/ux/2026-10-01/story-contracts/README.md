@@ -25,3 +25,10 @@ reader edits, close/reopen, identity replacement, and delayed clipboard completi
 
 These checks cover synthetic Chromium rendering and keyboard focus, not production
 performance, physical devices, other browser engines, or a screen-reader audit.
+
+## Combined validation
+
+On Node.js 22, `npm ci`, lint, formatting, TypeScript and the production build
+passed. All 53 Jest suites passed (301 tests), including PGlite projection tests,
+public format contracts, lifecycle rerenders, and cross-format discussion fixtures.
+The byte reproducer is in [issue-144](../../../evaluations/issue-144/README.md).
