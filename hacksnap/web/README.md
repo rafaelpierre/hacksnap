@@ -387,6 +387,11 @@ the final allowed page has no older-page link. Use dated archive URLs to reach
 older archive entries. Categories show their latest 3,000 stories; deeper category
 browsing needs cursor pagination before this limit can be raised. The feed starts
 directly below the heading, without the All stories or Browse by month controls.
+After more than 80 rows are loaded, the browser keeps a measured 80-row window in
+the DOM and uses spacers for the rest of the feed. The active window follows scroll,
+deep return restoration, and keyboard focus near either edge; archive day headings
+remain with their visible rows. This bounds React and DOM work while preserving the
+feed's physical scroll height and accessible list position.
 Archive pages are rendered on request; no schema change is required. The sitemap
 includes the archive landing page and populated months. Story URLs stay unchanged.
 

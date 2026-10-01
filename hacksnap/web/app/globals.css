@@ -297,6 +297,10 @@ footer {
   margin: 0;
   padding: 0;
 }
+.windowed-story-spacer,
+.windowed-feed-spacer {
+  pointer-events: none;
+}
 .story-row {
   position: relative;
   display: flex;
