@@ -9,8 +9,8 @@ import {
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { CATEGORIES, categoryURL, type CategoryId } from "../lib/categories";
+import { NavigationPendingLink } from "./navigation-pending-link";
 
 const topicIcons: Record<CategoryId, LucideIcon> = {
   models_products: Blocks,
@@ -25,30 +25,37 @@ export function TopicSidebar({ active }: { active?: CategoryId | "home" }) {
   return (
     <aside className="topic-sidebar" aria-labelledby="topic-sidebar-heading">
       <h2 id="topic-sidebar-heading">
-        <Link href="/topics">Explore topics</Link>
+        <NavigationPendingLink href="/topics" pendingLabel="Loading topics…">
+          Explore topics
+        </NavigationPendingLink>
       </h2>
       <nav aria-label="Topics">
         <ul>
           <li>
-            <Link href="/" aria-current={active === "home" ? "page" : undefined}>
+            <NavigationPendingLink
+              href="/"
+              aria-current={active === "home" ? "page" : undefined}
+              pendingLabel="Loading all stories…"
+            >
               <Newspaper className="inline-icon topic-icon" aria-hidden="true" />
               <span className="topic-label">All stories</span>
               <ChevronRight className="inline-icon topic-chevron" aria-hidden="true" />
-            </Link>
+            </NavigationPendingLink>
           </li>
           {CATEGORIES.map((category) => {
             const Icon = topicIcons[category.id];
             return (
               <li key={category.id}>
-                <Link
+                <NavigationPendingLink
                   href={categoryURL(category)}
                   data-color={category.color}
                   aria-current={active === category.id ? "page" : undefined}
+                  pendingLabel={`Loading ${category.label}…`}
                 >
                   <Icon className="inline-icon topic-icon" aria-hidden="true" />
                   <span className="topic-label">{category.label}</span>
                   <ChevronRight className="inline-icon topic-chevron" aria-hidden="true" />
-                </Link>
+                </NavigationPendingLink>
               </li>
             );
           })}

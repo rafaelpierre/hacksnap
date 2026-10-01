@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavigationPendingLink } from "./navigation-pending-link";
 
 const destinations = [
   { href: "/", label: "Top stories", active: (path: string) => path === "/" },
@@ -23,14 +23,15 @@ export function MainNavigation() {
   return (
     <nav className="main-navigation" aria-label="Main navigation">
       {destinations.map(({ href, label, active }) => (
-        <Link
+        <NavigationPendingLink
           key={href}
           href={href}
           className="header-link"
           aria-current={active(pathname) ? (pathname === href ? "page" : "location") : undefined}
+          pendingLabel={`Loading ${label}…`}
         >
           {label}
-        </Link>
+        </NavigationPendingLink>
       ))}
     </nav>
   );

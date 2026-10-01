@@ -1,0 +1,98 @@
+.status {
+  color: var(--muted);
+  font: var(--text-sm) / 1.6 var(--sans);
+  margin: 0;
+  padding: var(--space-3) var(--space-5);
+}
+
+.bone {
+  display: block;
+  flex: none;
+  border-radius: 4px;
+  background: var(--line);
+  opacity: 0.65;
+  animation: browse-pulse 1.5s ease-in-out infinite alternate;
+}
+
+.topic {
+  width: 6rem;
+  height: 1rem;
+}
+
+.image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 5px;
+}
+
+.title {
+  width: 100%;
+}
+
+.titleFirst,
+.titleSecond {
+  height: 1.35rem;
+  margin-bottom: 0.3rem;
+}
+
+.titleFirst {
+  width: 92%;
+}
+
+.titleSecond {
+  width: 64%;
+}
+
+.excerpt {
+  width: 100%;
+  margin: 0 0 var(--space-3);
+}
+
+.excerptFirst,
+.excerptSecond {
+  height: 0.875rem;
+  margin-bottom: 0.35rem;
+}
+
+.excerptFirst {
+  width: 100%;
+}
+
+.excerptSecond {
+  width: 78%;
+}
+
+.meta {
+  width: 8rem;
+  height: 0.875rem;
+}
+
+.actions {
+  width: 5rem;
+  height: 0.875rem;
+}
+
+@keyframes browse-pulse {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bone {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .status {
+    padding-inline: var(--space-4);
+  }
+
+  .meta {
+    width: 6rem;
+  }
+}

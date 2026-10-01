@@ -1,9 +1,9 @@
 import { availableData } from "../../lib/data-availability";
 import { ArrowUpRight } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { CATEGORIES, categoryURL } from "../../lib/categories";
 import { getCategoryCounts } from "../../lib/data";
+import { NavigationPendingLink } from "../navigation-pending-link";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,11 @@ export default async function TopicsPage() {
       <ul className="topic-directory">
         {CATEGORIES.map((category) => (
           <li key={category.id}>
-            <Link href={categoryURL(category)} data-color={category.color}>
+            <NavigationPendingLink
+              href={categoryURL(category)}
+              data-color={category.color}
+              pendingLabel={`Loading ${category.label}…`}
+            >
               <strong>
                 {category.label}
                 <ArrowUpRight className="inline-icon" aria-hidden="true" />
@@ -36,7 +40,7 @@ export default async function TopicsPage() {
                   ? `${counts[category.id] ?? 0} ${counts[category.id] === 1 ? "story" : "stories"}`
                   : "Story counts unavailable"}
               </span>
-            </Link>
+            </NavigationPendingLink>
           </li>
         ))}
       </ul>

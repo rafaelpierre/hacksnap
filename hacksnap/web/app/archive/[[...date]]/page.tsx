@@ -4,9 +4,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArchiveMonths, getArchiveStories } from "../../../lib/data";
 import { archiveMonth, archivePage, archiveURL, monthLabel } from "../../../lib/archive";
-import { StoryFeed } from "../../story-feed";
-import { browsePagination } from "../../../lib/browse-feed";
-import { publicFeedStory } from "../../../lib/stories-api";
+import { Suspense } from "react";
+import { ArchiveStoryList } from "../../archive-story-list";
+import { BrowseLoading } from "../../browse-loading";
+import { shouldStreamBrowse } from "../../../lib/browse-streaming";
 import { BrowseLayout } from "../../topic-sidebar";
 
 type Props = {
@@ -34,10 +35,21 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 async function Archive(props: Props) {
   const { month, page } = await selection(props);
-  const months = await getArchiveMonths();
-  if (month && !months.some((item) => item.month === month)) notFound();
-  const { stories, hasNext } = await getArchiveStories(month, page);
-  if (page > 1 && stories.length === 0) notFound();
+  if (month) {
+    const months = await getArchiveMonths();
+    if (!months.some((item) => item.month === month)) notFound();
+  }
+  // Later pages must establish existence before any loading UI flushes a 200.
+  const result =
+    page > 1 || !(await shouldStreamBrowse()) ? await getArchiveStories(month, page) : undefined;
+  if (page > 1 && result && result.stories.length === 0) notFound();
+  const content = result ? (
+    await ArchiveStoryList({ month, page, result })
+  ) : (
+    <Suspense key={`${archiveURL(month)}:${page}`} fallback={<BrowseLoading />}>
+      <ArchiveStoryList month={month} page={page} />
+    </Suspense>
+  );
   return (
     <BrowseLayout>
       <header className="feed-header">
@@ -54,13 +66,7 @@ async function Archive(props: Props) {
         <h1>{month ? monthLabel(month) : "Latest stories"}</h1>
         <p>AI stories from Hacker News, newest first.</p>
       </header>
-      <StoryFeed
-        key={`${archiveURL(month)}:${page}`}
-        listingPath={archiveURL(month)}
-        groupByDay
-        initialStories={stories.map(publicFeedStory)}
-        initialPagination={browsePagination(page, hasNext)}
-      />
+      {content}
     </BrowseLayout>
   );
 }

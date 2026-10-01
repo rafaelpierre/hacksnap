@@ -1,0 +1,90 @@
+.link {
+  position: relative;
+}
+
+.hint {
+  box-sizing: border-box;
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 0.625rem;
+  display: block;
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  transform: translateY(-50%);
+  opacity: 0;
+  visibility: hidden;
+}
+
+.hint::after {
+  box-sizing: border-box;
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  content: "";
+}
+
+.hint[data-pending="true"] {
+  opacity: 0.75;
+  visibility: visible;
+}
+
+.hint[data-pending="true"]::after {
+  animation: navigation-pending-spin 0.75s linear infinite;
+}
+
+.announcement {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:global(.header-link) .hint {
+  inset-inline-start: calc(100% + 0.25rem);
+  inset-inline-end: auto;
+}
+
+:global(.topic-sidebar) .hint {
+  inset-inline-end: 0.625rem;
+}
+
+:global(.topic-sidebar) :global(a):has(.hint[data-pending="true"]) :global(.topic-chevron) {
+  visibility: hidden;
+}
+
+:global(.browse-latest-link) .hint {
+  inset-inline-end: 0;
+}
+
+:global(.browse-latest-link):has(.hint[data-pending="true"]) :global(.inline-icon) {
+  visibility: hidden;
+}
+
+:global(.topic-directory) .hint {
+  inset-block-start: 1.55rem;
+  inset-inline-end: 2.65rem;
+}
+
+:global(.category-badge) .hint {
+  position: static;
+  flex: 0 0 0.75rem;
+  margin-inline-start: 0.375rem;
+  transform: none;
+}
+
+@keyframes navigation-pending-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hint[data-pending="true"]::after {
+    animation: none;
+  }
+}

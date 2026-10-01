@@ -53,6 +53,9 @@ const getCategoryCounts = jest.fn(async () => {
   events.push("counts");
   return { agents_coding: 1 };
 });
+jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
+  shouldStreamBrowse: async () => true,
+}));
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getStory,
   getRelatedStories,
@@ -98,7 +101,7 @@ function stream(element) {
     output.on("error", reject);
   });
   const { pipe } = renderToPipeableStream(
-    createElement(AppRouterContext.Provider, { value: {} }, element),
+    createElement(AppRouterContext.Provider, { value: {} }, createElement("main", null, element)),
     { onShellReady: () => pipe(output), onError: (error) => errors.push(error) },
   );
   return {
@@ -107,6 +110,18 @@ function stream(element) {
     },
     complete,
     errors,
+    contains(pattern) {
+      if (pattern.test(html)) return Promise.resolve();
+      return new Promise((resolve) => {
+        const check = () => {
+          if (pattern.test(html)) {
+            output.off("data", check);
+            resolve();
+          }
+        };
+        output.on("data", check);
+      });
+    },
   };
 }
 
@@ -175,14 +190,16 @@ test("category list streams while counts stall, and the required query always st
     return countPending.promise;
   });
   events.length = 0;
-  const pagePromise = CategoryPage(categoryProps);
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(events, ["list-start"]);
-  listPending.resolve(categoryList);
-  const page = await pagePromise;
-  assert.deepEqual(events, ["list-start", "list-end"]);
+  const page = await CategoryPage(categoryProps);
+  assert.deepEqual(events, []);
   const rendered = stream(page);
   await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(events, ["list-start"]);
+  await rendered.contains(/Loading stories/);
+  assert.match(rendered.html, /Loading stories/);
+  assert.doesNotMatch(rendered.html, /Primary headline/);
+  listPending.resolve(categoryList);
+  await rendered.contains(/Primary headline/);
   assert.match(rendered.html, /Primary headline/);
   assert.match(rendered.html, /category-count-placeholder/);
   assert.match(rendered.html, /href="\/story\/primary-headline-123"/);
@@ -205,7 +222,7 @@ test("failed optional queries finish the stream with useful primary content", as
   const list = stream(await CategoryPage(categoryProps));
   await list.complete;
   assert.match(list.html, /Primary headline/);
-  assert.match(list.html, /<div hidden id="S:0"><span class="category-count-placeholder"/);
+  assert.match(list.html, /<div hidden id="S:\d+"><span class="category-count-placeholder"/);
   assert.deepEqual(list.errors, []);
 });
 
