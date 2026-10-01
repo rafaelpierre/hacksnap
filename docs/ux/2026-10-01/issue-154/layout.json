@@ -1,0 +1,138 @@
+[
+  {
+    "width": 288,
+    "theme": "light",
+    "scale": 100,
+    "viewport": 320,
+    "document": 320,
+    "buttons": [
+      {
+        "width": 184,
+        "height": 44
+      },
+      {
+        "width": 136.75,
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 256,
+    "theme": "light",
+    "scale": 200,
+    "viewport": 320,
+    "document": 320,
+    "buttons": [
+      {
+        "width": 190,
+        "height": 139
+      },
+      {
+        "width": 190,
+        "height": 100
+      }
+    ]
+  },
+  {
+    "width": 288,
+    "theme": "dark",
+    "scale": 100,
+    "viewport": 320,
+    "document": 320,
+    "buttons": [
+      {
+        "width": 184,
+        "height": 44
+      },
+      {
+        "width": 136.75,
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 256,
+    "theme": "dark",
+    "scale": 200,
+    "viewport": 320,
+    "document": 320,
+    "buttons": [
+      {
+        "width": 190,
+        "height": 139
+      },
+      {
+        "width": 190,
+        "height": 100
+      }
+    ]
+  },
+  {
+    "width": 932,
+    "theme": "light",
+    "scale": 100,
+    "viewport": 1280,
+    "document": 1280,
+    "buttons": [
+      {
+        "width": 184,
+        "height": 44
+      },
+      {
+        "width": 136.75,
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 691.21875,
+    "theme": "light",
+    "scale": 200,
+    "viewport": 1280,
+    "document": 1280,
+    "buttons": [
+      {
+        "width": 330,
+        "height": 88
+      },
+      {
+        "width": 235.484375,
+        "height": 88
+      }
+    ]
+  },
+  {
+    "width": 932,
+    "theme": "dark",
+    "scale": 100,
+    "viewport": 1280,
+    "document": 1280,
+    "buttons": [
+      {
+        "width": 184,
+        "height": 44
+      },
+      {
+        "width": 136.75,
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 691.21875,
+    "theme": "dark",
+    "scale": 200,
+    "viewport": 1280,
+    "document": 1280,
+    "buttons": [
+      {
+        "width": 330,
+        "height": 88
+      },
+      {
+        "width": 235.484375,
+        "height": 88
+      }
+    ]
+  }
+]

@@ -1,0 +1,66 @@
+[
+  {
+    "name": "scroll checkpoint reload and reopened tab",
+    "pass": true
+  },
+  {
+    "name": "older selection requires explicit continue",
+    "pass": true
+  },
+  {
+    "name": "expired checkpoint offers fresh selection",
+    "pass": true
+  },
+  {
+    "name": "Back to latest bypasses failed checkpoint removal",
+    "pass": true
+  },
+  {
+    "name": "restore across mobile width change",
+    "pass": true
+  },
+  {
+    "name": "Back Forward and contextual return",
+    "pass": true
+  },
+  {
+    "name": "blocked local and session storage still browses and returns",
+    "pass": true
+  },
+  {
+    "name": "null anchor scroll fallback",
+    "pass": true
+  },
+  {
+    "name": "malformed checkpoint starts fresh",
+    "pass": true
+  },
+  {
+    "name": "server invalidation retains cards and offers fresh",
+    "pass": true
+  },
+  {
+    "name": "keyboard continue retains accessible focus",
+    "pass": true
+  },
+  {
+    "name": "session storage throwing writes and removal",
+    "pass": true
+  },
+  {
+    "name": "mobile desktop themes and enlarged text",
+    "pass": true
+  },
+  {
+    "name": "Space activates Continue and focuses resumed story",
+    "pass": true
+  },
+  {
+    "name": "8 resume notice layouts and 44px controls",
+    "pass": true
+  },
+  {
+    "name": "JavaScript-disabled cursor pagination",
+    "pass": true
+  }
+]

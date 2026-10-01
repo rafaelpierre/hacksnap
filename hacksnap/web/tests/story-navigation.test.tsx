@@ -290,3 +290,159 @@ test("story URLs stay clean while each history entry retains its own journey", a
     });
   }
 });
+
+test("readable storage with failing writes and cleanup still restores the list in this tab", async () => {
+  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/archive?page=3" });
+  const values = {
+    self: dom.window,
+    window: dom.window,
+    document: dom.window.document,
+    navigator: dom.window.navigator,
+    IS_REACT_ACT_ENVIRONMENT: true,
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    },
+    cancelAnimationFrame: () => {},
+  };
+  const previous = Object.keys(values).map((key) =>
+    Object.getOwnPropertyDescriptor(globalThis, key),
+  );
+  Object.entries(values).forEach(([key, value]) =>
+    Object.defineProperty(globalThis, key, { value, configurable: true }),
+  );
+  const originalSetItem = Object.getOwnPropertyDescriptor(dom.window.Storage.prototype, "setItem");
+  const originalRemoveItem = Object.getOwnPropertyDescriptor(
+    dom.window.Storage.prototype,
+    "removeItem",
+  );
+  const originalGetItem = Object.getOwnPropertyDescriptor(dom.window.Storage.prototype, "getItem");
+  Object.defineProperty(dom.window.Storage.prototype, "setItem", {
+    configurable: true,
+    value: () => {
+      throw Error("writes blocked");
+    },
+  });
+  Object.defineProperty(dom.window.Storage.prototype, "removeItem", {
+    configurable: true,
+    value: () => {
+      throw Error("cleanup blocked");
+    },
+  });
+  Object.defineProperty(dom.window.Storage.prototype, "getItem", {
+    configurable: true,
+    value: () => {
+      throw Error("reads blocked");
+    },
+  });
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(document.getElementById("root")!);
+  const scrolls: number[] = [];
+  window.name = "hacksnap-tab:fallback";
+  window.scrollTo = ((options: ScrollToOptions) =>
+    scrolls.push(options.top!)) as typeof window.scrollTo;
+  const router = {
+    push: (href: string) => window.history.pushState({}, "", href),
+    prefetch: async () => {},
+  };
+  document.addEventListener("click", (event) => event.preventDefault());
+  const render = (content: React.ReactNode) =>
+    act(async () => {
+      root.render(
+        <AppRouterContext.Provider value={router as never}>{content}</AppRouterContext.Provider>,
+      );
+    });
+  try {
+    await render(
+      <BrowseStoryLink id="42" slug="story-42">
+        Story
+      </BrowseStoryLink>,
+    );
+    await act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
+    await render(<StoryReturnLink />);
+    assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
+    await act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
+    window.history.replaceState({}, "", "/archive?page=3");
+    await render(<ListPositionRestorer />);
+    assert.deepEqual(scrolls, [0]);
+    assert.equal(
+      originalGetItem!.value.call(window.sessionStorage, "hacksnap:pending-return"),
+      null,
+    );
+  } finally {
+    await act(async () => root.unmount());
+    if (originalSetItem)
+      Object.defineProperty(dom.window.Storage.prototype, "setItem", originalSetItem);
+    if (originalRemoveItem)
+      Object.defineProperty(dom.window.Storage.prototype, "removeItem", originalRemoveItem);
+    if (originalGetItem)
+      Object.defineProperty(dom.window.Storage.prototype, "getItem", originalGetItem);
+    dom.window.close();
+    Object.keys(values).forEach((key, i) => {
+      if (previous[i]) Object.defineProperty(globalThis, key, previous[i]!);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+});
+
+test("journey cleanup expires old records, caps owned keys, and preserves other storage", async () => {
+  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/archive" });
+  const values = {
+    self: dom.window,
+    window: dom.window,
+    document: dom.window.document,
+    navigator: dom.window.navigator,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  };
+  const previous = Object.keys(values).map((key) =>
+    Object.getOwnPropertyDescriptor(globalThis, key),
+  );
+  Object.entries(values).forEach(([key, value]) =>
+    Object.defineProperty(globalThis, key, { value, configurable: true }),
+  );
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(document.getElementById("root")!);
+  const router = { push: () => {}, prefetch: async () => {} };
+  document.addEventListener("click", (event) => event.preventDefault());
+  const now = Date.now();
+  const context = { url: "/archive", label: "Latest stories", scrollY: 30, savedAt: now };
+  const expired = { ...context, savedAt: now - 9 * 60 * 60 * 1000 };
+  window.sessionStorage.setItem("unrelated:preference", "keep");
+  window.sessionStorage.setItem("hacksnap:journey:expired", JSON.stringify({ context: expired }));
+  window.sessionStorage.setItem(
+    "hacksnap:journey:future",
+    JSON.stringify({ context: { ...context, savedAt: now + 1_000 } }),
+  );
+  window.sessionStorage.setItem("hacksnap:journey:malformed", "not json");
+  for (let index = 0; index < 42; index += 1) {
+    const token = index.toString(16).padStart(36, "0");
+    window.sessionStorage.setItem(`hacksnap:journey:${token}`, JSON.stringify({ context }));
+  }
+  try {
+    await act(async () =>
+      root.render(
+        <AppRouterContext.Provider value={router as never}>
+          <BrowseStoryLink id="42" slug="story-42">
+            Story
+          </BrowseStoryLink>
+        </AppRouterContext.Provider>,
+      ),
+    );
+    await act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
+    const journeyKeys = Array.from({ length: window.sessionStorage.length }, (_, index) =>
+      window.sessionStorage.key(index),
+    ).filter((key) => key?.startsWith("hacksnap:journey:"));
+    assert.equal(journeyKeys.length, 40);
+    assert.equal(window.sessionStorage.getItem("hacksnap:journey:expired"), null);
+    assert.equal(window.sessionStorage.getItem("hacksnap:journey:future"), null);
+    assert.equal(window.sessionStorage.getItem("hacksnap:journey:malformed"), null);
+    assert.equal(window.sessionStorage.getItem("unrelated:preference"), "keep");
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    Object.keys(values).forEach((key, i) => {
+      if (previous[i]) Object.defineProperty(globalThis, key, previous[i]!);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+});

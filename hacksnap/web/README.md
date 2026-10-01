@@ -83,18 +83,53 @@ Opening a homepage story saves the loaded cards, position, and focused story in 
 browser history entry. Browser Back/Forward reconstructs those cards before
 restoring position. The contextual return link carries the same snapshot through
 history and, when available, tab-scoped session storage. Blocked session storage
-does not prevent browsing or same-tab returns. Story URLs stay canonical, and
-modified clicks use their normal browser behavior. Reloading `/` starts a fresh
-selection. The header stays visible while scrolling, and the desktop left topic sidebar
+does not prevent browsing or same-tab returns. Journey records are capped at 40
+per tab with eight-hour expiry; cleanup touches only journey-owned keys. Same-tab
+memory supplies a fallback if storage reads, writes or removal fail. Story URLs
+stay canonical, and modified clicks use their normal browser behavior. The header
+stays visible while scrolling, and the desktop left topic sidebar
 sticks below its measured height. Tall navigation areas scroll within the viewport.
 All main destinations remain available without reaching the footer. Automatic
 loading stops while the continuation controls have keyboard focus, cancelling any
 pending automatic request; manual loading remains available. There is no separate
-Pause/Resume control. Story cards show time since first added in compact days and hours
-(e.g. `1d 2h`, `5h`, or `<1h`), refreshed every minute. Before hydration, the
-UTC date is shown. Each age is a native disclosure with a 44px target: click, tap,
-or focus it and press Enter/Space to reveal the exact timestamp in local time.
-The disclosure also works without JavaScript, using UTC.
+Pause/Resume control.
+
+Story cards show time since first added in compact days and hours (e.g. `1d 2h`,
+`5h`, or `<1h`), refreshed every minute. Before hydration, the UTC date is shown.
+Each age is a native disclosure with a 44px target: click, tap, or focus it and
+press Enter/Space to reveal the exact timestamp in local time. The disclosure
+also works without JavaScript, using UTC.
+
+The root homepage also saves a browser-local reading checkpoint under
+`hacksnap:home-feed-checkpoint`. Reloading or reopening `/` within 30 minutes
+restores the loaded selection and the visible story's offset in the viewport.
+Older checkpoints with a valid selection offer **Continue where you left off**
+and **Keep latest stories**. Scrolling, modified title clicks, category links and
+HN comment links preserve the offer. Choosing latest, opening a fresh story with
+an unmodified primary title activation, or manually loading more commits the new
+reading session.
+The **Back to latest** link explicitly requests a fresh selection; its temporary
+query flag is removed after initialization. Browser Back/Forward and explicit
+story returns take precedence over the durable checkpoint.
+
+Checkpoints store the loaded public story cards, pagination, a story ID and its
+signed viewport offset, and a save timestamp. Position writes are debounced by
+400ms and flushed when opening a feed story or when the page is hidden or left.
+Storage is limited to one record, at most 400 stories and a conservative 2 MiB serialized UTF-16 size;
+records older than seven days are ignored. This retention does not extend the
+selection's eight-hour cursor lifetime. An expired saved selection shows fresh
+stories with an explanation; a continuation invalidated by the server keeps its
+loaded cards and offers a fresh selection. Missing anchors fall back to the saved
+scroll coordinate. Initial layout/font changes can correct the anchor for up to
+two seconds after the first positioning frame, or until the reader interacts.
+Background tabs retain their target while animation frames are suspended; the
+settling deadline cannot overwrite an unpositioned checkpoint.
+
+Durable resume applies only to `/`; explicit paginated URLs keep their existing
+history-based behavior. Progress is local to this browser, with no login or
+cross-device synchronization. Unavailable storage, malformed records, and quota
+failures leave ordinary browsing functional. Seen/opened history is a separate
+planned feature and is not inferred from the reading checkpoint.
 
 Analytics events `home_story_open` record actual activations of stories after the
 first ten (`story_id`, 1-based `position`, `placement=home_feed`). Rendering or
