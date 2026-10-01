@@ -736,6 +736,14 @@ footer > span {
   padding: var(--space-3);
   z-index: 10;
 }
+/* Keep the native skip link usable before hydration and without JavaScript. */
+.skip-browse,
+body:has(#browse-content) .skip-main {
+  display: none;
+}
+body:has(#browse-content) .skip-browse {
+  display: block;
+}
 .skip-link:focus {
   top: 12px;
   transform: translateY(0);
@@ -1361,7 +1369,7 @@ footer > span {
 }
 .browse-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 14rem;
+  grid-template-columns: 14rem minmax(0, 1fr);
   align-items: start;
   gap: clamp(var(--space-8), 4vw, var(--space-12));
 }
@@ -1392,7 +1400,7 @@ footer > span {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 2.25rem;
+  min-height: var(--touch-target);
   margin: 0;
   padding: 6px 10px;
   border-radius: 5px;
@@ -2056,10 +2064,11 @@ footer > span {
 .home-intro h1 {
   margin-top: 9px;
 }
-.topic-sidebar li a {
-  justify-content: space-between;
+.topic-sidebar .topic-label {
+  flex: 1;
+  min-width: 0;
 }
-.topic-sidebar li a:not([aria-current]) > .inline-icon {
+.topic-sidebar li a:not([aria-current]) > .topic-chevron {
   visibility: hidden;
 }
 .story-header h1 {

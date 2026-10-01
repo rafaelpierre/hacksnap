@@ -24,6 +24,10 @@ preference changes and reset to System when the preference is cleared.
 
 ## Shared design foundations
 
+Home, archive and category feeds show topic navigation on the left at desktop
+widths, with decorative Lucide icons beside each label. Below the existing 50rem
+breakpoint, the sidebar is hidden and topics remain available through the header.
+
 `app/globals.css` owns the semantic theme colors, relative type scale, spacing,
 page/reading widths, responsive gutters and 44px (2.75rem) control target. Use
 `--ink` for headlines, `--prose` for reading, `--muted` for metadata, `--accent`
