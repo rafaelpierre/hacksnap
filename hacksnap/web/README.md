@@ -83,7 +83,8 @@ While a Top feed is open, it keeps the full bounded selection's story IDs fixed
 for update checks. A visible tab checks at most once a minute for IDs that entered
 the current ready selection. A new ID shows a small **New stories available**
 banner; cards and scroll position stay put. The banner's button explicitly loads
-a fresh selection, returns to the top and focuses its first story. The check does
+a fresh selection, returns to the top and focuses its first story; enlarged text
+may scroll farther to keep that focus visible. The check does
 not count stories or retain a previous-visit baseline. Loading later pages of the
 original selection never raises the banner. A ranked story crossing the 400-story
 selection boundary may raise it even if that story was previously published;

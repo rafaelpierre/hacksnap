@@ -1,0 +1,82 @@
+[
+  {
+    "width": 320,
+    "theme": "light",
+    "textSize": 100,
+    "checks": 3,
+    "bannerTargetHeight": 44,
+    "scrollBefore": 280,
+    "scrollAfter": 0,
+    "pageErrors": []
+  },
+  {
+    "width": 320,
+    "theme": "light",
+    "textSize": 200,
+    "checks": 3,
+    "bannerTargetHeight": 88,
+    "scrollBefore": 280,
+    "scrollAfter": 643,
+    "pageErrors": []
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "textSize": 100,
+    "checks": 3,
+    "bannerTargetHeight": 44,
+    "scrollBefore": 280,
+    "scrollAfter": 0,
+    "pageErrors": []
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "textSize": 200,
+    "checks": 3,
+    "bannerTargetHeight": 88,
+    "scrollBefore": 280,
+    "scrollAfter": 643,
+    "pageErrors": []
+  },
+  {
+    "width": 1280,
+    "theme": "light",
+    "textSize": 100,
+    "checks": 3,
+    "bannerTargetHeight": 44,
+    "scrollBefore": 280,
+    "scrollAfter": 0,
+    "pageErrors": []
+  },
+  {
+    "width": 1280,
+    "theme": "light",
+    "textSize": 200,
+    "checks": 3,
+    "bannerTargetHeight": 88,
+    "scrollBefore": 280,
+    "scrollAfter": 0,
+    "pageErrors": []
+  },
+  {
+    "width": 1280,
+    "theme": "dark",
+    "textSize": 100,
+    "checks": 3,
+    "bannerTargetHeight": 44,
+    "scrollBefore": 280,
+    "scrollAfter": 0,
+    "pageErrors": []
+  },
+  {
+    "width": 1280,
+    "theme": "dark",
+    "textSize": 200,
+    "checks": 3,
+    "bannerTargetHeight": 88,
+    "scrollBefore": 280,
+    "scrollAfter": 0,
+    "pageErrors": []
+  }
+]

@@ -129,7 +129,11 @@ async function withFeed(
     act(async () => {
       root.render(
         <AppRouterContext.Provider value={router as never}>
-          <StoryFeed initialStories={[story(90)]} initialPagination={pagination(1)} />
+          <StoryFeed
+            initialStories={[story(90)]}
+            initialPagination={pagination(1)}
+            initialSelectionIds={["1", "11", "90"]}
+          />
         </AppRouterContext.Provider>,
       );
     });
@@ -189,6 +193,11 @@ test("a recent root checkpoint restores cards by story and viewport offset acros
     );
     assert.equal(scrolls.at(-1), 1224);
     assert.equal(document.querySelector(".home-feed-resume"), null);
+    assert.equal(
+      document.querySelector(".feed-freshness-banner"),
+      null,
+      "a known but unloaded selection member moving into page one is not a new story",
+    );
     storyTop(1500);
     await act(async () => dom.window.dispatchEvent(new dom.window.Event("resize")));
     assert.equal(scrolls.at(-1), 1524, "reflow preserves the anchored row's viewport offset");

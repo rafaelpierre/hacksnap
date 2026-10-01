@@ -132,6 +132,7 @@ test("ready-story pagination exposes card fields and explicit continuation failu
         ],
         ingestion: null,
         observed_at: "2026-09-29T12:00:00.000Z",
+        selectionIds: ["123", "124"],
         pagination: {
           cursor: "next",
           previousCursor: null,
@@ -161,7 +162,14 @@ test("ready-story pagination exposes card fields and explicit continuation failu
     "the compact history preserves the ranked-card movement badge",
   );
   assert.equal(body.pagination.cursor, "next");
+  expect(body.selectionIds).toEqual(["123", "124"]);
   assert.deepEqual(inputs, [{ cursor: undefined, pageSize: 10 }]);
+
+  const fresh = await api(new Request("https://hacksnap.live/api/ready-stories?fresh=1"));
+  assert.equal(fresh.status, 200);
+  assert.equal(fresh.headers.get("cache-control"), "no-store");
+  expect((await fresh.json()).selectionIds).toEqual(["123", "124"]);
+  assert.deepEqual(inputs.at(-1), { cursor: undefined, pageSize: undefined, fresh: true });
 
   const expired = await api(new Request("https://hacksnap.live/api/ready-stories?cursor=expired"));
   assert.equal(expired.status, 410);
@@ -173,7 +181,12 @@ test("ready-story pagination exposes card fields and explicit continuation failu
     new Request("https://hacksnap.live/api/ready-stories?cursor=one&cursor=two"),
   );
   assert.equal(invalid.status, 400);
-  assert.equal(inputs.length, 2, "invalid query inputs do not call data access");
+  for (const query of ["fresh=1&cursor=one", "fresh=1&fresh=1", "fresh=0", "fresh=true"]) {
+    const rejected = await api(new Request(`https://hacksnap.live/api/ready-stories?${query}`));
+    assert.equal(rejected.status, 400);
+    assert.equal(rejected.headers.get("cache-control"), "no-store");
+  }
+  assert.equal(inputs.length, 3, "invalid query inputs do not call data access");
 });
 
 const analysisFixtures = JSON.parse(

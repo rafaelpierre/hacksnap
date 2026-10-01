@@ -155,21 +155,32 @@ export function StoryFeed({
     let checking = false;
     let lastCheck = 0;
     let active = true;
-    let controller: AbortController | null = null;
+    let cancelPending: (() => void) | null = null;
     const check = async () => {
       if (document.visibilityState !== "visible" || checking) return;
       if (Date.now() - lastCheck < FRESHNESS_CHECK_MS) return;
       lastCheck = Date.now();
       checking = true;
       const generation = freshSelectionGeneration.current;
-      controller = new AbortController();
+      const request = new AbortController();
+      let timeout: number | null = null;
       try {
-        const response = await fetch("/api/story-freshness", {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-        if (!response.ok) return;
-        const result: unknown = await response.json();
+        const result: unknown = await Promise.race([
+          (async () => {
+            const response = await fetch("/api/story-freshness", {
+              signal: request.signal,
+              cache: "no-store",
+            });
+            return response.ok ? response.json() : null;
+          })(),
+          new Promise<null>((resolve) => {
+            cancelPending = () => {
+              request.abort();
+              resolve(null);
+            };
+            timeout = window.setTimeout(cancelPending, 15_000);
+          }),
+        ]);
         if (
           !active ||
           generation !== freshSelectionGeneration.current ||
@@ -183,17 +194,24 @@ export function StoryFeed({
       } catch {
         // Keep the current selection and retry after the bounded interval.
       } finally {
+        if (timeout !== null) window.clearTimeout(timeout);
+        cancelPending = null;
         checking = false;
-        controller = null;
+        if (active && lastCheck === 0 && document.visibilityState === "visible") void check();
       }
     };
     void check();
     const timer = window.setInterval(() => void check(), FRESHNESS_CHECK_MS);
-    const onVisibility = () => void check();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        cancelPending?.();
+        lastCheck = 0;
+      } else void check();
+    };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       active = false;
-      controller?.abort();
+      cancelPending?.();
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
@@ -241,13 +259,6 @@ export function StoryFeed({
   useEffect(() => {
     const applySnapshot = (snapshot: FeedSnapshot, anchor: HomeFeedCheckpoint["anchor"]) => {
       setRestoredFromSnapshot(true);
-      if (
-        ranked &&
-        initialStories.some(
-          (story) => !snapshot.stories.some((saved) => saved.hn_id === story.hn_id),
-        )
-      )
-        setNewStoriesAvailable(true);
       scrollTarget.current = {
         y: snapshot.scrollY,
         storyId: anchor?.storyId ?? null,
@@ -450,6 +461,7 @@ export function StoryFeed({
       const current = feedRef.current;
       if (
         activeRequest.current ||
+        refreshRequest.current ||
         !positionSettled.current ||
         current.phase === "expired" ||
         !current.pagination.hasMore ||
@@ -519,12 +531,12 @@ export function StoryFeed({
   );
 
   async function refreshSelection() {
-    if (refreshing || !ranked) return;
+    if (refreshing || refreshRequest.current || !ranked) return;
+    const previousPhase = feedRef.current.phase;
     freshSelectionGeneration.current++;
     activeRequest.current?.abort();
     activeRequest.current = null;
     requestId.current++;
-    refreshRequest.current?.abort();
     const controller = new AbortController();
     refreshRequest.current = controller;
     setRefreshing(true);
@@ -565,7 +577,13 @@ export function StoryFeed({
       setPinnedStoryId(page.stories[0]?.hn_id ?? null);
       setFreshFocusId(page.stories[0]?.hn_id ?? null);
     } catch {
-      if (!controller.signal.aborted) setRefreshFailed(true);
+      if (!controller.signal.aborted) {
+        setFeed((state) => ({
+          ...state,
+          phase: previousPhase === "expired" || previousPhase === "failed" ? previousPhase : "idle",
+        }));
+        setRefreshFailed(true);
+      }
     } finally {
       if (refreshRequest.current === controller) refreshRequest.current = null;
       if (!controller.signal.aborted) setRefreshing(false);
@@ -580,7 +598,8 @@ export function StoryFeed({
       : document.querySelector<HTMLElement>(".home-intro h1");
     if (target) {
       if (!freshFocusId) target.tabIndex = -1;
-      target.focus({ preventScroll: true });
+      // A large text setting can put the first card below the fold; keep focus visible.
+      target.focus();
     }
     setFreshFocusId(undefined);
     setPinnedStoryId(null);
@@ -605,6 +624,7 @@ export function StoryFeed({
     if (
       !restored ||
       positionPending ||
+      refreshing ||
       !feed.pagination.hasMore ||
       feed.phase !== "idle" ||
       continuationFocused ||
@@ -630,23 +650,24 @@ export function StoryFeed({
     feed.phase,
     load,
     positionPending,
+    refreshing,
     restored,
   ]);
 
   return (
     <>
       {ranked && (newStoriesAvailable || refreshFailed) && (
-        <div className="feed-freshness-banner" role="status" aria-live="polite">
-          <span>
-            {refreshFailed ? "Couldn’t refresh stories. Try again." : "New stories available"}
+        <div className="feed-freshness-banner">
+          <span className="sr-only" role="status" aria-live="polite">
+            {refreshFailed ? "Couldn’t refresh stories. Try again." : "New stories available."}
           </span>
           <button
-            className="button"
             type="button"
             disabled={refreshing}
+            aria-label={refreshFailed ? "Retry loading new stories" : undefined}
             onClick={() => void refreshSelection()}
           >
-            {refreshing ? "Refreshing…" : "Show new stories"}
+            {refreshing ? "Refreshing…" : refreshFailed ? "Try again" : "Show new stories"}
           </button>
         </div>
       )}

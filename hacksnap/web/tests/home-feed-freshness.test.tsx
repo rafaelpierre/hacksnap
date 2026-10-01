@@ -38,11 +38,11 @@ function story(id: number) {
   };
 }
 
-function pagination(expiresAt = new Date(Date.now() + 60_000).toISOString()) {
+function pagination(expiresAt = new Date(Date.now() + 60_000).toISOString(), hasMore = false) {
   return {
-    cursor: null,
+    cursor: hasMore ? "old_cursor" : null,
     previousCursor: null,
-    hasMore: false,
+    hasMore,
     page: 1,
     expiresAt,
     selectionLimited: false,
@@ -54,6 +54,10 @@ test("polling keeps rows and scroll stable until explicit refresh focuses the fi
     url: "https://hacksnap.live/",
     pretendToBeVisual: true,
   });
+  let onIntersection: IntersectionObserverCallback = () => {
+    throw new Error("Feed intersection observer was not attached");
+  };
+  let observerAttached = false;
   const globals = {
     self: dom.window,
     window: dom.window,
@@ -65,6 +69,16 @@ test("polling keeps rows and scroll stable until explicit refresh focuses the fi
       return 1;
     },
     cancelAnimationFrame: () => {},
+    IntersectionObserver: class {
+      constructor(private callback: IntersectionObserverCallback) {}
+      observe() {
+        observerAttached = true;
+        onIntersection = this.callback;
+      }
+      disconnect() {
+        if (onIntersection === this.callback) observerAttached = false;
+      }
+    },
   };
   const previous = Object.keys(globals).map((key) =>
     Object.getOwnPropertyDescriptor(globalThis, key),
@@ -82,22 +96,42 @@ test("polling keeps rows and scroll stable until explicit refresh focuses the fi
   }) as typeof dom.window.scrollTo;
   const checks = [
     ["1", "2", "3"],
+    ["3", "1", "2"],
     ["1", "2", "3", "4"],
     ["4", "1", "2", "3"],
   ];
+  let oldCalls = 0;
+  let resolveOld: (response: Response) => void = () => {
+    throw new Error("Old page request was not started");
+  };
+  let resolveFresh: (response: Response) => void = () => {
+    throw new Error("Fresh page request was not started");
+  };
+  let freshRequested = false;
   globalThis.fetch = (async (url) => {
     if (String(url) === "/api/story-freshness")
       return { ok: true, json: async () => ({ ids: checks.shift() ?? [] }) } as Response;
+    if (String(url) === "/api/ready-stories?cursor=old_cursor") {
+      oldCalls++;
+      return new Promise<Response>((resolve) => {
+        resolveOld = resolve;
+      });
+    }
     assert.equal(String(url), "/api/ready-stories?fresh=1");
-    return {
+    return new Promise<Response>((resolve) => {
+      freshRequested = true;
+      resolveFresh = resolve;
+    });
+  }) as typeof fetch;
+  const freshResponse = () =>
+    ({
       ok: true,
       json: async () => ({
         stories: [story(4), story(1), story(2)],
         pagination: pagination(),
         selectionIds: ["4", "1", "2", "3"],
       }),
-    } as Response;
-  }) as typeof fetch;
+    }) as Response;
   const { createRoot } = await import("react-dom/client");
   const root = createRoot(document.getElementById("root")!);
   const router = { push: () => {}, prefetch: async () => {} };
@@ -111,7 +145,7 @@ test("polling keeps rows and scroll stable until explicit refresh focuses the fi
         <AppRouterContext.Provider value={router as never}>
           <StoryFeed
             initialStories={[story(1), story(2)]}
-            initialPagination={pagination(new Date(now - 1000).toISOString())}
+            initialPagination={pagination(new Date(now - 1000).toISOString(), true)}
             initialSelectionIds={["1", "2", "3"]}
           />
         </AppRouterContext.Provider>,
@@ -121,15 +155,41 @@ test("polling keeps rows and scroll stable until explicit refresh focuses the fi
     assert.deepEqual(ids(), ["1", "2"]);
     now += 60_001;
     await act(async () => document.dispatchEvent(new dom.window.Event("visibilitychange")));
+    assert.equal(
+      document.querySelector(".feed-freshness-banner"),
+      null,
+      "rank changes within the frozen selection do not announce new stories",
+    );
+    now += 60_001;
+    await act(async () => document.dispatchEvent(new dom.window.Event("visibilitychange")));
     assert.match(
       document.querySelector(".feed-freshness-banner")!.textContent!,
       /New stories available/,
     );
     assert.deepEqual(ids(), ["1", "2"]);
     assert.deepEqual(scrolls, []);
+    assert.ok(observerAttached);
+    const staleIntersection = onIntersection;
+    await act(async () =>
+      staleIntersection(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      ),
+    );
+    assert.equal(oldCalls, 1);
     await act(async () =>
       document.querySelector<HTMLButtonElement>(".feed-freshness-banner button")!.click(),
     );
+    assert.ok(freshRequested);
+    await act(async () =>
+      staleIntersection(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      ),
+    );
+    assert.equal(oldCalls, 1, "an old cursor must not restart during refresh");
+    await act(async () => resolveFresh(freshResponse()));
+    await act(async () => resolveOld({ ok: true, json: async () => ({}) } as Response));
     assert.equal(document.querySelector(".feed-freshness-banner"), null);
     assert.deepEqual(ids(), ["4", "1", "2"]);
     assert.deepEqual(scrolls, [0]);

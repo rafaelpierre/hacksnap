@@ -846,6 +846,9 @@ test("ready API cursors retain page size through forward and backward traversal"
         pages.push(await ok({ cursor: pages.at(-1).pagination.cursor }));
       }
       assert.equal(pages.length, Math.ceil(selection.length / size));
+      expect(pages[0].selectionIds).toEqual(selection.map((item) => item.hn_id));
+      assert.ok(!pages[0].stories.some((story) => story.hn_id === "12"));
+      for (const page of pages) expect(page.selectionIds).toEqual(pages[0].selectionIds);
       assert.deepEqual(
         pages.flatMap((page) => page.stories.map((story) => story.hn_id)),
         selection.map((item) => item.hn_id),
