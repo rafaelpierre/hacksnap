@@ -48,18 +48,19 @@ test("all topic filters and archive months use the existing readers and public p
   }
 });
 
-test("browse API coalesces normalized page keys while preserving no-store responses", async () => {
+test("browse API delegates normalized page keys while preserving no-store responses", async () => {
   let calls = 0;
   let finish;
+  const gate = new Promise((resolve) => {
+    finish = resolve;
+  });
   const result = { stories: [pending], hasNext: true };
   const handler = browseStoriesHandler({
     getArchiveStories: async (month, page) => {
       calls++;
       assert.equal(month, null);
       assert.equal(page, 1);
-      await new Promise((resolve) => {
-        finish = resolve;
-      });
+      await gate;
       return result;
     },
     getCategoryStories: async () => ({ stories: [], hasNext: false }),
@@ -67,16 +68,16 @@ test("browse API coalesces normalized page keys while preserving no-store respon
   const omittedPage = handler(request(new URLSearchParams({ path: "/archive" })));
   const explicitPage = handler(request(new URLSearchParams({ path: "/archive", page: "1" })));
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(calls, 1);
+  assert.equal(calls, 2);
   finish();
   const [first, second] = await Promise.all([omittedPage, explicitPage]);
   assert.equal(first.headers.get("Cache-Control"), "no-store");
   assert.equal(second.headers.get("Cache-Control"), "no-store");
   assert.deepEqual(await first.json(), await second.json());
-  assert.equal(calls, 1);
+  assert.equal(calls, 2);
 });
 
-test("browse cache does not retain failed reads", async () => {
+test("browse API retries failed data reads", async () => {
   let calls = 0;
   const handler = browseStoriesHandler({
     getArchiveStories: async () => {

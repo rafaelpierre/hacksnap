@@ -665,25 +665,45 @@ update by up to ten minutes, or discovery of a previously missing ID by two minu
 Story HTML renders per request using story data cached for at most 30 minutes. Markdown stays
 uncacheable at HTTP level and preserves `Vary: Accept` and HEAD behavior.
 
-Archive/category bounds limit offsets, but their count queries and story metric
-cache misses still depend on retained data. Requests across many IDs or instances
-still require edge rate limiting and verified origin restrictions. See the
+Archive/category bounds limit offsets, but cache misses still depend on retained
+data. Requests across many IDs or instances still require edge rate limiting and
+verified origin restrictions. See the
 [issue #75 verification report](../../docs/security/issue-75-public-read-limits.md)
 for deployment evidence and remaining exposure.
 
-`/api/browse-stories` also keeps up to 64 archive/category page results per
-instance for 60 seconds and coalesces up to 8 concurrent misses for the same
-normalized listing path and page. Expired results are never served stale; read
-failures are not cached. The endpoint still returns `Cache-Control: no-store`,
-so this reduces repeated database reads only when requests reach the same warm
-application instance. Cold starts, other instances and requests after expiry read
-the database again. No Cloudflare or production origin request-rate, query-count,
-or pool-wait telemetry was available when this behavior was implemented, so the
-cache bounds express a freshness and load-control policy rather than a measured
-production hit rate or latency improvement. Issue triage measured 244 production
-stories; at that data volume the cache is a precaution for repeated requests, not
-a demonstrated database-capacity fix. Reassess its value with origin and Cloudflare
-telemetry before extending the TTL or adding cache layers.
+Archive, category, recommendation, and count reads share per-instance data caches
+across HTML pages and `/api/browse-stories`. The API delegates to those caches and
+still sends `Cache-Control: no-store`; there is no second API cache window.
+
+| Browse data     | Nonempty TTL | Empty TTL  | Maximum entries |
+| --------------- | ------------ | ---------- | --------------- |
+| Archive months  | 300 seconds  | 30 seconds | 1               |
+| Category counts | 300 seconds  | 30 seconds | 1               |
+| Archive pages   | 60 seconds   | 30 seconds | 128             |
+| Category pages  | 60 seconds   | 30 seconds | 128             |
+| Related stories | 60 seconds   | 30 seconds | 128             |
+
+Each cache shares same-key pending loads. One gate permits at most eight distinct
+pending browse loads **across all five caches**, including work waiting for the
+single database connection. Excess distinct misses become sanitized temporary
+unavailability responses (or the existing optional-content fallback); callers can
+retry immediately. Completed entries evict least-recently-used entries at their
+limits. Expiry is hard: stale entries are never served, and every rejected load is
+removed. Empty results are valid short-lived negative entries; database failures
+are never cached as empty results. Pages and category/month/story keys are validated
+before entering these caches or the pool. The browse-list capability query checks
+discussion, image, and slug column grants in one round trip on each cache miss, so
+new migration grants become visible after the page entry expires. The legacy
+discussion-rendering switch and null-image/null-slug projections still apply.
+
+Cold starts and separate instances each have their own cache and pending gate.
+These limits bound one instance's read work and entry count; they are not a
+distributed request-rate limit or a byte limit on cached text. No production
+origin query-count or pool-wait telemetry was available for this change, so the
+TTL and caps are a freshness/load-control policy rather than a measured production
+speedup. The [fixture measurements](../../docs/evaluations/issue-143/README.md)
+record query and pool-wait effects under repeated browsing. Reassess the policy
+with origin and Cloudflare telemetry before extending its TTL or adding layers.
 
 ## Discussion rendering fallback
 

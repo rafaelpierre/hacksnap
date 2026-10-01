@@ -1,7 +1,8 @@
 import "server-only";
 import { storySlugColumnSQL, storySlugProjection } from "./story-slug-projection";
+import { browseCapabilitiesSQL } from "./browse-capabilities";
 import { DataUnavailableError } from "./data-availability";
-import { boundedCache } from "./bounded-cache";
+import { boundedCache, pendingBudget } from "./bounded-cache";
 import {
   READY_STORY_CURSOR_TTL_MS,
   READY_STORY_PAGE_SIZE,
@@ -35,6 +36,7 @@ import type { ArticleStory, CardStory, ExportStory } from "./story-domain";
 import {
   CATEGORY_PAGE_SIZE,
   categoryCountsSQL,
+  categoryById,
   categoryQuery,
   relatedStoriesQuery,
   type CategoryId,
@@ -166,6 +168,16 @@ async function storySlugField(client: PoolClient): Promise<string> {
   return storySlugProjection(rows[0]?.available === true);
 }
 
+function feedProjection(discussionAvailable: boolean, imagesAvailable: boolean): string {
+  return discussionAvailable
+    ? imagesAvailable
+      ? feedFields
+      : feedFieldsWithoutImages
+    : imagesAvailable
+      ? legacyFeedFields
+      : legacyFeedFieldsWithoutImages;
+}
+
 // Check on each cache miss so applying the migration needs no process restart.
 function readStories<T>(
   kind: "feed" | "story" | "export",
@@ -182,13 +194,7 @@ function readStories<T>(
           ? exportFields
           : exportFieldsWithoutImages
         : kind === "feed"
-          ? discussionAvailable
-            ? imagesAvailable
-              ? feedFields
-              : feedFieldsWithoutImages
-            : imagesAvailable
-              ? legacyFeedFields
-              : legacyFeedFieldsWithoutImages
+          ? feedProjection(discussionAvailable, imagesAvailable)
           : discussionAvailable
             ? imagesAvailable
               ? storyFields
@@ -197,6 +203,36 @@ function readStories<T>(
               ? legacyStoryFields
               : legacyStoryFieldsWithoutImages;
     return query(client, `${fields}, ${await storySlugField(client)}`);
+  });
+}
+
+// Lists need all three capabilities. Resolve them in one catalog query while
+// retaining the same migration and reader-grant fallback as other story reads.
+function readBrowseStories<T>(
+  query: (client: PoolClient, fields: string) => Promise<T>,
+): Promise<T> {
+  return read(async (client) => {
+    const { rows } = await client.query<{
+      discussion_available: boolean;
+      images_available: boolean;
+      slug_available: boolean;
+    }>(browseCapabilitiesSQL);
+    const capabilities = rows[0];
+    if (!capabilities) throw new Error("Story capabilities unavailable");
+    const discussionAvailable =
+      process.env.HACKSNAP_DISCUSSION_RENDERING !== "false" && capabilities.discussion_available;
+    if (!discussionAvailable && process.env.HACKSNAP_DISCUSSION_RENDERING !== "false")
+      console.warn(
+        "Hacksnap discussion analysis unavailable: apply migration 0012 and its reader grants",
+      );
+    if (!capabilities.images_available)
+      console.warn(
+        "Hacksnap stored images unavailable: apply migration 0015 and its reader grants",
+      );
+    return query(
+      client,
+      `${feedProjection(discussionAvailable, capabilities.images_available)}, ${storySlugProjection(capabilities.slug_available)}`,
+    );
   });
 }
 
@@ -719,28 +755,70 @@ export async function getStoryMetrics(id: string): Promise<RankingMetrics | null
   }
 }
 
-export const getArchiveMonths = cache(async (): Promise<{ month: string; count: number }[]> =>
-  read(
-    async (client) => (await client.query<{ month: string; count: number }>(archiveMonthsSQL)).rows,
-  ),
+// All browse loaders share one pending-work gate in front of the single-client
+// pool. Completed entries have separate LRU caps; none serve stale data.
+const browsePending = pendingBudget(8);
+const browseLimits = { maxPending: 8, pendingBudget: browsePending };
+
+function browseResult<T>(result: Promise<T>): Promise<T> {
+  return result.catch(() => {
+    throw new DataUnavailableError();
+  });
+}
+
+function assertCategory(category: CategoryId): void {
+  if (!categoryById(category)) throw new RangeError("Invalid category");
+}
+
+const cachedArchiveMonths = boundedCache(
+  async (): Promise<{ month: string; count: number }[]> =>
+    read(
+      async (client) =>
+        (await client.query<{ month: string; count: number }>(archiveMonthsSQL)).rows,
+    ),
+  { ttl: (months) => (months.length ? 300_000 : 30_000), maxEntries: 1, ...browseLimits },
 );
 
-export const getCategoryCounts = cache(async (): Promise<CategoryCounts> =>
-  read(async (client) => {
-    const { rows } = await client.query<{ category: CategoryId; count: number }>(categoryCountsSQL);
-    return Object.fromEntries(rows.map((row) => [row.category, row.count]));
-  }),
+export const getArchiveMonths = cache(async () => browseResult(cachedArchiveMonths("all")));
+
+const cachedCategoryCounts = boundedCache(
+  async (): Promise<CategoryCounts> =>
+    read(async (client) => {
+      const { rows } = await client.query<{ category: CategoryId; count: number }>(
+        categoryCountsSQL,
+      );
+      return Object.fromEntries(rows.map((row) => [row.category, row.count]));
+    }),
+  {
+    ttl: (counts) => (Object.keys(counts).length ? 300_000 : 30_000),
+    maxEntries: 1,
+    ...browseLimits,
+  },
+);
+
+export const getCategoryCounts = cache(async () => browseResult(cachedCategoryCounts("all")));
+
+const cachedCategoryStories = boundedCache(
+  async (key: string) => {
+    const [categoryId, pageText] = key.split(":");
+    const category = categoryById(categoryId);
+    if (!category) throw new RangeError("Invalid category");
+    const page = Number(pageText);
+    return readBrowseStories(async (client, fields) => {
+      const { rows } = await client.query<CardStory>(categoryQuery(fields, category.id, page));
+      return {
+        stories: rows.slice(0, CATEGORY_PAGE_SIZE),
+        hasNext: page < MAX_BROWSE_PAGE && rows.length > CATEGORY_PAGE_SIZE,
+      };
+    });
+  },
+  { ttl: (result) => (result.stories.length ? 60_000 : 30_000), maxEntries: 128, ...browseLimits },
 );
 
 export const getCategoryStories = cache(async (category: CategoryId, page: number) => {
+  assertCategory(category);
   assertBrowsePage(page);
-  return readStories("feed", async (client, fields) => {
-    const { rows } = await client.query<CardStory>(categoryQuery(fields, category, page));
-    return {
-      stories: rows.slice(0, CATEGORY_PAGE_SIZE),
-      hasNext: page < MAX_BROWSE_PAGE && rows.length > CATEGORY_PAGE_SIZE,
-    };
-  });
+  return browseResult(cachedCategoryStories(`${category}:${page}`));
 });
 
 export type RelatedStory = Pick<
@@ -750,25 +828,48 @@ export type RelatedStory = Pick<
   takeaway: string;
 };
 
-export const getRelatedStories = cache(
-  async (category: CategoryId, currentStoryId: string): Promise<RelatedStory[]> =>
-    read(
+const cachedRelatedStories = boundedCache(
+  async (key: string): Promise<RelatedStory[]> => {
+    const [categoryId, currentStoryId] = key.split(":");
+    const category = categoryById(categoryId);
+    if (!category) throw new RangeError("Invalid category");
+    return read(
       async (client) =>
         (
           await client.query<RelatedStory>(
-            relatedStoriesQuery(category, currentStoryId, await storySlugField(client)),
+            relatedStoriesQuery(category.id, currentStoryId, await storySlugField(client)),
           )
         ).rows,
-    ),
+    );
+  },
+  { ttl: (stories) => (stories.length ? 60_000 : 30_000), maxEntries: 128, ...browseLimits },
+);
+
+export const getRelatedStories = cache(async (category: CategoryId, currentStoryId: string) => {
+  assertCategory(category);
+  if (!validStoryId(currentStoryId)) throw new RangeError("Invalid story ID");
+  return browseResult(cachedRelatedStories(`${category}:${currentStoryId}`));
+});
+
+const cachedArchiveStories = boundedCache(
+  async (key: string) => {
+    const separator = key.lastIndexOf(":");
+    const month = key.slice(0, separator) || null;
+    const page = Number(key.slice(separator + 1));
+    return readBrowseStories(async (client, fields) => {
+      const result = await client.query<CardStory>(archiveQuery(fields, month, page));
+      return {
+        stories: result.rows.slice(0, ARCHIVE_PAGE_SIZE),
+        hasNext: page < MAX_BROWSE_PAGE && result.rows.length > ARCHIVE_PAGE_SIZE,
+      };
+    });
+  },
+  { ttl: (result) => (result.stories.length ? 60_000 : 30_000), maxEntries: 128, ...browseLimits },
 );
 
 export const getArchiveStories = cache(async (month: string | null, page: number) => {
+  if (month !== null && !/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(month))
+    throw new RangeError("Invalid archive month");
   assertBrowsePage(page);
-  return readStories("feed", async (client, fields) => {
-    const result = await client.query<CardStory>(archiveQuery(fields, month, page));
-    return {
-      stories: result.rows.slice(0, ARCHIVE_PAGE_SIZE),
-      hasNext: page < MAX_BROWSE_PAGE && result.rows.length > ARCHIVE_PAGE_SIZE,
-    };
-  });
+  return browseResult(cachedArchiveStories(`${month ?? ""}:${page}`));
 });
