@@ -28,12 +28,7 @@ import {
 } from "../lib/home-feed-checkpoint";
 import { consumeFeedReturn, saveFeedHistory } from "./story-navigation";
 import { WindowedStoryList } from "./windowed-story-list";
-import {
-  emptyStoryHistory,
-  markStorySeen,
-  readStoryHistory,
-  subscribeStoryHistory,
-} from "../lib/story-history";
+import { emptyStoryHistory, readStoryHistory, subscribeStoryHistory } from "../lib/story-history";
 
 type FeedState = {
   stories: PublicFeedStory[];
@@ -111,15 +106,10 @@ export function StoryFeed({
   const [automaticLoadingAvailable, setAutomaticLoadingAvailable] = useState(true);
   const activeTrigger = useRef<"auto" | "manual" | null>(null);
   feedRef.current = feed;
-  const seenIds = useMemo(
-    () => new Set(Object.keys(history.entries).filter((id) => !!history.entries[id]?.seenAt)),
-    [history],
-  );
   const openedIds = useMemo(
     () => new Set(Object.keys(history.entries).filter((id) => !!history.entries[id]?.openedAt)),
     [history],
   );
-  const recordSeen = useCallback((id: string) => markStorySeen(id), []);
 
   useEffect(() => {
     setHistory(readStoryHistory());
@@ -501,9 +491,7 @@ export function StoryFeed({
         <WindowedStoryList
           stories={feed.stories}
           ranked={ranked}
-          seenIds={seenIds}
           openedIds={openedIds}
-          onSeen={recordSeen}
           initialPage={initialPagination.page}
           groupByDay={groupByDay}
           pinnedStoryId={pinnedStoryId}

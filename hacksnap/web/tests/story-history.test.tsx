@@ -1,16 +1,14 @@
 import assert from "node:assert/strict";
-import { test, jest } from "@jest/globals";
+import { test } from "@jest/globals";
 import React, { act } from "react";
 import { createRequire } from "node:module";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import {
   clearStoryHistory,
   markStoryOpened,
-  markStorySeen,
   readStoryHistory,
   STORY_HISTORY_KEY,
 } from "../lib/story-history";
-import { WindowedStoryList } from "../app/windowed-story-list";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
@@ -59,31 +57,43 @@ function story(id: number) {
   };
 }
 
-test("legacy Hide seen data migrates without filtering intent; timestamps stay independent and clearable", () => {
+test("legacy exposure is discarded and an unmounted tab preserves another tab's opening", () => {
   const dom = new JSDOM("", { url: "https://hacksnap.live/" });
   const restore = globals(dom);
   try {
+    clearStoryHistory();
     dom.window.localStorage.setItem(
       STORY_HISTORY_KEY,
       JSON.stringify({
         version: 1,
         hideSeen: true,
-        entries: { "404": { seenAt: Date.now() } },
+        entries: {
+          "404": { seenAt: Date.now() },
+          "101": { seenAt: Date.now(), openedAt: Date.now() },
+        },
       }),
     );
-    assert.equal(readStoryHistory().version, 2);
-    assert.equal(!!readStoryHistory().entries["404"]?.seenAt, true);
-    assert.equal("hideSeen" in readStoryHistory(), false);
-    clearStoryHistory();
-    markStorySeen("101", 1_000_000_000_000);
-    markStoryOpened("202");
-    assert.equal(readStoryHistory().entries["101"]?.seenAt, undefined, "old exposures expire");
-    markStorySeen("101");
-    assert.equal(!!readStoryHistory().entries["101"]?.seenAt, true);
-    assert.equal(readStoryHistory().entries["101"]?.openedAt, undefined);
-    assert.equal(!!readStoryHistory().entries["202"]?.openedAt, true);
-    assert.equal(readStoryHistory().entries["202"]?.seenAt, undefined);
-    assert.equal(JSON.parse(dom.window.localStorage.getItem(STORY_HISTORY_KEY)!).version, 2);
+    assert.equal(readStoryHistory().version, 3);
+    assert.equal(readStoryHistory().entries["404"], undefined);
+    assert.equal(!!readStoryHistory().entries["101"]?.openedAt, true);
+    assert.equal("seenAt" in readStoryHistory().entries["101"], false);
+    markStoryOpened("303");
+    // No storage event or mounted feed subscription arrives during this interval.
+    dom.window.localStorage.setItem(
+      STORY_HISTORY_KEY,
+      JSON.stringify({
+        version: 3,
+        entries: {
+          "101": readStoryHistory().entries["101"],
+          "202": { openedAt: Date.now() },
+        },
+      }),
+    );
+    markStoryOpened("505");
+    assert.deepEqual(Object.keys(readStoryHistory().entries).sort(), ["101", "202", "505"]);
+    const saved = JSON.parse(dom.window.localStorage.getItem(STORY_HISTORY_KEY)!);
+    assert.equal(saved.version, 3);
+    assert.deepEqual(Object.keys(saved.entries).sort(), ["101", "202", "505"]);
     clearStoryHistory();
     assert.deepEqual(readStoryHistory().entries, {});
     Object.defineProperty(globalThis, "localStorage", {
@@ -92,81 +102,20 @@ test("legacy Hide seen data migrates without filtering intent; timestamps stay i
         throw Error("blocked");
       },
     });
-    markStoryOpened("303");
-    assert.equal(!!readStoryHistory().entries["303"]?.openedAt, true);
+    markStoryOpened("606");
+    assert.equal(!!readStoryHistory().entries["606"]?.openedAt, true);
   } finally {
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: dom.window.localStorage,
+    });
     clearStoryHistory();
     restore();
     dom.window.close();
   }
 });
 
-test("a card needs 50% continuous exposure for 1.5 seconds in the foreground", async () => {
-  jest.useFakeTimers();
-  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
-  let visibility = "visible";
-  Object.defineProperty(dom.window.document, "visibilityState", {
-    configurable: true,
-    get: () => visibility,
-  });
-  const observed: Array<{ callback: IntersectionObserverCallback; element: Element }> = [];
-  const restore = globals(dom, {
-    IntersectionObserver: class {
-      constructor(private callback: IntersectionObserverCallback) {}
-      observe(element: Element) {
-        observed.push({ callback: this.callback, element });
-      }
-      disconnect() {}
-    },
-  });
-  const { createRoot } = await import("react-dom/client");
-  const root = createRoot(document.getElementById("root")!);
-  const marked: string[] = [];
-  const entry = (ratio: number) =>
-    ({ isIntersecting: ratio > 0, intersectionRatio: ratio }) as IntersectionObserverEntry;
-  try {
-    await act(async () =>
-      root.render(
-        <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
-          <WindowedStoryList
-            stories={[story(111)]}
-            ranked
-            initialPage={1}
-            groupByDay={false}
-            onSeen={(id) => marked.push(id)}
-          />
-        </AppRouterContext.Provider>,
-      ),
-    );
-    const observer = observed.find(
-      ({ element }) => element.getAttribute("data-home-story-id") === "111",
-    )!;
-    await act(async () => observer.callback([entry(0.49)], {} as IntersectionObserver));
-    await act(async () => jest.advanceTimersByTime(2000));
-    assert.deepEqual(marked, []);
-    await act(async () => observer.callback([entry(0.5)], {} as IntersectionObserver));
-    await act(async () => jest.advanceTimersByTime(1000));
-    await act(async () => observer.callback([entry(0)], {} as IntersectionObserver));
-    await act(async () => jest.advanceTimersByTime(1000));
-    assert.deepEqual(marked, [], "a rapid pass is not seen");
-    await act(async () => observer.callback([entry(0.5)], {} as IntersectionObserver));
-    visibility = "hidden";
-    await act(async () => document.dispatchEvent(new dom.window.Event("visibilitychange")));
-    await act(async () => jest.advanceTimersByTime(2000));
-    assert.deepEqual(marked, [], "background time does not count");
-    visibility = "visible";
-    await act(async () => document.dispatchEvent(new dom.window.Event("visibilitychange")));
-    await act(async () => jest.advanceTimersByTime(1500));
-    assert.deepEqual(marked, ["111"]);
-  } finally {
-    await act(async () => root.unmount());
-    restore();
-    dom.window.close();
-    jest.useRealTimers();
-  }
-});
-
-test("previously seen cards remain in the feed with quiet Seen and Opened labels", async () => {
+test("only a successful opening changes a feed title; exposure has no visual marker", async () => {
   const { StoryFeed } = await import("../app/story-feed");
   const { browsePagination } = await import("../lib/browse-feed");
   const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/archive" });
@@ -175,8 +124,16 @@ test("previously seen cards remain in the feed with quiet Seen and Opened labels
   const root = createRoot(document.getElementById("root")!);
   try {
     clearStoryHistory();
-    markStorySeen("101");
-    markStoryOpened("102");
+    dom.window.localStorage.setItem(
+      STORY_HISTORY_KEY,
+      JSON.stringify({
+        version: 2,
+        entries: {
+          "101": { seenAt: Date.now() },
+          "102": { seenAt: Date.now(), openedAt: Date.now() },
+        },
+      }),
+    );
     await act(async () =>
       root.render(
         <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
@@ -188,12 +145,13 @@ test("previously seen cards remain in the feed with quiet Seen and Opened labels
         </AppRouterContext.Provider>,
       ),
     );
-    assert.ok(document.querySelector('[data-home-story-id="101"]'));
-    assert.ok(document.querySelector('[data-home-story-id="102"]'));
-    assert.equal(document.querySelector(".story-history-controls"), null);
-    assert.match(document.querySelector('[data-home-story-id="101"]')!.textContent!, /Seen/);
-    assert.match(document.querySelector('[data-home-story-id="102"]')!.textContent!, /Opened/);
-    assert.doesNotMatch(document.body.textContent!, /Hide seen|Clear viewing history/);
+    assert.equal(document.querySelector('[data-home-story-id="101"] h3')?.className, "");
+    assert.equal(
+      document.querySelector('[data-home-story-id="102"] h3')?.className,
+      "story-title-opened",
+    );
+    assert.doesNotMatch(document.body.textContent!, /Seen|Opened|Hide seen|Clear viewing history/);
+    assert.equal(readStoryHistory().entries["101"], undefined);
   } finally {
     await act(async () => root.unmount());
     clearStoryHistory();

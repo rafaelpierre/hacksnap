@@ -150,33 +150,24 @@ cross-device synchronization. Unavailable storage, malformed records, and quota
 failures leave ordinary browsing functional. The reading checkpoint does not imply
 that a story was seen or opened.
 
-## Browser-local seen and opened history
+## Browser-local opened stories
 
-Feed cards gain **Seen** after at least half of their rendered area stays in the
-viewport for 1.5 uninterrupted seconds while the tab is visible. Leaving the
-threshold, unmounting a virtualized card, or backgrounding the tab resets the
-timer; a rapid scroll past a card does not count. Browsers without
-`IntersectionObserver` simply do not record feed exposure. **Opened** records a
-valid story detail visit independently, including direct URLs and new tabs. These labels
-claim neither reading nor completion. The first valid exposure and first opening
-timestamps are retained separately by HN story ID.
+A story title changes to a slightly muted theme color after a valid story detail
+page mounts, including direct links and new tabs. Unopened titles keep their
+normal color; hover and keyboard focus restore the normal title color. Feed
+exposure and scrolling do not create history or change a card. The feed shows
+no Seen/Opened labels, history controls, or filters.
 
-Seen and Opened appear as quiet text alongside a card's category, without changing
-its position or hiding it. Exposure updates can change a short label while the
-reader stays on a listing; the loaded feed and browser return snapshots remain
-unchanged.
-
-History uses version 2 of the `hacksnap:story-history` local-storage key. It
-retains up to 4,000 IDs and 320 KiB of serialized UTF-16, dropping oldest
-encounters first; timestamps older than 180 days expire. Version 1 records
-are read for their seen/opened timestamps, but their saved Hide seen preference
-is ignored and removed on the next write. Readers can clear this browser-local
-history through browser site-data settings; the feature-owned clear helper
-leaves resume and other keys intact. Blocked or full storage falls back to
-same-tab memory. Changes in another tab update labels through the browser
-`storage` event. Same-tab writes emit `hacksnap:story-history-change`.
-Future visit baselines use their own versioned key and event, leaving these
-first-encounter timestamps independent of resume and visit snapshots.
+The browser-local `hacksnap:story-history` key uses version 3 and retains the
+first opening timestamp for up to 4,000 HN story IDs and 320 KiB of serialized
+UTF-16, dropping oldest records first. Timestamps older than 180 days expire.
+Earlier records retain valid openings, while saved feed-exposure records and
+Hide seen preferences are ignored and dropped on the next write. Readers can
+clear this history through browser site-data settings. Blocked or full storage
+falls back to same-tab memory. Feed instances re-read storage on mount and
+writes so another tab's visits are reflected even after a period without a
+mounted feed; live tabs also receive `storage` events. Same-tab writes emit
+`hacksnap:story-history-change`. Visit baselines use a separate key and event.
 
 Analytics events `home_story_open` record actual activations of stories after the
 first ten (`story_id`, 1-based `position`, `placement=home_feed`). Rendering or

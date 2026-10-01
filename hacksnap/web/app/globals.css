@@ -359,11 +359,6 @@ footer {
 .story-domain a {
   text-decoration: none;
 }
-.story-history-label {
-  color: var(--muted);
-  font: inherit;
-  white-space: nowrap;
-}
 .archive-label {
   border: 1px solid var(--line);
   border-radius: 3px;
@@ -380,6 +375,12 @@ footer {
 }
 .story-row h3 a {
   text-decoration: none;
+}
+.story-row h3.story-title-opened a {
+  color: var(--prose);
+}
+.story-row h3.story-title-opened a:is(:hover, :focus-visible) {
+  color: var(--ink);
 }
 .feed-excerpt {
   font-size: var(--text-base);

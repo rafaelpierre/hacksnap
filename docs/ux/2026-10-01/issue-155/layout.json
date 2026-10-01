@@ -2,13 +2,13 @@
   "browser": "Chrome",
   "fixture": "temporary local StoryFeed and StoryVisit routes; removed before commit",
   "results": [
-    { "theme": "light", "width": 320, "textPercent": 100, "scrollWidth": 320 },
-    { "theme": "light", "width": 320, "textPercent": 200, "scrollWidth": 320 },
-    { "theme": "light", "width": 1280, "textPercent": 100, "scrollWidth": 1280 },
-    { "theme": "light", "width": 1280, "textPercent": 200, "scrollWidth": 1280 },
-    { "theme": "dark", "width": 320, "textPercent": 100, "scrollWidth": 320 },
-    { "theme": "dark", "width": 320, "textPercent": 200, "scrollWidth": 320 },
-    { "theme": "dark", "width": 1280, "textPercent": 100, "scrollWidth": 1280 },
-    { "theme": "dark", "width": 1280, "textPercent": 200, "scrollWidth": 1280 }
+    { "theme": "light", "width": 320, "textPercent": 100, "scrollWidth": 320, "openedTitles": 1, "historyLabels": 0 },
+    { "theme": "light", "width": 320, "textPercent": 200, "scrollWidth": 320, "openedTitles": 1, "historyLabels": 0 },
+    { "theme": "light", "width": 1280, "textPercent": 100, "scrollWidth": 1280, "openedTitles": 1, "historyLabels": 0 },
+    { "theme": "light", "width": 1280, "textPercent": 200, "scrollWidth": 1280, "openedTitles": 1, "historyLabels": 0 },
+    { "theme": "dark", "width": 320, "textPercent": 100, "scrollWidth": 320, "openedTitles": 1, "historyLabels": 0 },
+    { "theme": "dark", "width": 320, "textPercent": 200, "scrollWidth": 320, "openedTitles": 1, "historyLabels": 0 },
+    { "theme": "dark", "width": 1280, "textPercent": 100, "scrollWidth": 1280, "openedTitles": 1, "historyLabels": 0 },
+    { "theme": "dark", "width": 1280, "textPercent": 200, "scrollWidth": 1280, "openedTitles": 1, "historyLabels": 0 }
   ]
 }
