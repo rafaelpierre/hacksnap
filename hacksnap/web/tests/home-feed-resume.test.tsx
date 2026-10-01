@@ -170,60 +170,39 @@ test("a recent root checkpoint restores cards by story and viewport offset acros
   });
 });
 
-test("an older checkpoint stays intact until the reader chooses to resume", async () => {
-  await withFeed(async ({ dom, render, scrolls }) => {
-    const saved = JSON.stringify(checkpoint(Date.now() - 31 * 60_000));
-    dom.window.localStorage.setItem(HOME_FEED_CHECKPOINT_KEY, saved);
-    await render();
-    assert.equal(
-      document.querySelector(".story-list > li")?.getAttribute("data-home-story-id"),
-      "90",
-    );
-    assert.match(
-      document.querySelector(".home-feed-resume")!.textContent!,
-      /previous reading place/,
-    );
-    dom.window.dispatchEvent(new dom.window.Event("pagehide"));
-    assert.equal(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY), saved);
-    assert.equal(scrolls.length, 0);
-    await act(async () => {
-      dom.window.dispatchEvent(new dom.window.Event("wheel"));
-      (document.querySelector(".story-list > li") as HTMLElement).click();
-    });
-    assert.equal(
-      dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY),
-      saved,
-      "scrolling and clicking card text preserve the offered reading place",
-    );
-    const continueButton = [
-      ...document.querySelectorAll<HTMLButtonElement>(".home-feed-resume button"),
-    ].find((button) => button.textContent?.includes("Continue where you left off"))!;
-    continueButton.focus();
-    await act(async () => {
-      continueButton.dispatchEvent(
-        new dom.window.KeyboardEvent("keydown", { key: " ", bubbles: true }),
+for (const expired of [false, true]) {
+  test(`${expired ? "expired" : "older"} checkpoints silently start and save a fresh session`, async () => {
+    await withFeed(async ({ dom, render, scrolls }) => {
+      dom.window.localStorage.setItem(
+        HOME_FEED_CHECKPOINT_KEY,
+        JSON.stringify(checkpoint(Date.now() - 31 * 60_000, expired ? Date.now() - 1 : undefined)),
       );
-      continueButton.dispatchEvent(
-        new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      await render();
+      assert.equal(document.querySelector(".home-feed-resume"), null);
+      assert.doesNotMatch(
+        document.body.textContent!,
+        /previous reading place|saved story selection expired|Continue where you left off|Keep latest stories/,
       );
+      assert.deepEqual(
+        [...document.querySelectorAll(".story-list > li")].map((row) =>
+          row.getAttribute("data-home-story-id"),
+        ),
+        ["90"],
+      );
+      assert.equal(scrolls.length, 0);
+      const fresh = JSON.parse(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY)!);
+      assert.deepEqual(
+        fresh.snapshot.stories.map((row: { hn_id: string }) => row.hn_id),
+        ["90"],
+      );
+      assert.equal(fresh.snapshot.pagination.page, 1);
+      dom.window.scrollTo({ top: 300 });
+      dom.window.dispatchEvent(new dom.window.Event("pagehide"));
+      const saved = JSON.parse(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY)!);
+      assert.equal(saved.snapshot.scrollY, 300);
     });
-    assert.ok(continueButton.isConnected, "Space and Enter leave the focused control available");
-    assert.equal(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY), saved);
-    await act(async () => continueButton.click());
-    assert.deepEqual(
-      [...document.querySelectorAll(".story-list > li")].map((row) =>
-        row.getAttribute("data-home-story-id"),
-      ),
-      ["1", "11"],
-    );
-    assert.equal(scrolls.at(-1), 1224);
-    assert.equal(document.querySelector(".home-feed-resume"), null);
-    assert.equal(
-      document.activeElement?.closest("[data-home-story-id]")?.getAttribute("data-home-story-id"),
-      "11",
-    );
   });
-});
+}
 
 test("restored reading place stays unobtrusive and keeps its checkpoint active", async () => {
   await withFeed(async ({ dom, render }) => {
@@ -247,7 +226,7 @@ test("expired checkpoint uses fresh cards and a one-use fresh URL bypasses saved
       JSON.stringify(checkpoint(Date.now() - 60_000, Date.now() - 1)),
     );
     await render();
-    assert.match(document.querySelector(".home-feed-resume")!.textContent!, /expired/);
+    assert.equal(document.querySelector(".home-feed-resume"), null);
     assert.equal(
       document.querySelector(".story-list > li")?.getAttribute("data-home-story-id"),
       "90",
@@ -346,48 +325,6 @@ test("a suspended first frame preserves the checkpoint and starts settling only 
   }
 });
 
-test("modified title clicks and unrelated card links preserve the older checkpoint", async () => {
-  await withFeed(async ({ dom, render }) => {
-    const saved = JSON.stringify(checkpoint(Date.now() - 31 * 60_000));
-    dom.window.localStorage.setItem(HOME_FEED_CHECKPOINT_KEY, saved);
-    await render();
-    document.addEventListener("click", (event) => event.preventDefault());
-    const title = document.querySelector<HTMLAnchorElement>(".story-list h3 a")!;
-    for (const init of [
-      { ctrlKey: true },
-      { metaKey: true },
-      { shiftKey: true },
-      { altKey: true },
-      { button: 1 },
-    ]) {
-      await act(async () =>
-        title.dispatchEvent(
-          new dom.window.MouseEvent("click", { bubbles: true, cancelable: true, ...init }),
-        ),
-      );
-      assert.equal(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY), saved);
-      assert.match(
-        document.querySelector(".home-feed-resume")!.textContent!,
-        /Continue where you left off/,
-      );
-    }
-    for (const selector of [
-      '.story-list a[href^="/category/"]',
-      '.story-list a[href^="https://news.ycombinator.com/"]',
-    ]) {
-      const link = document.querySelector<HTMLAnchorElement>(selector)!;
-      assert.ok(link, selector);
-      await act(async () => link.click());
-      dom.window.dispatchEvent(new dom.window.Event("pagehide"));
-      assert.equal(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY), saved);
-      assert.match(
-        document.querySelector(".home-feed-resume")!.textContent!,
-        /Continue where you left off/,
-      );
-    }
-  });
-});
-
 test("an unmodified primary title activation commits fresh history before story navigation", async () => {
   await withFeed(async ({ dom, render }) => {
     const saved = JSON.stringify(checkpoint(Date.now() - 31 * 60_000));
@@ -397,7 +334,11 @@ test("an unmodified primary title activation commits fresh history before story 
     const canceled = new dom.window.MouseEvent("click", { bubbles: true, cancelable: true });
     canceled.preventDefault();
     await act(async () => title.dispatchEvent(canceled));
-    assert.equal(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY), saved);
+    const beforeClick = JSON.parse(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY)!);
+    assert.deepEqual(
+      beforeClick.snapshot.stories.map((row: { hn_id: string }) => row.hn_id),
+      ["90"],
+    );
     await act(async () => title.click());
     const fresh = JSON.parse(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY)!);
     assert.deepEqual(
@@ -408,3 +349,65 @@ test("an unmodified primary title activation commits fresh history before story 
     assert.equal(document.querySelector(".home-feed-resume"), null);
   });
 });
+
+for (const expired of [false, true]) {
+  test(`${expired ? "expired" : "older"} checkpoints do not block automatic loading`, async () => {
+    const previousObserver = Object.getOwnPropertyDescriptor(globalThis, "IntersectionObserver");
+    const previousFetch = globalThis.fetch;
+    let intersect: IntersectionObserverCallback | null = null;
+    let requests = 0;
+    Object.defineProperty(globalThis, "IntersectionObserver", {
+      configurable: true,
+      value: class {
+        constructor(private callback: IntersectionObserverCallback) {}
+        observe() {
+          intersect = this.callback;
+        }
+        disconnect() {
+          if (intersect === this.callback) intersect = null;
+        }
+      },
+    });
+    globalThis.fetch = (async (url) => {
+      requests++;
+      assert.equal(String(url), "/api/ready-stories?cursor=cursor2");
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ stories: [story(91)], pagination: pagination(2) }),
+      } as Response;
+    }) as typeof fetch;
+    try {
+      await withFeed(async ({ dom, render }) => {
+        dom.window.localStorage.setItem(
+          HOME_FEED_CHECKPOINT_KEY,
+          JSON.stringify(
+            checkpoint(Date.now() - 31 * 60_000, expired ? Date.now() - 1 : undefined),
+          ),
+        );
+        await render();
+        assert.ok(intersect, "automatic loading observes the fresh feed immediately");
+        await act(async () => {
+          (intersect as IntersectionObserverCallback)(
+            [{ isIntersecting: true } as IntersectionObserverEntry],
+            {} as IntersectionObserver,
+          );
+        });
+        assert.equal(requests, 1);
+        assert.deepEqual(
+          [...document.querySelectorAll(".story-list > li")].map((row) =>
+            row.getAttribute("data-home-story-id"),
+          ),
+          ["90", "91"],
+        );
+        const saved = JSON.parse(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY)!);
+        assert.equal(saved.snapshot.pagination.page, 2);
+      });
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousObserver)
+        Object.defineProperty(globalThis, "IntersectionObserver", previousObserver);
+      else Reflect.deleteProperty(globalThis, "IntersectionObserver");
+    }
+  });
+}

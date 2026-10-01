@@ -1130,20 +1130,7 @@ body:has(#browse-content) .skip-browse {
 .archive-cta {
   margin: var(--space-6) 0 0;
 }
-.home-feed-resume {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-3);
-  margin: var(--space-4) 0;
-  padding: var(--space-4);
-  border: 1px solid var(--control-line);
-  border-radius: var(--radius-control);
-  color: var(--prose);
-  font: var(--text-sm)/1.5 var(--sans);
-}
-.home-feed-resume p {
-  margin: 0;
-}
+
 .home-feed-sentinel {
   height: 1px;
 }
