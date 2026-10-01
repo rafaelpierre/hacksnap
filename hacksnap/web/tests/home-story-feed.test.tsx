@@ -49,122 +49,156 @@ function pagination(page: number, hasMore: boolean) {
   };
 }
 
-test("resume restarts automatic loading, failure preserves cards, and remount restores the list", async () => {
-  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
-  let onIntersection: IntersectionObserverCallback | null = null;
-  let observations = 0;
-  const values = {
-    IntersectionObserver: class {
-      constructor(callback: IntersectionObserverCallback) {
-        onIntersection = callback;
+for (const settlement of ["resolve", "reject"] as const) {
+  test(`continuation cancellation tracks once when fetch ${settlement}s and preserves manual loading and history`, async () => {
+    const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
+    let onIntersection: IntersectionObserverCallback | null = null;
+    let observations = 0;
+    const values = {
+      IntersectionObserver: class {
+        constructor(callback: IntersectionObserverCallback) {
+          onIntersection = callback;
+        }
+        observe() {
+          observations++;
+        }
+        disconnect() {
+          onIntersection = null;
+        }
+      },
+      self: dom.window,
+      window: dom.window,
+      document: dom.window.document,
+      navigator: dom.window.navigator,
+      IS_REACT_ACT_ENVIRONMENT: true,
+      requestAnimationFrame: (callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      },
+      cancelAnimationFrame: () => {},
+    };
+    const previous = Object.keys(values).map((key) =>
+      Object.getOwnPropertyDescriptor(globalThis, key),
+    );
+    Object.entries(values).forEach(([key, value]) =>
+      Object.defineProperty(globalThis, key, { value, configurable: true }),
+    );
+    const originalFetch = globalThis.fetch;
+    const { createRoot } = await import("react-dom/client");
+    const router = { push: () => {}, prefetch: async () => {} };
+    const first = Array.from({ length: 10 }, (_, index) => story(index + 1));
+    const second = [story(11), story(12)];
+    const loadEvents: { outcome: string; trigger: string; position: number }[] = [];
+    dom.window.gtag = (
+      _command: string,
+      event: string,
+      params: { outcome: string; trigger: string; position: number },
+    ) => {
+      if (event === "home_feed_load") {
+        const { outcome, trigger, position } = params;
+        loadEvents.push({ outcome, trigger, position });
       }
-      observe() {
-        observations++;
-      }
-      disconnect() {
-        onIntersection = null;
-      }
-    },
-    self: dom.window,
-    window: dom.window,
-    document: dom.window.document,
-    navigator: dom.window.navigator,
-    IS_REACT_ACT_ENVIRONMENT: true,
-    requestAnimationFrame: (callback: FrameRequestCallback) => {
-      callback(0);
-      return 1;
-    },
-    cancelAnimationFrame: () => {},
-  };
-  const previous = Object.keys(values).map((key) =>
-    Object.getOwnPropertyDescriptor(globalThis, key),
-  );
-  Object.entries(values).forEach(([key, value]) =>
-    Object.defineProperty(globalThis, key, { value, configurable: true }),
-  );
-  const originalFetch = globalThis.fetch;
-  const { createRoot } = await import("react-dom/client");
-  const router = { push: () => {}, prefetch: async () => {} };
-  const first = Array.from({ length: 10 }, (_, index) => story(index + 1));
-  const second = [story(11), story(12)];
-  let calls = 0;
-  globalThis.fetch = (async () => {
-    calls++;
-    if (calls === 1)
-      return {
+    };
+    let calls = 0;
+    let pendingSignal: AbortSignal | undefined;
+    let rejectPending: ((error: Error) => void) | undefined;
+    let resolvePending: ((response: Response) => void) | undefined;
+    const success = () =>
+      ({
         ok: true,
         status: 200,
         json: async () => ({ stories: second, pagination: pagination(2, true) }),
-      } as Response;
-    return { ok: false, status: 503 } as Response;
-  }) as typeof fetch;
-  dom.window.scrollTo = (() => {}) as typeof dom.window.scrollTo;
-  document.addEventListener("click", (event) => event.preventDefault());
-  const render = (root: ReturnType<typeof createRoot>) =>
-    act(async () => {
-      root.render(
-        <AppRouterContext.Provider value={router as never}>
-          <HomeStoryFeed initialStories={first} initialPagination={pagination(1, true)} />
-        </AppRouterContext.Provider>,
+      }) as Response;
+    globalThis.fetch = (async (_url, options) => {
+      calls++;
+      if (calls === 1) {
+        pendingSignal = options?.signal as AbortSignal;
+        return new Promise<Response>((resolve, reject) => {
+          resolvePending = resolve;
+          rejectPending = reject;
+        });
+      }
+      if (calls === 2) return success();
+      return { ok: false, status: 503 } as Response;
+    }) as typeof fetch;
+    dom.window.scrollTo = (() => {}) as typeof dom.window.scrollTo;
+    document.addEventListener("click", (event) => event.preventDefault());
+    const render = (root: ReturnType<typeof createRoot>) =>
+      act(async () => {
+        root.render(
+          <AppRouterContext.Provider value={router as never}>
+            <HomeStoryFeed initialStories={first} initialPagination={pagination(1, true)} />
+          </AppRouterContext.Provider>,
+        );
+      });
+    const root = createRoot(document.getElementById("root")!);
+    try {
+      await render(root);
+      assert.equal(document.querySelectorAll(".story-list > li").length, 10);
+      assert.equal(observations, 1);
+      assert.equal(document.querySelectorAll('a[href="#site-footer"]').length, 0);
+      assert.doesNotMatch(document.body.textContent!, /Pause automatic|Resume automatic/);
+      const nextPage = document.querySelector<HTMLAnchorElement>(".home-feed-pages a")!;
+      await act(async () => nextPage.focus());
+      assert.equal(onIntersection, null);
+      assert.equal(calls, 0);
+      await act(async () => nextPage.blur());
+      assert.equal(observations, 2);
+      assert.ok(onIntersection);
+      await act(async () => {
+        (onIntersection as IntersectionObserverCallback)(
+          [{ isIntersecting: true } as IntersectionObserverEntry],
+          {} as IntersectionObserver,
+        );
+      });
+      assert.match(document.querySelector("[role=status]")!.textContent!, /Loading more/);
+      await act(async () => nextPage.focus());
+      assert.equal(pendingSignal?.aborted, true);
+      assert.deepEqual(loadEvents, [{ outcome: "cancelled", trigger: "auto", position: 10 }]);
+      await act(async () => {
+        if (settlement === "resolve") resolvePending!(success());
+        else rejectPending!(new DOMException("Aborted", "AbortError"));
+      });
+      assert.equal(loadEvents.length, 1);
+      assert.equal(document.querySelectorAll(".story-list > li").length, 10);
+      assert.equal(document.activeElement, nextPage);
+      // Explicit loading still works while the continuation has focus.
+      await act(async () =>
+        (document.querySelector(".home-feed-actions button") as HTMLButtonElement).click(),
       );
-    });
-  const root = createRoot(document.getElementById("root")!);
-  try {
-    await render(root);
-    assert.equal(document.querySelectorAll(".story-list > li").length, 10);
-    assert.equal(observations, 1);
-    assert.equal(document.querySelectorAll('a[href="#site-footer"]').length, 0);
-    await act(async () =>
-      (
-        document.querySelector(".home-feed-actions button:nth-child(2)") as HTMLButtonElement
-      ).click(),
-    );
-    assert.equal(onIntersection, null);
-    assert.equal(calls, 0);
-    await act(async () =>
-      (
-        document.querySelector(".home-feed-actions button:nth-child(2)") as HTMLButtonElement
-      ).click(),
-    );
-    assert.equal(observations, 2);
-    assert.ok(onIntersection);
-    await act(async () => {
-      (onIntersection as IntersectionObserverCallback)(
-        [{ isIntersecting: true } as IntersectionObserverEntry],
-        {} as IntersectionObserver,
+      assert.equal(document.querySelectorAll(".story-list > li").length, 12);
+      assert.match(
+        document.querySelector("[role=status]")!.textContent!,
+        /2 more stories loaded\. 12 total\./,
       );
-    });
-    assert.equal(document.querySelectorAll(".story-list > li").length, 12);
-    assert.match(
-      document.querySelector("[role=status]")!.textContent!,
-      /2 more stories loaded\. 12 total\./,
-    );
-    assert.equal(calls, 1);
-    await act(async () =>
-      (document.querySelector(".home-feed-actions button") as HTMLButtonElement).click(),
-    );
-    assert.equal(document.querySelectorAll(".story-list > li").length, 12);
-    assert.match(document.querySelector("[role=status]")!.textContent!, /try again/i);
-    await act(async () =>
-      (
-        document.querySelector(".home-feed-actions button:nth-child(2)") as HTMLButtonElement
-      ).click(),
-    );
-    assert.match(document.querySelector("[role=status]")!.textContent!, /try again/i);
-    assert.equal(calls, 2);
-    assert.equal(dom.window.history.state.hacksnapHomeFeed.stories.length, 12);
+      assert.equal(calls, 2);
+      await act(async () =>
+        (document.querySelector(".home-feed-actions button") as HTMLButtonElement).click(),
+      );
+      assert.equal(document.querySelectorAll(".story-list > li").length, 12);
+      assert.match(document.querySelector("[role=status]")!.textContent!, /try again/i);
+      await act(async () => nextPage.focus());
+      assert.match(document.querySelector("[role=status]")!.textContent!, /try again/i);
+      assert.equal(calls, 3);
+      assert.deepEqual(loadEvents, [
+        { outcome: "cancelled", trigger: "auto", position: 10 },
+        { outcome: "success", trigger: "manual", position: 12 },
+        { outcome: "failure", trigger: "manual", position: 12 },
+      ]);
+      assert.equal(dom.window.history.state.hacksnapHomeFeed.stories.length, 12);
 
-    await act(async () => root.unmount());
-    const restored = createRoot(document.getElementById("root")!);
-    await render(restored);
-    assert.equal(document.querySelectorAll(".story-list > li").length, 12);
-    await act(async () => restored.unmount());
-  } finally {
-    globalThis.fetch = originalFetch;
-    dom.window.close();
-    Object.keys(values).forEach((key, i) => {
-      if (previous[i]) Object.defineProperty(globalThis, key, previous[i]!);
-      else Reflect.deleteProperty(globalThis, key);
-    });
-  }
-});
+      await act(async () => root.unmount());
+      const restored = createRoot(document.getElementById("root")!);
+      await render(restored);
+      assert.equal(document.querySelectorAll(".story-list > li").length, 12);
+      await act(async () => restored.unmount());
+    } finally {
+      globalThis.fetch = originalFetch;
+      dom.window.close();
+      Object.keys(values).forEach((key, i) => {
+        if (previous[i]) Object.defineProperty(globalThis, key, previous[i]!);
+        else Reflect.deleteProperty(globalThis, key);
+      });
+    }
+  });
+}

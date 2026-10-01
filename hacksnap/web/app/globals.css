@@ -48,6 +48,7 @@
   --reading-width: 43rem;
   --page-gutter: clamp(1rem, 3vw, 2.375rem);
   --touch-target: 2.75rem;
+  --site-header-height: 4.8125rem;
   --radius-control: 0.375rem;
 }
 :root[data-theme="light"] {
@@ -180,7 +181,16 @@ time,
 .rank {
   font-variant-numeric: tabular-nums;
 }
+html {
+  scroll-padding-top: calc(var(--site-header-height) + var(--space-4));
+}
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  max-height: 50svh;
+  overflow-y: auto;
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
 .header-inner,
@@ -728,13 +738,13 @@ footer > span {
   border-color: var(--accent);
 }
 .skip-link {
-  position: absolute;
+  position: fixed;
   top: 0;
   transform: translateY(-120%);
   left: 16px;
   background: var(--surface);
   padding: var(--space-3);
-  z-index: 10;
+  z-index: 50;
 }
 /* Keep the native skip link usable before hydration and without JavaScript. */
 .skip-browse,
@@ -1125,8 +1135,7 @@ body:has(#browse-content) .skip-browse {
   gap: var(--space-3);
   padding: var(--space-6) 0;
 }
-.home-feed-status,
-.home-feed-hint {
+.home-feed-status {
   color: var(--muted);
   font: var(--text-sm)/1.5 var(--sans);
   margin: 0;
@@ -1377,7 +1386,12 @@ body:has(#browse-content) .skip-browse {
   min-width: 0;
 }
 .topic-sidebar {
-  padding-top: 150px;
+  position: sticky;
+  top: calc(var(--site-header-height) + var(--space-6));
+  margin-top: 150px;
+  max-height: calc(100dvh - var(--site-header-height) - var(--space-12));
+  overflow-y: auto;
+  padding: var(--space-2);
   min-width: 0;
 }
 .topic-sidebar h2 {

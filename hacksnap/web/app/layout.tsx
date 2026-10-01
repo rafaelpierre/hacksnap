@@ -4,6 +4,7 @@ import { Rss } from "lucide-react";
 import Script from "next/script";
 import localFont from "next/font/local";
 import { ThemeToggle } from "./theme-toggle";
+import { StickyHeader } from "./sticky-header";
 import { MainNavigation } from "./main-navigation";
 import { themeInitScript } from "../lib/theme";
 import "./globals.css";
@@ -77,7 +78,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <a className="skip-link skip-browse" href="#browse-content">
           Skip to content
         </a>
-        <header className="site-header">
+        <StickyHeader>
           <div className="header-inner">
             <Link className="wordmark" href="/" aria-label="Hacksnap home">
               <span className="logo" aria-hidden="true">
@@ -95,7 +96,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </div>
-        </header>
+        </StickyHeader>
         <main id="main" tabIndex={-1}>
           {children}
         </main>

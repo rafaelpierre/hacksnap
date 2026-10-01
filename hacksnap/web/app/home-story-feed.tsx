@@ -42,7 +42,8 @@ export function HomeStoryFeed({
   const sentinel = useRef<HTMLDivElement>(null);
   const lastAutoY = useRef<number | null>(null);
   const [autoReady, setAutoReady] = useState(true);
-  const [autoPaused, setAutoPaused] = useState(false);
+  const [continuationFocused, setContinuationFocused] = useState(false);
+  const activeTrigger = useRef<"auto" | "manual" | null>(null);
   const url =
     typeof window === "undefined" ? "/" : window.location.pathname + window.location.search;
   feedRef.current = feed;
@@ -140,7 +141,11 @@ export function HomeStoryFeed({
     const controller = new AbortController();
     const id = ++requestId.current;
     activeRequest.current = controller;
+    activeTrigger.current = trigger;
     setFeed((state) => ({ ...state, phase: "loading", announcement: "" }));
+    const onAbort = () =>
+      track("home_feed_load", { outcome: "cancelled", trigger, position: current.stories.length });
+    controller.signal.addEventListener("abort", onAbort, { once: true });
     try {
       const query = new URLSearchParams({ cursor: current.pagination.cursor });
       const response = await fetch(`/api/ready-stories?${query}`, {
@@ -184,6 +189,7 @@ export function HomeStoryFeed({
         track("home_feed_load", { outcome: "failure", trigger, position: current.stories.length });
       }
     } finally {
+      controller.signal.removeEventListener("abort", onAbort);
       if (id === requestId.current) activeRequest.current = null;
     }
   }, []);
@@ -194,7 +200,7 @@ export function HomeStoryFeed({
       !feed.pagination.hasMore ||
       feed.phase !== "idle" ||
       !autoReady ||
-      autoPaused ||
+      continuationFocused ||
       !sentinel.current ||
       typeof IntersectionObserver === "undefined"
     )
@@ -211,7 +217,7 @@ export function HomeStoryFeed({
     );
     observer.observe(sentinel.current);
     return () => observer.disconnect();
-  }, [autoReady, autoPaused, feed.pagination.hasMore, feed.phase, load, restored]);
+  }, [autoReady, continuationFocused, feed.pagination.hasMore, feed.phase, load, restored]);
 
   useEffect(() => {
     if (autoReady || lastAutoY.current === null) return;
@@ -246,7 +252,21 @@ export function HomeStoryFeed({
         </ol>
       )}
       <div ref={sentinel} className="home-feed-sentinel" aria-hidden="true" />
-      <div className="home-feed-continuation">
+      <div
+        className="home-feed-continuation"
+        onFocusCapture={() => {
+          setContinuationFocused(true);
+          if (activeRequest.current && activeTrigger.current === "auto") {
+            activeRequest.current.abort();
+            activeRequest.current = null;
+            requestId.current++;
+            setFeed((state) => ({ ...state, phase: "idle" }));
+          }
+        }}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setContinuationFocused(false);
+        }}
+      >
         <p role="status" aria-live="polite" className="home-feed-status">
           {feed.phase === "loading" && "Loading more stories…"}
           {feed.phase === "failed" && "Couldn’t load more stories. Your place is saved; try again."}
@@ -273,21 +293,7 @@ export function HomeStoryFeed({
             >
               {feed.phase === "failed" ? "Try loading again" : "Load more stories"}
             </button>
-            <button
-              className="button"
-              type="button"
-              aria-pressed={autoPaused}
-              onClick={() => {
-                if (autoPaused) setAutoReady(true);
-                setAutoPaused((value) => !value);
-              }}
-            >
-              {autoPaused ? "Resume automatic loading" : "Pause automatic loading"}
-            </button>
           </div>
-        )}
-        {autoPaused && feed.pagination.hasMore && (
-          <p className="home-feed-hint">Automatic loading paused. Load more when you’re ready.</p>
         )}
         {feed.phase === "expired" && (
           <a className="button" href="/">
