@@ -71,7 +71,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       gtag('config', 'G-059PVYBN82');
     `}</Script>
         <ReaderVisit />
-        <a className="skip-link" href="#main">
+        <a className="skip-link skip-main" href="#main">
+          Skip to content
+        </a>
+        <a className="skip-link skip-browse" href="#browse-content">
           Skip to content
         </a>
         <header className="site-header">
@@ -93,7 +96,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
-        <main id="main">{children}</main>
+        <main id="main" tabIndex={-1}>
+          {children}
+        </main>
         <footer id="site-footer" tabIndex={-1}>
           <Link className="footer-brand" href="/">
             hacksnap
