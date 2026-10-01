@@ -81,8 +81,8 @@ points readers to the archive instead of claiming the site has no more stories.
 
 While a Top feed is open, it keeps the full bounded selection's story IDs fixed
 for update checks. A visible tab checks at most once a minute for IDs that entered
-the current ready selection. A new ID shows a small **New stories available**
-banner; cards and scroll position stay put. The banner's button explicitly loads
+the current ready selection. A new ID shows a small **Show new stories**
+pill; cards and scroll position stay put. The pill explicitly loads
 a fresh selection, returns to the top and focuses its first story; enlarged text
 may scroll farther to keep that focus visible. The check does
 not count stories or retain a previous-visit baseline. Loading later pages of the
