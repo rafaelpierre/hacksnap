@@ -1108,18 +1108,6 @@ footer > span {
 .archive-cta {
   margin: var(--space-6) 0 0;
 }
-.home-feed-top-skip,
-.home-feed-footer-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--touch-target);
-  color: var(--muted);
-  font: var(--text-sm)/1.5 var(--sans);
-  text-underline-offset: 0.2em;
-}
-.home-feed-top-skip {
-  margin-top: var(--space-2);
-}
 .home-feed-sentinel {
   height: 1px;
 }
@@ -1665,28 +1653,6 @@ footer > span {
 .story-row.feed-story:focus-within {
   z-index: 2;
 }
-.story-row.feed-story-lead {
-  background: var(--accent-soft);
-  border-radius: 0 0 8px 8px;
-  border-bottom: 0;
-}
-.feed-story .rank {
-  position: static;
-  transform: none;
-  width: auto;
-  height: auto;
-  padding: 0;
-  font: 600 var(--text-xs)/1.4 var(--sans);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--accent);
-}
-.feed-story-lead h3 {
-  font-size: 1.6875rem;
-  line-height: 1.25;
-  letter-spacing: -0.8px;
-}
 .feed-story .story-content {
   display: flex;
   flex-direction: column;
@@ -1741,7 +1707,31 @@ footer > span {
   justify-content: space-between;
   gap: 8px 18px;
 }
-.feed-story-footer .share-menu {
+.feed-story-footer .story-age {
+  max-width: 100%;
+}
+.story-age > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: fit-content;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  cursor: pointer;
+  list-style: none;
+}
+.story-age > summary::-webkit-details-marker {
+  display: none;
+}
+.story-age[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.story-age-exact {
+  margin: 0;
+  padding-bottom: var(--space-2);
+  overflow-wrap: anywhere;
+}
+.share-menu {
   display: flex;
   align-items: center;
   margin-left: auto;
@@ -2018,9 +2008,6 @@ footer > span {
   .feed-story h3 {
     font-size: 1.1875rem;
   }
-  .feed-story-lead h3 {
-    font-size: 1.4375rem;
-  }
   .feed-story-image {
     grid-row: 3;
     width: 100%;
@@ -2068,10 +2055,6 @@ footer > span {
 }
 .home-intro h1 {
   margin-top: 9px;
-}
-.home-intro + section .feed-bar {
-  padding-top: 0;
-  justify-content: flex-end;
 }
 .topic-sidebar li a {
   justify-content: space-between;

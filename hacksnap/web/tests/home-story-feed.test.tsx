@@ -49,7 +49,7 @@ function pagination(page: number, hasMore: boolean) {
   };
 }
 
-test("footer resume restarts automatic loading, failure preserves cards, and remount restores the list", async () => {
+test("resume restarts automatic loading, failure preserves cards, and remount restores the list", async () => {
   const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
   let onIntersection: IntersectionObserverCallback | null = null;
   let observations = 0;
@@ -113,8 +113,11 @@ test("footer resume restarts automatic loading, failure preserves cards, and rem
     await render(root);
     assert.equal(document.querySelectorAll(".story-list > li").length, 10);
     assert.equal(observations, 1);
+    assert.equal(document.querySelectorAll('a[href="#site-footer"]').length, 0);
     await act(async () =>
-      (document.querySelector(".home-feed-top-skip") as HTMLAnchorElement).click(),
+      (
+        document.querySelector(".home-feed-actions button:nth-child(2)") as HTMLButtonElement
+      ).click(),
     );
     assert.equal(onIntersection, null);
     assert.equal(calls, 0);
@@ -143,7 +146,9 @@ test("footer resume restarts automatic loading, failure preserves cards, and rem
     assert.equal(document.querySelectorAll(".story-list > li").length, 12);
     assert.match(document.querySelector("[role=status]")!.textContent!, /try again/i);
     await act(async () =>
-      (document.querySelector(".home-feed-top-skip") as HTMLAnchorElement).click(),
+      (
+        document.querySelector(".home-feed-actions button:nth-child(2)") as HTMLButtonElement
+      ).click(),
     );
     assert.match(document.querySelector("[role=status]")!.textContent!, /try again/i);
     assert.equal(calls, 2);

@@ -64,7 +64,9 @@ saved slugs; rolling back the migration discards them and should be avoided once
 ## Homepage continuation and return navigation
 
 The homepage server-renders ten ready stories from the existing ranking. Near the
-bottom, it loads the next ten into the same list. A visible Load more button works
+bottom, it loads the next ten into the same list. Cards use uniform styling with
+no position numbers or special first-place highlight; ranking still controls
+the story order. A visible Load more button works
 when automatic loading is unavailable, and ordinary Next page/Newer stories links
 work without JavaScript. A direct `/?page=N` request uses the current selection;
 page links carry a frozen cursor so successive pages retain their ranking and order.
@@ -79,8 +81,12 @@ restoring position. The contextual return link carries the same snapshot through
 history and, when available, tab-scoped session storage. Blocked session storage
 does not prevent browsing or same-tab returns. Story URLs stay canonical, and
 modified clicks use their normal browser behavior. Reloading `/` starts a fresh
-selection. Pause automatic loading or use Skip to footer at the top of the list to
-reach footer navigation without chasing a growing list.
+selection. Pause automatic loading to reach footer navigation without chasing a
+growing list. Story cards show time since first added in compact days and hours
+(e.g. `1d 2h`, `5h`, or `<1h`), refreshed every minute. Before hydration, the
+UTC date is shown. Each age is a native disclosure with a 44px target: click, tap,
+or focus it and press Enter/Space to reveal the exact timestamp in local time.
+The disclosure also works without JavaScript, using UTC.
 
 Analytics events `home_story_open` record actual activations of stories after the
 first ten (`story_id`, 1-based `position`, `placement=home_feed`). Rendering or
