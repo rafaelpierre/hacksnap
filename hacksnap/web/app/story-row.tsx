@@ -1,6 +1,6 @@
 import { ChevronsDown, ChevronsUp, MessageCircle, Minus, Star } from "lucide-react";
 import type { Story } from "../lib/data";
-import type { PublicReadyStory } from "../lib/stories-api";
+import type { PublicFeedStory } from "../lib/stories-api";
 import { CategoryBadge } from "./categories";
 import { formatRankChange, latestRankChange } from "../lib/rank-history";
 import { briefExcerpt } from "../lib/brief";
@@ -16,7 +16,7 @@ export function StoryRow({
   variant = "unranked",
   feedPosition,
 }: {
-  story: Story | PublicReadyStory;
+  story: Story | PublicFeedStory;
   variant?: "ranked" | "unranked";
   feedPosition?: number;
 }) {

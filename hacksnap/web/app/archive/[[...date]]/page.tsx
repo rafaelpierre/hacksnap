@@ -1,13 +1,13 @@
 import { withDataFallback } from "../../with-data-fallback";
-import { ChevronRight, ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getArchiveMonths, getArchiveStories, type Story } from "../../../lib/data";
+import { getArchiveMonths, getArchiveStories } from "../../../lib/data";
 import { archiveMonth, archivePage, archiveURL, monthLabel } from "../../../lib/archive";
-import { StoryRow } from "../../story-row";
+import { StoryFeed } from "../../story-feed";
+import { browsePagination } from "../../../lib/browse-feed";
+import { publicFeedStory } from "../../../lib/stories-api";
 import { BrowseLayout } from "../../topic-sidebar";
-import { ListPositionRestorer } from "../../story-navigation";
 
 type Props = {
   params: Promise<{ date?: string[] }>;
@@ -38,14 +38,8 @@ async function Archive(props: Props) {
   if (month && !months.some((item) => item.month === month)) notFound();
   const { stories, hasNext } = await getArchiveStories(month, page);
   if (page > 1 && stories.length === 0) notFound();
-  const groups = new Map<string, Story[]>();
-  for (const story of stories) {
-    const day = story.date_added.toISOString().slice(0, 10);
-    groups.set(day, [...(groups.get(day) ?? []), story]);
-  }
   return (
     <BrowseLayout>
-      <ListPositionRestorer />
       <header className="feed-header">
         <div className="channel-path">
           <Link href="/">hacksnap</Link> /{" "}
@@ -60,51 +54,13 @@ async function Archive(props: Props) {
         <h1>{month ? monthLabel(month) : "Latest stories"}</h1>
         <p>AI stories from Hacker News, newest first.</p>
       </header>
-      {stories.length === 0 ? (
-        <div className="empty">
-          <h2>No stories yet.</h2>
-          <p>Stories will appear here after the next update.</p>
-        </div>
-      ) : (
-        [...groups].map(([day, items]) => (
-          <section key={day} aria-labelledby={`day-${day}`}>
-            <div className="feed-bar">
-              <h2 id={`day-${day}`}>
-                <time dateTime={day}>
-                  {new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                    timeZone: "UTC",
-                  })}
-                </time>
-              </h2>
-            </div>
-            <ul className="story-list">
-              {items.map((story) => (
-                <li key={story.hn_id}>
-                  <StoryRow story={story} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
-      )}
-      {stories.length > 0 && (
-        <nav className="archive-pagination" aria-label="Archive pages">
-          {page > 1 && (
-            <Link className="button" href={archiveURL(month, page - 1)}>
-              <ChevronLeft className="inline-icon" aria-hidden="true" /> Newer stories
-            </Link>
-          )}
-          <span>Page {page}</span>
-          {hasNext && (
-            <Link className="button" href={archiveURL(month, page + 1)}>
-              Older stories <ChevronRight className="inline-icon" aria-hidden="true" />
-            </Link>
-          )}
-        </nav>
-      )}
+      <StoryFeed
+        key={`${archiveURL(month)}:${page}`}
+        listingPath={archiveURL(month)}
+        groupByDay
+        initialStories={stories.map(publicFeedStory)}
+        initialPagination={browsePagination(page, hasNext)}
+      />
     </BrowseLayout>
   );
 }

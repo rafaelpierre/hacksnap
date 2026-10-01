@@ -3,9 +3,9 @@ import { test } from "@jest/globals";
 import {
   appendUniqueStories,
   homePageURL,
-  validHomeFeedPage,
-  validHomeFeedSnapshot,
-} from "../lib/home-feed-state.ts";
+  validFeedPage,
+  validFeedSnapshot,
+} from "../lib/feed-state.ts";
 
 const pagination = {
   cursor: "next_cursor",
@@ -70,15 +70,15 @@ test("return snapshot reconstructs the loaded list before restoring its position
     focusStoryId: "21",
     savedAt: now,
   };
-  assert.deepEqual(validHomeFeedSnapshot(JSON.parse(JSON.stringify(snapshot)), "/", now), snapshot);
-  assert.equal(validHomeFeedSnapshot(snapshot, "/?page=2", now), null);
-  assert.equal(validHomeFeedSnapshot({ ...snapshot, savedAt: now - 9 * 3600_000 }, "/", now), null);
-  assert.equal(validHomeFeedSnapshot({ ...snapshot, focusStoryId: "99" }, "/", now), null);
+  assert.deepEqual(validFeedSnapshot(JSON.parse(JSON.stringify(snapshot)), "/", now), snapshot);
+  assert.equal(validFeedSnapshot(snapshot, "/?page=2", now), null);
+  assert.equal(validFeedSnapshot({ ...snapshot, savedAt: now - 9 * 3600_000 }, "/", now), null);
+  assert.equal(validFeedSnapshot({ ...snapshot, focusStoryId: "99" }, "/", now), null);
 });
 
 test("untrusted API and browser records cannot render malformed nested cards", () => {
   const good = story(1);
-  assert.ok(validHomeFeedPage({ stories: [good], pagination }));
+  assert.ok(validFeedPage({ stories: [good], pagination }));
   for (const malformed of [
     { ...good, summary: "invalid" },
     { ...good, category: {} },
@@ -92,12 +92,12 @@ test("untrusted API and browser records cannot render malformed nested cards", (
       },
     },
   ]) {
-    assert.doesNotThrow(() => validHomeFeedPage({ stories: [malformed], pagination }));
-    assert.equal(validHomeFeedPage({ stories: [malformed], pagination }), null);
+    assert.doesNotThrow(() => validFeedPage({ stories: [malformed], pagination }));
+    assert.equal(validFeedPage({ stories: [malformed], pagination }), null);
   }
-  assert.equal(validHomeFeedPage({ stories: [good, good], pagination }), null);
+  assert.equal(validFeedPage({ stories: [good, good], pagination }), null);
   assert.equal(
-    validHomeFeedPage({ stories: [good], pagination: { ...pagination, cursor: "unsafe!" } }),
+    validFeedPage({ stories: [good], pagination: { ...pagination, cursor: "unsafe!" } }),
     null,
   );
 });

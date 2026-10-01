@@ -1,4 +1,4 @@
-import { validHomeFeedSnapshot, type HomeFeedSnapshot } from "./home-feed-state";
+import { validFeedSnapshot, type FeedSnapshot } from "./feed-state";
 
 export const HOME_FEED_CHECKPOINT_KEY = "hacksnap:home-feed-checkpoint";
 
@@ -10,7 +10,7 @@ const STORY_ID = /^[1-9][0-9]{0,14}$/;
 
 export type HomeFeedCheckpoint = {
   version: 1;
-  snapshot: HomeFeedSnapshot;
+  snapshot: FeedSnapshot;
   anchor: { storyId: string; offset: number } | null;
 };
 
@@ -26,7 +26,7 @@ function storage(): Storage | null {
 
 function validAnchor(
   value: unknown,
-  snapshot: HomeFeedSnapshot,
+  snapshot: FeedSnapshot,
 ): { storyId: string; offset: number } | null | undefined {
   if (value === null) return null;
   if (!value || typeof value !== "object") return undefined;
@@ -62,7 +62,7 @@ function validCheckpoint(value: unknown, now: number): HomeFeedCheckpoint | null
   // The regular history snapshot has an eight-hour lifetime. Validate the
   // checkpoint against its own timestamp, then apply its separate retention
   // window above.
-  const snapshot = validHomeFeedSnapshot(checkpoint.snapshot, "/", savedAt);
+  const snapshot = validFeedSnapshot(checkpoint.snapshot, "/", savedAt);
   if (!snapshot) return null;
   const anchor = validAnchor(checkpoint.anchor, snapshot);
   if (anchor === undefined) return null;
@@ -103,7 +103,7 @@ export function readHomeFeedCheckpoint(
     const raw = store.getItem(HOME_FEED_CHECKPOINT_KEY);
     if (typeof raw !== "string" || raw.length * 2 > MAX_SERIALIZED_BYTES) return null;
     const checkpoint = validCheckpoint(JSON.parse(raw), now);
-    if (!checkpoint) return null;
+    if (!checkpoint || !checkpoint.snapshot.pagination.expiresAt) return null;
     const expiresAt = Date.parse(checkpoint.snapshot.pagination.expiresAt);
     const status: CheckpointStatus =
       expiresAt <= now

@@ -4,9 +4,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getReadyStoryPage } from "../../lib/data";
 import { ReadyStoryPageError } from "../../lib/ready-story-pagination";
-import { publicReadyStory } from "../../lib/stories-api";
+import { publicFeedStory } from "../../lib/stories-api";
 import { BrowseLayout } from "../topic-sidebar";
-import { HomeStoryFeed } from "../home-story-feed";
+import { StoryFeed } from "../story-feed";
 
 export const dynamic = "force-dynamic";
 
@@ -59,9 +59,9 @@ async function Home({
         {stale && (
           <p className="notice">Updates are delayed. These are the latest saved stories.</p>
         )}
-        <HomeStoryFeed
+        <StoryFeed
           key={`${pagination.page}:${rawCursor ?? "fresh"}`}
-          initialStories={stories.map(publicReadyStory)}
+          initialStories={stories.map(publicFeedStory)}
           initialPagination={pagination}
         />
         <p className="archive-cta">

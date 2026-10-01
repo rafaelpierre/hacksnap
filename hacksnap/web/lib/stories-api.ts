@@ -84,12 +84,10 @@ export function publicStory(story: PublicStory, includeDiscussion = false) {
   };
 }
 
-// This additive feed contract contains only fields already rendered on ranked cards.
+// This feed contract contains only fields rendered on ranked and unranked cards.
 // Cards use the two latest valid observations for their movement badge.
 // Keep it separate from the long-lived public detail/list schemas above.
-export function publicReadyStory(
-  story: Story & { rank_history: { observed_at: string; rank: number }[] },
-) {
+export function publicFeedStory(story: Story) {
   const image = canonicalArticleImage(story);
   const coverage = story.summary?.source_coverage;
   return {
@@ -103,7 +101,7 @@ export function publicReadyStory(
     date_added: story.date_added.toISOString(),
     rank: story.rank ?? null,
     is_recent: story.is_recent === true,
-    rank_history: story.rank_history
+    rank_history: (story.rank_history ?? [])
       .filter(
         ({ observed_at, rank }) =>
           Number.isSafeInteger(rank) && rank > 0 && Number.isFinite(Date.parse(observed_at)),
@@ -135,9 +133,9 @@ export function publicReadyStory(
   };
 }
 
-export type PublicReadyStory = ReturnType<typeof publicReadyStory>;
-export type PublicReadyStoryPage = {
-  stories: PublicReadyStory[];
+export type PublicFeedStory = ReturnType<typeof publicFeedStory>;
+export type PublicFeedStoryPage = {
+  stories: PublicFeedStory[];
   pagination: ReadyStoryPage["pagination"];
 };
 
@@ -165,8 +163,8 @@ export function readyStoriesHandler(data: {
           : Number.NaN;
     try {
       const page = await data.getReadyStoryPage({ cursor, pageSize });
-      const response: PublicReadyStoryPage = {
-        stories: page.stories.map(publicReadyStory),
+      const response: PublicFeedStoryPage = {
+        stories: page.stories.map(publicFeedStory),
         pagination: page.pagination,
       };
       return Response.json(response, { headers: { "Cache-Control": "no-store" } });

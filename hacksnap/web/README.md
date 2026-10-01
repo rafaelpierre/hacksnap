@@ -366,8 +366,17 @@ Unit tests verify cache expiry, format headers, and route validation using mocks
 `/archive` lists all retained public stories, including the current Top 10, newest
 first. `/archive/YYYY/MM` filters by the UTC month in which a story was added to
 Hacksnap. Daily headings use that same date, not the summary update time.
-Each page shows up to 30 stories, with ordinary newer/older links and its own
-canonical URL. Archive and category listings accept pages 1–100 (at most 3,000
+Top Stories, Latest, dated archives, and topic listings reuse `app/story-feed.tsx`
+for automatic loading near the end of the feed, manual loading/retries, accessible
+status announcements, and story-return restoration. Server routes own filtering
+and ordering; Latest/archives retain UTC day headings and topics use an unranked
+list. Each archive/topic request loads up to 30 stories through
+`/api/browse-stories?path=...&page=...`, using the same bounded data readers as HTML.
+Pending briefs remain visible. Ordinary page links and canonical URLs still work
+without JavaScript. Loaded rows are deduplicated and saved with the exact listing
+URL in browser history for back/forward and explicit story returns. Archive/topic
+pagination retains its existing live offset ordering, so new arrivals can shift
+page boundaries during browsing; it does not freeze a ranked selection. Archive and category listings accept pages 1–100 (at most 3,000
 stories and an SQL offset of 2,970). Larger pages return 404 before data access;
 the final allowed page has no older-page link. Use dated archive URLs to reach
 older archive entries. Categories show their latest 3,000 stories; deeper category
