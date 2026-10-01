@@ -10,7 +10,9 @@ type ShareEditorProps = {
   title: string;
   url: string;
   post: string;
+  postEdited: boolean;
   onPostChange: (post: string) => void;
+  onResetPost: () => void;
   onCopy: (value: string, kind: "link" | "post") => void;
   onDestination: (name: string, href: string) => void;
   onFeedback: (message: string) => void;
@@ -22,7 +24,9 @@ export function ShareEditor({
   title,
   url,
   post,
+  postEdited,
   onPostChange,
+  onResetPost,
   onCopy,
   onDestination,
   onFeedback,
@@ -92,6 +96,18 @@ export function ShareEditor({
         rows={5}
         onChange={(event) => onPostChange(event.target.value)}
       />
+      {postEdited && (
+        <button
+          type="button"
+          className="share-copy-post"
+          onClick={() => {
+            onResetPost();
+            draftField.current?.focus();
+          }}
+        >
+          Reset draft
+        </button>
+      )}
       <p id={xHintId} className="share-destination-hint">
         {!xStatus.valid ? "Shorten the draft to share on X. " : ""}LinkedIn shares the link; paste
         your copied post there.

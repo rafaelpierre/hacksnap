@@ -1,7 +1,7 @@
 "use client";
 
 import { Share2, X } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { copyShareText, track } from "../lib/analytics";
 import { canonicalStoryUrl, copyText, shareDestinations, suggestedPost } from "../lib/share-text";
 import { loadShareEditor } from "./share-editor-loader";
@@ -28,6 +28,7 @@ export function ShareLinks({
 }: ShareProps) {
   const [open, setOpen] = useState(false);
   const [post, setPost] = useState(() => suggestedPost(id, title, takeaway, slug));
+  const [postEdited, setPostEdited] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [manualText, setManualText] = useState<string | null>(null);
   const [Editor, setEditor] = useState<ShareEditorComponent | null>(null);
@@ -38,8 +39,35 @@ export function ShareLinks({
   const manualField = useRef<HTMLTextAreaElement>(null);
   const pendingEditorFocus = useRef<string | null>(null);
   const retryHadFocus = useRef(false);
+  const currentIdentity = useRef(id);
+  const previousIdentity = useRef(id);
+  const copyGeneration = useRef(0);
+  const copyOperation = useRef(0);
   const panelId = useId();
   const url = canonicalStoryUrl(id, slug);
+
+  currentIdentity.current = id;
+
+  useLayoutEffect(() => {
+    if (previousIdentity.current === id) return;
+    previousIdentity.current = id;
+    copyGeneration.current += 1;
+    copyOperation.current += 1;
+    setPost(suggestedPost(id, title, takeaway, slug));
+    setPostEdited(false);
+    setFeedback("");
+    setManualText(null);
+  }, [id, slug, title, takeaway]);
+
+  useLayoutEffect(() => {
+    if (postEdited) return;
+    const refreshedPost = suggestedPost(id, title, takeaway, slug);
+    if (post === refreshedPost) return;
+    copyGeneration.current += 1;
+    setFeedback("");
+    setManualText(null);
+    setPost(refreshedPost);
+  }, [id, slug, title, takeaway, post, postEdited]);
 
   useEffect(() => {
     if (open) firstAction.current?.focus();
@@ -112,11 +140,21 @@ export function ShareLinks({
   }
 
   async function copy(value: string, kind: "link" | "post") {
+    const identity = id;
+    const generation = copyGeneration.current;
+    const operation = ++copyOperation.current;
     setManualText(null);
     setFeedback("");
     const succeeded = await copyShareText(value, id, placement, kind, async (text) => {
       if (!(await copyText(text, navigator.clipboard))) throw new Error("Clipboard write failed");
     });
+    if (
+      currentIdentity.current !== identity ||
+      copyGeneration.current !== generation ||
+      copyOperation.current !== operation
+    ) {
+      return;
+    }
     if (succeeded) {
       setFeedback(
         kind === "link" ? "Link copied to clipboard." : "Suggested post copied to clipboard.",
@@ -189,8 +227,18 @@ export function ShareLinks({
               title={title}
               url={url}
               post={post}
+              postEdited={postEdited}
               onPostChange={(value) => {
+                copyGeneration.current += 1;
                 setPost(value);
+                setPostEdited(value !== suggestedPost(id, title, takeaway, slug));
+                setFeedback("");
+                setManualText(null);
+              }}
+              onResetPost={() => {
+                copyGeneration.current += 1;
+                setPost(suggestedPost(id, title, takeaway, slug));
+                setPostEdited(false);
                 setFeedback("");
                 setManualText(null);
               }}
