@@ -79,6 +79,18 @@ invalidated continuation keeps already loaded cards visible and offers a fresh
 selection. The selection is bounded to 400 stories; if it reaches that cap, the UI
 points readers to the archive instead of claiming the site has no more stories.
 
+While a Top feed is open, it keeps the full bounded selection's story IDs fixed
+for update checks. A visible tab checks at most once a minute for IDs that entered
+the current ready selection. A new ID shows a small **New stories available**
+banner; cards and scroll position stay put. The banner's button explicitly loads
+a fresh selection, returns to the top and focuses its first story. The check does
+not count stories or retain a previous-visit baseline. Loading later pages of the
+original selection never raises the banner. A ranked story crossing the 400-story
+selection boundary may raise it even if that story was previously published;
+the banner describes a changed selection, not a publication timestamp. Network
+failures leave the current feed intact and retry on a later visible check. A fresh
+selection works even when the old continuation cursor has expired.
+
 Opening a feed story saves the loaded cards once per listing entry in tab-scoped
 session storage. Browser history and story journeys keep small references with
 the depth, pagination, position and focused story, so Back/Forward reconstructs
@@ -397,6 +409,12 @@ return 400; an expired cursor or a selected story that becomes unavailable retur
 400 stories to keep URLs bounded. `selectionLimited: true` distinguishes that cap
 from the actual end of the pool. Continuation responses are `no-store`; only 64
 recent page reads and 8 concurrent misses are admitted per instance.
+The response also includes `selectionIds`, the full bounded membership used by
+the in-session update banner. `GET /api/story-freshness` returns the current
+selection's IDs without caching the HTTP response; it shares a bounded ten-second
+server selection cache. `GET /api/ready-stories?fresh=1` explicitly bypasses the
+ordinary 60-second selection cache and uses that same short cache. Neither update
+check changes an existing cursor or inserts cards into a live feed.
 
 In Cloudflare, create a **Bypass cache** rule for:
 

@@ -60,7 +60,7 @@ const HomeStories = withDataFallback(async function HomeStories({
     }
     throw error;
   }
-  const { stories, ingestion, pagination } = result;
+  const { stories, ingestion, pagination, selectionIds } = result;
   const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
   return (
     <HomeShell>
@@ -69,6 +69,7 @@ const HomeStories = withDataFallback(async function HomeStories({
         key={`${pagination.page}:${rawCursor ?? "fresh"}`}
         initialStories={stories.map(publicFeedStory)}
         initialPagination={pagination}
+        initialSelectionIds={selectionIds}
       />
       <p className="archive-cta">
         <NavigationPendingLink

@@ -138,14 +138,20 @@ export type PublicFeedStory = ReturnType<typeof publicFeedStory>;
 export type PublicFeedStoryPage = {
   stories: PublicFeedStory[];
   pagination: ReadyStoryPage["pagination"];
+  observed_at?: string;
+  selectionIds?: string[];
 };
 
 export function readyStoriesHandler(data: {
-  getReadyStoryPage: (input: { cursor?: string; pageSize?: number }) => Promise<ReadyStoryPage>;
+  getReadyStoryPage: (input: {
+    cursor?: string;
+    pageSize?: number;
+    fresh?: boolean;
+  }) => Promise<ReadyStoryPage>;
 }) {
   return async (request: Request) => {
     const url = new URL(request.url);
-    const allowed = new Set(["cursor", "pageSize"]);
+    const allowed = new Set(["cursor", "pageSize", "fresh"]);
     if (
       [...url.searchParams.keys()].some((key) => !allowed.has(key)) ||
       [...url.searchParams.keys()].some((key) => url.searchParams.getAll(key).length !== 1)
@@ -155,6 +161,12 @@ export function readyStoriesHandler(data: {
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     const cursor = url.searchParams.get("cursor") ?? undefined;
+    const fresh = url.searchParams.get("fresh");
+    if ((fresh !== null && fresh !== "1") || (fresh && cursor))
+      return Response.json(
+        { error: "Invalid story continuation", code: "invalid_cursor" },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
     const pageSizeValue = url.searchParams.get("pageSize");
     const pageSize =
       pageSizeValue === null
@@ -163,10 +175,16 @@ export function readyStoriesHandler(data: {
           ? Number(pageSizeValue)
           : Number.NaN;
     try {
-      const page = await data.getReadyStoryPage({ cursor, pageSize });
+      const page = await data.getReadyStoryPage({
+        cursor,
+        pageSize,
+        ...(fresh === "1" ? { fresh: true } : {}),
+      });
       const response: PublicFeedStoryPage = {
         stories: page.stories.map(publicFeedStory),
         pagination: page.pagination,
+        observed_at: page.observed_at,
+        selectionIds: page.selectionIds,
       };
       return Response.json(response, { headers: { "Cache-Control": "no-store" } });
     } catch (error) {

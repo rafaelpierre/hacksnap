@@ -1105,6 +1105,27 @@ body:has(#browse-content) .skip-browse {
 .home-feed-sentinel {
   height: 1px;
 }
+.feed-freshness-banner {
+  position: fixed;
+  z-index: 35;
+  right: var(--page-gutter);
+  bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  max-width: min(32rem, calc(100vw - 2 * var(--page-gutter)));
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  box-shadow: 0 5px 24px #0003;
+  color: var(--ink);
+  font: var(--text-sm)/1.5 var(--sans);
+}
+.feed-freshness-banner .button {
+  flex-shrink: 0;
+}
 .home-feed-continuation {
   display: grid;
   justify-items: start;

@@ -1,0 +1,151 @@
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import { test } from "@jest/globals";
+import React, { act } from "react";
+import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
+import { StoryFeed } from "../app/story-feed";
+
+const { JSDOM } = createRequire(import.meta.url)("jsdom");
+
+function story(id: number) {
+  return {
+    hn_id: String(id),
+    story_slug: `story-${id}`,
+    title: `Story ${id}`,
+    category: "agents_coding" as const,
+    url: "https://example.com/article",
+    points: 100,
+    comment_count: 20,
+    date_added: "2026-09-29T12:00:00.000Z",
+    rank: String(id),
+    is_recent: true,
+    rank_history: [],
+    image_url: null,
+    image_status: null,
+    image_width: null,
+    image_height: null,
+    image_mime_type: null,
+    summary: {
+      overall_takeaway: `Takeaway ${id}`,
+      sentiment: 0 as const,
+      source_coverage: {
+        stored_comments: 20,
+        included_comments: 10,
+        comments_truncated: false,
+        article_status: "fetched" as const,
+      },
+    },
+  };
+}
+
+function pagination(expiresAt = new Date(Date.now() + 60_000).toISOString()) {
+  return {
+    cursor: null,
+    previousCursor: null,
+    hasMore: false,
+    page: 1,
+    expiresAt,
+    selectionLimited: false,
+  };
+}
+
+test("polling keeps rows and scroll stable until explicit refresh focuses the first story", async () => {
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: "https://hacksnap.live/",
+    pretendToBeVisual: true,
+  });
+  const globals = {
+    self: dom.window,
+    window: dom.window,
+    document: dom.window.document,
+    navigator: dom.window.navigator,
+    IS_REACT_ACT_ENVIRONMENT: true,
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    },
+    cancelAnimationFrame: () => {},
+  };
+  const previous = Object.keys(globals).map((key) =>
+    Object.getOwnPropertyDescriptor(globalThis, key),
+  );
+  Object.entries(globals).forEach(([key, value]) =>
+    Object.defineProperty(globalThis, key, { value, configurable: true }),
+  );
+  const originalFetch = globalThis.fetch;
+  const originalNow = Date.now;
+  let now = originalNow();
+  Date.now = () => now;
+  const scrolls: number[] = [];
+  dom.window.scrollTo = ((options: ScrollToOptions) => {
+    scrolls.push(options.top ?? 0);
+  }) as typeof dom.window.scrollTo;
+  const checks = [
+    ["1", "2", "3"],
+    ["1", "2", "3", "4"],
+    ["4", "1", "2", "3"],
+  ];
+  globalThis.fetch = (async (url) => {
+    if (String(url) === "/api/story-freshness")
+      return { ok: true, json: async () => ({ ids: checks.shift() ?? [] }) } as Response;
+    assert.equal(String(url), "/api/ready-stories?fresh=1");
+    return {
+      ok: true,
+      json: async () => ({
+        stories: [story(4), story(1), story(2)],
+        pagination: pagination(),
+        selectionIds: ["4", "1", "2", "3"],
+      }),
+    } as Response;
+  }) as typeof fetch;
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(document.getElementById("root")!);
+  const router = { push: () => {}, prefetch: async () => {} };
+  const ids = () =>
+    [...document.querySelectorAll(".story-list [data-home-story-id]")].map((node) =>
+      node.getAttribute("data-home-story-id"),
+    );
+  try {
+    await act(async () =>
+      root.render(
+        <AppRouterContext.Provider value={router as never}>
+          <StoryFeed
+            initialStories={[story(1), story(2)]}
+            initialPagination={pagination(new Date(now - 1000).toISOString())}
+            initialSelectionIds={["1", "2", "3"]}
+          />
+        </AppRouterContext.Provider>,
+      ),
+    );
+    assert.equal(document.querySelector(".feed-freshness-banner"), null);
+    assert.deepEqual(ids(), ["1", "2"]);
+    now += 60_001;
+    await act(async () => document.dispatchEvent(new dom.window.Event("visibilitychange")));
+    assert.match(
+      document.querySelector(".feed-freshness-banner")!.textContent!,
+      /New stories available/,
+    );
+    assert.deepEqual(ids(), ["1", "2"]);
+    assert.deepEqual(scrolls, []);
+    await act(async () =>
+      document.querySelector<HTMLButtonElement>(".feed-freshness-banner button")!.click(),
+    );
+    assert.equal(document.querySelector(".feed-freshness-banner"), null);
+    assert.deepEqual(ids(), ["4", "1", "2"]);
+    assert.deepEqual(scrolls, [0]);
+    assert.equal(document.activeElement?.textContent, "Story 4");
+    now += 60_001;
+    await act(async () => document.dispatchEvent(new dom.window.Event("visibilitychange")));
+    assert.equal(document.querySelector(".feed-freshness-banner"), null);
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    globalThis.fetch = originalFetch;
+    Date.now = originalNow;
+    Object.keys(globals).forEach((key, index) => {
+      const descriptor = previous[index];
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+});

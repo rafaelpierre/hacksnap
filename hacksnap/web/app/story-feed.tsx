@@ -47,9 +47,21 @@ type ScrollTarget = {
 const FRESH_QUERY = "__hacksnap_fresh";
 const CHECKPOINT_DELAY_MS = 400;
 const POSITION_SETTLE_MS = 2000;
+const FRESHNESS_CHECK_MS = 60_000;
 
 function currentURL() {
   return window.location.pathname + window.location.search;
+}
+
+function validSelectionIds(value: unknown): string[] | null {
+  if (
+    !Array.isArray(value) ||
+    value.length > 400 ||
+    value.some((id) => typeof id !== "string" || !/^[1-9][0-9]{0,14}$/.test(id)) ||
+    new Set(value).size !== value.length
+  )
+    return null;
+  return value;
 }
 
 function viewportAnchor(): HomeFeedCheckpoint["anchor"] {
@@ -66,12 +78,14 @@ function viewportAnchor(): HomeFeedCheckpoint["anchor"] {
 export function StoryFeed({
   initialStories,
   initialPagination,
+  initialSelectionIds,
   listingPath = "/",
   groupByDay = false,
   emptyState,
 }: {
   initialStories: PublicFeedStory[];
   initialPagination: FeedPagination;
+  initialSelectionIds?: string[];
   listingPath?: string;
   groupByDay?: boolean;
   emptyState?: ReactNode;
@@ -105,6 +119,15 @@ export function StoryFeed({
   const sentinel = useRef<HTMLDivElement>(null);
   const [continuationFocused, setContinuationFocused] = useState(false);
   const [automaticLoadingAvailable, setAutomaticLoadingAvailable] = useState(true);
+  const baselineIds = useRef<ReadonlySet<string> | null>(
+    initialSelectionIds ? new Set(initialSelectionIds) : null,
+  );
+  const [newStoriesAvailable, setNewStoriesAvailable] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const [freshFocusId, setFreshFocusId] = useState<string | null | undefined>(undefined);
+  const refreshRequest = useRef<AbortController | null>(null);
+  const freshSelectionGeneration = useRef(0);
   const activeTrigger = useRef<"auto" | "manual" | null>(null);
   feedRef.current = feed;
   const openedIds = useMemo(
@@ -120,6 +143,61 @@ export function StoryFeed({
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") setAutomaticLoadingAvailable(false);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      refreshRequest.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!ranked || !restored || positionPending || !baselineIds.current) return;
+    let checking = false;
+    let lastCheck = 0;
+    let active = true;
+    let controller: AbortController | null = null;
+    const check = async () => {
+      if (document.visibilityState !== "visible" || checking) return;
+      if (Date.now() - lastCheck < FRESHNESS_CHECK_MS) return;
+      lastCheck = Date.now();
+      checking = true;
+      const generation = freshSelectionGeneration.current;
+      controller = new AbortController();
+      try {
+        const response = await fetch("/api/story-freshness", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const result: unknown = await response.json();
+        if (
+          !active ||
+          generation !== freshSelectionGeneration.current ||
+          !result ||
+          typeof result !== "object"
+        )
+          return;
+        const currentIds = validSelectionIds((result as { ids?: unknown }).ids);
+        if (!currentIds) return;
+        if (currentIds.some((id) => !baselineIds.current?.has(id))) setNewStoriesAvailable(true);
+      } catch {
+        // Keep the current selection and retry after the bounded interval.
+      } finally {
+        checking = false;
+        controller = null;
+      }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), FRESHNESS_CHECK_MS);
+    const onVisibility = () => void check();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      active = false;
+      controller?.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [ranked, restored, positionPending]);
 
   function snapshotNow(): FeedSnapshot {
     const current = feedRef.current;
@@ -163,6 +241,13 @@ export function StoryFeed({
   useEffect(() => {
     const applySnapshot = (snapshot: FeedSnapshot, anchor: HomeFeedCheckpoint["anchor"]) => {
       setRestoredFromSnapshot(true);
+      if (
+        ranked &&
+        initialStories.some(
+          (story) => !snapshot.stories.some((saved) => saved.hn_id === story.hn_id),
+        )
+      )
+        setNewStoriesAvailable(true);
       scrollTarget.current = {
         y: snapshot.scrollY,
         storyId: anchor?.storyId ?? null,
@@ -433,6 +518,74 @@ export function StoryFeed({
     [listingPath, ranked],
   );
 
+  async function refreshSelection() {
+    if (refreshing || !ranked) return;
+    freshSelectionGeneration.current++;
+    activeRequest.current?.abort();
+    activeRequest.current = null;
+    requestId.current++;
+    refreshRequest.current?.abort();
+    const controller = new AbortController();
+    refreshRequest.current = controller;
+    setRefreshing(true);
+    setRefreshFailed(false);
+    setFeed((state) => ({ ...state, phase: "idle" }));
+    try {
+      const response = await fetch("/api/ready-stories?fresh=1", {
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Fresh selection unavailable");
+      const raw: unknown = await response.json();
+      const page = validFeedPage(raw, "/");
+      if (!page || page.pagination.page !== 1) throw new Error("Invalid fresh selection");
+      if (controller.signal.aborted) return;
+      const ids =
+        raw && typeof raw === "object" && "selectionIds" in raw
+          ? validSelectionIds(raw.selectionIds)
+          : null;
+      if (!ids) throw new Error("Invalid fresh selection membership");
+      clearHomeFeedCheckpoint();
+      if (currentURL() !== "/") {
+        const state = { ...window.history.state };
+        delete state.hacksnapHomeFeed;
+        window.history.replaceState(state, "", "/");
+      }
+      const next: FeedState = {
+        stories: page.stories,
+        pagination: page.pagination,
+        phase: "idle",
+        announcement: "Fresh story selection loaded.",
+      };
+      feedRef.current = next;
+      setFeed(next);
+      baselineIds.current = new Set(ids);
+      setNewStoriesAvailable(false);
+      setPinnedStoryId(page.stories[0]?.hn_id ?? null);
+      setFreshFocusId(page.stories[0]?.hn_id ?? null);
+    } catch {
+      if (!controller.signal.aborted) setRefreshFailed(true);
+    } finally {
+      if (refreshRequest.current === controller) refreshRequest.current = null;
+      if (!controller.signal.aborted) setRefreshing(false);
+    }
+  }
+
+  useLayoutEffect(() => {
+    if (freshFocusId === undefined) return;
+    window.scrollTo({ top: 0, behavior: "instant" });
+    const target = freshFocusId
+      ? document.querySelector<HTMLAnchorElement>(`[data-home-story-id="${freshFocusId}"] h3 a`)
+      : document.querySelector<HTMLElement>(".home-intro h1");
+    if (target) {
+      if (!freshFocusId) target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+    }
+    setFreshFocusId(undefined);
+    setPinnedStoryId(null);
+  }, [freshFocusId, feed.stories]);
+
   function startLatest(event: MouseEvent<HTMLAnchorElement>) {
     if (
       event.button !== 0 ||
@@ -482,6 +635,21 @@ export function StoryFeed({
 
   return (
     <>
+      {ranked && (newStoriesAvailable || refreshFailed) && (
+        <div className="feed-freshness-banner" role="status" aria-live="polite">
+          <span>
+            {refreshFailed ? "Couldn’t refresh stories. Try again." : "New stories available"}
+          </span>
+          <button
+            className="button"
+            type="button"
+            disabled={refreshing}
+            onClick={() => void refreshSelection()}
+          >
+            {refreshing ? "Refreshing…" : "Show new stories"}
+          </button>
+        </div>
+      )}
       {feed.stories.length === 0 ? (
         (emptyState ?? (
           <div className="empty">
