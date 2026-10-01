@@ -159,10 +159,7 @@ test("a recent root checkpoint restores cards by story and viewport offset acros
       ["1", "11"],
     );
     assert.equal(scrolls.at(-1), 1224);
-    assert.equal(
-      document.querySelector(".home-feed-resume a")?.textContent?.trim(),
-      "Back to latest",
-    );
+    assert.equal(document.querySelector(".home-feed-resume"), null);
     storyTop(1500);
     await act(async () => dom.window.dispatchEvent(new dom.window.Event("resize")));
     assert.equal(scrolls.at(-1), 1524, "reflow preserves the anchored row's viewport offset");
@@ -220,6 +217,7 @@ test("an older checkpoint stays intact until the reader chooses to resume", asyn
       ["1", "11"],
     );
     assert.equal(scrolls.at(-1), 1224);
+    assert.equal(document.querySelector(".home-feed-resume"), null);
     assert.equal(
       document.activeElement?.closest("[data-home-story-id]")?.getAttribute("data-home-story-id"),
       "11",
@@ -227,20 +225,14 @@ test("an older checkpoint stays intact until the reader chooses to resume", asyn
   });
 });
 
-test("modified Back to latest click keeps this tab's checkpoint active", async () => {
+test("restored reading place stays unobtrusive and keeps its checkpoint active", async () => {
   await withFeed(async ({ dom, render }) => {
     dom.window.localStorage.setItem(
       HOME_FEED_CHECKPOINT_KEY,
       JSON.stringify(checkpoint(Date.now() - 60_000)),
     );
     await render();
-    const back = document.querySelector<HTMLAnchorElement>(".home-feed-resume a")!;
-    document.addEventListener("click", (event) => event.preventDefault());
-    await act(async () =>
-      back.dispatchEvent(
-        new dom.window.MouseEvent("click", { bubbles: true, cancelable: true, ctrlKey: true }),
-      ),
-    );
+    assert.equal(document.querySelector(".home-feed-resume"), null);
     dom.window.scrollTo({ top: 1300 });
     dom.window.dispatchEvent(new dom.window.Event("pagehide"));
     const saved = JSON.parse(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY)!);
@@ -289,7 +281,7 @@ test("reader input before the first restore frame releases loading and saving", 
       await act(async () => dom.window.dispatchEvent(new dom.window.Event("wheel")));
       flushFrames();
       assert.equal(scrolls.length, 0, "canceled restore does not fight the reader");
-      assert.ok(document.querySelector(".home-feed-actions button"));
+      assert.equal(document.querySelector(".home-feed-actions button"), null);
       dom.window.dispatchEvent(new dom.window.Event("pagehide"));
       const saved = JSON.parse(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY)!);
       assert.ok(saved.snapshot.savedAt > Date.now() - 30_000);
