@@ -57,6 +57,14 @@
   visibility: hidden;
 }
 
+:global(.browse-latest-link) .hint {
+  inset-inline-end: 0;
+}
+
+:global(.browse-latest-link):has(.hint[data-pending="true"]) :global(.inline-icon) {
+  visibility: hidden;
+}
+
 :global(.topic-directory) .hint {
   inset-block-start: 1.55rem;
   inset-inline-end: 2.65rem;

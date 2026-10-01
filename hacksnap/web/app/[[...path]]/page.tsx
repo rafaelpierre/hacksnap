@@ -1,6 +1,6 @@
 import { withDataFallback } from "../with-data-fallback";
 import { ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { NavigationPendingLink } from "../navigation-pending-link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { getReadyStoryPage } from "../../lib/data";
@@ -71,9 +71,13 @@ const HomeStories = withDataFallback(async function HomeStories({
         initialPagination={pagination}
       />
       <p className="archive-cta">
-        <Link className="browse-latest-link" href="/archive">
+        <NavigationPendingLink
+          className="browse-latest-link"
+          href="/archive"
+          pendingLabel="Loading latest stories…"
+        >
           Browse latest stories <ChevronRight className="inline-icon" aria-hidden="true" />
-        </Link>
+        </NavigationPendingLink>
       </p>
     </HomeShell>
   );

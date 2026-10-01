@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { jest, test } from "@jest/globals";
-import { Suspense } from "react";
+import { Children, isValidElement, Suspense } from "react";
 
 const missing = new Error("not found");
 const shouldStreamBrowse = jest.fn(async () => true);
@@ -81,4 +81,20 @@ test("invalid paths and data-dependent query pages finish validation before stre
 
   await assert.rejects(category("agents-coding", "2"), (error) => error === missing);
   assert.equal(getCategoryStories.mock.calls.length, 1);
+});
+
+test("the homepage Latest CTA uses its own pending navigation feedback", async () => {
+  const { NavigationPendingLink } = await import("../app/navigation-pending-link.tsx");
+  shouldStreamBrowse.mockResolvedValueOnce(false);
+  const page = await home(undefined);
+  function findCTA(node) {
+    if (!isValidElement(node)) return undefined;
+    if (node.props.className === "browse-latest-link") return node;
+    return Children.toArray(node.props.children).map(findCTA).find(Boolean);
+  }
+  const cta = findCTA(page);
+  assert.ok(cta);
+  assert.equal(cta.type, NavigationPendingLink);
+  assert.equal(cta.props.href, "/archive");
+  assert.equal(cta.props.pendingLabel, "Loading latest stories…");
 });
