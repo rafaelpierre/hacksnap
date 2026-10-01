@@ -198,21 +198,15 @@ scanner from the [Markdown negotiation skill](https://isitagentready.com/.well-k
 
 ## Persistent story metrics
 
-Story pages render a visible **Skept-o-meter & Hotness** section in the initial
-HTML after the brief, discussion, and source notes, with the same metrics in
-negotiated Markdown. It includes the existing
-skepticism category, summary comment count, the separate skepticism sample count
-when recorded, peak observed **Hacksnap** rank, estimated time in its Top 10,
-and a ranking chart. Skepticism categories have no numeric score; meter positions
-are visual conventions. Hacksnap ranks are distinct from HN front-page ranks.
-Metric explanations sit behind keyboard- and touch-accessible info disclosures;
-values and the chart stay visible. The disclosures work without JavaScript.
-The chart reuses the homepage's `ActivitySparkline`, including trend colours,
-curves, gradient fill and keyboard/touch exploration, in recorded-history mode.
+Story HTML shows a compact skepticism pill beside the legacy discussion heading.
+Pages with newer discussion analysis show its own coverage instead. Negotiated
+Markdown retains the **Skept-o-meter & Hotness** text metrics, including the
+skepticism category, sample counts, peak observed **Hacksnap** rank, and estimated
+time in its Top 10. Hacksnap ranks are distinct from HN front-page ranks. There
+is no ranking chart on the story page.
 
-Peak and duration use all retained `hacksnap_rank_history` observations, including
-those older than 24 hours. The chart shows at most the latest 168 saved positions,
-with its date range and truncation count visible. Current request-time ranks are
+Peak and duration use retained `hacksnap_rank_history` observations, including
+those older than 24 hours. Current request-time ranks are
 not added to these historical statistics. Time in the Top 10 holds each rank
 until the next capture, excluding gaps over 13 hours (the scheduled overnight
 gap plus timing tolerance) and time after the final capture. It is a sampled

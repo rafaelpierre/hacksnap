@@ -44,34 +44,24 @@ insert records every eligible rank with a shared timestamp, including ranks belo
 manual refreshes also record observations. These are sampled positions, not every
 intermediate change to the live view. Failed rank writes fail the refresh.
 
-### Hotness sparklines
+### Ranking history
 
-The feed keeps the **Hotness** label and plots observed **Hacksnap ranking positions**
-over the past 24 hours. Climbing from #8 to #3 moves the line upward and shows
-**+5** places; falling moves it downward; unchanged ranks stay flat. This follows
-the site's recent-first, then points ranking, not Hacker News front-page rank.
+Ranking history records observed **Hacksnap ranking positions**, distinct from
+Hacker News front-page rank. Feed cards no longer render a Hotness sparkline;
+ranking metrics remain available in Markdown exports.
 
 History comes from `hacksnap_rank_history`, using its existing `(hn_id, observed_at)`
 primary-key index, with at most 168 observations per story. No migration is needed.
-The current queried rank is included at the shared read timestamp, so the chart's
-endpoint matches the displayed position even between scheduled history captures.
-The leaderboard cache key is bumped to discard the old point-velocity payloads.
+The current queried rank is available to ranking calculations between scheduled
+history captures.
 
 The card's places-change badge compares the displayed rank with the latest saved
 rank when they differ. Once the worker records that position, it compares the two
 latest captures, preserving the newly recorded move. A subsequent unchanged
 capture reports zero; missing comparison history displays a dash.
 
-The horizontal axis fills the chart with available history from the past 24 hours,
-with elapsed-time spacing and a label showing the actual span (for example, 6h).
-Earlier history is not filled in. Rank #1 is at the top and #10 at the bottom,
-with the scale expanding for stories previously ranked below ten. Gentle curves pass through observations without overshooting; intermediate positions
-are unknown. Teal indicates a net climb, coral a fall, and gray no net change. Hover, focus, touch and arrow keys
-expose the observed rank, timestamp, and scale. A single observation shows a dot
-and “—” for change; no observations shows “Collecting history”. The headline is
-first observed rank minus latest observed rank within the window, not necessarily
-a full 24-hour change when history is sparse. Markdown and RSS use the same ranks
-and change calculation.
+The historical places-change calculation compares saved observations; intermediate
+positions are unknown. Markdown and RSS retain textual ranking metrics.
 
 An empty or failed new ingestion run does not clear previous stories. If there
 are fewer than ten eligible stories in the entire database, show all available
