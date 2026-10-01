@@ -79,13 +79,19 @@ invalidated continuation keeps already loaded cards visible and offers a fresh
 selection. The selection is bounded to 400 stories; if it reaches that cap, the UI
 points readers to the archive instead of claiming the site has no more stories.
 
-Opening a homepage story saves the loaded cards, position, and focused story in the
-browser history entry. Browser Back/Forward reconstructs those cards before
-restoring position. The contextual return link carries the same snapshot through
-history and, when available, tab-scoped session storage. Blocked session storage
-does not prevent browsing or same-tab returns. Journey records are capped at 40
-per tab with eight-hour expiry; cleanup touches only journey-owned keys. Same-tab
-memory supplies a fallback if storage reads, writes or removal fail. Story URLs
+Opening a feed story saves the loaded cards once per listing entry in tab-scoped
+session storage. Browser history and story journeys keep small references with
+the depth, pagination, position and focused story, so Back/Forward reconstructs
+the exact earlier depth from the shared card record. Repeated appends replace that
+record; 40 journey entries do not make 40 deep copies. Cards use a compact,
+versioned representation and are validated after decoding. Stored feed records
+are capped at 4 MiB each, 8 MiB total and four listing entries, with eight-hour
+expiry. Older entries whose card record has been evicted still navigate normally.
+Blocked or full session storage falls back to same-tab memory, preserving returns
+until a reload. Reloading an archive or topic listing restores a retained record;
+reloading `/` follows the separate homepage checkpoint behavior below. Journey
+records remain capped at 40 per tab with eight-hour expiry; cleanup touches only
+feature-owned keys. Story URLs
 stay canonical, and modified clicks use their normal browser behavior. The header
 stays visible while scrolling, and the desktop left topic sidebar
 sticks below its measured height. Tall navigation areas scroll within the viewport.
@@ -94,6 +100,17 @@ loading stops while the continuation controls have keyboard focus, cancelling an
 pending automatic request. A spinner shows while more stories load, and a retry
 button appears only after a failed request. There is no separate Pause/Resume
 control.
+
+The snapshot budget was measured with representative public card fixtures using
+`MEASURE_FEED_SNAPSHOTS=1 npm test -- tests/feed-snapshot-storage.test.tsx --runInBand`.
+At 100, 1,000 and 3,000 archive cards, full JSON occupied 117 KiB, 1,150 KiB and
+3,470 KiB in conservative UTF-16 accounting; compact records occupied 51 KiB,
+521 KiB and 1,583 KiB. In the Node 22/jsdom check, compact encoding took about
+0.1, 0.5–1.9 and 1.1 ms, and validated decoding took about 0.3, 2.2 and 7 ms.
+A 3,000-card save to available session storage took about 1.3 ms and cold decoding
+after storage read took 7 ms; a denied storage write with the memory fallback took
+about 1.2 ms and memory restoration took 3.3 ms. These are fixture measurements, not a browser
+performance profile or a guaranteed timing limit.
 
 Story cards show time since first added in compact days and hours (e.g. `1d 2h`,
 `5h`, or `<1h`), refreshed every minute. Before hydration, the UTC date is shown.

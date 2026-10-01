@@ -22,6 +22,169 @@ export type FeedSnapshot = {
   savedAt: number;
 };
 
+export type FeedSnapshotRef = {
+  version: 2;
+  id: string;
+  url: string;
+  scrollY: number;
+  focusStoryId: string | null;
+  savedAt: number;
+  contentAt: number;
+  storyCount: number;
+  pagination: FeedPagination;
+};
+
+const SNAPSHOT_ID = /^[0-9a-f-]{36}$/;
+
+export function validFeedSnapshotRef(
+  value: unknown,
+  url: string,
+  now = Date.now(),
+): FeedSnapshotRef | null {
+  if (!value || typeof value !== "object") return null;
+  const ref = value as Partial<FeedSnapshotRef>;
+  return ref.version === 2 &&
+    typeof ref.id === "string" &&
+    SNAPSHOT_ID.test(ref.id) &&
+    ref.url === url &&
+    typeof ref.scrollY === "number" &&
+    Number.isFinite(ref.scrollY) &&
+    ref.scrollY >= 0 &&
+    (ref.focusStoryId === null ||
+      (typeof ref.focusStoryId === "string" && /^[1-9][0-9]{0,14}$/.test(ref.focusStoryId))) &&
+    typeof ref.savedAt === "number" &&
+    Number.isFinite(ref.savedAt) &&
+    typeof ref.contentAt === "number" &&
+    Number.isFinite(ref.contentAt) &&
+    ref.contentAt <= ref.savedAt &&
+    Number.isSafeInteger(ref.storyCount) &&
+    ref.storyCount! >= 0 &&
+    ref.storyCount! <=
+      (url.split("?")[0] === "/" ? MAX_STORIES : ARCHIVE_PAGE_SIZE * MAX_BROWSE_PAGE) &&
+    !!validFeedPagination(ref.pagination, url.split("?")[0] !== "/") &&
+    ref.savedAt <= now &&
+    now - ref.savedAt <= MAX_AGE_MS
+    ? (ref as FeedSnapshotRef)
+    : null;
+}
+
+// The public card contract is fixed here. Positional fields remove repeated key
+// names from deep feed snapshots without dropping any rendered card data.
+export function packFeedSnapshot(snapshot: FeedSnapshot): string {
+  return JSON.stringify([
+    2,
+    snapshot.url,
+    snapshot.stories.map((story) => [
+      story.hn_id,
+      story.story_slug,
+      story.title,
+      story.category,
+      story.url,
+      story.points,
+      story.comment_count,
+      story.date_added,
+      story.rank,
+      story.is_recent,
+      story.rank_history.map((point) => [point.observed_at, point.rank]),
+      story.image_url,
+      story.image_status,
+      story.image_width,
+      story.image_height,
+      story.image_mime_type,
+      story.summary
+        ? [
+            story.summary.overall_takeaway,
+            story.summary.sentiment,
+            story.summary.source_coverage
+              ? [
+                  story.summary.source_coverage.stored_comments,
+                  story.summary.source_coverage.included_comments,
+                  story.summary.source_coverage.comments_truncated,
+                  story.summary.source_coverage.article_status,
+                  story.summary.source_coverage.sentiment?.included_comments ?? null,
+                ]
+              : null,
+          ]
+        : null,
+    ]),
+    snapshot.pagination,
+    snapshot.scrollY,
+    snapshot.focusStoryId,
+    snapshot.savedAt,
+  ]);
+}
+
+export function unpackFeedSnapshot(raw: string, url: string): FeedSnapshot | null {
+  try {
+    const packed: unknown = JSON.parse(raw);
+    if (!Array.isArray(packed) || packed.length !== 7 || packed[0] !== 2) return null;
+    const [, savedURL, rows, pagination, scrollY, focusStoryId, savedAt] = packed;
+    if (!Array.isArray(rows)) return null;
+    const stories = rows.map((value: unknown) => {
+      if (!Array.isArray(value) || value.length !== 17) return null;
+      const history = value[10];
+      const summary = value[16];
+      if (
+        !Array.isArray(history) ||
+        history.some((point) => !Array.isArray(point) || point.length !== 2)
+      )
+        return null;
+      if (summary !== null && (!Array.isArray(summary) || summary.length !== 3)) return null;
+      const coverage = summary?.[2];
+      if (
+        coverage !== null &&
+        coverage !== undefined &&
+        (!Array.isArray(coverage) || coverage.length !== 5)
+      )
+        return null;
+      return {
+        hn_id: value[0],
+        story_slug: value[1],
+        title: value[2],
+        category: value[3],
+        url: value[4],
+        points: value[5],
+        comment_count: value[6],
+        date_added: value[7],
+        rank: value[8],
+        is_recent: value[9],
+        rank_history: history.map((point) => ({ observed_at: point[0], rank: point[1] })),
+        image_url: value[11],
+        image_status: value[12],
+        image_width: value[13],
+        image_height: value[14],
+        image_mime_type: value[15],
+        summary:
+          summary === null
+            ? null
+            : {
+                overall_takeaway: summary[0],
+                sentiment: summary[1],
+                source_coverage:
+                  coverage === null
+                    ? null
+                    : {
+                        stored_comments: coverage[0],
+                        included_comments: coverage[1],
+                        comments_truncated: coverage[2],
+                        article_status: coverage[3],
+                        ...(coverage[4] === null
+                          ? {}
+                          : { sentiment: { included_comments: coverage[4] } }),
+                      },
+              },
+      };
+    });
+    if (stories.includes(null)) return null;
+    return validFeedSnapshot(
+      { version: 1, url: savedURL, stories, pagination, scrollY, focusStoryId, savedAt },
+      url,
+    );
+  } catch {
+    return null;
+  }
+}
+
 const MAX_STORIES = 400;
 const MAX_AGE_MS = 8 * 60 * 60 * 1000;
 
@@ -138,6 +301,13 @@ export function validFeedSnapshot(
       (story.story_slug !== null && typeof story.story_slug !== "string") ||
       (story.category !== null && !categoryById(story.category)) ||
       typeof story.url !== "string" ||
+      (story.image_url !== null && typeof story.image_url !== "string") ||
+      (story.image_status !== null && story.image_status !== "ready") ||
+      (story.image_width !== null &&
+        (!Number.isSafeInteger(story.image_width) || story.image_width < 1)) ||
+      (story.image_height !== null &&
+        (!Number.isSafeInteger(story.image_height) || story.image_height < 1)) ||
+      (story.image_mime_type !== null && typeof story.image_mime_type !== "string") ||
       typeof story.is_recent !== "boolean" ||
       (!browse && (typeof story.rank !== "string" || !/^[1-9][0-9]{0,14}$/.test(story.rank))) ||
       !Array.isArray(story.rank_history) ||

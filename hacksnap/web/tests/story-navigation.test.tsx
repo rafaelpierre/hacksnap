@@ -8,8 +8,11 @@ import {
   NextStoryLink,
   ListPositionRestorer,
   StoryReturnLink,
+  consumeFeedReturn,
+  saveFeedHistory,
 } from "../app/story-navigation";
 import { browseLabel } from "../lib/navigation-context";
+import type { FeedSnapshot } from "../lib/feed-state";
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
 test("archive return preserves route, pagination and scroll without changing breadcrumbs", async () => {
@@ -168,6 +171,43 @@ test("story URLs stay clean while each history entry retains its own journey", a
   const click = async () =>
     act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
   try {
+    const savedFeed: FeedSnapshot = {
+      version: 1,
+      url: "/archive?page=3",
+      stories: [
+        {
+          hn_id: "42",
+          story_slug: "headline-42",
+          title: "Story 42",
+          category: null,
+          url: "https://example.com/42",
+          points: 100,
+          comment_count: 20,
+          date_added: "2026-09-29T12:00:00.000Z",
+          rank: null,
+          is_recent: false,
+          rank_history: [],
+          image_url: null,
+          image_status: null,
+          image_width: null,
+          image_height: null,
+          image_mime_type: null,
+          summary: null,
+        },
+      ],
+      pagination: {
+        cursor: null,
+        previousCursor: null,
+        hasMore: true,
+        page: 3,
+        expiresAt: null,
+        selectionLimited: false,
+      },
+      scrollY: 320,
+      focusStoryId: null,
+      savedAt: Date.now(),
+    };
+    saveFeedHistory(savedFeed);
     await render(
       <BrowseStoryLink id="42" slug="headline-42">
         Story
@@ -182,6 +222,18 @@ test("story URLs stay clean while each history entry retains its own journey", a
     const firstState = window.history.state;
     assert.ok(firstState.hacksnapJourney);
     assert.equal(firstState.frameworkState, "preserved");
+    assert.equal(firstState.hacksnapHomeFeed.storyCount, 1);
+    const journeyRecord = window.sessionStorage.getItem(
+      `hacksnap:journey:${firstState.hacksnapJourney}`,
+    )!;
+    assert.ok(journeyRecord.length < 1000);
+    assert.equal(JSON.parse(journeyRecord).homeFeedRef.id, firstState.hacksnapHomeFeed.id);
+    await click();
+    window.history.replaceState({}, "", "/archive?page=3");
+    const returned = consumeFeedReturn("/archive?page=3")!;
+    assert.equal(returned.stories[0].hn_id, "42");
+    assert.equal(returned.focusStoryId, "42");
+    window.history.replaceState(firstState, "", "/story/headline-42");
 
     await render(
       <NextStoryLink id="43" slug="headline-43">

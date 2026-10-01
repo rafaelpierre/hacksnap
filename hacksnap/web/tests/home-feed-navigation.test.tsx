@@ -118,7 +118,7 @@ for (const listingPath of ["/", "/archive?page=2", "/category/agents-coding"]) {
       await render(<StoryReturnLink />);
       assert.equal(dom.window.location.pathname, "/story/story-11");
       assert.equal(document.querySelector("a")?.getAttribute("href"), listingPath);
-      assert.equal(dom.window.history.state.hacksnapHomeFeed.stories.length, 2);
+      assert.equal(dom.window.history.state.hacksnapHomeFeed.storyCount, 2);
       await act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
       dom.window.history.replaceState({}, "", listingPath);
       assert.equal(

@@ -4,6 +4,7 @@ import React, { act } from "react";
 import { createRequire } from "node:module";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import { browsePagination } from "../lib/browse-feed";
+import { readFeedSnapshot } from "../lib/feed-snapshot-storage";
 import { StoryFeed } from "../app/story-feed";
 import { HOME_FEED_CHECKPOINT_KEY } from "../lib/home-feed-checkpoint";
 
@@ -272,7 +273,11 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         assert.match(document.querySelector("[role=status]")!.textContent!, /reached the end/);
         assert.equal(document.querySelector(".home-feed-actions button"), null);
         assert.equal(document.querySelector(".home-feed-pages a"), null);
-        assert.equal(dom.window.history.state.hacksnapHomeFeed.stories.length, 13);
+        assert.equal(dom.window.history.state.hacksnapHomeFeed.storyCount, 13);
+        assert.equal(
+          readFeedSnapshot(dom.window.history.state.hacksnapHomeFeed, listingPath)?.stories.length,
+          13,
+        );
 
         await act(async () => root.unmount());
         const restored = createRoot(document.getElementById("root")!);
