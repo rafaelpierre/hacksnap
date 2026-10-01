@@ -456,6 +456,13 @@ test("a deep restored anchor is mounted before StoryFeed restores its scroll and
       document.activeElement?.closest("[data-home-story-id]")?.getAttribute("data-home-story-id"),
       "301",
     );
+    await act(async () => window.dispatchEvent(new dom.window.WheelEvent("wheel")));
+    await act(async () => {
+      dom.window.scrollTo({ top: 280 * 380 });
+      window.dispatchEvent(new dom.window.Event("scroll"));
+    });
+    assert.ok(document.querySelector('[data-home-story-id="380"]'));
+    assert.equal(document.querySelector('[data-home-story-id="301"]'), null);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();

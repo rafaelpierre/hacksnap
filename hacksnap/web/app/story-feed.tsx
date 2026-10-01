@@ -96,6 +96,7 @@ export function StoryFeed({
   const activeRequest = useRef<AbortController | null>(null);
   const requestId = useRef(0);
   const scrollTarget = useRef<ScrollTarget | null>(null);
+  const [pinnedStoryId, setPinnedStoryId] = useState<string | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const [continuationFocused, setContinuationFocused] = useState(false);
   const [automaticLoadingAvailable, setAutomaticLoadingAvailable] = useState(true);
@@ -161,6 +162,7 @@ export function StoryFeed({
         offset: anchor?.offset ?? null,
         focusStoryId: snapshot.focusStoryId,
       };
+      setPinnedStoryId(anchor?.storyId ?? snapshot.focusStoryId);
       positionSettled.current = false;
       setPositionPending(true);
       const next = {
@@ -237,6 +239,11 @@ export function StoryFeed({
     let active = true;
     let focused = false;
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    const releaseTarget = () => {
+      if (scrollTarget.current !== target) return;
+      scrollTarget.current = null;
+      setPinnedStoryId(null);
+    };
     const position = () => {
       frame = 0;
       if (!active || scrollTarget.current !== target) return;
@@ -262,7 +269,7 @@ export function StoryFeed({
       if (settleTimer === null) {
         settleTimer = setTimeout(() => {
           active = false;
-          if (scrollTarget.current === target) scrollTarget.current = null;
+          releaseTarget();
           positionSettled.current = true;
           setPositionPending(false);
         }, POSITION_SETTLE_MS);
@@ -275,7 +282,7 @@ export function StoryFeed({
       frame = requestAnimationFrame(position);
     };
     const stop = () => {
-      scrollTarget.current = null;
+      releaseTarget();
       active = false;
       if (settleTimer !== null) clearTimeout(settleTimer);
       positionSettled.current = true;
@@ -450,6 +457,7 @@ export function StoryFeed({
       offset: checkpoint.anchor?.offset ?? null,
       focusStoryId: checkpoint.anchor?.storyId ?? checkpoint.snapshot.stories[0]?.hn_id ?? null,
     };
+    setPinnedStoryId(scrollTarget.current.storyId ?? scrollTarget.current.focusStoryId);
     setPositionPending(true);
     setResumeNotice("none");
     const next: FeedState = {
@@ -546,7 +554,7 @@ export function StoryFeed({
           ranked={ranked}
           initialPage={initialPagination.page}
           groupByDay={groupByDay}
-          pinnedStoryId={scrollTarget.current?.storyId ?? scrollTarget.current?.focusStoryId}
+          pinnedStoryId={pinnedStoryId}
           onStoryTitleClickCapture={
             ranked
               ? (event) => {

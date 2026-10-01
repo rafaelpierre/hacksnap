@@ -151,7 +151,10 @@ export function WindowedStoryList({
   const pinnedIndex = pinnedStoryId
     ? stories.findIndex((story) => story.hn_id === pinnedStoryId)
     : -1;
-  const pinnedRange = pinnedIndex >= 0 ? rangeForIndex(pinnedIndex, stories.length) : null;
+  const pinnedRange = useMemo(
+    () => (pinnedIndex >= 0 ? rangeForIndex(pinnedIndex, stories.length) : null),
+    [pinnedIndex, stories.length],
+  );
   const renderedRange = pinnedRange ?? range;
 
   const groups = useMemo(() => {
@@ -217,13 +220,16 @@ export function WindowedStoryList({
   }, [stories.length, updateRange]);
 
   useLayoutEffect(() => {
-    if (!pinnedRange) return;
+    if (!pinnedRange) {
+      updateRange();
+      return;
+    }
     setRange((current) =>
       current.start === pinnedRange.start && current.end === pinnedRange.end
         ? current
         : pinnedRange,
     );
-  }, [pinnedRange]);
+  }, [pinnedRange, updateRange]);
 
   useEffect(() => {
     const onScroll = () => {
