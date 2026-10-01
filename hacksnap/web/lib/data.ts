@@ -268,15 +268,14 @@ type CachedReadyStorySelection = CachedLeaderboard & {
 // One SQL statement captures the cards, pagination membership and timestamps together.
 // The selection itself is capped to keep its portable cursor under normal URL limits.
 // The extra row distinguishes that cap from a genuine end of the ranked pool.
-const cachedReadyStorySelection = boundedCache(
-  async (): Promise<CachedReadyStorySelection> => {
-    return readStories("feed", async (client, fields) => {
-      const result = await client.query<{
-        stories: CachedLeaderboard["stories"];
-        items: { hn_id: string | number; rank: string | number; is_recent: boolean }[];
-        ingestion: Date | null;
-        ranked_at: Date;
-      }>(`
+async function queryReadyStorySelection(): Promise<CachedReadyStorySelection> {
+  return readStories("feed", async (client, fields) => {
+    const result = await client.query<{
+      stories: CachedLeaderboard["stories"];
+      items: { hn_id: string | number; rank: string | number; is_recent: boolean }[];
+      ingestion: Date | null;
+      ranked_at: Date;
+    }>(`
       WITH ready AS MATERIALIZED (
         SELECT r.hn_id, r.rank, r.is_recent
         FROM hacksnap_ranked_stories r
@@ -300,50 +299,60 @@ const cachedReadyStorySelection = boundedCache(
         WHERE status = 'succeeded' AND filters @> '{"classify_topic": true}'::jsonb
         ORDER BY started_at DESC, run_id DESC LIMIT 1
       ) AS ingestion, CURRENT_TIMESTAMP AS ranked_at`);
-      const { stories, items, ingestion, ranked_at } = result.rows[0];
-      let selected = items.slice(0, 400).map((item) => ({
-        hn_id: String(item.hn_id),
-        rank: String(item.rank),
-        is_recent: item.is_recent === true,
-      }));
-      let selection_limited = items.length > selected.length;
-      // A pathological rank/ID sequence can be less compressible than normal. Trim
-      // only until the next-page cursor fits, and expose that fact to callers.
-      while (selected.length > READY_STORY_PAGE_SIZE) {
-        try {
-          createReadyStoryCursor({
-            items: selected,
-            offset: READY_STORY_PAGE_SIZE,
-            pageSize: READY_STORY_PAGE_SIZE,
-            observedAt: ranked_at.toISOString(),
-            ingestion: ingestion?.toISOString() ?? null,
-            selectionLimited: selection_limited,
-            expiresAt: new Date(Date.now() + READY_STORY_CURSOR_TTL_MS),
-          });
-          break;
-        } catch (error) {
-          if (!(error instanceof ReadyStoryPageError)) throw error;
-          selected = selected.slice(0, -1);
-          selection_limited = true;
-        }
+    const { stories, items, ingestion, ranked_at } = result.rows[0];
+    let selected = items.slice(0, 400).map((item) => ({
+      hn_id: String(item.hn_id),
+      rank: String(item.rank),
+      is_recent: item.is_recent === true,
+    }));
+    let selection_limited = items.length > selected.length;
+    // A pathological rank/ID sequence can be less compressible than normal. Trim
+    // only until the next-page cursor fits, and expose that fact to callers.
+    while (selected.length > READY_STORY_PAGE_SIZE) {
+      try {
+        createReadyStoryCursor({
+          items: selected,
+          offset: READY_STORY_PAGE_SIZE,
+          pageSize: READY_STORY_PAGE_SIZE,
+          observedAt: ranked_at.toISOString(),
+          ingestion: ingestion?.toISOString() ?? null,
+          selectionLimited: selection_limited,
+          expiresAt: new Date(Date.now() + READY_STORY_CURSOR_TTL_MS),
+        });
+        break;
+      } catch (error) {
+        if (!(error instanceof ReadyStoryPageError)) throw error;
+        selected = selected.slice(0, -1);
+        selection_limited = true;
       }
-      return {
-        // json_agg embeds bigint IDs/ranks as JSON numbers; keep the same string
-        // representation used by ordinary pg rows and continuation hydration.
-        stories: stories.map((story) => ({
-          ...story,
-          hn_id: String(story.hn_id),
-          rank: story.rank === undefined ? undefined : String(story.rank),
-        })),
-        items: selected,
-        selection_limited,
-        observed_at: ranked_at.toISOString(),
-        ingestion: ingestion?.toISOString() ?? null,
-      };
-    });
-  },
-  { ttl: () => 60_000, maxEntries: 1, maxPending: 1 },
-);
+    }
+    return {
+      // json_agg embeds bigint IDs/ranks as JSON numbers; keep the same string
+      // representation used by ordinary pg rows and continuation hydration.
+      stories: stories.map((story) => ({
+        ...story,
+        hn_id: String(story.hn_id),
+        rank: story.rank === undefined ? undefined : String(story.rank),
+      })),
+      items: selected,
+      selection_limited,
+      observed_at: ranked_at.toISOString(),
+      ingestion: ingestion?.toISOString() ?? null,
+    };
+  });
+}
+
+const cachedReadyStorySelection = boundedCache(queryReadyStorySelection, {
+  ttl: () => 60_000,
+  maxEntries: 1,
+  maxPending: 1,
+});
+
+const freshReadyStorySelection = boundedCache(queryReadyStorySelection, {
+  ttl: () => 10_000,
+  maxEntries: 1,
+  maxPending: 1,
+});
 
 type ReadySnapshotRow = CardStory & { snapshot_ready: boolean; rank_history: RankObservation[] };
 
@@ -402,17 +411,26 @@ function cachedReadySnapshotPage(observedAt: string, items: ReadyStorySnapshotIt
   });
 }
 
-function loadReadyStorySelection() {
-  return cachedReadyStorySelection("ready-stories").catch((error) => {
-    if (error instanceof ReadyStoryPageError || error instanceof DataUnavailableError) throw error;
-    throw new DataUnavailableError();
-  });
+function loadReadyStorySelection(fresh = false) {
+  return (fresh ? freshReadyStorySelection : cachedReadyStorySelection)("ready-stories").catch(
+    (error) => {
+      if (error instanceof ReadyStoryPageError || error instanceof DataUnavailableError)
+        throw error;
+      throw new DataUnavailableError();
+    },
+  );
+}
+
+export async function getCurrentReadySelectionIds(): Promise<string[]> {
+  const selection = await loadReadyStorySelection(true);
+  return selection.items.map((item) => item.hn_id);
 }
 
 export type ReadyStoryPage = {
   stories: (CardStory & { rank_history: RankObservation[] })[];
   ingestion: Date | null;
   observed_at: string;
+  selectionIds: string[];
   pagination: {
     cursor: string | null;
     hasMore: boolean;
@@ -427,11 +445,15 @@ export async function getReadyStoryPage({
   cursor,
   page,
   pageSize,
+  fresh = false,
 }: {
   cursor?: string;
   page?: number;
   pageSize?: number;
+  fresh?: boolean;
 } = {}): Promise<ReadyStoryPage> {
+  if (fresh && (cursor !== undefined || (page !== undefined && page !== 1)))
+    throw new ReadyStoryPageError("invalid_cursor");
   if (cursor !== undefined) {
     const snapshot = parseReadyStoryCursor(cursor);
     const size = snapshot.pageSize;
@@ -447,6 +469,7 @@ export async function getReadyStoryPage({
       stories: await cachedReadySnapshotPage(snapshot.observedAt, items),
       ingestion: snapshot.ingestion ? new Date(snapshot.ingestion) : null,
       observed_at: snapshot.observedAt,
+      selectionIds: snapshot.items.map((item) => item.hn_id),
       pagination: {
         cursor: hasMore
           ? createReadyStoryCursor({
@@ -473,7 +496,7 @@ export async function getReadyStoryPage({
 
   const size = assertReadyStoryPageSize(pageSize);
   const requestedPage = assertReadyStoryPage(page);
-  const selection = await loadReadyStorySelection();
+  const selection = await loadReadyStorySelection(fresh);
   const offset = (requestedPage - 1) * size;
   if (offset >= selection.items.length && (selection.items.length !== 0 || requestedPage > 1))
     throw new ReadyStoryPageError("invalid_page");
@@ -492,6 +515,7 @@ export async function getReadyStoryPage({
     stories,
     ingestion: selection.ingestion ? new Date(selection.ingestion) : null,
     observed_at: selection.observed_at,
+    selectionIds: items.map((item) => item.hn_id),
     pagination: {
       cursor: hasMore
         ? createReadyStoryCursor({

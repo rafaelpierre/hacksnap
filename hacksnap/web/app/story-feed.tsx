@@ -47,9 +47,21 @@ type ScrollTarget = {
 const FRESH_QUERY = "__hacksnap_fresh";
 const CHECKPOINT_DELAY_MS = 400;
 const POSITION_SETTLE_MS = 2000;
+const FRESHNESS_CHECK_MS = 60_000;
 
 function currentURL() {
   return window.location.pathname + window.location.search;
+}
+
+function validSelectionIds(value: unknown): string[] | null {
+  if (
+    !Array.isArray(value) ||
+    value.length > 400 ||
+    value.some((id) => typeof id !== "string" || !/^[1-9][0-9]{0,14}$/.test(id)) ||
+    new Set(value).size !== value.length
+  )
+    return null;
+  return value;
 }
 
 function viewportAnchor(): HomeFeedCheckpoint["anchor"] {
@@ -66,12 +78,14 @@ function viewportAnchor(): HomeFeedCheckpoint["anchor"] {
 export function StoryFeed({
   initialStories,
   initialPagination,
+  initialSelectionIds,
   listingPath = "/",
   groupByDay = false,
   emptyState,
 }: {
   initialStories: PublicFeedStory[];
   initialPagination: FeedPagination;
+  initialSelectionIds?: string[];
   listingPath?: string;
   groupByDay?: boolean;
   emptyState?: ReactNode;
@@ -85,8 +99,8 @@ export function StoryFeed({
     phase: "idle",
     announcement: "",
   });
-  const hasNewerPage =
-    initialPagination.page > 1 && (!ranked || !!initialPagination.previousCursor);
+  const [startingPage, setStartingPage] = useState(initialPagination.page);
+  const hasNewerPage = startingPage > 1 && (!ranked || !!initialPagination.previousCursor);
   const hasOlderPage = !ranked && feed.pagination.hasMore;
   const [restored, setRestored] = useState(false);
   const [history, setHistory] = useState(emptyStoryHistory);
@@ -105,6 +119,15 @@ export function StoryFeed({
   const sentinel = useRef<HTMLDivElement>(null);
   const [continuationFocused, setContinuationFocused] = useState(false);
   const [automaticLoadingAvailable, setAutomaticLoadingAvailable] = useState(true);
+  const baselineIds = useRef<ReadonlySet<string> | null>(
+    initialSelectionIds ? new Set(initialSelectionIds) : null,
+  );
+  const [newStoriesAvailable, setNewStoriesAvailable] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const [freshFocusId, setFreshFocusId] = useState<string | null | undefined>(undefined);
+  const refreshRequest = useRef<AbortController | null>(null);
+  const freshSelectionGeneration = useRef(0);
   const activeTrigger = useRef<"auto" | "manual" | null>(null);
   feedRef.current = feed;
   const openedIds = useMemo(
@@ -120,6 +143,79 @@ export function StoryFeed({
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") setAutomaticLoadingAvailable(false);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      refreshRequest.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!ranked || !restored || positionPending || !baselineIds.current) return;
+    let checking = false;
+    let lastCheck = 0;
+    let active = true;
+    let cancelPending: (() => void) | null = null;
+    const check = async () => {
+      if (document.visibilityState !== "visible" || checking) return;
+      if (Date.now() - lastCheck < FRESHNESS_CHECK_MS) return;
+      lastCheck = Date.now();
+      checking = true;
+      const generation = freshSelectionGeneration.current;
+      const request = new AbortController();
+      let timeout: number | null = null;
+      try {
+        const result: unknown = await Promise.race([
+          (async () => {
+            const response = await fetch("/api/story-freshness", {
+              signal: request.signal,
+              cache: "no-store",
+            });
+            return response.ok ? response.json() : null;
+          })(),
+          new Promise<null>((resolve) => {
+            cancelPending = () => {
+              request.abort();
+              resolve(null);
+            };
+            timeout = window.setTimeout(cancelPending, 15_000);
+          }),
+        ]);
+        if (
+          !active ||
+          generation !== freshSelectionGeneration.current ||
+          !result ||
+          typeof result !== "object"
+        )
+          return;
+        const currentIds = validSelectionIds((result as { ids?: unknown }).ids);
+        if (!currentIds) return;
+        if (currentIds.some((id) => !baselineIds.current?.has(id))) setNewStoriesAvailable(true);
+      } catch {
+        // Keep the current selection and retry after the bounded interval.
+      } finally {
+        if (timeout !== null) window.clearTimeout(timeout);
+        cancelPending = null;
+        checking = false;
+        if (active && lastCheck === 0 && document.visibilityState === "visible") void check();
+      }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), FRESHNESS_CHECK_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        cancelPending?.();
+        lastCheck = 0;
+      } else void check();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      active = false;
+      cancelPending?.();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [ranked, restored, positionPending]);
 
   function snapshotNow(): FeedSnapshot {
     const current = feedRef.current;
@@ -163,6 +259,10 @@ export function StoryFeed({
   useEffect(() => {
     const applySnapshot = (snapshot: FeedSnapshot, anchor: HomeFeedCheckpoint["anchor"]) => {
       setRestoredFromSnapshot(true);
+      const page = Number(
+        new URL(snapshot.url, window.location.origin).searchParams.get("page") ?? "1",
+      );
+      setStartingPage(Number.isSafeInteger(page) && page > 0 ? page : 1);
       scrollTarget.current = {
         y: snapshot.scrollY,
         storyId: anchor?.storyId ?? null,
@@ -365,6 +465,7 @@ export function StoryFeed({
       const current = feedRef.current;
       if (
         activeRequest.current ||
+        refreshRequest.current ||
         !positionSettled.current ||
         current.phase === "expired" ||
         !current.pagination.hasMore ||
@@ -433,6 +534,82 @@ export function StoryFeed({
     [listingPath, ranked],
   );
 
+  async function refreshSelection() {
+    if (refreshing || refreshRequest.current || !ranked) return;
+    const previousPhase = feedRef.current.phase;
+    freshSelectionGeneration.current++;
+    activeRequest.current?.abort();
+    activeRequest.current = null;
+    requestId.current++;
+    const controller = new AbortController();
+    refreshRequest.current = controller;
+    setRefreshing(true);
+    setRefreshFailed(false);
+    setFeed((state) => ({ ...state, phase: "idle" }));
+    try {
+      const response = await fetch("/api/ready-stories?fresh=1", {
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Fresh selection unavailable");
+      const raw: unknown = await response.json();
+      const page = validFeedPage(raw, "/");
+      if (!page || page.pagination.page !== 1) throw new Error("Invalid fresh selection");
+      if (controller.signal.aborted) return;
+      const ids =
+        raw && typeof raw === "object" && "selectionIds" in raw
+          ? validSelectionIds(raw.selectionIds)
+          : null;
+      if (!ids) throw new Error("Invalid fresh selection membership");
+      clearHomeFeedCheckpoint();
+      if (currentURL() !== "/") {
+        const state = { ...window.history.state };
+        delete state.hacksnapHomeFeed;
+        window.history.replaceState(state, "", "/");
+      }
+      const next: FeedState = {
+        stories: page.stories,
+        pagination: page.pagination,
+        phase: "idle",
+        announcement: "Fresh story selection loaded.",
+      };
+      feedRef.current = next;
+      setFeed(next);
+      setStartingPage(1);
+      baselineIds.current = new Set(ids);
+      setNewStoriesAvailable(false);
+      setPinnedStoryId(page.stories[0]?.hn_id ?? null);
+      setFreshFocusId(page.stories[0]?.hn_id ?? null);
+    } catch {
+      if (!controller.signal.aborted) {
+        setFeed((state) => ({
+          ...state,
+          phase: previousPhase === "expired" || previousPhase === "failed" ? previousPhase : "idle",
+        }));
+        setRefreshFailed(true);
+      }
+    } finally {
+      if (refreshRequest.current === controller) refreshRequest.current = null;
+      if (!controller.signal.aborted) setRefreshing(false);
+    }
+  }
+
+  useLayoutEffect(() => {
+    if (freshFocusId === undefined) return;
+    window.scrollTo({ top: 0, behavior: "instant" });
+    const target = freshFocusId
+      ? document.querySelector<HTMLAnchorElement>(`[data-home-story-id="${freshFocusId}"] h3 a`)
+      : document.querySelector<HTMLElement>(".home-intro h1");
+    if (target) {
+      if (!freshFocusId) target.tabIndex = -1;
+      // A large text setting can put the first card below the fold; keep focus visible.
+      target.focus();
+    }
+    setFreshFocusId(undefined);
+    setPinnedStoryId(null);
+  }, [freshFocusId, feed.stories]);
+
   function startLatest(event: MouseEvent<HTMLAnchorElement>) {
     if (
       event.button !== 0 ||
@@ -452,6 +629,7 @@ export function StoryFeed({
     if (
       !restored ||
       positionPending ||
+      refreshing ||
       !feed.pagination.hasMore ||
       feed.phase !== "idle" ||
       continuationFocused ||
@@ -477,11 +655,27 @@ export function StoryFeed({
     feed.phase,
     load,
     positionPending,
+    refreshing,
     restored,
   ]);
 
   return (
     <>
+      {ranked && (newStoriesAvailable || refreshFailed) && (
+        <div className="feed-freshness-banner">
+          <span className="sr-only" role="status" aria-live="polite">
+            {refreshFailed ? "Couldn’t refresh stories. Try again." : "New stories available."}
+          </span>
+          <button
+            type="button"
+            disabled={refreshing}
+            aria-label={refreshFailed ? "Retry loading new stories" : undefined}
+            onClick={() => void refreshSelection()}
+          >
+            {refreshing ? "Refreshing…" : refreshFailed ? "Try again" : "Show new stories"}
+          </button>
+        </div>
+      )}
       {feed.stories.length === 0 ? (
         (emptyState ?? (
           <div className="empty">
@@ -494,7 +688,7 @@ export function StoryFeed({
           stories={feed.stories}
           ranked={ranked}
           openedIds={openedIds}
-          initialPage={initialPagination.page}
+          initialPage={startingPage}
           groupByDay={groupByDay}
           pinnedStoryId={pinnedStoryId}
           leadImagePriority={restored && !restoredFromSnapshot && !positionPending}
@@ -583,7 +777,7 @@ export function StoryFeed({
           <nav className="home-feed-pages" aria-label="Story pages">
             {hasNewerPage && (
               <Link
-                href={pageURL(initialPagination.page - 1, initialPagination.previousCursor)}
+                href={pageURL(startingPage - 1, initialPagination.previousCursor)}
                 prefetch={false}
               >
                 Newer stories

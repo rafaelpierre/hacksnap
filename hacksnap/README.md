@@ -357,6 +357,9 @@ expired or no-longer-ready selected rows return 410, so callers restart from the
 first batch. The response exposes `selectionLimited` when its bounded 400-story
 selection ends before the full pool; this is distinct from `hasMore: false` for an
 exhausted selection. Existing `/api/stories`, Markdown, and RSS formats are unchanged.
+The web app compares this bounded selection's IDs during an active Top-feed visit;
+a new member offers an explicit fresh selection without reordering the open feed.
+This is in-session selection freshness, with no previous-visit history or exact count.
 
 Run `npm run test:api`, `npm run typecheck`, and `npm run build` from `web/`.
 After deploying the frontend, validate the public catalog with:
