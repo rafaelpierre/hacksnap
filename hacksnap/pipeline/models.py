@@ -224,11 +224,19 @@ class DiscussionBrief(StrictModel):
     """Inference-only structure; the application inserts list markers and line breaks."""
 
     opening: Annotated[str, StringConstraints(
-        strip_whitespace=True, min_length=1, max_length=300, pattern=r"^[^\r\n]+$"
+        strip_whitespace=True, min_length=1, max_length=300
     )]
     bullets: list[Annotated[str, StringConstraints(
-        strip_whitespace=True, min_length=1, max_length=450, pattern=r"^[^\r\n]+$"
+        strip_whitespace=True, min_length=1, max_length=450
     )]] = Field(max_length=4)
+
+    @model_validator(mode="after")
+    def validate_single_lines(self) -> Self:
+        # xgrammar rejects pattern combined with minLength/maxLength. Keep length
+        # bounds in the inference schema and enforce line breaks after generation.
+        if any("\r" in text or "\n" in text for text in [self.opening, *self.bullets]):
+            raise ValueError("Discussion opening and bullets must each be a single line")
+        return self
 
 
 class GeneratedStorySummary(SummaryContent):
