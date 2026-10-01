@@ -126,8 +126,59 @@ test("share draft refresh, reset, identity changes, and delayed copies follow th
     await settle(() => writes[3].resolve());
     assert.equal(document.querySelector(".share-feedback").textContent, "");
     assert.equal(document.querySelector(".share-manual"), null);
+
+    await click(button("Copy link"));
+    assert.equal(writes.length, 5);
+    await render({
+      id: "789",
+      slug: "third-story-789",
+      title: "Third story",
+      takeaway: "Third takeaway",
+    });
+    await settle(() => writes[4].reject(new Error("clipboard unavailable")));
+    assert.equal(document.querySelector(".share-feedback").textContent, "");
+    assert.equal(document.querySelector(".share-manual"), null);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
+  }
+});
+
+test("an unopened share draft uses refreshed ready content on its first open", async () => {
+  const root = createRoot(document.getElementById("root"));
+  const button = (label) =>
+    [...document.querySelectorAll("button")].find((item) => item.textContent.trim() === label);
+  try {
+    await act(async () =>
+      root.render(
+        React.createElement(ShareLinks, {
+          id: "321",
+          slug: "ready-story-321",
+          title: "Ready story",
+          takeaway: null,
+        }),
+      ),
+    );
+    assert.equal(document.querySelector(".share-panel"), null);
+
+    await act(async () =>
+      root.render(
+        React.createElement(ShareLinks, {
+          id: "321",
+          slug: "ready-story-321",
+          title: "Ready story",
+          takeaway: "Summary arrived before first open",
+        }),
+      ),
+    );
+    assert.equal(document.querySelector(".share-panel"), null);
+
+    await act(async () => button("Share").click());
+    assert.equal(
+      document.querySelector(".share-draft").value,
+      "Ready story\n\nSummary arrived before first open\n\nhttps://hacksnap.live/story/ready-story-321",
+    );
+  } finally {
+    await act(async () => root.unmount());
   }
 });
