@@ -55,11 +55,6 @@ primary-key index, with at most 168 observations per story. No migration is need
 The current queried rank is available to ranking calculations between scheduled
 history captures.
 
-The card's places-change badge compares the displayed rank with the latest saved
-rank when they differ. Once the worker records that position, it compares the two
-latest captures, preserving the newly recorded move. A subsequent unchanged
-capture reports zero; missing comparison history displays a dash.
-
 The historical places-change calculation compares saved observations; intermediate
 positions are unknown. Markdown and RSS retain textual ranking metrics.
 
