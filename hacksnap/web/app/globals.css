@@ -1157,6 +1157,22 @@ body:has(#browse-content) .skip-browse {
 .home-feed-status:empty {
   display: none;
 }
+.home-feed-spinner {
+  display: inline-block;
+  width: var(--space-5);
+  height: var(--space-5);
+  margin-right: var(--space-2);
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: home-feed-spin 0.8s linear infinite;
+  vertical-align: -0.3em;
+}
+@keyframes home-feed-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .home-feed-actions,
 .home-feed-pages {
   display: flex;

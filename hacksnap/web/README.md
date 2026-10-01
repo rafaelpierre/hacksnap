@@ -91,8 +91,9 @@ stays visible while scrolling, and the desktop left topic sidebar
 sticks below its measured height. Tall navigation areas scroll within the viewport.
 All main destinations remain available without reaching the footer. Automatic
 loading stops while the continuation controls have keyboard focus, cancelling any
-pending automatic request; manual loading remains available. There is no separate
-Pause/Resume control.
+pending automatic request. A spinner shows while more stories load, and a retry
+button appears only after a failed request. There is no separate Pause/Resume
+control.
 
 Story cards show time since first added in compact days and hours (e.g. `1d 2h`,
 `5h`, or `<1h`), refreshed every minute. Before hydration, the UTC date is shown.
@@ -106,11 +107,12 @@ restores the loaded selection and the visible story's offset in the viewport.
 Older checkpoints with a valid selection offer **Continue where you left off**
 and **Keep latest stories**. Scrolling, modified title clicks, category links and
 HN comment links preserve the offer. Choosing latest, opening a fresh story with
-an unmodified primary title activation, or manually loading more commits the new
+an unmodified primary title activation, or loading more commits the new
 reading session.
-The **Back to latest** link explicitly requests a fresh selection; its temporary
-query flag is removed after initialization. Browser Back/Forward and explicit
-story returns take precedence over the durable checkpoint.
+The **Start a fresh selection** link on an expired continuation explicitly requests
+a fresh selection; its temporary query flag is removed after initialization.
+Browser Back/Forward and explicit story returns take precedence over the durable
+checkpoint.
 
 Checkpoints store the loaded public story cards, pagination, a story ID and its
 signed viewport offset, and a save timestamp. Position writes are debounced by
@@ -367,7 +369,7 @@ Unit tests verify cache expiry, format headers, and route validation using mocks
 first. `/archive/YYYY/MM` filters by the UTC month in which a story was added to
 Hacksnap. Daily headings use that same date, not the summary update time.
 Top Stories, Latest, dated archives, and topic listings reuse `app/story-feed.tsx`
-for automatic loading near the end of the feed, manual loading/retries, accessible
+for automatic loading near the end of the feed, failed-load retries, accessible
 status announcements, and story-return restoration. Server routes own filtering
 and ordering; Latest/archives retain UTC day headings and topics use an unranked
 list. Each archive/topic request loads up to 30 stories through
