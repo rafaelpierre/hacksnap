@@ -22,6 +22,15 @@ and [after](results-after.json) JSON files. The after matrix includes the final
 separator styling. The reusable [preview preparer](prepare-preview.py) and
 [capture script](capture-matrix.cjs) are included here.
 
+The BrowseLoading skeleton was also checked at 320px and 1280px, in both themes
+at 200% text. The title, image and excerpt follow the shared card order on
+mobile; on desktop the title and image sit side by side with the excerpt below.
+All three cards fit the viewport and the measured regions do not overlap.
+Captures: [320px light](screenshots/after/skeleton-320-light.png),
+[320px dark](screenshots/after/skeleton-320-dark.png),
+[1280px light](screenshots/after/skeleton-1280-light.png),
+[1280px dark](screenshots/after/skeleton-1280-dark.png).
+
 ## Before and after
 
 All screenshots use 200% root text size and the light theme. The full matrix also
@@ -62,3 +71,15 @@ node docs/ux/2026-10-01/issue-168/capture-matrix.cjs
 The script accepts `BASE_URL`, `EVIDENCE_DIR`, and `PLAYWRIGHT_MODULE`. Set
 `CAPTURE_ONLY=1` for the six light-theme 200% screenshots; otherwise it checks
 both themes and both text sizes and saves measurements to `results.json`.
+
+## Loading-state review follow-up
+
+The loading skeleton now follows the same direct-child order as a loaded card:
+context, title, image, then excerpt and footer. A DOM regression test checks all
+three decorative cards. The full suite passes 334 tests after this fix.
+
+`verify-skeleton.cjs` renders the production `BrowseLoading` component with the
+production CSS and checks its geometry in Chromium at 320px/1280px, light/dark,
+and 100%/200% text. All eight cases passed; see `skeleton-results.json`. Run with
+`PLAYWRIGHT_MODULE` pointing to an installed Playwright module. This isolated
+component check verifies ordering and absence of overlap, not production CLS.
