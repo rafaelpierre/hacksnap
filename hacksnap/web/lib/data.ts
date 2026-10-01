@@ -23,8 +23,15 @@ import {
 import path from "node:path";
 import { cache } from "react";
 import { Pool, type PoolClient } from "pg";
-import { rankHistorySQL, type RankObservation } from "./rank-history";
+import {
+  cardRankHistoryAtSQL,
+  cardRankHistorySQL,
+  rankHistoryAtSQL,
+  rankHistorySQL,
+  type RankObservation,
+} from "./rank-history";
 import { storyMetricsSQL, type RankingMetrics } from "./story-metrics";
+import type { ArticleStory, CardStory, ExportStory } from "./story-domain";
 import {
   CATEGORY_PAGE_SIZE,
   categoryCountsSQL,
@@ -34,7 +41,6 @@ import {
   type CategoryCounts,
 } from "./categories";
 
-import type { DiscussionFields } from "./discussion-analysis";
 import {
   feedFields,
   feedFieldsWithoutImages,
@@ -46,53 +52,19 @@ import {
   legacyStoryFieldsWithoutImages,
   discussionColumnsSQL,
   imageColumnsSQL,
+  exportFields,
+  exportFieldsWithoutImages,
 } from "./story-projection";
-import type { StoryImageFields } from "./story-image";
 export type {
   DiscussionAnalysis,
   DiscussionAnalysisPreview,
   DiscussionAnalysisCoverage,
 } from "./discussion-analysis";
 
-export type Summary = DiscussionFields & {
-  article_summary: string | null;
-  article_key_points: string[];
-  discussion_summary: string;
-  discussion_points: { title: string; summary: string; comment_ids: number[] }[];
-  sentiment: -1 | 0 | 1 | null;
-  overall_takeaway: string;
-  generated_at: string;
-  model: string;
-  source_coverage: {
-    stored_comments: number;
-    included_comments: number;
-    comments_truncated: boolean;
-    article_status: "fetched" | "unavailable" | "not_applicable";
-    sentiment?: { included_comments: number };
-  };
-};
-
-export type Story = StoryImageFields & {
-  hn_id: string;
-  title: string;
-  story_slug?: string | null;
-  category: CategoryId | null;
-  url: string;
-  points: number;
-  comment_count: number;
-  rank?: string;
-  is_recent?: boolean;
-  date_added: Date;
-  image_url?: string | null;
-  image_status?: string | null;
-  image_width?: number | null;
-  image_height?: number | null;
-  image_mime_type?: string | null;
-  summary: Summary | null;
-  rank_history?: RankObservation[];
-  observed_at?: string;
-  ranking_metrics?: RankingMetrics;
-};
+export type { ArticleStory, CardStory, ExportStory } from "./story-domain";
+// Compatibility for article renderers; card loaders below use CardStory explicitly.
+export type Story = ArticleStory;
+export type Summary = NonNullable<ArticleStory["summary"]>;
 
 const globalDB = globalThis as unknown as { hacksnapPool?: Pool };
 
@@ -196,7 +168,7 @@ async function storySlugField(client: PoolClient): Promise<string> {
 
 // Check on each cache miss so applying the migration needs no process restart.
 function readStories<T>(
-  kind: "feed" | "story",
+  kind: "feed" | "story" | "export",
   query: (client: PoolClient, fields: string) => Promise<T>,
 ): Promise<T> {
   return read(async (client) => {
@@ -205,34 +177,41 @@ function readStories<T>(
       hasImageColumns(client),
     ]);
     const fields =
-      kind === "feed"
-        ? discussionAvailable
-          ? imagesAvailable
-            ? feedFields
-            : feedFieldsWithoutImages
-          : imagesAvailable
-            ? legacyFeedFields
-            : legacyFeedFieldsWithoutImages
-        : discussionAvailable
-          ? imagesAvailable
-            ? storyFields
-            : storyFieldsWithoutImages
-          : imagesAvailable
-            ? legacyStoryFields
-            : legacyStoryFieldsWithoutImages;
+      kind === "export"
+        ? imagesAvailable
+          ? exportFields
+          : exportFieldsWithoutImages
+        : kind === "feed"
+          ? discussionAvailable
+            ? imagesAvailable
+              ? feedFields
+              : feedFieldsWithoutImages
+            : imagesAvailable
+              ? legacyFeedFields
+              : legacyFeedFieldsWithoutImages
+          : discussionAvailable
+            ? imagesAvailable
+              ? storyFields
+              : storyFieldsWithoutImages
+            : imagesAvailable
+              ? legacyStoryFields
+              : legacyStoryFieldsWithoutImages;
     return query(client, `${fields}, ${await storySlugField(client)}`);
   });
 }
 
 // SQL JSON aggregation returns story dates as strings.
 type CachedLeaderboard = {
-  stories: (Omit<Story, "date_added"> & { date_added: string; rank_history: RankObservation[] })[];
+  stories: (Omit<CardStory, "date_added"> & {
+    date_added: string;
+    rank_history: RankObservation[];
+  })[];
   ingestion: string | null;
   observed_at: string;
 };
 
 export async function getLeaderboard(): Promise<{
-  stories: (Story & { rank_history: RankObservation[] })[];
+  stories: (CardStory & { rank_history: RankObservation[] })[];
   ingestion: Date | null;
   observed_at: string;
 }> {
@@ -275,7 +254,7 @@ const cachedReadyStorySelection = boundedCache(
         SELECT json_agg(item ORDER BY item.rank) FROM ready item
       ), '[]'::json) AS items, COALESCE((
         SELECT json_agg(story ORDER BY story.rank) FROM (
-          SELECT ${fields}, r.rank, r.is_recent, ${rankHistorySQL} AS rank_history
+          SELECT ${fields}, r.rank, r.is_recent, ${cardRankHistorySQL} AS rank_history
           FROM (SELECT * FROM ready ORDER BY rank LIMIT 10) r
           INNER JOIN hacker_news_threads t ON t.hn_id = r.hn_id
           INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
@@ -330,15 +309,16 @@ const cachedReadyStorySelection = boundedCache(
   { ttl: () => 60_000, maxEntries: 1, maxPending: 1 },
 );
 
-type ReadySnapshotRow = Story & { snapshot_ready: boolean; rank_history: RankObservation[] };
+type ReadySnapshotRow = CardStory & { snapshot_ready: boolean; rank_history: RankObservation[] };
 
 async function getReadySnapshotStories(
   items: ReadyStorySnapshotItem[],
-): Promise<(Story & { rank_history: RankObservation[] })[]> {
+  observedAt: string,
+): Promise<(CardStory & { rank_history: RankObservation[] })[]> {
   const result = await readStories("feed", async (client, fields) => {
     return client.query<ReadySnapshotRow>(
       `SELECT ${fields}, selected.rank::text AS rank, selected.is_recent,
-        ${rankHistorySQL} AS rank_history,
+        ${cardRankHistoryAtSQL} AS rank_history,
         (r.hn_id IS NOT NULL AND s.overall_takeaway ~ '[^[:space:]]') AS snapshot_ready
       FROM unnest($1::bigint[], $2::bigint[], $3::boolean[]) WITH ORDINALITY
         AS selected(hn_id, rank, is_recent, position)
@@ -350,6 +330,7 @@ async function getReadySnapshotStories(
         items.map((item) => item.hn_id),
         items.map((item) => item.rank),
         items.map((item) => item.is_recent),
+        observedAt,
       ],
     );
   });
@@ -363,12 +344,14 @@ async function getReadySnapshotStories(
 const cachedReadySnapshotStories = boundedCache(
   async (key: string) => {
     const separator = key.indexOf("|");
+    const observedAt = key.slice(0, separator);
     const records = key.slice(separator + 1).split(";");
     return getReadySnapshotStories(
       records.map((record) => {
         const [hn_id, rank, recent] = record.split(",");
         return { hn_id, rank, is_recent: recent === "1" };
       }),
+      observedAt,
     );
   },
   { ttl: () => 60_000, maxEntries: 64, maxPending: 8 },
@@ -391,7 +374,7 @@ function loadReadyStorySelection() {
 }
 
 export type ReadyStoryPage = {
-  stories: (Story & { rank_history: RankObservation[] })[];
+  stories: (CardStory & { rank_history: RankObservation[] })[];
   ingestion: Date | null;
   observed_at: string;
   pagination: {
@@ -533,10 +516,10 @@ export async function getSitemapStories(): Promise<
 }
 
 const cachedFeedStories = boundedCache(
-  async (): Promise<Story[]> => {
+  async (): Promise<CardStory[]> => {
     return readStories("feed", async (client, fields) => {
       const result =
-        await client.query<Story>(`SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
+        await client.query<CardStory>(`SELECT ${fields}, r.rank, ${cardRankHistorySQL} AS rank_history,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
@@ -548,8 +531,126 @@ const cachedFeedStories = boundedCache(
   { ttl: () => 300_000, maxEntries: 1, maxPending: 1 },
 );
 
-export function getFeedStories(): Promise<Story[]> {
+export function getFeedStories(): Promise<CardStory[]> {
   return cachedFeedStories("feed");
+}
+
+// RSS keeps its documented article and discussion text without making cards
+// retain those bodies. Its existing five-minute cache remains independent.
+const cachedRssStories = boundedCache(
+  async (): Promise<ExportStory[]> =>
+    readStories(
+      "export",
+      async (client, fields) =>
+        (
+          await client.query<ExportStory>(`SELECT ${fields}, r.rank,
+        ${rankHistorySQL} AS rank_history,
+        to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
+        FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+        LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
+        WHERE t.hn_id BETWEEN 1 AND 999999999999999
+        ORDER BY t.date_added DESC, t.hn_id DESC LIMIT 50`)
+        ).rows,
+    ),
+  { ttl: () => 300_000, maxEntries: 1, maxPending: 1 },
+);
+
+export function getRssStories(): Promise<ExportStory[]> {
+  return cachedRssStories("rss");
+}
+
+// Public list output still contains article and discussion summary strings.
+// Hydrate just the ranked IDs selected by the common leaderboard cache.
+const cachedApiStories = boundedCache(
+  async (key: string): Promise<ExportStory[]> => {
+    const ids = key
+      .slice(key.indexOf("|") + 1)
+      .split(",")
+      .filter(Boolean);
+    if (!ids.length) return [];
+    const stories = await readStories(
+      "export",
+      async (client, fields) =>
+        (
+          await client.query<ExportStory>(
+            `SELECT ${fields} FROM unnest($1::bigint[]) WITH ORDINALITY AS selected(hn_id, position)
+        INNER JOIN hacker_news_threads t ON t.hn_id = selected.hn_id
+        LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+        ORDER BY selected.position`,
+            [ids],
+          )
+        ).rows,
+    );
+    // An export read can race a summary removal after the ranked selection was
+    // cached. Fail the export rather than returning a newly pending top story.
+    if (
+      stories.length !== ids.length ||
+      stories.some((story) => !story.summary?.overall_takeaway?.trim())
+    )
+      throw new DataUnavailableError();
+    return stories;
+  },
+  { ttl: () => 60_000, maxEntries: 2, maxPending: 1 },
+);
+
+export async function getApiLeaderboard(): Promise<{
+  stories: ExportStory[];
+  ingestion: Date | null;
+}> {
+  const selection = await loadReadyStorySelection();
+  const key = `${selection.observed_at}|${selection.stories.map((story) => story.hn_id).join(",")}`;
+  try {
+    return {
+      stories: await cachedApiStories(key),
+      ingestion: selection.ingestion ? new Date(selection.ingestion) : null,
+    };
+  } catch {
+    throw new DataUnavailableError();
+  }
+}
+
+// Homepage Markdown presents every observed position within the 24-hour window.
+// Keep that history out of the cached HTML cards and attach it only on demand.
+const cachedMarkdownHistories = boundedCache(
+  async (key: string): Promise<Map<string, RankObservation[]>> => {
+    const separator = key.indexOf("|");
+    const observedAt = key.slice(0, separator);
+    const ids = key
+      .slice(separator + 1)
+      .split(",")
+      .filter(Boolean);
+    if (!ids.length) return new Map();
+    const histories = await read(
+      async (client) =>
+        (
+          await client.query<{ hn_id: string; rank_history: RankObservation[] }>(
+            `SELECT t.hn_id, ${rankHistoryAtSQL} AS rank_history
+         FROM hacker_news_threads t WHERE t.hn_id = ANY($1::bigint[])`,
+            [ids, observedAt],
+          )
+        ).rows,
+    );
+    return new Map(histories.map((row) => [String(row.hn_id), row.rank_history]));
+  },
+  { ttl: () => 60_000, maxEntries: 2, maxPending: 1 },
+);
+
+export async function getMarkdownLeaderboard() {
+  const leaderboard = await getLeaderboard();
+  const key = `${leaderboard.observed_at}|${leaderboard.stories.map((story) => story.hn_id).join(",")}`;
+  let byId: Map<string, RankObservation[]>;
+  try {
+    byId = await cachedMarkdownHistories(key);
+  } catch {
+    throw new DataUnavailableError();
+  }
+  return {
+    ...leaderboard,
+    stories: leaderboard.stories.map((story) => ({
+      ...story,
+      rank_history: byId.get(story.hn_id) ?? [],
+    })),
+  };
 }
 
 const cachedPublicStory = boundedCache(
@@ -571,14 +672,11 @@ export async function getPublicStory(id: string): Promise<PublicStory | null> {
 
 // Cache expensive renderer reads across requests, including negotiated Markdown.
 const cachedStory = boundedCache(
-  async (id: string): Promise<Story | null> => {
+  async (id: string): Promise<ArticleStory | null> => {
     return readStories("story", async (client, fields) => {
-      const result = await client.query<Story>(
-        `SELECT ${fields}, r.rank, ${rankHistorySQL} AS rank_history,
-      ${storyMetricsSQL} AS ranking_metrics,
-      to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
+      const result = await client.query<ArticleStory>(
+        `SELECT ${fields}
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
-      LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
       WHERE t.hn_id = $1`,
         [id],
       );
@@ -589,7 +687,7 @@ const cachedStory = boundedCache(
 );
 
 // Share the result between page metadata and rendering within the same request.
-export const getStory = cache(async (id: string): Promise<Story | null> => {
+export const getStory = cache(async (id: string): Promise<ArticleStory | null> => {
   if (!validStoryId(id)) return null;
   try {
     return await cachedStory(id);
@@ -597,6 +695,29 @@ export const getStory = cache(async (id: string): Promise<Story | null> => {
     throw new DataUnavailableError();
   }
 });
+
+const cachedStoryMetrics = boundedCache(
+  async (id: string): Promise<RankingMetrics | null> =>
+    read(
+      async (client) =>
+        (
+          await client.query<{ ranking_metrics: RankingMetrics }>(
+            `SELECT ${storyMetricsSQL} AS ranking_metrics FROM hacker_news_threads t WHERE t.hn_id = $1`,
+            [id],
+          )
+        ).rows[0]?.ranking_metrics ?? null,
+    ),
+  { ttl: (metrics) => (metrics ? 1_800_000 : 60_000), maxEntries: 128, maxPending: 4 },
+);
+
+export async function getStoryMetrics(id: string): Promise<RankingMetrics | null> {
+  if (!validStoryId(id)) return null;
+  try {
+    return await cachedStoryMetrics(id);
+  } catch {
+    throw new DataUnavailableError();
+  }
+}
 
 export const getArchiveMonths = cache(async (): Promise<{ month: string; count: number }[]> =>
   read(
@@ -614,7 +735,7 @@ export const getCategoryCounts = cache(async (): Promise<CategoryCounts> =>
 export const getCategoryStories = cache(async (category: CategoryId, page: number) => {
   assertBrowsePage(page);
   return readStories("feed", async (client, fields) => {
-    const { rows } = await client.query<Story>(categoryQuery(fields, category, page));
+    const { rows } = await client.query<CardStory>(categoryQuery(fields, category, page));
     return {
       stories: rows.slice(0, CATEGORY_PAGE_SIZE),
       hasNext: page < MAX_BROWSE_PAGE && rows.length > CATEGORY_PAGE_SIZE,
@@ -622,7 +743,10 @@ export const getCategoryStories = cache(async (category: CategoryId, page: numbe
   });
 });
 
-export type RelatedStory = Pick<Story, "hn_id" | "title" | "url" | "date_added" | "story_slug"> & {
+export type RelatedStory = Pick<
+  ArticleStory,
+  "hn_id" | "title" | "url" | "date_added" | "story_slug"
+> & {
   takeaway: string;
 };
 
@@ -641,7 +765,7 @@ export const getRelatedStories = cache(
 export const getArchiveStories = cache(async (month: string | null, page: number) => {
   assertBrowsePage(page);
   return readStories("feed", async (client, fields) => {
-    const result = await client.query<Story>(archiveQuery(fields, month, page));
+    const result = await client.query<CardStory>(archiveQuery(fields, month, page));
     return {
       stories: result.rows.slice(0, ARCHIVE_PAGE_SIZE),
       hasNext: page < MAX_BROWSE_PAGE && result.rows.length > ARCHIVE_PAGE_SIZE,

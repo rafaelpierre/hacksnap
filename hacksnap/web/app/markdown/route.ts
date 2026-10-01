@@ -1,5 +1,5 @@
 import { storyIdFromSlug, storyPath } from "../../lib/story-url";
-import { getLeaderboard, getStory } from "../../lib/data";
+import { getMarkdownLeaderboard, getStory, getStoryMetrics } from "../../lib/data";
 import { leaderboardMarkdown, markdownResponse, storyMarkdown } from "../../lib/markdown";
 import { apiDocsMarkdown } from "../../lib/api-docs-markdown";
 
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     request.headers.get("x-hacksnap-markdown-page") ??
     new URL(request.url).searchParams.get("page");
   try {
-    if (page === "/") return markdownResponse(leaderboardMarkdown(await getLeaderboard()));
+    if (page === "/") return markdownResponse(leaderboardMarkdown(await getMarkdownLeaderboard()));
     if (page === "/docs/api") return markdownResponse(apiDocsMarkdown);
     const match = page?.match(/^\/story\/([^/]+)$/);
     const id = match ? storyIdFromSlug(match[1]) : null;
@@ -24,7 +24,8 @@ export async function GET(request: Request) {
             headers: { Location: canonical, Vary: "Accept", "Cache-Control": "no-store" },
           });
         }
-        return markdownResponse(storyMarkdown(story));
+        const ranking_metrics = await getStoryMetrics(id);
+        return markdownResponse(storyMarkdown({ ...story, ranking_metrics }));
       }
     }
     return markdownResponse("# Not found\n", 404);

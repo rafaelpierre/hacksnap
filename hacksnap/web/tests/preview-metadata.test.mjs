@@ -6,6 +6,7 @@ function summary(overrides = {}) {
   return {
     article_summary: "The article describes an AGENTS.md issue in Claude Code.",
     overall_takeaway: "The discussion examines the behavior and its rollout.",
+    discussion_summary: "The discussion examines the rollout.",
     discussion_points: [
       { title: "Anthropic's response", summary: "Response", comment_ids: [101] },
       { title: "Feature-flag debate", summary: "Debate", comment_ids: [102] },

@@ -2,10 +2,17 @@ import { canonicalStoryUrl } from "./story-url";
 import type { Metadata } from "next";
 import type { Summary } from "./data";
 import { readyStoryImage, type StoryImageFields } from "./story-image";
+import { storyDiscussion } from "./story-presentation";
 
 type PreviewSummary = Pick<
   Summary,
-  "article_summary" | "discussion_points" | "overall_takeaway" | "source_coverage"
+  | "article_summary"
+  | "discussion_summary"
+  | "discussion_points"
+  | "discussion_analysis"
+  | "discussion_analysis_coverage"
+  | "overall_takeaway"
+  | "source_coverage"
 >;
 
 /** Editorial length targets, not platform limits. Keep complete words where possible. */
@@ -31,8 +38,33 @@ function reactionDescription(summary: PreviewSummary | null): string {
     return "Article and Hacker News reaction summary pending. Follow the links to the original source and full discussion on Hacksnap.";
   }
   const hasArticle = Boolean(summary.article_summary?.trim());
-  // Describe the sample actually summarized, not the thread's total comment count.
-  const count = summary.source_coverage.included_comments;
+  const discussion = storyDiscussion(summary);
+  if (discussion.kind === "analysis" && discussion.status === "no_comments") {
+    return `${hasArticle ? "Article summary. " : ""}No usable Hacker News comments were available for discussion analysis. ${summary.overall_takeaway}`;
+  }
+  if (discussion.kind === "analysis") {
+    const count = discussion.coverage?.included_comments;
+    const sample =
+      count === undefined
+        ? "Hacker News discussion analysis"
+        : `Hacker News discussion analysis of ${count.toLocaleString("en-GB")} sampled ${count === 1 ? "comment" : "comments"}`;
+    const introduction = hasArticle ? `Article summary and ${sample}.` : `${sample}.`;
+    const topics = discussion.topics
+      .map((topic) => topic.title.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .join("; ");
+    return `${introduction} ${topics ? `Topics: ${topics}` : summary.overall_takeaway}`;
+  }
+  if (discussion.kind === "legacy_empty") {
+    const explanation =
+      discussion.coverage.included_comments === 0
+        ? "No Hacker News comments were included in this summary."
+        : "No usable discussion was available for this summary.";
+    return `${hasArticle ? "Article summary. " : ""}${explanation} ${summary.overall_takeaway}`;
+  }
+  // The legacy brief's sample is independent from a later analysis refresh.
+  const count = discussion.kind === "legacy" ? discussion.coverage.included_comments : 0;
   if (count === 0) {
     return `${hasArticle ? "Article summary. " : ""}No Hacker News comments were included in this summary. ${summary.overall_takeaway}`;
   }
@@ -40,7 +72,7 @@ function reactionDescription(summary: PreviewSummary | null): string {
   const introduction = hasArticle
     ? `Article summary and Hacker News reactions from ${comments}.`
     : `Hacker News reactions from ${comments}.`;
-  const topics = summary.discussion_points
+  const topics = discussion.topics
     .map((point) => point.title.trim())
     .filter(Boolean)
     .slice(0, 3)

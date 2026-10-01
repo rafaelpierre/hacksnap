@@ -1,0 +1,58 @@
+[
+  {
+    "viewport": 320,
+    "theme": "light",
+    "textPercent": 100,
+    "noOverflow": true,
+    "shareTargets44px": true
+  },
+  {
+    "viewport": 320,
+    "theme": "light",
+    "textPercent": 200,
+    "noOverflow": true,
+    "shareTargets44px": true
+  },
+  {
+    "viewport": 320,
+    "theme": "dark",
+    "textPercent": 100,
+    "noOverflow": true,
+    "shareTargets44px": true
+  },
+  {
+    "viewport": 320,
+    "theme": "dark",
+    "textPercent": 200,
+    "noOverflow": true,
+    "shareTargets44px": true
+  },
+  {
+    "viewport": 1280,
+    "theme": "light",
+    "textPercent": 100,
+    "noOverflow": true,
+    "shareTargets44px": true
+  },
+  {
+    "viewport": 1280,
+    "theme": "light",
+    "textPercent": 200,
+    "noOverflow": true,
+    "shareTargets44px": true
+  },
+  {
+    "viewport": 1280,
+    "theme": "dark",
+    "textPercent": 100,
+    "noOverflow": true,
+    "shareTargets44px": true
+  },
+  {
+    "viewport": 1280,
+    "theme": "dark",
+    "textPercent": 200,
+    "noOverflow": true,
+    "shareTargets44px": true
+  }
+]

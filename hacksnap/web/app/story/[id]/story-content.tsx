@@ -2,7 +2,8 @@ import { ArrowUpRight, ChevronRight, MessagesSquare } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById, categoryURL } from "../../../lib/categories";
-import { articleURL, domain } from "../../../lib/format";
+import { domain } from "../../../lib/format";
+import { storyDiscussion, storySource } from "../../../lib/story-presentation";
 import { DiscussionAnalysis } from "../../discussion-analysis";
 import { SkepticismPill } from "../../skepticism-pill";
 import { ShareLinks } from "../../share-links";
@@ -53,12 +54,11 @@ export function StoryContent({
   const summary = story.summary;
   const deck = briefExcerpt(summary?.overall_takeaway);
   const fullTakeaway = summary?.overall_takeaway?.trim().replace(/\s+/g, " ");
-  const article = articleURL(story.url);
+  const source = storySource(story.url, summary);
+  const article = source.article;
+  const discussion = storyDiscussion(summary);
   const hnURL = `https://news.ycombinator.com/item?id=${story.hn_id}`;
   const category = categoryById(story.category);
-  const hasDiscussion = Boolean(
-    summary?.discussion_summary?.trim() && summary.source_coverage.included_comments > 0,
-  );
   const image = canonicalArticleImage(story);
 
   return (
@@ -111,7 +111,7 @@ export function StoryContent({
           <section className="tldr-section" aria-labelledby="article-heading">
             <h2 id="article-heading">TLDR;</h2>
             {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
-            {summary.article_summary ? (
+            {source.brief === "available" ? (
               <>
                 <p>{summary.article_summary}</p>
                 {summary.article_key_points.length > 0 && (
@@ -124,14 +124,14 @@ export function StoryContent({
               </>
             ) : (
               <p className="muted">
-                {summary.source_coverage.article_status === "unavailable"
+                {source.brief === "unavailable"
                   ? "The original article was unavailable to summarize. You can still read the source and the discussion."
-                  : article
+                  : source.kind === "article"
                     ? "No article brief is available. You can read the original source and the discussion."
                     : "This is an HN post. The discussion is summarized below."}
               </p>
             )}
-            {article && !summary.article_summary && (
+            {article && source.brief !== "available" && (
               <p>
                 <a href={article}>
                   Open the original source{" "}
@@ -150,26 +150,31 @@ export function StoryContent({
                 <MessagesSquare className="discussion-title-icon" aria-hidden="true" />
                 <span>Discussion</span>
               </h2>
-              {!summary.discussion_analysis && <SkepticismPill story={story} />}
+              {discussion.kind !== "analysis" && <SkepticismPill story={story} />}
             </div>
-            {summary.discussion_analysis ? (
+            {discussion.kind === "analysis" ? (
               <>
-                {summary.discussion_summary.trim() &&
-                  summary.discussion_analysis.status !== "no_comments" && (
+                {summary.discussion_summary.trim() && discussion.status !== "no_comments" && (
+                  <>
+                    <p className="muted">
+                      Legacy summary sample: {discussion.legacyCoverage.included_comments} of{" "}
+                      {discussion.legacyCoverage.stored_comments} usable stored comments.
+                    </p>
                     <DiscussionIntroduction text={summary.discussion_summary} />
-                  )}
+                  </>
+                )}
                 <DiscussionAnalysis
-                  analysis={summary.discussion_analysis}
+                  analysis={discussion.analysis}
                   coverage={summary.discussion_analysis_coverage}
                   analyzedAt={summary.discussion_analyzed_at}
                   hnURL={hnURL}
                 />
               </>
-            ) : hasDiscussion ? (
+            ) : discussion.kind === "legacy" ? (
               <>
                 <DiscussionIntroduction text={summary.discussion_summary} />
                 <div className="discussion-points">
-                  {summary.discussion_points.map((point, i) => (
+                  {discussion.topics.map((point, i) => (
                     <section className="discussion-point" key={i}>
                       <h3>{point.title}</h3>
                       <p>{point.summary}</p>

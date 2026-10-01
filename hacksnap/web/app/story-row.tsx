@@ -1,5 +1,5 @@
 import { ChevronsDown, ChevronsUp, MessageCircle, Minus, Star } from "lucide-react";
-import type { Story } from "../lib/data";
+import type { CardStory } from "../lib/story-domain";
 import type { PublicFeedStory } from "../lib/stories-api";
 import { CategoryBadge } from "./categories";
 import { formatRankChange, latestRankChange } from "../lib/rank-history";
@@ -16,7 +16,7 @@ export function StoryRow({
   variant = "unranked",
   feedPosition,
 }: {
-  story: Story | PublicFeedStory;
+  story: CardStory | PublicFeedStory;
   variant?: "ranked" | "unranked";
   feedPosition?: number;
 }) {

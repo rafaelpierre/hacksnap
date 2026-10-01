@@ -1,5 +1,5 @@
 import { canonicalStoryUrl } from "./story-url";
-import type { Story } from "./data";
+import type { ExportStory } from "./story-domain";
 import { storyIndicators } from "./story-indicators.ts";
 
 function html(value: string): string {
@@ -19,7 +19,7 @@ function xml(value: string): string {
   );
 }
 
-export function renderRSS(stories: Story[], asOf = new Date().toISOString()): string {
+export function renderRSS(stories: ExportStory[], asOf = new Date().toISOString()): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
 <channel>

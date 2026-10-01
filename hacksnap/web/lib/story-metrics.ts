@@ -1,4 +1,4 @@
-import type { Story } from "./data";
+import type { ArticleStory } from "./story-domain";
 import type { RankObservation } from "./rank-history";
 import { skepticismDisplay } from "./sentiment.ts";
 
@@ -38,7 +38,9 @@ SELECT json_build_object(
 export const RANKING_METHOD =
   "Hacksnap ranks recent stories first, then orders each group by points. Peak rank uses all retained observations. Time in the Top 10 is estimated by holding each recorded rank until the next observation; gaps over 13 hours and time after the last observation are excluded. Movement between observations is unknown.";
 
-export function storyMetrics(story: Story) {
+type StoryWithMetrics = ArticleStory & { ranking_metrics?: RankingMetrics | null };
+
+export function storyMetrics(story: StoryWithMetrics) {
   const coverage = story.summary?.source_coverage;
   const sentimentComments = coverage?.sentiment?.included_comments;
   const { label, position } = skepticismDisplay(
@@ -72,7 +74,7 @@ export function storyMetrics(story: Story) {
   };
 }
 
-export function storyMetricsText(story: Story): string[] {
+export function storyMetricsText(story: StoryWithMetrics): string[] {
   const metrics = storyMetrics(story);
   const lines = [
     `Skept-o-meter: ${metrics.skepticism}. ${metrics.skepticismNote}`,

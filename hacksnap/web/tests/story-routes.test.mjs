@@ -17,6 +17,8 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
   getStory,
   getRelatedStories: async () => [],
   getLeaderboard: async () => ({ stories: [], ingestion: null }),
+  getMarkdownLeaderboard: async () => ({ stories: [], ingestion: null }),
+  getStoryMetrics: async () => null,
 }));
 jest.unstable_mockModule("next/cache", () => ({ unstable_noStore: () => {} }));
 const missing = new Error("not found");

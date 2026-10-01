@@ -5,11 +5,13 @@ const { DataUnavailableError } = await import("../lib/data-availability.ts");
 let fail = false;
 let reads = 0;
 jest.unstable_mockModule("../lib/data", () => ({
-  getFeedStories: async () => {
+  getRssStories: async () => {
     if (fail) throw new DataUnavailableError();
     return [];
   },
   getLeaderboard: async () => ({ stories: [], ingestion: null }),
+  getMarkdownLeaderboard: async () => ({ stories: [], ingestion: null }),
+  getStoryMetrics: async () => null,
   getStory: async () => {
     reads++;
     if (fail) throw new DataUnavailableError();

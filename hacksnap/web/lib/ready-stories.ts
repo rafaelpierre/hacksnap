@@ -1,5 +1,7 @@
-import type { Story, Summary } from "./data";
+import type { CardStory, CardSummary } from "./story-domain";
 
-export function hasReadySummary(story: Story): story is Story & { summary: Summary } {
+export function hasReadySummary<T extends CardStory>(
+  story: T,
+): story is T & { summary: CardSummary } {
   return Boolean(story.summary?.overall_takeaway?.trim());
 }

@@ -1,11 +1,13 @@
 import { canonicalStoryUrl } from "./story-url";
-import type { Story } from "./data";
+import type { ArticleStory, CardStory } from "./story-domain";
+import type { RankingMetrics } from "./story-metrics";
 import type { DiscussionFields } from "./discussion-analysis";
 import { hasReadySummary } from "./ready-stories.ts";
 import { storyIndicators } from "./story-indicators.ts";
 import { storyMetricsText } from "./story-metrics.ts";
 import { discussionBriefBlocks } from "./discussion-brief.ts";
 import { categoryById, categoryURL } from "./categories.ts";
+import { storyDiscussion, storySource } from "./story-presentation.ts";
 
 // Wildcards alone keep the browser default. An explicit Markdown preference
 // must be acceptable and at least as preferred as HTML.
@@ -38,22 +40,6 @@ function link(label: string, url: string): string {
   return `[${text(label)}](<${url.replace(/[<>\s]/g, (c) => encodeURIComponent(c))}>)`;
 }
 
-function original(story: Story): string | null {
-  try {
-    const url = new URL(story.url);
-    if (
-      !["http:", "https:"].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      ["news.ycombinator.com", "www.news.ycombinator.com"].includes(url.hostname)
-    )
-      return null;
-    return url.href;
-  } catch {
-    return null;
-  }
-}
-
 function discussionMarkdown(summary: DiscussionFields): string[] {
   const analysis = summary.discussion_analysis;
   if (!analysis) return [];
@@ -64,7 +50,7 @@ function discussionMarkdown(summary: DiscussionFields): string[] {
       ? `Analyzed: ${text(summary.discussion_analyzed_at)}`
       : "Analysis time unavailable.",
     coverage
-      ? `Based on ${coverage.included_comments} of ${coverage.stored_comments} usable stored comments. Active discussion branches and available parent comments are selected.${coverage.comments_truncated ? " The analysis input was further shortened to fit its context limit." : ""}`
+      ? `Analysis sample: Based on ${coverage.included_comments} of ${coverage.stored_comments} usable stored comments. Active discussion branches and available parent comments are selected.${coverage.comments_truncated ? " The analysis input was further shortened to fit its context limit." : ""}`
       : "Analyzed-comment count unavailable.",
     "This sample may omit parts of the full thread. Selected examples and themes do not measure community opinion or how common a view is.",
   ];
@@ -130,9 +116,18 @@ function discussionMarkdown(summary: DiscussionFields): string[] {
   return lines;
 }
 
-export function storyMarkdown(story: Story): string {
-  const article = original(story);
+export function storyMarkdown(
+  story: ArticleStory & {
+    ranking_metrics?: RankingMetrics | null;
+    rank?: string;
+    rank_history?: CardStory["rank_history"];
+    observed_at?: string;
+  },
+): string {
   const summary = story.summary;
+  const source = storySource(story.url, summary);
+  const article = source.article;
+  const discussion = storyDiscussion(summary);
   const category = categoryById(story.category);
   const lines = [
     `# ${text(story.title)}`,
@@ -160,25 +155,38 @@ export function storyMarkdown(story: Story): string {
     ].join("\n\n");
   lines.push(
     text(summary.overall_takeaway),
-    article ? "## The brief" : "## The post",
-    summary.article_summary
+    source.kind === "article" ? "## The brief" : "## The post",
+    source.brief === "available" && summary.article_summary
       ? text(summary.article_summary)
-      : summary.source_coverage.article_status === "unavailable"
+      : source.brief === "unavailable"
         ? "The original article couldn’t be retrieved. This brief covers the discussion only."
-        : "An HN text post. The discussion is summarized below.",
+        : source.kind === "article"
+          ? "No article brief is available. You can read the original source and the discussion."
+          : "This is an HN post. The discussion is summarized below.",
   );
-  if (summary.article_summary && summary.article_key_points.length)
+  if (source.brief === "available" && summary.article_key_points.length)
     lines.push(summary.article_key_points.map((p) => `- ${text(p)}`).join("\n"));
-  lines.push(
-    "## In the discussion",
-    ...discussionBriefBlocks(summary.discussion_summary).map((block) =>
-      block.type === "paragraph"
-        ? text(block.text)
-        : block.items.map((item) => `- ${text(item)}`).join("\n"),
-    ),
-  );
-  if (summary.discussion_analysis) lines.push(...discussionMarkdown(summary));
-  for (const point of summary.discussion_analysis ? [] : summary.discussion_points) {
+  lines.push("## In the discussion");
+  if (discussion.kind === "analysis" && discussion.status !== "no_comments") {
+    lines.push(
+      `Legacy summary sample: Based on ${discussion.legacyCoverage.included_comments} of ${discussion.legacyCoverage.stored_comments} usable stored comments.`,
+    );
+  }
+  if (discussion.kind === "legacy_empty")
+    lines.push("No usable discussion was available for this summary.");
+  if (
+    discussion.kind === "legacy" ||
+    (discussion.kind === "analysis" && discussion.status !== "no_comments")
+  )
+    lines.push(
+      ...discussionBriefBlocks(summary.discussion_summary).map((block) =>
+        block.type === "paragraph"
+          ? text(block.text)
+          : block.items.map((item) => `- ${text(item)}`).join("\n"),
+      ),
+    );
+  if (discussion.kind === "analysis") lines.push(...discussionMarkdown(summary));
+  for (const point of discussion.kind === "legacy" ? discussion.topics : []) {
     lines.push(`### ${text(point.title)}`, text(point.summary));
     if (point.comment_ids.length)
       lines.push(
@@ -192,7 +200,7 @@ export function storyMarkdown(story: Story): string {
   lines.push(
     "## Sources & coverage",
     `AI-generated summary · ${text(summary.generated_at)}`,
-    `Based on ${coverage.included_comments} of ${coverage.stored_comments} usable stored comments, selected by depth and branch activity. This is a sample of the discussion.${coverage.comments_truncated ? " The model input was further shortened to fit its context limit." : ""} Article text may also be shortened.`,
+    `${discussion.kind === "analysis" ? "Legacy summary sample: " : ""}Based on ${coverage.included_comments} of ${coverage.stored_comments} usable stored comments, selected by depth and branch activity. This is a sample of the discussion.${coverage.comments_truncated ? " The model input was further shortened to fit its context limit." : ""} Article text may also be shortened.`,
     `Generated using ${text(summary.model)}. Check the linked sources for full context.`,
   );
   return lines.join("\n\n") + "\n";
@@ -203,7 +211,7 @@ export function leaderboardMarkdown({
   ingestion,
   observed_at = new Date().toISOString(),
 }: {
-  stories: Story[];
+  stories: CardStory[];
   ingestion: Date | null;
   observed_at?: string;
 }): string {
@@ -229,7 +237,7 @@ export function leaderboardMarkdown({
       lines.push(
         `Category: ${link(category.label, `https://hacksnap.live${categoryURL(category)}`)}`,
       );
-    const article = original(story);
+    const article = storySource(story.url, null).article;
     if (article) lines.push(link("Original article", article));
     lines.push(text(story.summary.overall_takeaway));
   }

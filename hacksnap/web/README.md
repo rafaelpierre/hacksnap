@@ -198,21 +198,15 @@ scanner from the [Markdown negotiation skill](https://isitagentready.com/.well-k
 
 ## Persistent story metrics
 
-Story pages render a visible **Skept-o-meter & Hotness** section in the initial
-HTML after the brief, discussion, and source notes, with the same metrics in
-negotiated Markdown. It includes the existing
-skepticism category, summary comment count, the separate skepticism sample count
-when recorded, peak observed **Hacksnap** rank, estimated time in its Top 10,
-and a ranking chart. Skepticism categories have no numeric score; meter positions
-are visual conventions. Hacksnap ranks are distinct from HN front-page ranks.
-Metric explanations sit behind keyboard- and touch-accessible info disclosures;
-values and the chart stay visible. The disclosures work without JavaScript.
-The chart reuses the homepage's `ActivitySparkline`, including trend colours,
-curves, gradient fill and keyboard/touch exploration, in recorded-history mode.
+Story HTML shows a compact skepticism pill beside the legacy discussion heading.
+Pages with newer discussion analysis show its own coverage instead. Negotiated
+Markdown retains the **Skept-o-meter & Hotness** text metrics, including the
+skepticism category, sample counts, peak observed **Hacksnap** rank, and estimated
+time in its Top 10. Hacksnap ranks are distinct from HN front-page ranks. There
+is no ranking chart on the story page.
 
-Peak and duration use all retained `hacksnap_rank_history` observations, including
-those older than 24 hours. The chart shows at most the latest 168 saved positions,
-with its date range and truncation count visible. Current request-time ranks are
+Peak and duration use retained `hacksnap_rank_history` observations, including
+those older than 24 hours. Current request-time ranks are
 not added to these historical statistics. Time in the Top 10 holds each rank
 until the next capture, excluding gaps over 13 hours (the scheduled overnight
 gap plus timing tolerance) and time after the final capture. It is a sampled
@@ -322,9 +316,10 @@ Builds need no database connection. Runtime requests use `HACKSNAP_WEB_DATABASE_
 with the dedicated `hacksnap_reader` login. Leaderboard data uses a bounded
 60-second per-instance cache with one entry and one pending load. The shared selection
 contains the first ten cards, bounded continuation IDs/ranks/recency flags, ingestion
-time, and observation time from one SQL statement. `getLeaderboard()` (Markdown and
-`/api/stories`) and the first HTML/ready-stories page read that same cached snapshot;
-request order cannot populate independent first-page rankings or timestamps.
+time, and observation time from one SQL statement. `getLeaderboard()` and the first HTML/ready-stories page read that same cached
+snapshot. Markdown and `/api/stories` use its same selection, with separately
+bounded 60-second reads for history and export summary fields; request order
+cannot populate independent first-page rankings or timestamps.
 Concurrent callers share a load; after expiry they wait for fresh data, and failures use the existing
 unavailable response rather than returning stale rankings. Separate instances can
 differ within that one-minute window. This applies to homepage HTML, Markdown and
@@ -351,7 +346,8 @@ including a shorter final batch. Version 1 cursors, which did not encode a size,
 are rejected; start a fresh selection to obtain a version 2 cursor.
 The first request captures ordered story IDs, canonical ranks and recency flags; the cursor preserves
 that membership and ordering for eight hours while card metadata may refresh through
-a bounded 60-second cache. Cursors are portable, validated encodings of an already
+a bounded 60-second cache. Card movement uses the two latest rank observations
+within the 24-hour window ending at the cursor observation time. Cursors are portable, validated encodings of an already
 public selection, not authentication or tamper-proof credentials. Invalid cursors
 return 400; an expired cursor or a selected story that becomes unavailable returns
 410 so clients restart instead of combining selections. The selection is capped at
@@ -417,13 +413,13 @@ Run `npm run test:archive` for route validation, month boundaries and pagination
 ## Category flairs
 
 Story pages show up to three **More in [category]** next reads after the discussion,
-before the ranking metrics. They exclude
+at the end of the article. They exclude
 the current story, pending briefs, future-dated stories and invalid public IDs,
 and sort by date added descending, then story ID descending. Each shows its
 headline, takeaway and date added, followed by a link to browse the category.
 Stories with no qualifying next reads or no category link to the latest archive
-instead. The section is server-rendered and shares the story page's existing
-30-minute revalidation. It uses the existing category/date index and requires no
+instead. The section is server-rendered and streams after the required article
+content, using a separate optional read. It uses the existing category/date index and requires no
 migration. `npm run test:categories` covers category routing and navigation context.
 
 Stories display a compact category flair directly below their title on the
@@ -493,26 +489,30 @@ Deploy additive migration `0012_discussion_analysis` to enable discussion analys
 The website checks the three public columns and their SELECT privileges in each
 story-read transaction. Until they are available, it serves existing summaries
 with null analysis fields and logs a migration warning. The next uncached read
-automatically enables analysis after the migration; leaderboard data may remain
+automatically enables analysis after the migration; article data may remain
 cached for up to 30 minutes.
 
 The Supabase schema workflow validates migrations on push but applies them only
 on `workflow_dispatch`. Run that workflow on `main` and verify that its **Apply
 schema migrations** job succeeds before deploying schema-dependent features.
 Database read failures log only SQLSTATE, never query text or database messages.
-`getStory` exposes `summary.discussion_analysis` with reference claims, selected
-critical/supportive highlights and topic citations. Leaderboard, RSS source,
-archive and category reads expose `summary.discussion_analysis_preview`: status,
-topic key/title/summary and selected evidence counts. These counts describe the
-selected highlights, not the proportion of commenters who agree or disagree.
-Both projections include `discussion_analyzed_at` and the reader-safe
-`discussion_analysis_coverage` column. Worker metadata and raw comments remain
-private. API and Markdown exports preserve their existing consumer fields.
+`getStory` exposes the article contract, including `summary.discussion_analysis`,
+its independent timestamp and coverage. It omits ranking history and retained-history
+metrics. Markdown requests those metrics separately through `getStoryMetrics`;
+HTML and metadata share the same request-level article read.
 
-The new summary fields are optional in public TypeScript types for older fixtures
-and cached payloads. Missing or null analysis means unavailable; it does not
-promise backfill. An analysis with `status: "no_comments"` is an explicit analyzed
-result. The leaderboard cache version changes to discard older cached projections.
+Card reads for home, archive and category listings contain only takeaway,
+sentiment and source coverage in their summary. They omit full article/discussion
+bodies, legacy points, and analysis previews. RSS and public API lists use a
+separate export projection that retains their existing summary strings. Public
+API detail and story Markdown retain analysis and evidence. Worker metadata and
+raw comments remain private.
+
+The domain contracts live in `lib/story-domain.ts`, independently of database
+connections and caching. Missing or null article analysis means unavailable;
+it does not promise backfill. An analysis with `status: "no_comments"` is an
+explicit analyzed result. Migration/grant fallback and the discussion-rendering
+rollback preserve legacy article and public-detail rendering.
 
 `tests/discussion-projection.test.mjs` runs the shared contract fixtures, legacy
 and pending rows through embedded PostgreSQL with the migration's reader grant.
@@ -600,7 +600,7 @@ readers enlarge text. Light and dark themes share the same sizing and layout.
 
 Home, archive and category cards omit discussion themes and the “Read the debate”
 link. The title opens the full story, where discussion analysis remains available.
-The compact discussion projection and public exports are unchanged.
+Card queries omit unused discussion payloads. Public exports retain their existing fields.
 
 ## Public read limits
 
@@ -610,11 +610,14 @@ the detail contract. It does not read ranking views, rank history, or worker met
 400 before acquiring a database connection. Unknown valid IDs return a cacheable 404. Database failures and cache-capacity failures return a sanitized, uncacheable
 503 with `Retry-After: 60`.
 
-| Data cache                 | Positive TTL  | Missing TTL | Maximum entries | Maximum pending distinct keys |
-| -------------------------- | ------------- | ----------- | --------------- | ----------------------------- |
-| Public API detail          | 300 seconds   | 60 seconds  | 512             | 8                             |
-| Story rendering / Markdown | 1,800 seconds | 60 seconds  | 128             | 4                             |
-| RSS data                   | 300 seconds   | n/a         | 1               | 1                             |
+| Data cache                   | Positive TTL  | Missing TTL | Maximum entries | Maximum pending distinct keys |
+| ---------------------------- | ------------- | ----------- | --------------- | ----------------------------- |
+| Public API detail            | 300 seconds   | 60 seconds  | 512             | 8                             |
+| Story rendering / Markdown   | 1,800 seconds | 60 seconds  | 128             | 4                             |
+| Markdown story metrics       | 1,800 seconds | 60 seconds  | 128             | 4                             |
+| API list export fields       | 60 seconds    | n/a         | 2               | 1                             |
+| Markdown leaderboard history | 60 seconds    | n/a         | 2               | 1                             |
+| RSS data                     | 300 seconds   | n/a         | 1               | 1                             |
 
 These caches live in each running instance, expire without serving stale results,
 share concurrent loads for the same key, and evict the least recently used completed
@@ -654,7 +657,15 @@ telemetry before extending the TTL or adding cache layers.
 ## Discussion rendering fallback
 
 Set server-only `HACKSNAP_DISCUSSION_RENDERING=false` and redeploy to use legacy
-summary projections across story, public API, feed, archive and category reads. Stored analysis
-and worker generation are unchanged. Enabled and disabled deployments use separate
-leaderboard cache keys. Remove the setting and redeploy to restore analysis.
+summary projections for articles and public API detail. Cards, RSS and public API
+lists do not select analysis payloads. Stored analysis and worker generation are
+unchanged. Remove the setting and redeploy to restore analysis.
 See the [rollout runbook](../../docs/evaluations/issue-42/README.md).
+
+## Share draft lifecycle
+
+Untouched suggested posts follow refreshed story data, including a pending story
+that gains a takeaway. Reader edits survive same-story refreshes and closing and
+reopening the editor. Reset draft restores the latest suggestion and focuses the
+textarea. Changing story identity resets the draft and copy feedback; delayed
+clipboard completions cannot update a replacement identity or draft.
