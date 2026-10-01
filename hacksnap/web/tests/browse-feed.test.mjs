@@ -48,6 +48,53 @@ test("all topic filters and archive months use the existing readers and public p
   }
 });
 
+test("browse API coalesces normalized page keys while preserving no-store responses", async () => {
+  let calls = 0;
+  let finish;
+  const result = { stories: [pending], hasNext: true };
+  const handler = browseStoriesHandler({
+    getArchiveStories: async (month, page) => {
+      calls++;
+      assert.equal(month, null);
+      assert.equal(page, 1);
+      await new Promise((resolve) => {
+        finish = resolve;
+      });
+      return result;
+    },
+    getCategoryStories: async () => ({ stories: [], hasNext: false }),
+  });
+  const omittedPage = handler(request(new URLSearchParams({ path: "/archive" })));
+  const explicitPage = handler(request(new URLSearchParams({ path: "/archive", page: "1" })));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls, 1);
+  finish();
+  const [first, second] = await Promise.all([omittedPage, explicitPage]);
+  assert.equal(first.headers.get("Cache-Control"), "no-store");
+  assert.equal(second.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await first.json(), await second.json());
+  assert.equal(calls, 1);
+});
+
+test("browse cache does not retain failed reads", async () => {
+  let calls = 0;
+  const handler = browseStoriesHandler({
+    getArchiveStories: async () => {
+      calls++;
+      if (calls === 1) throw new Error("private database diagnostic");
+      return { stories: [pending], hasNext: false };
+    },
+    getCategoryStories: async () => ({ stories: [], hasNext: false }),
+  });
+  const query = new URLSearchParams({ path: "/archive" });
+  const failed = await handler(request(query));
+  const recovered = await handler(request(query));
+  assert.equal(failed.status, 503);
+  assert.equal(failed.headers.get("Cache-Control"), "no-store");
+  assert.equal(recovered.status, 200);
+  assert.equal(calls, 2);
+});
+
 test("invalid listing requests fail before data access and failures are sanitized", async () => {
   let calls = 0;
   const fail = async () => {

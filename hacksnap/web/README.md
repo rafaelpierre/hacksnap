@@ -79,13 +79,19 @@ invalidated continuation keeps already loaded cards visible and offers a fresh
 selection. The selection is bounded to 400 stories; if it reaches that cap, the UI
 points readers to the archive instead of claiming the site has no more stories.
 
-Opening a homepage story saves the loaded cards, position, and focused story in the
-browser history entry. Browser Back/Forward reconstructs those cards before
-restoring position. The contextual return link carries the same snapshot through
-history and, when available, tab-scoped session storage. Blocked session storage
-does not prevent browsing or same-tab returns. Journey records are capped at 40
-per tab with eight-hour expiry; cleanup touches only journey-owned keys. Same-tab
-memory supplies a fallback if storage reads, writes or removal fail. Story URLs
+Opening a feed story saves the loaded cards once per listing entry in tab-scoped
+session storage. Browser history and story journeys keep small references with
+the depth, pagination, position and focused story, so Back/Forward reconstructs
+the exact earlier depth from the shared card record. Repeated appends replace that
+record; 40 journey entries do not make 40 deep copies. Cards use a compact,
+versioned representation and are validated after decoding. Stored feed records
+are capped at 4 MiB each, 8 MiB total and four listing entries, with eight-hour
+expiry. Older entries whose card record has been evicted still navigate normally.
+Blocked or full session storage falls back to same-tab memory, preserving returns
+until a reload. Reloading an archive or topic listing restores a retained record;
+reloading `/` follows the separate homepage checkpoint behavior below. Journey
+records remain capped at 40 per tab with eight-hour expiry; cleanup touches only
+feature-owned keys. Story URLs
 stay canonical, and modified clicks use their normal browser behavior. The header
 stays visible while scrolling, and the desktop left topic sidebar
 sticks below its measured height. Tall navigation areas scroll within the viewport.
@@ -94,6 +100,17 @@ loading stops while the continuation controls have keyboard focus, cancelling an
 pending automatic request. A spinner shows while more stories load, and a retry
 button appears only after a failed request. There is no separate Pause/Resume
 control.
+
+The snapshot budget was measured with representative public card fixtures using
+`MEASURE_FEED_SNAPSHOTS=1 npm test -- tests/feed-snapshot-storage.test.tsx --runInBand`.
+At 100, 1,000 and 3,000 archive cards, full JSON occupied 117 KiB, 1,150 KiB and
+3,470 KiB in conservative UTF-16 accounting; compact records occupied 51 KiB,
+521 KiB and 1,583 KiB. In the Node 22/jsdom check, compact encoding took about
+0.1, 0.5–1.9 and 1.1 ms, and validated decoding took about 0.3, 2.2 and 7 ms.
+A 3,000-card save to available session storage took about 1.3 ms and cold decoding
+after storage read took 7 ms; a denied storage write with the memory fallback took
+about 1.2 ms and memory restoration took 3.3 ms. These are fixture measurements, not a browser
+performance profile or a guaranteed timing limit.
 
 Story cards show time since first added in compact days and hours (e.g. `1d 2h`,
 `5h`, or `<1h`), refreshed every minute. Before hydration, the UTC date is shown.
@@ -387,6 +404,11 @@ the final allowed page has no older-page link. Use dated archive URLs to reach
 older archive entries. Categories show their latest 3,000 stories; deeper category
 browsing needs cursor pagination before this limit can be raised. The feed starts
 directly below the heading, without the All stories or Browse by month controls.
+After more than 80 rows are loaded, the browser keeps a measured 80-row window in
+the DOM and uses spacers for the rest of the feed. The active window follows scroll,
+deep return restoration, and keyboard focus near either edge; archive day headings
+remain with their visible rows. This bounds React and DOM work while preserving the
+feed's physical scroll height and accessible list position.
 Archive pages are rendered on request; no schema change is required. The sitemap
 includes the archive landing page and populated months. Story URLs stay unchanged.
 
@@ -614,6 +636,20 @@ cache misses still depend on retained data. Requests across many IDs or instance
 still require edge rate limiting and verified origin restrictions. See the
 [issue #75 verification report](../../docs/security/issue-75-public-read-limits.md)
 for deployment evidence and remaining exposure.
+
+`/api/browse-stories` also keeps up to 64 archive/category page results per
+instance for 60 seconds and coalesces up to 8 concurrent misses for the same
+normalized listing path and page. Expired results are never served stale; read
+failures are not cached. The endpoint still returns `Cache-Control: no-store`,
+so this reduces repeated database reads only when requests reach the same warm
+application instance. Cold starts, other instances and requests after expiry read
+the database again. No Cloudflare or production origin request-rate, query-count,
+or pool-wait telemetry was available when this behavior was implemented, so the
+cache bounds express a freshness and load-control policy rather than a measured
+production hit rate or latency improvement. Issue triage measured 244 production
+stories; at that data volume the cache is a precaution for repeated requests, not
+a demonstrated database-capacity fix. Reassess its value with origin and Cloudflare
+telemetry before extending the TTL or adding cache layers.
 
 ## Discussion rendering fallback
 

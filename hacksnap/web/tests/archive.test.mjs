@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { categoryQuery } from "../lib/categories.ts";
 import { test } from "@jest/globals";
+import { PGlite } from "@electric-sql/pglite";
 import {
   archiveMonth,
   archivePage,
@@ -41,4 +42,37 @@ test("query builders cap offsets even when called without route validation", () 
   }
   assert.equal(archiveQuery("t.hn_id", null, 100).values.at(-1), 2970);
   assert.equal(categoryQuery("t.hn_id", "agents_coding", 100).values.at(-1), 2970);
+});
+
+test("archive index preserves page boundaries, tie order and UTC month filters", async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(`CREATE TABLE hacker_news_threads (
+      hn_id bigint PRIMARY KEY, date_added timestamptz NOT NULL);
+      CREATE TABLE hacksnap_summaries (story_id bigint PRIMARY KEY);
+      INSERT INTO hacker_news_threads
+      SELECT g, '2026-10-01T00:00:00Z'::timestamptz
+        - (g / 3) * interval '1 hour' FROM generate_series(1, 3300) g;`);
+    const pages = [1, 2, 10, 50, 100];
+    const read = async (month) => {
+      const result = [];
+      for (const page of pages) {
+        const query = archiveQuery("t.hn_id", month, page);
+        result.push((await db.query(query.text, query.values)).rows.map((row) => row.hn_id));
+      }
+      return result;
+    };
+    const beforeLatest = await read(null);
+    const beforeMonth = await read("2026-09");
+    await db.exec(`CREATE INDEX hn_archive_date_idx ON hacker_news_threads
+      (date_added DESC, hn_id DESC);`);
+    assert.deepEqual(await read(null), beforeLatest);
+    assert.deepEqual(await read("2026-09"), beforeMonth);
+    assert.equal(beforeLatest[0].length, 31);
+    assert.equal(beforeLatest[1].length, 31);
+    assert.equal(beforeLatest[0][30], beforeLatest[1][0]);
+    assert.equal(new Set(beforeLatest.flatMap((batch) => batch.slice(0, 30))).size, 150);
+  } finally {
+    await db.close();
+  }
 });

@@ -7,7 +7,17 @@ import { storyPath } from "../lib/story-url";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type MouseEvent, type ReactNode } from "react";
 import { browseLabel, validBrowseContext, type BrowseContext } from "../lib/navigation-context";
-import { validFeedSnapshot, type FeedSnapshot } from "../lib/feed-state";
+import {
+  validFeedSnapshot,
+  validFeedSnapshotRef,
+  type FeedSnapshot,
+  type FeedSnapshotRef,
+} from "../lib/feed-state";
+import {
+  positionFeedSnapshot,
+  readFeedSnapshot,
+  saveFeedSnapshot,
+} from "../lib/feed-snapshot-storage";
 
 const PREFIX = "hacksnap:journey:";
 const RESTORE_KEY = "hacksnap:pending-return";
@@ -25,14 +35,14 @@ let pendingJourney: {
   href: string;
   token: string | null;
   context: BrowseContext | null;
-  homeFeed: FeedSnapshot | null;
+  homeFeedRef: FeedSnapshotRef | null;
 } | null = null;
-let pendingHomeReturn: { context: BrowseContext; homeFeed: FeedSnapshot } | null = null;
+let pendingHomeReturn: { context: BrowseContext; homeFeedRef: FeedSnapshotRef } | null = null;
 let pendingListReturn: BrowseContext | null = null;
 let memoryTabId: string | null = null;
 const memoryJourneys = new Map<
   string,
-  { context: BrowseContext | null; homeFeed: FeedSnapshot | null }
+  { context: BrowseContext | null; homeFeedRef: FeedSnapshotRef | null }
 >();
 let initialHomeRestoreChecked = false;
 
@@ -45,9 +55,9 @@ function prepareJourney(
   href: string,
   token: string | null,
   context: BrowseContext | null = null,
-  homeFeed: FeedSnapshot | null = null,
+  homeFeedRef: FeedSnapshotRef | null = null,
 ) {
-  pendingJourney = { href, token, context, homeFeed };
+  pendingJourney = { href, token, context, homeFeedRef };
   window.addEventListener("popstate", cancelPendingJourney);
 }
 
@@ -156,12 +166,38 @@ function readJourney(token: string | null): BrowseContext | null {
   }
 }
 
+function readJourneyHomeFeedRef(token: string | null, url: string): FeedSnapshotRef | null {
+  const state = window.history.state;
+  if (state?.[HISTORY_KEY] === token) {
+    const fromHistory = validFeedSnapshotRef(state?.[HOME_HISTORY_KEY], url);
+    if (fromHistory) return fromHistory;
+  }
+  if (!token) return null;
+  const fromMemory = validFeedSnapshotRef(memoryJourneys.get(token)?.homeFeedRef, url);
+  if (fromMemory) return fromMemory;
+  try {
+    const record = JSON.parse(storage()?.getItem(PREFIX + token) ?? "null");
+    return record?.tabId === currentTabId() ? validFeedSnapshotRef(record?.homeFeedRef, url) : null;
+  } catch {
+    return null;
+  }
+}
+
 function readJourneyHomeFeed(token: string | null, url: string): FeedSnapshot | null {
-  const fromHistory = validFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url);
+  const ref = readJourneyHomeFeedRef(token, url);
+  if (ref) return readFeedSnapshot(ref, url);
+  const state = window.history.state;
+  const fromHistory = validFeedSnapshot(state?.[HOME_HISTORY_KEY], url);
   if (fromHistory) return fromHistory;
   if (!token) return null;
-  const fromMemory = memoryJourneys.get(token)?.homeFeed;
-  return validFeedSnapshot(fromMemory, url);
+  const store = storage();
+  try {
+    const record = JSON.parse(store?.getItem(PREFIX + token) ?? "null");
+    if (record?.tabId !== currentTabId()) return null;
+    return validFeedSnapshot(record?.homeFeed, url);
+  } catch {
+    return null;
+  }
 }
 
 function journeyToken(): string | null {
@@ -177,7 +213,7 @@ function journeyToken(): string | null {
           ...window.history.state,
           [HISTORY_KEY]: token,
           ...(pending?.context ? { [HISTORY_CONTEXT_KEY]: pending.context } : {}),
-          ...(pending?.homeFeed ? { [HOME_HISTORY_KEY]: pending.homeFeed } : {}),
+          ...(pending?.homeFeedRef ? { [HOME_HISTORY_KEY]: pending.homeFeedRef } : {}),
         },
         "",
         url.pathname + url.search + url.hash,
@@ -192,7 +228,8 @@ function journeyToken(): string | null {
 
 export function saveFeedHistory(snapshot: FeedSnapshot) {
   try {
-    window.history.replaceState({ ...window.history.state, [HOME_HISTORY_KEY]: snapshot }, "");
+    const ref = saveFeedSnapshot(snapshot, window.history.state?.[HOME_HISTORY_KEY]);
+    if (ref) window.history.replaceState({ ...window.history.state, [HOME_HISTORY_KEY]: ref }, "");
   } catch {
     /* History state is optional; ordinary pagination still works. */
   }
@@ -204,7 +241,7 @@ export function consumeFeedReturn(url: string): FeedSnapshot | null {
   const navigation = window.performance?.getEntriesByType?.("navigation")?.[0] as
     | PerformanceNavigationTiming
     | undefined;
-  if (initialCheck && navigation?.type === "reload") {
+  if (initialCheck && url === "/" && navigation?.type === "reload") {
     let reloadedHome = false;
     try {
       const documentURL = new URL(navigation.name);
@@ -229,7 +266,7 @@ export function consumeFeedReturn(url: string): FeedSnapshot | null {
     }
   }
   if (pendingHomeReturn?.context.url === url) {
-    const snapshot = validFeedSnapshot(pendingHomeReturn.homeFeed, url);
+    const snapshot = readFeedSnapshot(pendingHomeReturn.homeFeedRef, url);
     pendingHomeReturn = null;
     if (snapshot) return snapshot;
   }
@@ -238,7 +275,10 @@ export function consumeFeedReturn(url: string): FeedSnapshot | null {
     try {
       const record = JSON.parse(store.getItem(RESTORE_KEY) ?? "null");
       const context = record?.tabId === currentTabId() ? validBrowseContext(record?.context) : null;
-      const snapshot = context?.url === url ? validFeedSnapshot(record?.homeFeed, url) : null;
+      const snapshot =
+        context?.url === url
+          ? (readFeedSnapshot(record?.homeFeedRef, url) ?? validFeedSnapshot(record?.homeFeed, url))
+          : null;
       if (snapshot) {
         try {
           store.removeItem(RESTORE_KEY);
@@ -251,7 +291,10 @@ export function consumeFeedReturn(url: string): FeedSnapshot | null {
       /* Browser history can still reconstruct a previous list. */
     }
   }
-  return validFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url);
+  return (
+    readFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url) ??
+    validFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url)
+  );
 }
 
 function plainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
@@ -290,13 +333,27 @@ export function BrowseStoryLink({
     const store = storage();
     const url = window.location.pathname + window.location.search;
     const label = browseLabel(url);
-    const savedHomeFeed = label
-      ? validFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url)
+    let homeFeedRef = label
+      ? positionFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url, window.scrollY, id)
       : null;
-    const homeFeed = savedHomeFeed
-      ? { ...savedHomeFeed, scrollY: window.scrollY, focusStoryId: id, savedAt: Date.now() }
-      : null;
-    if (homeFeed) saveFeedHistory(homeFeed);
+    if (!homeFeedRef && label) {
+      const legacy = validFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url);
+      if (legacy)
+        homeFeedRef = saveFeedSnapshot(
+          { ...legacy, scrollY: window.scrollY, focusStoryId: id, savedAt: Date.now() },
+          null,
+        );
+    }
+    if (homeFeedRef) {
+      try {
+        window.history.replaceState(
+          { ...window.history.state, [HOME_HISTORY_KEY]: homeFeedRef },
+          "",
+        );
+      } catch {
+        // Same-tab memory still preserves the return.
+      }
+    }
     const context: BrowseContext | null = label
       ? { url, label, scrollY: window.scrollY, savedAt: Date.now() }
       : null;
@@ -304,12 +361,12 @@ export function BrowseStoryLink({
       try {
         const tabId = ensureTabId();
         const token = window.crypto.randomUUID();
-        memoryJourneys.set(token, { context, homeFeed });
+        memoryJourneys.set(token, { context, homeFeedRef });
         journey = token;
         cleanupMemoryJourneys();
         if (store && tabId) {
           cleanupJourneyStorage(store);
-          store.setItem(PREFIX + token, JSON.stringify({ tabId, context, homeFeed }));
+          store.setItem(PREFIX + token, JSON.stringify({ tabId, context, homeFeedRef }));
           cleanupJourneyStorage(store);
         }
       } catch {
@@ -317,7 +374,7 @@ export function BrowseStoryLink({
       }
     }
     event.preventDefault();
-    prepareJourney(href, journey, context, homeFeed);
+    prepareJourney(href, journey, context, homeFeedRef);
     startTransition(() => router.push(href));
   }
   return (
@@ -364,8 +421,8 @@ export function NextStoryLink({
     const journey = readJourney(token) ? token : null;
     event.preventDefault();
     const context = readJourney(journey);
-    const homeFeed = context ? readJourneyHomeFeed(journey, context.url) : null;
-    prepareJourney(href, journey, context, homeFeed);
+    const homeFeedRef = context ? readJourneyHomeFeedRef(journey, context.url) : null;
+    prepareJourney(href, journey, context, homeFeedRef);
     startTransition(() => router.push(href));
   }
   return (
@@ -415,13 +472,21 @@ export function StoryReturnLink({
     const store = storage();
     if (!context) return;
     pendingListReturn = context;
-    const homeFeed = readJourneyHomeFeed(journeyToken(), context.url);
-    if (homeFeed) pendingHomeReturn = { context, homeFeed };
+    const token = journeyToken();
+    const existingRef = readJourneyHomeFeedRef(token, context.url);
+    const legacyHomeFeed = existingRef ? null : readJourneyHomeFeed(token, context.url);
+    const homeFeedRef =
+      existingRef ?? (legacyHomeFeed ? saveFeedSnapshot(legacyHomeFeed, null) : null);
+    if (homeFeedRef) pendingHomeReturn = { context, homeFeedRef };
     if (store) {
       try {
         store.setItem(
           RESTORE_KEY,
-          JSON.stringify({ tabId: currentTabId(), context, ...(homeFeed ? { homeFeed } : {}) }),
+          JSON.stringify({
+            tabId: currentTabId(),
+            context,
+            ...(homeFeedRef ? { homeFeedRef } : {}),
+          }),
         );
       } catch {
         /* The same-tab memory fallback still restores this return. */

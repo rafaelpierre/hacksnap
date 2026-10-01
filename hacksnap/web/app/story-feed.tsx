@@ -25,8 +25,8 @@ import {
   saveHomeFeedCheckpoint,
   type HomeFeedCheckpoint,
 } from "../lib/home-feed-checkpoint";
-import { StoryRow } from "./story-row";
 import { consumeFeedReturn, saveFeedHistory } from "./story-navigation";
+import { WindowedStoryList } from "./windowed-story-list";
 
 type FeedState = {
   stories: PublicFeedStory[];
@@ -96,6 +96,7 @@ export function StoryFeed({
   const activeRequest = useRef<AbortController | null>(null);
   const requestId = useRef(0);
   const scrollTarget = useRef<ScrollTarget | null>(null);
+  const [pinnedStoryId, setPinnedStoryId] = useState<string | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const [continuationFocused, setContinuationFocused] = useState(false);
   const [automaticLoadingAvailable, setAutomaticLoadingAvailable] = useState(true);
@@ -161,6 +162,7 @@ export function StoryFeed({
         offset: anchor?.offset ?? null,
         focusStoryId: snapshot.focusStoryId,
       };
+      setPinnedStoryId(anchor?.storyId ?? snapshot.focusStoryId);
       positionSettled.current = false;
       setPositionPending(true);
       const next = {
@@ -237,6 +239,11 @@ export function StoryFeed({
     let active = true;
     let focused = false;
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    const releaseTarget = () => {
+      if (scrollTarget.current !== target) return;
+      scrollTarget.current = null;
+      setPinnedStoryId(null);
+    };
     const position = () => {
       frame = 0;
       if (!active || scrollTarget.current !== target) return;
@@ -252,15 +259,17 @@ export function StoryFeed({
         const link = document.querySelector<HTMLAnchorElement>(
           `[data-home-story-id="${target.focusStoryId}"] h3 a`,
         );
-        link?.focus({ preventScroll: true });
-        focused = true;
+        if (link) {
+          link.focus({ preventScroll: true });
+          focused = true;
+        }
       }
       // Background tabs may run timers while suspending animation frames.
       // Keep the target and checkpoint protected until positioning has run.
       if (settleTimer === null) {
         settleTimer = setTimeout(() => {
           active = false;
-          if (scrollTarget.current === target) scrollTarget.current = null;
+          releaseTarget();
           positionSettled.current = true;
           setPositionPending(false);
         }, POSITION_SETTLE_MS);
@@ -273,7 +282,7 @@ export function StoryFeed({
       frame = requestAnimationFrame(position);
     };
     const stop = () => {
-      scrollTarget.current = null;
+      releaseTarget();
       active = false;
       if (settleTimer !== null) clearTimeout(settleTimer);
       positionSettled.current = true;
@@ -448,6 +457,7 @@ export function StoryFeed({
       offset: checkpoint.anchor?.offset ?? null,
       focusStoryId: checkpoint.anchor?.storyId ?? checkpoint.snapshot.stories[0]?.hn_id ?? null,
     };
+    setPinnedStoryId(scrollTarget.current.storyId ?? scrollTarget.current.focusStoryId);
     setPositionPending(true);
     setResumeNotice("none");
     const next: FeedState = {
@@ -509,26 +519,6 @@ export function StoryFeed({
     resumeNotice,
   ]);
 
-  const rows = (stories: PublicFeedStory[]) =>
-    stories.map((story, index) => (
-      <li key={story.hn_id} data-home-story-id={story.hn_id}>
-        <StoryRow
-          story={story}
-          variant={ranked ? "ranked" : "unranked"}
-          feedPosition={ranked ? (initialPagination.page - 1) * 10 + index + 1 : undefined}
-        />
-      </li>
-    ));
-  const groups = new Map<string, PublicFeedStory[]>();
-  if (groupByDay) {
-    for (const story of feed.stories) {
-      const day = story.date_added.slice(0, 10);
-      const group = groups.get(day) ?? [];
-      group.push(story);
-      groups.set(day, group);
-    }
-  }
-
   return (
     <>
       {resumeNotice === "older" && (
@@ -558,48 +548,33 @@ export function StoryFeed({
             <p>Stories will appear after the next update.</p>
           </div>
         ))
-      ) : groupByDay ? (
-        [...groups].map(([day, stories]) => (
-          <section key={day} aria-labelledby={`day-${day}`}>
-            <div className="feed-bar">
-              <h2 id={`day-${day}`}>
-                <time dateTime={day}>
-                  {new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                    timeZone: "UTC",
-                  })}
-                </time>
-              </h2>
-            </div>
-            <ul className="story-list">{rows(stories)}</ul>
-          </section>
-        ))
-      ) : ranked ? (
-        <ol
-          className="story-list"
-          start={initialPagination.page > 1 ? (initialPagination.page - 1) * 10 + 1 : undefined}
-          onClickCapture={(event) => {
-            if (
-              event.defaultPrevented ||
-              event.button !== 0 ||
-              event.metaKey ||
-              event.ctrlKey ||
-              event.shiftKey ||
-              event.altKey ||
-              !(event.target as Element).closest("[data-home-story-id] h3 a")
-            )
-              return;
-            if (pendingOlder.current) useFreshFeed();
-            cancelCheckpointTimer();
-            persistNow();
-          }}
-        >
-          {rows(feed.stories)}
-        </ol>
       ) : (
-        <ul className="story-list">{rows(feed.stories)}</ul>
+        <WindowedStoryList
+          stories={feed.stories}
+          ranked={ranked}
+          initialPage={initialPagination.page}
+          groupByDay={groupByDay}
+          pinnedStoryId={pinnedStoryId}
+          onStoryTitleClickCapture={
+            ranked
+              ? (event) => {
+                  if (
+                    event.defaultPrevented ||
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey ||
+                    !(event.target as Element).closest("[data-home-story-id] h3 a")
+                  )
+                    return;
+                  if (pendingOlder.current) useFreshFeed();
+                  cancelCheckpointTimer();
+                  persistNow();
+                }
+              : undefined
+          }
+        />
       )}
       <div ref={sentinel} className="home-feed-sentinel" aria-hidden="true" />
       <div

@@ -4,7 +4,9 @@ import React, { act } from "react";
 import { createRequire } from "node:module";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import { browsePagination } from "../lib/browse-feed";
+import { readFeedSnapshot } from "../lib/feed-snapshot-storage";
 import { StoryFeed } from "../app/story-feed";
+import { HOME_FEED_CHECKPOINT_KEY } from "../lib/home-feed-checkpoint";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
@@ -271,7 +273,11 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         assert.match(document.querySelector("[role=status]")!.textContent!, /reached the end/);
         assert.equal(document.querySelector(".home-feed-actions button"), null);
         assert.equal(document.querySelector(".home-feed-pages a"), null);
-        assert.equal(dom.window.history.state.hacksnapHomeFeed.stories.length, 13);
+        assert.equal(dom.window.history.state.hacksnapHomeFeed.storyCount, 13);
+        assert.equal(
+          readFeedSnapshot(dom.window.history.state.hacksnapHomeFeed, listingPath)?.stories.length,
+          13,
+        );
 
         await act(async () => root.unmount());
         const restored = createRoot(document.getElementById("root")!);
@@ -289,6 +295,183 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
     });
   }
 }
+
+test("deep feeds keep a bounded interactive window, retain archive day headings, and shift it for keyboard focus", async () => {
+  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/archive" });
+  let scrollY = 0;
+  Object.defineProperty(dom.window, "scrollY", { configurable: true, get: () => scrollY });
+  dom.window.scrollTo = ((options: ScrollToOptions) => {
+    scrollY = options.top ?? 0;
+  }) as typeof dom.window.scrollTo;
+  const values = {
+    self: dom.window,
+    window: dom.window,
+    document: dom.window.document,
+    navigator: dom.window.navigator,
+    IS_REACT_ACT_ENVIRONMENT: true,
+    IntersectionObserver: undefined,
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    },
+    cancelAnimationFrame: () => {},
+  };
+  const previous = Object.keys(values).map((key) =>
+    Object.getOwnPropertyDescriptor(globalThis, key),
+  );
+  Object.entries(values).forEach(([key, value]) =>
+    Object.defineProperty(globalThis, key, { value, configurable: true }),
+  );
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(document.getElementById("root")!);
+  const originalRect = dom.window.HTMLElement.prototype.getBoundingClientRect;
+  dom.window.HTMLElement.prototype.getBoundingClientRect = () =>
+    ({
+      x: 0,
+      y: -scrollY,
+      width: 0,
+      height: 0,
+      top: -scrollY,
+      right: 0,
+      bottom: -scrollY,
+      left: 0,
+      toJSON: () => {},
+    }) as DOMRect;
+  const stories = Array.from({ length: 3000 }, (_, index) => {
+    const day = new Date(Date.UTC(2026, 0, 1 + Math.floor(index / 30))).toISOString();
+    return { ...story(index + 1), date_added: day };
+  });
+  try {
+    scrollY = 280 * 1500;
+    await act(async () =>
+      root.render(
+        <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
+          <StoryFeed
+            listingPath="/archive"
+            groupByDay
+            initialStories={stories}
+            initialPagination={browsePagination(1, true)}
+          />
+        </AppRouterContext.Provider>,
+      ),
+    );
+    const rendered = () =>
+      document.querySelectorAll<HTMLLIElement>(".story-list > li:not(.windowed-story-spacer)");
+    assert.equal(rendered().length, 80);
+    assert.equal(Number(rendered()[0]!.dataset.homeStoryId) > 1400, true);
+    assert.equal(document.querySelectorAll(".windowed-story-spacer").length > 0, true);
+    assert.equal(document.querySelectorAll("section .feed-bar time").length >= 2, true);
+    for (const row of rendered()) {
+      const storyId = Number(row.dataset.homeStoryId);
+      assert.equal(row.getAttribute("aria-posinset"), String(((storyId - 1) % 30) + 1));
+      assert.equal(row.getAttribute("aria-setsize"), "30");
+    }
+
+    const nearEnd = rendered()[78]!.querySelector<HTMLAnchorElement>("h3 a")!;
+    await act(async () => nearEnd.focus());
+    assert.equal(document.activeElement, nearEnd);
+    assert.equal(rendered().length, 80);
+    assert.equal(Number(rendered()[0]!.dataset.homeStoryId) > 1481, true);
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.HTMLElement.prototype.getBoundingClientRect = originalRect;
+    dom.window.close();
+    Object.keys(values).forEach((key, index) => {
+      if (previous[index]) Object.defineProperty(globalThis, key, previous[index]!);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+});
+
+test("a deep restored anchor is mounted before StoryFeed restores its scroll and focus", async () => {
+  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
+  let scrollY = 0;
+  const scrolls: number[] = [];
+  Object.defineProperty(dom.window, "scrollY", { configurable: true, get: () => scrollY });
+  dom.window.scrollTo = ((options: ScrollToOptions) => {
+    scrollY = options.top ?? 0;
+    scrolls.push(scrollY);
+  }) as typeof dom.window.scrollTo;
+  Object.defineProperty(dom.window.HTMLElement.prototype, "getBoundingClientRect", {
+    configurable: true,
+    value: function (this: HTMLElement) {
+      const top = (this.dataset.homeStoryId === "301" ? 1500 : 200) - scrollY;
+      return { top, bottom: top + 100, left: 0, right: 200, width: 200, height: 100 };
+    },
+  });
+  const values = {
+    self: dom.window,
+    window: dom.window,
+    document: dom.window.document,
+    localStorage: dom.window.localStorage,
+    navigator: dom.window.navigator,
+    IS_REACT_ACT_ENVIRONMENT: true,
+    IntersectionObserver: undefined,
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    },
+    cancelAnimationFrame: () => {},
+  };
+  const previous = Object.keys(values).map((key) =>
+    Object.getOwnPropertyDescriptor(globalThis, key),
+  );
+  Object.entries(values).forEach(([key, value]) =>
+    Object.defineProperty(globalThis, key, { value, configurable: true }),
+  );
+  const stories = Array.from({ length: 400 }, (_, index) => story(index + 1));
+  dom.window.localStorage.setItem(
+    HOME_FEED_CHECKPOINT_KEY,
+    JSON.stringify({
+      version: 1,
+      snapshot: {
+        version: 1,
+        url: "/",
+        stories,
+        pagination: pagination(40, false),
+        scrollY: 840,
+        focusStoryId: "301",
+        savedAt: Date.now(),
+      },
+      anchor: { storyId: "301", offset: -24 },
+    }),
+  );
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(document.getElementById("root")!);
+  try {
+    await act(async () =>
+      root.render(
+        <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
+          <StoryFeed initialStories={[story(90)]} initialPagination={pagination(1, true)} />
+        </AppRouterContext.Provider>,
+      ),
+    );
+    assert.equal(
+      document.querySelectorAll(".story-list > li:not(.windowed-story-spacer)").length,
+      80,
+    );
+    assert.ok(document.querySelector('[data-home-story-id="301"]'));
+    assert.equal(scrolls.at(-1), 1524);
+    assert.equal(
+      document.activeElement?.closest("[data-home-story-id]")?.getAttribute("data-home-story-id"),
+      "301",
+    );
+    await act(async () => window.dispatchEvent(new dom.window.WheelEvent("wheel")));
+    await act(async () => {
+      dom.window.scrollTo({ top: 280 * 380 });
+      window.dispatchEvent(new dom.window.Event("scroll"));
+    });
+    assert.ok(document.querySelector('[data-home-story-id="380"]'));
+    assert.equal(document.querySelector('[data-home-story-id="301"]'), null);
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    Object.keys(values).forEach((key, index) => {
+      if (previous[index]) Object.defineProperty(globalThis, key, previous[index]!);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+});
 
 for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agents-coding"]) {
   test(`${listingPath}: duplicate-only batches advance live offsets but not frozen cursors`, async () => {
