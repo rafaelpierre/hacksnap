@@ -2,6 +2,7 @@ import { availableData } from "../../../lib/data-availability";
 import { withDataFallback } from "../../with-data-fallback";
 import { ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
+import { categoryMetadata } from "../../../lib/category-metadata";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
@@ -43,17 +44,7 @@ async function selection({ params, searchParams }: Props) {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { category, page } = await selection(props);
-  const title = `${category.label}${page > 1 ? ` — Page ${page}` : ""}`;
-  return {
-    title,
-    description: category.description,
-    alternates: { canonical: categoryURL(category, page) },
-    openGraph: {
-      title: `${title} | Hacksnap`,
-      description: category.description,
-      url: categoryURL(category, page),
-    },
-  };
+  return categoryMetadata(category, page);
 }
 
 function CategoryShell({

@@ -83,6 +83,9 @@ export function StoryFeed({
     phase: "idle",
     announcement: "",
   });
+  const hasNewerPage =
+    initialPagination.page > 1 && (!ranked || !!initialPagination.previousCursor);
+  const hasOlderPage = !ranked && feed.pagination.hasMore;
   const [restored, setRestored] = useState(false);
   const [positionPending, setPositionPending] = useState(false);
   const feedRef = useRef(feed);
@@ -560,14 +563,21 @@ export function StoryFeed({
             Start a fresh selection
           </a>
         )}
-        {initialPagination.page > 1 && (!ranked || initialPagination.previousCursor) && (
+        {(hasNewerPage || hasOlderPage) && (
           <nav className="home-feed-pages" aria-label="Story pages">
-            <Link
-              href={pageURL(initialPagination.page - 1, initialPagination.previousCursor)}
-              prefetch={false}
-            >
-              Newer stories
-            </Link>
+            {hasNewerPage && (
+              <Link
+                href={pageURL(initialPagination.page - 1, initialPagination.previousCursor)}
+                prefetch={false}
+              >
+                Newer stories
+              </Link>
+            )}
+            {hasOlderPage && (
+              <Link href={pageURL(feed.pagination.page + 1, null)} prefetch={false}>
+                Older stories
+              </Link>
+            )}
           </nav>
         )}
       </div>

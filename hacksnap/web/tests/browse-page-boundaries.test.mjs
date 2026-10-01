@@ -29,7 +29,7 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
 jest.unstable_mockModule("../app/story-feed.tsx", () => ({ StoryFeed: () => null }));
 
 const { default: Home } = await import("../app/[[...path]]/page.tsx");
-const { default: CategoryPage } = await import("../app/category/[slug]/page.tsx");
+const { default: CategoryPage, generateMetadata } = await import("../app/category/[slug]/page.tsx");
 const { ReadyStoryPageError } = await import("../lib/ready-story-pagination-errors.ts");
 
 function home(path, query = {}) {
@@ -97,4 +97,49 @@ test("the homepage Latest CTA uses its own pending navigation feedback", async (
   assert.equal(cta.type, NavigationPendingLink);
   assert.equal(cta.props.href, "/archive");
   assert.equal(cta.props.pendingLabel, "Loading latest stories…");
+});
+
+test("category search metadata is distinct, paginated, and available without a story read", async () => {
+  const { CATEGORIES } = await import("../lib/categories.ts");
+  getCategoryStories.mockClear();
+  const titles = new Set();
+  const descriptions = new Set();
+  for (const category of CATEGORIES) {
+    const props = (page) => ({
+      params: Promise.resolve({ slug: category.slug }),
+      searchParams: Promise.resolve({ page }),
+    });
+    const first = await generateMetadata(props(undefined));
+    const second = await generateMetadata(props("2"));
+    titles.add(first.title);
+    descriptions.add(first.description);
+    assert.match(first.title, /AI/);
+    assert.match(first.description, /Hacker News discussions/);
+    assert.equal(first.alternates.canonical, `/category/${category.slug}`);
+    assert.equal(second.title, `${first.title} — Page 2`);
+    assert.equal(second.description, `Page 2: ${first.description}`);
+    assert.equal(second.alternates.canonical, `/category/${category.slug}?page=2`);
+    for (const metadata of [first, second]) {
+      assert.equal(metadata.openGraph.title, `${metadata.title} | Hacksnap`);
+      assert.equal(metadata.openGraph.description, metadata.description);
+      assert.equal(metadata.openGraph.url, metadata.alternates.canonical);
+      assert.equal(metadata.twitter.title, metadata.openGraph.title);
+      assert.equal(metadata.twitter.description, metadata.description);
+    }
+  }
+  assert.equal(titles.size, 6);
+  assert.equal(descriptions.size, 6);
+  assert.equal(getCategoryStories.mock.calls.length, 0);
+  for (const [slug, page] of [
+    ["unknown", undefined],
+    ["agents-coding", "101"],
+  ]) {
+    await assert.rejects(
+      generateMetadata({
+        params: Promise.resolve({ slug }),
+        searchParams: Promise.resolve({ page }),
+      }),
+      (error) => error === missing,
+    );
+  }
 });
