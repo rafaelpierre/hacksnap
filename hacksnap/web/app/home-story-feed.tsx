@@ -188,15 +188,6 @@ export function HomeStoryFeed({
     }
   }, []);
 
-  function skipToFooter() {
-    setAutoPaused(true);
-    setAutoReady(false);
-    activeRequest.current?.abort();
-    activeRequest.current = null;
-    requestId.current++;
-    setFeed((state) => (state.phase === "loading" ? { ...state, phase: "idle" } : state));
-  }
-
   useEffect(() => {
     if (
       !restored ||
@@ -233,9 +224,6 @@ export function HomeStoryFeed({
 
   return (
     <>
-      <a className="home-feed-top-skip" href="#site-footer" onClick={skipToFooter}>
-        Skip to footer
-      </a>
       {feed.stories.length === 0 ? (
         <div className="empty">
           <h2>No stories yet.</h2>
@@ -306,9 +294,6 @@ export function HomeStoryFeed({
             Start a fresh selection
           </a>
         )}
-        <a className="home-feed-footer-link" href="#site-footer" onClick={skipToFooter}>
-          Skip to footer
-        </a>
         <nav className="home-feed-pages" aria-label="Story pages">
           {initialPagination.page > 1 && initialPagination.previousCursor && (
             <Link

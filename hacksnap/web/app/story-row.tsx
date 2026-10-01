@@ -7,6 +7,7 @@ import { briefExcerpt } from "../lib/brief";
 import { SkepticismPill } from "./skepticism-pill";
 import { ShareLinks } from "./share-links";
 import { BrowseStoryLink } from "./story-navigation";
+import { StoryAge } from "./story-age";
 import { ArticleImage } from "./article-image";
 import { canonicalArticleImage } from "../lib/article-image";
 
@@ -34,15 +35,8 @@ export function StoryRow({
   const image = canonicalArticleImage(story);
 
   return (
-    <article
-      className={`story-row feed-story ${hasRank ? "feed-story-ranked" : "feed-story-unranked"}${rank === 1 ? " feed-story-lead" : ""}`}
-    >
+    <article className="story-row feed-story">
       <div className="story-domain story-context">
-        {hasRank && (
-          <span className="rank" aria-label={`Rank ${rank}`}>
-            {String(rank).padStart(2, "0")}
-          </span>
-        )}
         {story.category && <CategoryBadge id={story.category} />}
         {variant === "ranked" && story.is_recent === false && (
           <span className="archive-label">Archive</span>
@@ -90,6 +84,13 @@ export function StoryRow({
               </span>
             )}
             <SkepticismPill story={story} />
+            <StoryAge
+              dateTime={
+                typeof story.date_added === "string"
+                  ? story.date_added
+                  : story.date_added.toISOString()
+              }
+            />
           </div>
           <ShareLinks
             slug={story.story_slug}

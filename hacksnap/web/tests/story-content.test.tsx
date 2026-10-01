@@ -196,7 +196,7 @@ test("ranked card footer separates points, comments and movement between updates
   }
 });
 
-test("leading card reports a climb since the most recent saved rank", () => {
+test("leading card uses the same styling without a rank badge and retains movement", () => {
   const ranked = {
     ...story,
     rank: "1",
@@ -206,7 +206,8 @@ test("leading card reports a climb since the most recent saved rank", () => {
     ],
   };
   const html = render(createElement(StoryRow, { story: ranked, variant: "ranked" }));
-  assert.match(html, /aria-label="Rank 1"/);
+  assert.match(html, /<article class="story-row feed-story">/);
+  assert.doesNotMatch(html, /class="rank"|aria-label="Rank 1"|feed-story-lead/);
   assert.match(html, /Climbed 1 position in Hacksnap since the previous update/);
   assert.match(html, /<span aria-hidden="true">\+1<\/span>/);
   assert.match(html, /lucide-chevrons-up/);

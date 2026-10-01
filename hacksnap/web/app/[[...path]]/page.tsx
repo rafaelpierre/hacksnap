@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { getReadyStoryPage } from "../../lib/data";
 import { ReadyStoryPageError } from "../../lib/ready-story-pagination";
 import { publicReadyStory } from "../../lib/stories-api";
-import { LocalTime } from "../local-time";
 import { BrowseLayout } from "../topic-sidebar";
 import { HomeStoryFeed } from "../home-story-feed";
 
@@ -57,17 +56,6 @@ async function Home({
         <p>AI stories and highlights from Hacker News discussions.</p>
       </header>
       <section aria-label="Top stories">
-        <div className="feed-bar">
-          <p>
-            {ingestion ? (
-              <>
-                Updated <LocalTime dateTime={ingestion.toISOString()} />
-              </>
-            ) : (
-              "Waiting for stories"
-            )}
-          </p>
-        </div>
         {stale && (
           <p className="notice">Updates are delayed. These are the latest saved stories.</p>
         )}
