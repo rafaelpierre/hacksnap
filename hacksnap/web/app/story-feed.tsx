@@ -99,8 +99,8 @@ export function StoryFeed({
     phase: "idle",
     announcement: "",
   });
-  const hasNewerPage =
-    initialPagination.page > 1 && (!ranked || !!initialPagination.previousCursor);
+  const [startingPage, setStartingPage] = useState(initialPagination.page);
+  const hasNewerPage = startingPage > 1 && (!ranked || !!initialPagination.previousCursor);
   const hasOlderPage = !ranked && feed.pagination.hasMore;
   const [restored, setRestored] = useState(false);
   const [history, setHistory] = useState(emptyStoryHistory);
@@ -259,6 +259,10 @@ export function StoryFeed({
   useEffect(() => {
     const applySnapshot = (snapshot: FeedSnapshot, anchor: HomeFeedCheckpoint["anchor"]) => {
       setRestoredFromSnapshot(true);
+      const page = Number(
+        new URL(snapshot.url, window.location.origin).searchParams.get("page") ?? "1",
+      );
+      setStartingPage(Number.isSafeInteger(page) && page > 0 ? page : 1);
       scrollTarget.current = {
         y: snapshot.scrollY,
         storyId: anchor?.storyId ?? null,
@@ -572,6 +576,7 @@ export function StoryFeed({
       };
       feedRef.current = next;
       setFeed(next);
+      setStartingPage(1);
       baselineIds.current = new Set(ids);
       setNewStoriesAvailable(false);
       setPinnedStoryId(page.stories[0]?.hn_id ?? null);
@@ -683,7 +688,7 @@ export function StoryFeed({
           stories={feed.stories}
           ranked={ranked}
           openedIds={openedIds}
-          initialPage={initialPagination.page}
+          initialPage={startingPage}
           groupByDay={groupByDay}
           pinnedStoryId={pinnedStoryId}
           leadImagePriority={restored && !restoredFromSnapshot && !positionPending}
@@ -772,7 +777,7 @@ export function StoryFeed({
           <nav className="home-feed-pages" aria-label="Story pages">
             {hasNewerPage && (
               <Link
-                href={pageURL(initialPagination.page - 1, initialPagination.previousCursor)}
+                href={pageURL(startingPage - 1, initialPagination.previousCursor)}
                 prefetch={false}
               >
                 Newer stories

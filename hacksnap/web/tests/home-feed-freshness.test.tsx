@@ -4,6 +4,7 @@ import { test } from "@jest/globals";
 import React, { act } from "react";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import { StoryFeed } from "../app/story-feed";
+import { HOME_FEED_CHECKPOINT_KEY } from "../lib/home-feed-checkpoint";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
@@ -62,6 +63,7 @@ test("polling keeps rows and scroll stable until explicit refresh focuses the fi
     self: dom.window,
     window: dom.window,
     document: dom.window.document,
+    localStorage: dom.window.localStorage,
     navigator: dom.window.navigator,
     IS_REACT_ACT_ENVIRONMENT: true,
     requestAnimationFrame: (callback: FrameRequestCallback) => {
@@ -202,6 +204,143 @@ test("polling keeps rows and scroll stable until explicit refresh focuses the fi
     dom.window.close();
     globalThis.fetch = originalFetch;
     Date.now = originalNow;
+    Object.keys(globals).forEach((key, index) => {
+      const descriptor = previous[index];
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+});
+
+test("refreshing a continuation page resets positions and removes its old newer link", async () => {
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: "https://hacksnap.live/?page=2&cursor=later_cursor",
+    pretendToBeVisual: true,
+  });
+  dom.window.scrollTo = (() => {}) as typeof dom.window.scrollTo;
+  const globals = {
+    self: dom.window,
+    window: dom.window,
+    document: dom.window.document,
+    localStorage: dom.window.localStorage,
+    navigator: dom.window.navigator,
+    IS_REACT_ACT_ENVIRONMENT: true,
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    },
+    cancelAnimationFrame: () => {},
+  };
+  const previous = Object.keys(globals).map((key) =>
+    Object.getOwnPropertyDescriptor(globalThis, key),
+  );
+  Object.entries(globals).forEach(([key, value]) =>
+    Object.defineProperty(globalThis, key, { value, configurable: true }),
+  );
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url) => {
+    if (String(url) === "/api/story-freshness")
+      return { ok: true, json: async () => ({ ids: ["11", "12", "99"] }) } as Response;
+    assert.equal(String(url), "/api/ready-stories?fresh=1");
+    return {
+      ok: true,
+      json: async () => ({
+        stories: [story(99), story(1)],
+        pagination: pagination(),
+        selectionIds: ["99", "1"],
+      }),
+    } as Response;
+  }) as typeof fetch;
+  const { createRoot } = await import("react-dom/client");
+  let root = createRoot(document.getElementById("root")!);
+  const router = { push: () => {}, prefetch: async () => {} };
+  const homeOpenPositions = () =>
+    ((dom.window as Window & { dataLayer?: Array<ArrayLike<unknown>> }).dataLayer ?? [])
+      .filter((entry) => entry[1] === "home_story_open")
+      .map((entry) => (entry[2] as { position: number }).position);
+  try {
+    await act(async () =>
+      root.render(
+        <AppRouterContext.Provider value={router as never}>
+          <StoryFeed
+            initialStories={[story(11), story(12)]}
+            initialPagination={{
+              ...pagination(undefined, true),
+              page: 2,
+              previousCursor: "earlier_cursor",
+            }}
+            initialSelectionIds={["11", "12"]}
+          />
+        </AppRouterContext.Provider>,
+      ),
+    );
+    assert.equal(document.querySelector(".story-list")?.getAttribute("start"), "11");
+    assert.equal(
+      document.querySelector<HTMLAnchorElement>(".home-feed-pages a")?.getAttribute("href"),
+      "/?page=1&cursor=earlier_cursor",
+    );
+    assert.equal(document.querySelector(".home-feed-pages")?.textContent, "Newer stories");
+    await act(async () =>
+      document
+        .querySelector<HTMLAnchorElement>(".story-list h3 a")!
+        .dispatchEvent(new dom.window.MouseEvent("auxclick", { bubbles: true, button: 1 })),
+    );
+    assert.deepEqual(homeOpenPositions(), [11]);
+    assert.ok(document.querySelector(".feed-freshness-banner button"));
+
+    await act(async () =>
+      document.querySelector<HTMLButtonElement>(".feed-freshness-banner button")!.click(),
+    );
+    assert.equal(dom.window.location.pathname + dom.window.location.search, "/");
+    assert.equal(document.querySelector(".story-list")?.getAttribute("start"), null);
+    assert.equal(document.querySelector(".home-feed-pages"), null);
+    assert.equal(
+      document
+        .querySelector(".story-list [data-home-story-id]")
+        ?.getAttribute("data-home-story-id"),
+      "99",
+    );
+    assert.equal(document.activeElement?.textContent, "Story 99");
+    await act(async () =>
+      document
+        .querySelector<HTMLAnchorElement>(".story-list h3 a")!
+        .dispatchEvent(new dom.window.MouseEvent("auxclick", { bubbles: true, button: 1 })),
+    );
+    assert.deepEqual(homeOpenPositions(), [11], "refreshed first story has position one");
+    const saved = JSON.parse(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY)!);
+    assert.equal(saved.snapshot.url, "/");
+    assert.equal(saved.snapshot.pagination.page, 1);
+    assert.equal(saved.snapshot.stories[0].hn_id, "99");
+
+    await act(async () => root.unmount());
+    root = createRoot(document.getElementById("root")!);
+    await act(async () =>
+      root.render(
+        <AppRouterContext.Provider value={router as never}>
+          <StoryFeed
+            initialStories={[story(11), story(12)]}
+            initialPagination={{
+              ...pagination(undefined, true),
+              page: 2,
+              previousCursor: "earlier_cursor",
+            }}
+            initialSelectionIds={["11", "12", "99"]}
+          />
+        </AppRouterContext.Provider>,
+      ),
+    );
+    assert.equal(
+      document
+        .querySelector(".story-list [data-home-story-id]")
+        ?.getAttribute("data-home-story-id"),
+      "99",
+    );
+    assert.equal(document.querySelector(".story-list")?.getAttribute("start"), null);
+    assert.equal(document.querySelector(".home-feed-pages"), null);
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    globalThis.fetch = originalFetch;
     Object.keys(globals).forEach((key, index) => {
       const descriptor = previous[index];
       if (descriptor) Object.defineProperty(globalThis, key, descriptor);
