@@ -145,6 +145,7 @@ def main(
     counter_lock = Lock()
     classification_lock = Lock()
     classification_failed = False
+    classification_timed_out = False
     timeout = httpx.Timeout(20.0)
     try:
         with httpx.Client(timeout=timeout) as http_client:
@@ -163,6 +164,7 @@ def main(
             @traced_operation("ingestion_story")
             def collect_story(position: int, story_id: int) -> dict[str, Any] | None:
                 nonlocal examined, detected, filtered, skipped, classification_failed
+                nonlocal classification_timed_out
                 prefix = f"[{position}/{len(story_ids)}]"
                 click.echo(f"{prefix} Fetching story {story_id}.")
                 with counter_lock:
@@ -184,25 +186,34 @@ def main(
                     classification = reusable_category(saved_categories.get(story_id), title, classifier.model)
                     decision = None
                     if classification is None:
-                        # Do not admit waiting callers after a terminal model error.
+                        # Serialize admission too, so waiting workers see the open circuit.
                         with classification_lock:
                             if classification_failed:
+                                return None
+                            if classification_timed_out:
+                                with counter_lock:
+                                    skipped += 1
+                                click.echo(
+                                    f"{prefix} Skipped story {story_id}: topic classifier "
+                                    "circuit is open for this scan; will retry on a future scan."
+                                )
                                 return None
                             try:
                                 decision = classifier.classify(title)
                             except httpx.TimeoutException as error:
-                                # Leave this story uncategorized for the next scan.
-                                # A transient inference timeout must not stop other stories.
+                                # Spending another full timeout on each queued title can
+                                # exceed Modal's job deadline. Cached stories may continue.
+                                classification_timed_out = True
                                 report_error(
                                     error, operation="classification", handled=True,
                                     story_id=story_id, model=classifier.model,
-                                    run_id=str(run_id), action="skip_story",
+                                    run_id=str(run_id), action="open_classification_circuit",
                                 )
                                 with counter_lock:
                                     skipped += 1
                                 click.echo(
                                     f"{prefix} Skipped story {story_id}: topic classification "
-                                    "timed out; will retry on a future scan."
+                                    "timed out; circuit opened for this scan."
                                 )
                                 return None
                             except Exception:

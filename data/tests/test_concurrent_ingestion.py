@@ -284,16 +284,17 @@ def test_classifier_failure_stops_waiting_callers(scan, monkeypatch):
 @pytest.mark.parametrize("timeout_type", [
     httpx.ReadTimeout, httpx.ConnectTimeout, httpx.WriteTimeout, httpx.PoolTimeout,
 ])
-@pytest.mark.parametrize("all_timeout", [False, True])
-def test_classifier_timeouts_are_logged_and_scan_continues(
-    scan, monkeypatch, concurrency, timeout_type, all_timeout,
+@pytest.mark.parametrize("with_cached_stories", [False, True])
+def test_classifier_timeout_opens_run_circuit_and_preserves_cached_stories(
+    scan, monkeypatch, concurrency, timeout_type, with_cached_stories,
 ):
     import logfire
     from logfire.testing import TestExporter as SpanExporter
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
     from hn_trending import telemetry
 
-    _, state = scan
+    HN, state = scan
+    monkeypatch.setattr(HN, "top_story_ids", lambda self: list(range(1, 21)))
     calls = []
     exporter = SpanExporter()
     logfire.configure(
@@ -306,15 +307,16 @@ def test_classifier_timeouts_are_logged_and_scan_continues(
         import json
         title = json.loads(json.loads(request.content)["messages"][1]["content"])["title"]
         calls.append(title)
-        if all_timeout or title == "AI story 1":
-            raise timeout_type("inference timed out", request=request)
-        return httpx.Response(200, json={"choices": [{
-            "finish_reason": "stop",
-            "message": {"content": '{"relevant": true, "category": "agents_coding"}'},
-        }]})
+        raise timeout_type("inference timed out", request=request)
 
     monkeypatch.setenv("MODAL_LLM_API_KEY", "offline-key")
     monkeypatch.setattr(cli, "get_category_assignments", lambda *args: {})
+    from hn_trending.categories import category_metadata
+    cached_ids = [19, 20] if with_cached_stories else []
+    monkeypatch.setattr(cli, "get_category_assignments", lambda *args: {
+        i: category_metadata(f"AI story {i}", "agents_coding", topic_filter.MODAL_LLM_MODEL)
+        for i in cached_ids
+    })
     monkeypatch.setattr(topic_filter, "REQUEST_PAUSE_SECONDS", 0)
     with httpx.Client(transport=httpx.MockTransport(respond)) as client:
         classifier = topic_filter.TitleTopicClassifier("offline-key", client=client)
@@ -324,25 +326,63 @@ def test_classifier_timeouts_are_logged_and_scan_continues(
         )
 
     assert result.exit_code == 0, result.output
-    assert sorted(calls) == [f"AI story {i}" for i in range(1, 5)]
-    expected_ids = [] if all_timeout else [2, 3, 4]
+    # Even twenty stalled titles spend only one request timeout per scan.
+    assert len(calls) == 1
+    expected_ids = cached_ids
     assert [row["hn_id"] for row in state["rows"]] == expected_ids
     assert state["writes"] == 1
     assert state["finished"] == [{
-        "status": "succeeded", "stories_examined": 4,
+        "status": "succeeded", "stories_examined": 20,
         "threads_matched": len(expected_ids), "snapshots_inserted": len(expected_ids),
     }]
-    assert f"skipped={4 if all_timeout else 1}" in result.output
+    assert f"skipped={20 - len(cached_ids)}" in result.output
     logfire.force_flush()
     errors = [span for span in exporter.exported_spans
               if span.attributes.get("handled") is True]
-    assert sorted(span.attributes["story_id"] for span in errors) == (
-        [1, 2, 3, 4] if all_timeout else [1]
-    )
+    assert len(errors) == 1
+    assert errors[0].attributes["story_id"] == int(calls[0].rsplit(" ", 1)[1])
     for span in errors:
         assert span.attributes["operation"] == "classification"
         assert span.attributes["error_type"] == timeout_type.__name__
         assert span.attributes["model"] == classifier.model
-        assert span.attributes["action"] == "skip_story"
+        assert span.attributes["action"] == "open_classification_circuit"
         assert span.attributes["run_id"]
         assert any(event.name == "exception" for event in span.events)
+
+
+def test_classifier_circuit_keeps_prior_results_and_resets_on_next_scan(scan, monkeypatch):
+    _, state = scan
+    calls = []
+    stalled = True
+
+    class Classifier:
+        model = topic_filter.MODAL_LLM_MODEL
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def classify(self, title):
+            calls.append(title)
+            if stalled and title == "AI story 2":
+                raise httpx.ReadTimeout("inference timed out")
+            return topic_filter.TopicDecision(relevant=True, category="agents_coding")
+
+    monkeypatch.setenv("MODAL_LLM_API_KEY", "offline-key")
+    monkeypatch.setattr(cli, "TitleTopicClassifier", Classifier)
+    monkeypatch.setattr(cli, "get_category_assignments", lambda *args: {})
+    runner = CliRunner()
+    args = ["--classify-topic", "--story-concurrency", "1"]
+    result = runner.invoke(cli.main, args)
+    assert result.exit_code == 0, result.output
+    assert calls == ["AI story 1", "AI story 2"]
+    assert [row["hn_id"] for row in state["rows"]] == [1]
+    assert state["finished"][0]["status"] == "succeeded"
+
+    stalled = False
+    calls.clear()
+    state["rows"].clear()
+    result = runner.invoke(cli.main, args)
+    assert result.exit_code == 0, result.output
+    assert calls == [f"AI story {i}" for i in range(1, 5)]
+    assert [row["hn_id"] for row in state["rows"]] == [1, 2, 3, 4]
+    assert state["finished"][1]["status"] == "succeeded"
