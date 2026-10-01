@@ -71,9 +71,9 @@ The homepage server-renders ten ready stories from the existing ranking. Near th
 bottom, it loads the next ten into the same list. Cards use uniform styling with
 no position numbers or special first-place highlight; ranking still controls
 the story order. A visible Load more button works
-when automatic loading is unavailable, and ordinary Next page/Newer stories links
-work without JavaScript. A direct `/?page=N` request uses the current selection;
-page links carry a frozen cursor so successive pages retain their ranking and order.
+when automatic loading is unavailable. Direct paginated requests retain a
+Newer stories link; `/?page=N` uses the current selection, and that link carries
+a frozen cursor so navigation retains the ranking and order.
 The cursor is portable across instances and expires after eight hours. An expired or
 invalidated continuation keeps already loaded cards visible and offers a fresh
 selection. The selection is bounded to 400 stories; if it reaches that cap, the UI
