@@ -615,6 +615,20 @@ still require edge rate limiting and verified origin restrictions. See the
 [issue #75 verification report](../../docs/security/issue-75-public-read-limits.md)
 for deployment evidence and remaining exposure.
 
+`/api/browse-stories` also keeps up to 64 archive/category page results per
+instance for 60 seconds and coalesces up to 8 concurrent misses for the same
+normalized listing path and page. Expired results are never served stale; read
+failures are not cached. The endpoint still returns `Cache-Control: no-store`,
+so this reduces repeated database reads only when requests reach the same warm
+application instance. Cold starts, other instances and requests after expiry read
+the database again. No Cloudflare or production origin request-rate, query-count,
+or pool-wait telemetry was available when this behavior was implemented, so the
+cache bounds express a freshness and load-control policy rather than a measured
+production hit rate or latency improvement. Issue triage measured 244 production
+stories; at that data volume the cache is a precaution for repeated requests, not
+a demonstrated database-capacity fix. Reassess its value with origin and Cloudflare
+telemetry before extending the TTL or adding cache layers.
+
 ## Discussion rendering fallback
 
 Set server-only `HACKSNAP_DISCUSSION_RENDERING=false` and redeploy to use legacy
