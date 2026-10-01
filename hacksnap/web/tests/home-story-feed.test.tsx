@@ -258,3 +258,95 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
     });
   }
 }
+
+for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agents-coding"]) {
+  test(`${listingPath}: duplicate-only batches advance live offsets but not frozen cursors`, async () => {
+    const ranked = listingPath === "/";
+    const pageState = (page: number, more: boolean) =>
+      ranked ? pagination(page, more) : browsePagination(page, more);
+    const dom = new JSDOM('<div id="root"></div>', {
+      url: `https://hacksnap.live${listingPath}`,
+    });
+    const values = {
+      self: dom.window,
+      window: dom.window,
+      document: dom.window.document,
+      navigator: dom.window.navigator,
+      IS_REACT_ACT_ENVIRONMENT: true,
+      IntersectionObserver: undefined,
+    };
+    const previous = Object.keys(values).map((key) =>
+      Object.getOwnPropertyDescriptor(globalThis, key),
+    );
+    Object.entries(values).forEach(([key, value]) =>
+      Object.defineProperty(globalThis, key, { value, configurable: true }),
+    );
+    const originalFetch = globalThis.fetch;
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(document.getElementById("root")!);
+    const first = Array.from({ length: ranked ? 10 : 30 }, (_, index) => story(index + 1));
+    const requested: number[] = [];
+    globalThis.fetch = (async (input) => {
+      const url = new URL(String(input), dom.window.location.origin);
+      const page = ranked
+        ? Number(url.searchParams.get("cursor")!.split("_")[1])
+        : Number(url.searchParams.get("page"));
+      requested.push(page);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          stories: page < 4 ? first : [story(30), story(31)],
+          pagination: pageState(page, page < 4),
+        }),
+      } as Response;
+    }) as typeof fetch;
+    try {
+      await act(async () =>
+        root.render(
+          <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
+            <StoryFeed
+              listingPath={listingPath}
+              initialStories={first}
+              initialPagination={pageState(1, true)}
+            />
+          </AppRouterContext.Provider>,
+        ),
+      );
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await act(async () =>
+          (document.querySelector(".home-feed-actions button") as HTMLButtonElement).click(),
+        );
+        const status = document.querySelector(".home-feed-status")!.textContent!;
+        if (ranked) {
+          assert.match(status, /try again/i);
+          assert.equal(dom.window.history.state.hacksnapHomeFeed.pagination.page, 1);
+          assert.equal(document.querySelectorAll(".story-list > li").length, 10);
+        } else {
+          assert.doesNotMatch(status, /try again/i);
+          assert.equal(dom.window.history.state.hacksnapHomeFeed.pagination.page, attempt + 2);
+          assert.equal(document.querySelectorAll(".story-list > li").length, attempt < 2 ? 30 : 31);
+          if (attempt < 2) {
+            assert.match(status, /No new stories in this batch/);
+            assert.equal(
+              document.querySelector(".home-feed-pages a")?.getAttribute("href"),
+              `${listingPath}?page=${attempt + 3}`,
+            );
+          } else {
+            assert.match(status, /reached the end/);
+            assert.equal(document.querySelector(".home-feed-actions button"), null);
+          }
+        }
+      }
+      assert.deepEqual(requested, ranked ? [2, 2, 2] : [2, 3, 4]);
+    } finally {
+      await act(async () => root.unmount());
+      globalThis.fetch = originalFetch;
+      dom.window.close();
+      Object.keys(values).forEach((key, i) => {
+        if (previous[i]) Object.defineProperty(globalThis, key, previous[i]!);
+        else Reflect.deleteProperty(globalThis, key);
+      });
+    }
+  });
+}

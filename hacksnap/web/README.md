@@ -376,8 +376,11 @@ Pending briefs remain visible. Ordinary page links and canonical URLs still work
 without JavaScript. Loaded rows are deduplicated and saved with the exact listing
 URL in browser history for back/forward and explicit story returns. Archive/topic
 pagination retains its existing live offset ordering, so new arrivals can shift
-page boundaries during browsing; it does not freeze a ranked selection. Archive and category listings accept pages 1–100 (at most 3,000
-stories and an SQL offset of 2,970). Larger pages return 404 before data access;
+page boundaries during browsing; it does not freeze a ranked selection.
+Duplicate-only archive/topic batches still advance the page, so subsequent loads
+can reach older stories. Frozen ranked batches retain the no-progress guard.
+Archive and category listings accept pages 1–100 (at most 3,000 stories and an SQL
+offset of 2,970). Larger pages return 404 before data access;
 the final allowed page has no older-page link. Use dated archive URLs to reach
 older archive entries. Categories show their latest 3,000 stories; deeper category
 browsing needs cursor pagination before this limit can be raised. The feed starts

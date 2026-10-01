@@ -393,7 +393,8 @@ export function StoryFeed({
           throw new Error("Invalid story page");
         if (id !== requestId.current || controller.signal.aborted) return;
         const stories = appendUniqueStories(current.stories, page.stories);
-        if (stories.length === current.stories.length && page.pagination.hasMore)
+        // Live offsets can repeat a whole batch after new arrivals; keep their page advance.
+        if (ranked && stories.length === current.stories.length && page.pagination.hasMore)
           throw new Error("Story page made no progress");
         const added = stories.length - current.stories.length;
         const next = {
