@@ -24,7 +24,14 @@ type Params = {
   position?: number;
   destination?: string;
   copy_kind?: "link" | "post";
-  outcome?: "success" | "empty" | "failure" | "expired" | "exhausted" | "selection_limited";
+  outcome?:
+    | "success"
+    | "empty"
+    | "failure"
+    | "expired"
+    | "cancelled"
+    | "exhausted"
+    | "selection_limited";
   trigger?: "auto" | "manual";
 };
 type Sink = (name: JourneyEvent, params: Record<string, string | number>) => void;

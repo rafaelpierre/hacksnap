@@ -85,8 +85,12 @@ restoring position. The contextual return link carries the same snapshot through
 history and, when available, tab-scoped session storage. Blocked session storage
 does not prevent browsing or same-tab returns. Story URLs stay canonical, and
 modified clicks use their normal browser behavior. Reloading `/` starts a fresh
-selection. Pause automatic loading to reach footer navigation without chasing a
-growing list. Story cards show time since first added in compact days and hours
+selection. The header stays visible while scrolling, and the desktop left topic sidebar
+sticks below its measured height. Tall navigation areas scroll within the viewport.
+All main destinations remain available without reaching the footer. Automatic
+loading stops while the continuation controls have keyboard focus, cancelling any
+pending automatic request; manual loading remains available. There is no separate
+Pause/Resume control. Story cards show time since first added in compact days and hours
 (e.g. `1d 2h`, `5h`, or `<1h`), refreshed every minute. Before hydration, the
 UTC date is shown. Each age is a native disclosure with a 44px target: click, tap,
 or focus it and press Enter/Space to reveal the exact timestamp in local time.
@@ -96,9 +100,12 @@ Analytics events `home_story_open` record actual activations of stories after th
 first ten (`story_id`, 1-based `position`, `placement=home_feed`). Rendering or
 fetching a card never emits that event. `home_feed_load` records each attempted
 automatic or manual request with `trigger`, `outcome` (success, empty, failure,
-expired) and resulting `position`; `home_feed_end` records exhausted versus capped
+expired, cancelled) and resulting `position`; `home_feed_end` records exhausted versus capped
 selections once per route occurrence. These are client events and do not fire
-without JavaScript. Existing `story_view` still records a rendered story page.
+without JavaScript. A cancelled request records its original trigger and the
+number of loaded stories at request start exactly once, whether its aborted fetch
+rejects or later resolves; it does not also record success or failure. Existing
+`story_view` still records a rendered story page.
 
 Run `npm test -- tests/home-feed-state.test.mjs tests/story-navigation.test.tsx
 tests/navigation-context.test.mjs tests/analytics.test.mjs` for continuation,
