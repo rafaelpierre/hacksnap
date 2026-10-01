@@ -264,6 +264,12 @@ def test_editorial_paragraphs_and_bullets_survive_generation_and_storage():
     {"opening": "x" * 301, "bullets": []},
     {"opening": "Question", "bullets": [" "]},
     {"opening": "Question", "bullets": ["First\nSecond"]},
+    {"opening": "Question", "bullets": ["First\rSecond"]},
+    {"opening": "Question", "bullets": ["First\r\nSecond"]},
+    {"opening": "First\nSecond", "bullets": []},
+    {"opening": "First\rSecond", "bullets": []},
+    {"opening": "First\r\nSecond", "bullets": []},
+    {"opening": " ", "bullets": []},
     {"opening": "Question", "bullets": [123]},
     {"opening": "Question"},
 ])

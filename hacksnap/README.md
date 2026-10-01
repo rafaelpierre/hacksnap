@@ -759,3 +759,11 @@ pre-inference content filter. Short genuine articles remain eligible. Normal
 summaries still require article content and key points. Existing saved summaries
 are not regenerated automatically, so the unavailable state is retained by later
 discussion-only refreshes; recovering the article requires explicit regeneration.
+
+### Structured brief inference compatibility
+
+Discussion opening and bullet strings keep their length limits in the JSON schema
+sent to the model. Single-line validation runs in Python after generation because
+the deployed xgrammar compiler rejects `pattern` combined with `minLength` or
+`maxLength`. Invalid multiline output still fails validation before publication.
+The persisted discussion brief remains a string with application-inserted bullets.

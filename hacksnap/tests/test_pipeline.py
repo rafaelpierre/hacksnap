@@ -368,6 +368,25 @@ def test_modal_endpoint_requires_complete_structured_response(finish_reason):
     def handler(request):
         request_json = json.loads(request.content)
         assert request_json["response_format"]["json_schema"]["strict"] is True
+        schema = request_json["response_format"]["json_schema"]["schema"]
+
+        def rejects_grammar(node):
+            if isinstance(node, dict):
+                if "pattern" in node and ("minLength" in node or "maxLength" in node):
+                    return True
+                return any(rejects_grammar(value) for value in node.values())
+            if isinstance(node, list):
+                return any(rejects_grammar(value) for value in node)
+            return False
+
+        # Reproduce the deployed xgrammar rejection against the actual request.
+        if rejects_grammar(schema):
+            return httpx.Response(400, json={"error": "Unsupported string constraints"})
+        brief = schema["$defs"]["DiscussionBrief"]["properties"]
+        assert brief["opening"]["minLength"] == 1
+        assert brief["opening"]["maxLength"] == 300
+        assert brief["bullets"]["items"]["minLength"] == 1
+        assert brief["bullets"]["items"]["maxLength"] == 450
         assert request_json["model"] == "test-model"
         return httpx.Response(
             200,
