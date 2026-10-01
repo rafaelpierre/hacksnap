@@ -2,6 +2,9 @@ export default {
   testEnvironment: "node",
   testMatch: ["<rootDir>/tests/**/*.test.mjs", "<rootDir>/tests/**/*.test.tsx"],
   extensionsToTreatAsEsm: [".ts", ".tsx"],
+  moduleNameMapper: {
+    "\\.module\\.css$": "<rootDir>/tests/style-module-mock.cjs",
+  },
   // jsdom requires ESM dependencies; Jest on Node 22 needs them compiled to CJS.
   transformIgnorePatterns: [
     "/node_modules/(?!(@exodus/bytes|@asamuzakjp/[^/]+|@csstools/[^/]+|@bramus/specificity|css-tree|parse5|entities)/)",

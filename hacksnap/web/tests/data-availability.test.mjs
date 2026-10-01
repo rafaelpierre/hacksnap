@@ -12,6 +12,9 @@ const fail = async () => {
 };
 const getStory = jest.fn(fail);
 const getRelatedStories = jest.fn(fail);
+jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
+  shouldStreamBrowse: async () => true,
+}));
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getLeaderboard: fail,
   getReadyStoryPage: fail,
@@ -66,7 +69,21 @@ test("frontend pages render a recoverable outage while invalid routes remain 404
       params: Promise.resolve(params),
       searchParams: Promise.resolve({}),
     });
-    assert.equal(element.props.children.type, DataUnavailable, path);
+    // Initial feeds now defer the required read behind Suspense. Resolve only
+    // async server children; client components must remain uninvoked here.
+    async function containsOutage(node) {
+      if (!node || typeof node !== "object") return false;
+      if (Array.isArray(node)) {
+        for (const child of node) if (await containsOutage(child)) return true;
+        return false;
+      }
+      if (node.type === DataUnavailable) return true;
+      if (node.type?.constructor?.name === "AsyncFunction") {
+        return containsOutage(await node.type(node.props));
+      }
+      return containsOutage(node.props?.children);
+    }
+    assert.equal(await containsOutage(element), true, path);
   }
   const { default: Home } = await import("../app/[[...path]]/page.tsx");
   await assert.rejects(

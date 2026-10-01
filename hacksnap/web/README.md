@@ -264,6 +264,29 @@ a sanitized 503 with `no-store` and `Retry-After: 60`. HTML alternate links and 
 
 Run `npm test -- tests/rss.test.mjs` and `npm run build` from this directory.
 
+## Browse navigation loading
+
+Top stories, Latest, and topic links show a small pending indicator during a
+client-side navigation. The links retain their ordinary destinations and native
+modified-click behavior. For client navigation, once the server has validated an initial feed request,
+it streams the page heading and navigation with three decorative story-card
+skeletons while the required stories load. Loading is announced once for the
+feed; placeholder cards contain no focusable controls. Both indicators respect
+reduced motion and the current theme.
+
+The suspense boundaries sit after route validation so invalid routes do not flush
+successful HTML before returning 404. Later pages and ranked cursor requests keep
+their required validation before rendering; their link indicator covers the wait.
+Dated archives still check that the month exists, while unfiltered Latest skips
+that unnecessary month-index read. Data failures replace the feed placeholder
+with the existing unavailable state.
+
+This improves feedback during a wait, not the duration of the underlying story
+query. Full document loads await the primary feed so stories remain readable with
+JavaScript disabled; refreshes keep their existing server wait. The change adds
+no data-cache policy or production latency claim; the broader investigation is
+tracked in issue #170.
+
 ## Page caching and Cloudflare
 
 ### Mobile loading performance
