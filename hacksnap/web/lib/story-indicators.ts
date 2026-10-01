@@ -1,9 +1,9 @@
-import type { Story } from "./data";
+import type { CardStory } from "./story-domain";
 import { rankSamples, rankChange, formatRankChange } from "./rank-history.ts";
 import { sentimentLabel } from "./sentiment.ts";
 
 // Shared plain text for Markdown and RSS, using the front page's observed ranks.
-export function storyIndicators(story: Story, asOf: string): string[] {
+export function storyIndicators(story: CardStory, asOf: string): string[] {
   const sentiment = story.summary?.sentiment ?? null;
   const label = sentimentLabel(sentiment, story.summary?.source_coverage?.included_comments === 0);
   const lines = [

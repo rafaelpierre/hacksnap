@@ -15,6 +15,24 @@ export const rankHistorySQL = `COALESCE((
   ) observation
 ), '[]'::json)`;
 
+// A card compares only the two newest captures, including a capture equal to
+// the displayed rank. The same primary key supports this descending lookup.
+export const cardRankHistorySQL = `COALESCE((
+  SELECT json_agg(observation ORDER BY observation.observed_at) FROM (
+    SELECT observed_at, rank FROM hacksnap_rank_history
+    WHERE hn_id = t.hn_id
+      AND observed_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+      AND observed_at <= CURRENT_TIMESTAMP
+    ORDER BY observed_at DESC LIMIT 2
+  ) observation
+), '[]'::json)`;
+
+export const rankHistoryAtSQL = rankHistorySQL.replaceAll("CURRENT_TIMESTAMP", "$2::timestamptz");
+export const cardRankHistoryAtSQL = cardRankHistorySQL.replaceAll(
+  "CURRENT_TIMESTAMP",
+  "$4::timestamptz",
+);
+
 export function rankSamples(
   history: RankObservation[],
   asOf: string,

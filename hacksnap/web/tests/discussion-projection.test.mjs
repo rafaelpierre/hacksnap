@@ -100,39 +100,30 @@ test("reader projections preserve shared fixtures and legacy rows while excludin
           assert.equal(summary, null);
           continue;
         }
-        assert.equal(summary.discussion_summary, "Legacy discussion still works");
-        assert.equal(summary.discussion_analysis_coverage === null, fixture.expected === null);
-        if (fixture.expected) {
-          assert.deepEqual(summary.discussion_analysis_coverage, fixtureMetadata(fixture).coverage);
-          assert.equal(
-            new Date(summary.discussion_analyzed_at).toISOString(),
-            new Date(metadata.analyzed_at).toISOString(),
-          );
-        } else {
-          assert.equal(summary.discussion_analyzed_at, null);
-        }
         if (fields === storyFields) {
+          assert.equal(summary.discussion_summary, "Legacy discussion still works");
+          assert.equal(summary.discussion_analysis_coverage === null, fixture.expected === null);
+          if (fixture.expected) {
+            assert.deepEqual(
+              summary.discussion_analysis_coverage,
+              fixtureMetadata(fixture).coverage,
+            );
+            assert.equal(
+              new Date(summary.discussion_analyzed_at).toISOString(),
+              new Date(metadata.analyzed_at).toISOString(),
+            );
+          } else {
+            assert.equal(summary.discussion_analyzed_at, null);
+          }
           assert.deepEqual(summary.discussion_analysis, fixture.expected);
           assert.equal(summary.discussion_analysis_preview, undefined);
         } else {
           assert.equal(summary.discussion_analysis, undefined);
-          assert.deepEqual(
-            summary.discussion_analysis_preview,
-            fixture.expected
-              ? {
-                  status: fixture.expected.status,
-                  topics: fixture.expected.topics.map(({ key, title, summary }) => ({
-                    key,
-                    title,
-                    summary,
-                  })),
-                  selected_evidence: {
-                    critical: fixture.expected.critical_comments.length,
-                    supportive: fixture.expected.supportive_comments.length,
-                  },
-                }
-              : null,
-          );
+          assert.equal(summary.discussion_analysis_preview, undefined);
+          assert.equal(summary.discussion_summary, undefined);
+          assert.equal(summary.article_summary, undefined);
+          assert.equal(summary.discussion_points, undefined);
+          assert.equal(summary.discussion_analysis_coverage, undefined);
           assert.doesNotMatch(
             JSON.stringify(summary),
             /paraphrase|explanation|claim_id|comment_ids|reference_claims/,
@@ -188,9 +179,14 @@ test("legacy projections work before migration and while new column grants are m
         : [legacyFeedFieldsWithoutImages, legacyStoryFieldsWithoutImages]) {
         const { rows: stories } = await db.query(`SELECT ${fields} FROM hacker_news_threads t
           LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id ORDER BY t.hn_id`);
-        assert.equal(stories[0].summary.discussion_summary, "Existing summary");
-        assert.equal(stories[0].summary.discussion_analyzed_at, null);
-        assert.equal(stories[0].summary.discussion_analysis_coverage, null);
+        if (fields === storyFieldsWithoutImages || fields === legacyStoryFieldsWithoutImages) {
+          assert.equal(stories[0].summary.discussion_summary, "Existing summary");
+          assert.equal(stories[0].summary.discussion_analyzed_at, null);
+          assert.equal(stories[0].summary.discussion_analysis_coverage, null);
+        } else {
+          assert.equal(stories[0].summary.discussion_summary, undefined);
+          assert.equal(stories[0].summary.discussion_analyzed_at, undefined);
+        }
         assert.equal(stories[1].summary, null);
       }
       await assert.rejects(

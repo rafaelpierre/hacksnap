@@ -14,10 +14,13 @@ const getStory = jest.fn(fail);
 const getRelatedStories = jest.fn(fail);
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getLeaderboard: fail,
+  getMarkdownLeaderboard: fail,
+  getStoryMetrics: fail,
   getReadyStoryPage: fail,
   getStory,
   getRelatedStories,
   getFeedStories: fail,
+  getRssStories: fail,
   getArchiveMonths: fail,
   getArchiveStories: fail,
   getCategoryCounts: fail,

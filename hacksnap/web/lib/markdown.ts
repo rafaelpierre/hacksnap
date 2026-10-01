@@ -1,5 +1,6 @@
 import { canonicalStoryUrl } from "./story-url";
-import type { Story } from "./data";
+import type { ArticleStory, CardStory } from "./story-domain";
+import type { RankingMetrics } from "./story-metrics";
 import type { DiscussionFields } from "./discussion-analysis";
 import { hasReadySummary } from "./ready-stories.ts";
 import { storyIndicators } from "./story-indicators.ts";
@@ -115,7 +116,14 @@ function discussionMarkdown(summary: DiscussionFields): string[] {
   return lines;
 }
 
-export function storyMarkdown(story: Story): string {
+export function storyMarkdown(
+  story: ArticleStory & {
+    ranking_metrics?: RankingMetrics | null;
+    rank?: string;
+    rank_history?: CardStory["rank_history"];
+    observed_at?: string;
+  },
+): string {
   const summary = story.summary;
   const source = storySource(story.url, summary);
   const article = source.article;
@@ -203,7 +211,7 @@ export function leaderboardMarkdown({
   ingestion,
   observed_at = new Date().toISOString(),
 }: {
-  stories: Story[];
+  stories: CardStory[];
   ingestion: Date | null;
   observed_at?: string;
 }): string {
@@ -229,7 +237,7 @@ export function leaderboardMarkdown({
       lines.push(
         `Category: ${link(category.label, `https://hacksnap.live${categoryURL(category)}`)}`,
       );
-    const article = storySource(story.url, story.summary).article;
+    const article = storySource(story.url, null).article;
     if (article) lines.push(link("Original article", article));
     lines.push(text(story.summary.overall_takeaway));
   }

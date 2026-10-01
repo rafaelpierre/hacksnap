@@ -1,4 +1,5 @@
-import type { ReadyStoryPage, Story } from "./data";
+import type { ReadyStoryPage } from "./data";
+import type { CardStory, ExportStory } from "./story-domain";
 import { ReadyStoryPageError } from "./ready-story-pagination-errors";
 import {
   type PublicStory,
@@ -87,7 +88,7 @@ export function publicStory(story: PublicStory, includeDiscussion = false) {
 // This feed contract contains only fields rendered on ranked and unranked cards.
 // Cards use the two latest valid observations for their movement badge.
 // Keep it separate from the long-lived public detail/list schemas above.
-export function publicFeedStory(story: Story) {
+export function publicFeedStory(story: CardStory) {
   const image = canonicalArticleImage(story);
   const coverage = story.summary?.source_coverage;
   return {
@@ -190,7 +191,7 @@ export function readyStoriesHandler(data: {
 }
 
 export function storiesHandlers(data: {
-  getLeaderboard: () => Promise<{ stories: Story[]; ingestion: Date | null }>;
+  getLeaderboard: () => Promise<{ stories: ExportStory[]; ingestion: Date | null }>;
   getStory: (id: string) => Promise<PublicStory | null>;
 }) {
   const unavailable = () =>

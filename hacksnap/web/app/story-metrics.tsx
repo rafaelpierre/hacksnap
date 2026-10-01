@@ -1,4 +1,5 @@
-import type { Story } from "../lib/data";
+import type { ArticleStory } from "../lib/story-domain";
+import type { RankingMetrics } from "../lib/story-metrics";
 import type { ReactNode } from "react";
 import { Info } from "lucide-react";
 import { ActivitySparkline } from "./activity-sparkline";
@@ -26,7 +27,11 @@ function MetricInfo({ label, children }: { label: string; children: ReactNode })
 }
 
 // Values and chart are always visible; native disclosures also work without JS.
-export function StoryMetrics({ story }: { story: Story }) {
+export function StoryMetrics({
+  story,
+}: {
+  story: ArticleStory & { ranking_metrics?: RankingMetrics; observed_at?: string };
+}) {
   const metrics = storyMetrics(story);
   const ranking = story.ranking_metrics;
   const history = ranking?.history ?? [];

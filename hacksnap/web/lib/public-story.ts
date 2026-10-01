@@ -1,9 +1,9 @@
-import type { Story, Summary } from "./data";
+import type { StoryIdentity, ArticleSummary } from "./story-domain";
 import type { DiscussionFields } from "./discussion-analysis";
 import { imageProjection } from "./story-projection";
 
 export type PublicStory = Pick<
-  Story,
+  StoryIdentity,
   | "hn_id"
   | "title"
   | "category"
@@ -18,7 +18,7 @@ export type PublicStory = Pick<
   | "image_mime_type"
 > & {
   summary:
-    | (Pick<Summary, "article_summary" | "discussion_summary" | "overall_takeaway"> &
+    | (Pick<ArticleSummary, "article_summary" | "discussion_summary" | "overall_takeaway"> &
         DiscussionFields)
     | null;
 };

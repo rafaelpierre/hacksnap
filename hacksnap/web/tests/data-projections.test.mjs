@@ -13,7 +13,11 @@ import {
   legacyStoryFields,
   discussionColumnsSQL,
   imageColumnsSQL,
+  exportFields,
 } from "../lib/story-projection.ts";
+import { cardRankHistorySQL, rankHistorySQL } from "../lib/rank-history.ts";
+import { latestRankChange } from "../lib/rank-history.ts";
+import { storyMetricsSQL } from "../lib/story-metrics.ts";
 
 const queries = [];
 const queryValues = [];
@@ -121,6 +125,93 @@ test("each loader uses its intended projection; older cached fields remain optio
     rows = [];
     if (previousURL === undefined) delete process.env.HACKSNAP_WEB_DATABASE_URL;
     else process.env.HACKSNAP_WEB_DATABASE_URL = previousURL;
+  }
+});
+
+test("cards omit article and analysis payloads; article reads omit retained metrics", async () => {
+  process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  try {
+    queries.length = 0;
+    await data.getFeedStories();
+    const cardQuery = queries.find((sql) => sql.includes(cardRankHistorySQL));
+    assert.ok(cardQuery);
+    assert.ok(!cardQuery.includes("s.article_summary"));
+    assert.ok(!cardQuery.includes("s.article_key_points"));
+    assert.ok(!cardQuery.includes("s.discussion_summary"));
+    assert.ok(!cardQuery.includes("s.discussion_points"));
+    assert.ok(!cardQuery.includes("s.discussion_analysis"));
+    assert.ok(!cardQuery.includes(rankHistorySQL));
+    assert.match(cardRankHistorySQL, /ORDER BY observed_at DESC LIMIT 2/);
+
+    queries.length = 0;
+    await data.getStory("144");
+    const articleQuery = queries.find((sql) => sql.includes(storyFields));
+    assert.ok(articleQuery);
+    assert.ok(!articleQuery.includes("hacksnap_rank_history"));
+    assert.ok(!articleQuery.includes("ranking_metrics"));
+    assert.ok(!articleQuery.includes("hacksnap_ranked_stories"));
+
+    queries.length = 0;
+    await data.getStoryMetrics("144");
+    assert.ok(queries.some((sql) => sql.includes(storyMetricsSQL)));
+    queries.length = 0;
+    await data.getRssStories();
+    assert.ok(queries.some((sql) => sql.includes(exportFields) && sql.includes(rankHistorySQL)));
+  } finally {
+    rows = [];
+    delete process.env.HACKSNAP_WEB_DATABASE_URL;
+  }
+});
+
+test("API export and Markdown history coalesce per ranked snapshot and reject newly pending exports", async () => {
+  process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  const selected = {
+    items: [{ hn_id: "14400", rank: "1", is_recent: true }],
+    stories: [
+      {
+        hn_id: "14400",
+        rank: "1",
+        date_added: new Date(clock).toISOString(),
+        summary: { overall_takeaway: "Ready" },
+      },
+    ],
+    ingestion: null,
+    ranked_at: new Date(clock),
+  };
+  let exportReady = true;
+  readyQuery = (sql) => {
+    if (typeof sql !== "string") return undefined;
+    if (sql.includes("AS ranked_at")) return { rows: [selected] };
+    if (sql.includes("WITH ORDINALITY AS selected(hn_id, position)"))
+      return {
+        rows: [{ hn_id: "14400", summary: { overall_takeaway: exportReady ? "Ready" : " " } }],
+      };
+    if (sql.includes("AS rank_history") && sql.includes("ANY($1::bigint[])"))
+      return { rows: [{ hn_id: "14400", rank_history: [] }] };
+    return undefined;
+  };
+  try {
+    rows = [];
+    queries.length = 0;
+    await Promise.all([data.getApiLeaderboard(), data.getApiLeaderboard()]);
+    assert.equal(
+      queries.filter((sql) => sql.includes("WITH ORDINALITY AS selected(hn_id, position)")).length,
+      1,
+    );
+    await Promise.all([data.getMarkdownLeaderboard(), data.getMarkdownLeaderboard()]);
+    assert.equal(
+      queries.filter((sql) => sql.includes("AS rank_history") && sql.includes("ANY($1::bigint[])"))
+        .length,
+      1,
+    );
+    exportReady = false;
+    clock += 60_001;
+    selected.ranked_at = new Date(clock);
+    await assert.rejects(data.getApiLeaderboard(), /Hacksnap data is temporarily unavailable/);
+  } finally {
+    readyQuery = undefined;
+    rows = [];
+    delete process.env.HACKSNAP_WEB_DATABASE_URL;
   }
 });
 
@@ -403,11 +494,27 @@ test("ready selection captures the first ten atomically and hydrates only reques
       !queries.some((sql) => sql.includes("FROM unnest($1::bigint[]")),
       "the first ten cards are in the selection read, not a separate hydration",
     );
+    const observedAt = Date.parse(page.observed_at);
+    for (const [offsetHours, rank] of [
+      [-2, 10],
+      [-1, 8],
+      [0.1, 12],
+    ]) {
+      await db.query(
+        "INSERT INTO hacksnap_rank_history (hn_id, rank, observed_at) VALUES (14, $1, $2)",
+        [rank, new Date(observedAt + offsetHours * 3_600_000).toISOString()],
+      );
+    }
     const next = await data.getReadyStoryPage({ cursor: page.pagination.cursor });
     assert.deepEqual(
       next.stories.map((story) => String(story.hn_id)),
       ["14"],
     );
+    assert.deepEqual(
+      next.stories[0].rank_history.map((point) => point.rank),
+      [10, 8],
+    );
+    assert.equal(latestRankChange(next.stories[0].rank_history, next.stories[0].rank), -6);
     const pageIndex = queries.findIndex((sql) => sql.includes("FROM unnest($1::bigint[]"));
     assert.match(selectionSQL, /WHERE s\.overall_takeaway ~ '\[\^\[:space:\]\]'/);
     assert.match(selectionSQL, /LIMIT 401/);
