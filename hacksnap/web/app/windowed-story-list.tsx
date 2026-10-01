@@ -32,6 +32,7 @@ type StoryItemProps = {
   measure: boolean;
   ranked: boolean;
   feedPosition?: number;
+  leadImage: boolean;
   onHeight: (id: string, height: number) => void;
   onFocus: (index: number) => void;
   opened: boolean;
@@ -45,6 +46,7 @@ function StoryItem({
   measure,
   ranked,
   feedPosition,
+  leadImage,
   onHeight,
   onFocus,
   opened,
@@ -79,6 +81,7 @@ function StoryItem({
         variant={ranked ? "ranked" : "unranked"}
         feedPosition={feedPosition}
         opened={opened}
+        leadImage={leadImage}
       />
     </li>
   );
@@ -136,6 +139,7 @@ export function WindowedStoryList({
   initialPage,
   groupByDay,
   pinnedStoryId,
+  leadImagePriority,
   onStoryTitleClickCapture,
   openedIds = new Set<string>(),
 }: {
@@ -144,6 +148,7 @@ export function WindowedStoryList({
   initialPage: number;
   groupByDay: boolean;
   pinnedStoryId?: string | null;
+  leadImagePriority: boolean;
   onStoryTitleClickCapture?: MouseEventHandler<HTMLOListElement>;
   openedIds?: ReadonlySet<string>;
 }) {
@@ -290,6 +295,7 @@ export function WindowedStoryList({
         measure={stories.length > MAX_RENDERED_STORIES}
         ranked={ranked}
         feedPosition={ranked ? (initialPage - 1) * 10 + index + 1 : undefined}
+        leadImage={leadImagePriority && index === 0 && !pinnedStoryId}
         onHeight={onStoryHeight}
         onFocus={onStoryFocus}
         opened={openedIds.has(story.hn_id)}

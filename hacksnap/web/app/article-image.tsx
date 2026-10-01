@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import type { CanonicalArticleImage } from "../lib/article-image";
 
 export function ArticleImage({
@@ -8,11 +9,15 @@ export function ArticleImage({
   alt,
   className,
   loading,
+  sizes,
+  fetchPriority,
 }: {
   image: CanonicalArticleImage | null;
   alt: string;
   className: string;
   loading: "eager" | "lazy";
+  sizes: string;
+  fetchPriority?: "high";
 }) {
   const imageRef = useRef<HTMLImageElement>(null);
   const [failedURL, setFailedURL] = useState<string | null>(null);
@@ -39,7 +44,7 @@ export function ArticleImage({
   }
   return (
     <div className={className}>
-      <img
+      <Image
         src={image.url}
         alt={alt}
         width={image.width}
@@ -47,6 +52,8 @@ export function ArticleImage({
         onError={() => setFailedURL(image.url)}
         ref={imageRef}
         loading={loading}
+        sizes={sizes}
+        fetchPriority={fetchPriority}
         decoding="async"
       />
     </div>

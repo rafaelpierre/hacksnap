@@ -10,16 +10,21 @@ import { StoryAge } from "./story-age";
 import { ArticleImage } from "./article-image";
 import { canonicalArticleImage } from "../lib/article-image";
 
+const FEED_IMAGE_SIZES =
+  "(max-width: 640px) calc(100vw - 4rem), (max-width: 800px) calc(30vw - 1rem), min(calc(30vw - 5rem), 18rem)";
+
 export function StoryRow({
   story,
   variant = "unranked",
   feedPosition,
   opened = false,
+  leadImage = false,
 }: {
   story: CardStory | PublicFeedStory;
   variant?: "ranked" | "unranked";
   feedPosition?: number;
   opened?: boolean;
+  leadImage?: boolean;
 }) {
   const takeaway = story.summary?.overall_takeaway?.trim();
   const image = canonicalArticleImage(story);
@@ -37,7 +42,14 @@ export function StoryRow({
           {story.title}
         </BrowseStoryLink>
       </h3>
-      <ArticleImage image={image} alt="" className="feed-story-image" loading="lazy" />
+      <ArticleImage
+        image={image}
+        alt=""
+        className="feed-story-image"
+        loading={leadImage ? "eager" : "lazy"}
+        fetchPriority={leadImage ? "high" : undefined}
+        sizes={FEED_IMAGE_SIZES}
+      />
       <div className="story-content">
         {takeaway ? (
           <p className="feed-excerpt">{briefExcerpt(takeaway)}</p>

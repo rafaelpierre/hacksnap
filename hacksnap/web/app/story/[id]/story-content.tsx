@@ -83,7 +83,14 @@ export function StoryContent({
         </nav>
         <h1>{story.title}</h1>
         {deck && <p className="standfirst">{deck}</p>}
-        <ArticleImage image={image} alt="" className="story-article-image" loading="eager" />
+        <ArticleImage
+          image={image}
+          alt=""
+          className="story-article-image"
+          loading="eager"
+          fetchPriority="high"
+          sizes="(max-width: 720px) calc(100vw - 2rem), 43rem"
+        />
         <div className="story-metadata">
           <div className="story-source-date">
             {article ? (

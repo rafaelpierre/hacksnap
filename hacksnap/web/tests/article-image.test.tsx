@@ -59,6 +59,7 @@ test("a browser image error keeps the branded media space", async () => {
           alt="Article image for a test story"
           className="card-image"
           loading="lazy"
+          sizes="256px"
         />,
       ),
     );
@@ -66,6 +67,7 @@ test("a browser image error keeps the branded media space", async () => {
     assert.equal(image.getAttribute("width"), "1200");
     assert.equal(image.getAttribute("height"), "675");
     assert.equal(image.getAttribute("loading"), "lazy");
+    assert.equal(image.getAttribute("sizes"), "256px");
     assert.equal(image.getAttribute("decoding"), "async");
     assert.equal(image.alt, "Article image for a test story");
     await act(async () => image.dispatchEvent(new dom.window.Event("error", { bubbles: true })));
@@ -73,6 +75,20 @@ test("a browser image error keeps the branded media space", async () => {
     assert.equal(placeholder?.getAttribute("role"), "img");
     assert.match(placeholder?.getAttribute("aria-label") ?? "", /Image unavailable/);
     assert.equal((placeholder as HTMLElement).style.aspectRatio, "1200 / 675");
+    await act(async () =>
+      root.render(
+        <ArticleImage
+          image={canonicalArticleImage(ready)}
+          alt=""
+          className="card-image"
+          loading="lazy"
+          sizes="256px"
+        />,
+      ),
+    );
+    const decorativeFallback = document.querySelector(".card-image.article-image-unavailable");
+    assert.equal(decorativeFallback?.getAttribute("aria-hidden"), "true");
+    assert.equal(decorativeFallback?.hasAttribute("role"), false);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
@@ -115,6 +131,8 @@ test("an already failed browser image is removed after hydration", async () => {
           alt="Article image for a test story"
           className="card-image"
           loading="eager"
+          sizes="256px"
+          fetchPriority="high"
         />,
       ),
     );
