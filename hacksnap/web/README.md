@@ -147,8 +147,40 @@ settling deadline cannot overwrite an unpositioned checkpoint.
 Durable resume applies only to `/`; explicit paginated URLs keep their existing
 history-based behavior. Progress is local to this browser, with no login or
 cross-device synchronization. Unavailable storage, malformed records, and quota
-failures leave ordinary browsing functional. Seen/opened history is a separate
-planned feature and is not inferred from the reading checkpoint.
+failures leave ordinary browsing functional. The reading checkpoint does not imply
+that a story was seen or opened.
+
+## Browser-local seen and opened history
+
+Feed cards gain **Seen** after at least half of their rendered area stays in the
+viewport for 1.5 uninterrupted seconds while the tab is visible. Leaving the
+threshold, unmounting a virtualized card, or backgrounding the tab resets the
+timer; a rapid scroll past a card does not count. Browsers without
+`IntersectionObserver` simply do not record feed exposure. **Opened** records a
+valid story detail visit independently, including direct URLs and new tabs. These labels
+claim neither reading nor completion. The first valid exposure and first opening
+timestamps are retained separately by HN story ID.
+
+The optional **Hide seen** preference applies to Top Stories, archive and topic
+feeds. A fresh listing filters saved seen IDs after hydration. Toggling it while
+reading preserves cards currently in the viewport, and later exposures do not
+remove mounted cards. Newly loaded pages filter IDs already seen at the load
+boundary. A restored feed anchor stays visible even when it was seen, so Back and
+home checkpoint positioning can settle. The unfiltered cards remain in feed
+snapshots. At most three consecutive pages with no visible new cards load
+automatically; **Find more unseen stories** resumes another bounded search. Empty,
+loading and failure states remain visible.
+
+History uses version 1 of the `hacksnap:story-history` local-storage key. It
+retains up to 4,000 IDs and 320 KiB of serialized UTF-16, dropping oldest
+encounters first; timestamps older than 180 days expire. **Clear viewing history**
+erases seen and opened timestamps while retaining the Hide seen preference.
+Blocked or full storage falls back to same-tab memory. Changes in another tab
+update labels and the preference through the browser `storage` event without
+removing current cards mid-scroll. Same-tab writes emit
+`hacksnap:story-history-change`. Future visit baselines should use their own
+versioned key and event, leaving these first-encounter timestamps independent
+of resume and visit snapshots.
 
 Analytics events `home_story_open` record actual activations of stories after the
 first ten (`story_id`, 1-based `position`, `placement=home_feed`). Rendering or

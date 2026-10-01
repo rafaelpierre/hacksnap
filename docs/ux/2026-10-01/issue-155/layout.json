@@ -1,0 +1,14 @@
+{
+  "browser": "Chrome",
+  "fixture": "temporary local StoryFeed and StoryVisit routes; removed before commit",
+  "results": [
+    { "theme": "light", "width": 320, "textPercent": 100, "scrollWidth": 320, "controlHeight": 44 },
+    { "theme": "light", "width": 320, "textPercent": 200, "scrollWidth": 320, "controlHeight": 88 },
+    { "theme": "light", "width": 1280, "textPercent": 100, "scrollWidth": 1280, "controlHeight": 44 },
+    { "theme": "light", "width": 1280, "textPercent": 200, "scrollWidth": 1280, "controlHeight": 88 },
+    { "theme": "dark", "width": 320, "textPercent": 100, "scrollWidth": 320, "controlHeight": 44 },
+    { "theme": "dark", "width": 320, "textPercent": 200, "scrollWidth": 320, "controlHeight": 88 },
+    { "theme": "dark", "width": 1280, "textPercent": 100, "scrollWidth": 1280, "controlHeight": 44 },
+    { "theme": "dark", "width": 1280, "textPercent": 200, "scrollWidth": 1280, "controlHeight": 88 }
+  ]
+}

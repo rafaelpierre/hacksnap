@@ -4,6 +4,7 @@ import React, { act } from "react";
 import { createRequire } from "node:module";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import { BrowseStoryLink, StoryReturnLink, consumeFeedReturn } from "../app/story-navigation";
+import { readStoryHistory } from "../lib/story-history";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
@@ -115,6 +116,11 @@ for (const listingPath of ["/", "/archive?page=2", "/category/agents-coding"]) {
         </BrowseStoryLink>,
       );
       await act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
+      assert.equal(
+        readStoryHistory().entries["11"]?.openedAt,
+        undefined,
+        "link activation alone does not claim a successful detail visit",
+      );
       await render(<StoryReturnLink />);
       assert.equal(dom.window.location.pathname, "/story/story-11");
       assert.equal(document.querySelector("a")?.getAttribute("href"), listingPath);

@@ -14,10 +14,14 @@ export function StoryRow({
   story,
   variant = "unranked",
   feedPosition,
+  seen = false,
+  opened = false,
 }: {
   story: CardStory | PublicFeedStory;
   variant?: "ranked" | "unranked";
   feedPosition?: number;
+  seen?: boolean;
+  opened?: boolean;
 }) {
   const takeaway = story.summary?.overall_takeaway?.trim();
   const image = canonicalArticleImage(story);
@@ -26,6 +30,8 @@ export function StoryRow({
     <article className="story-row feed-story">
       <div className="story-domain story-context">
         {story.category && <CategoryBadge id={story.category} />}
+        {opened && <span className="story-history-label">Opened</span>}
+        {!opened && seen && <span className="story-history-label">Seen</span>}
         {variant === "ranked" && story.is_recent === false && (
           <span className="archive-label">Archive</span>
         )}

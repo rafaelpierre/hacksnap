@@ -34,6 +34,9 @@ type StoryItemProps = {
   feedPosition?: number;
   onHeight: (id: string, height: number) => void;
   onFocus: (index: number) => void;
+  seen: boolean;
+  opened: boolean;
+  onSeen: (id: string) => void;
 };
 
 function StoryItem({
@@ -46,8 +49,55 @@ function StoryItem({
   feedPosition,
   onHeight,
   onFocus,
+  seen,
+  opened,
+  onSeen,
 }: StoryItemProps) {
   const ref = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    if (seen || typeof IntersectionObserver === "undefined") return;
+    const element = ref.current;
+    if (!element) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let visible = false;
+    let intersecting = false;
+    const cancel = () => {
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+    };
+    const onVisibility = () => {
+      cancel();
+      visible = document.visibilityState === "visible" && intersecting;
+      if (visible)
+        timer = setTimeout(() => {
+          if (document.visibilityState === "visible" && visible) onSeen(story.hn_id);
+        }, 1500);
+    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        intersecting = entries.some(
+          (entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5,
+        );
+        const next = document.visibilityState === "visible" && intersecting;
+        if (next === visible) return;
+        visible = next;
+        cancel();
+        if (next)
+          timer = setTimeout(() => {
+            if (document.visibilityState === "visible" && visible) onSeen(story.hn_id);
+          }, 1500);
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(element);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancel();
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [onSeen, seen, story.hn_id]);
 
   useLayoutEffect(() => {
     if (!measure) return;
@@ -76,6 +126,8 @@ function StoryItem({
         story={story}
         variant={ranked ? "ranked" : "unranked"}
         feedPosition={feedPosition}
+        seen={seen}
+        opened={opened}
       />
     </li>
   );
@@ -134,6 +186,10 @@ export function WindowedStoryList({
   groupByDay,
   pinnedStoryId,
   onStoryTitleClickCapture,
+  positionById,
+  seenIds = new Set<string>(),
+  openedIds = new Set<string>(),
+  onSeen = () => {},
 }: {
   stories: PublicFeedStory[];
   ranked: boolean;
@@ -141,6 +197,10 @@ export function WindowedStoryList({
   groupByDay: boolean;
   pinnedStoryId?: string | null;
   onStoryTitleClickCapture?: MouseEventHandler<HTMLOListElement>;
+  positionById?: ReadonlyMap<string, number>;
+  seenIds?: ReadonlySet<string>;
+  openedIds?: ReadonlySet<string>;
+  onSeen?: (id: string) => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const heights = useRef(new Map<string, number>());
@@ -155,7 +215,7 @@ export function WindowedStoryList({
     () => (pinnedIndex >= 0 ? rangeForIndex(pinnedIndex, stories.length) : null),
     [pinnedIndex, stories.length],
   );
-  const renderedRange = pinnedRange ?? range;
+  const renderedRange = pinnedRange ?? clampRange(range.start, stories.length);
 
   const groups = useMemo(() => {
     if (!groupByDay) return [] as Group[];
@@ -284,9 +344,16 @@ export function WindowedStoryList({
         listSize={group ? group.end - group.start : stories.length}
         measure={stories.length > MAX_RENDERED_STORIES}
         ranked={ranked}
-        feedPosition={ranked ? (initialPage - 1) * 10 + index + 1 : undefined}
+        feedPosition={
+          ranked
+            ? (positionById?.get(story.hn_id) ?? (initialPage - 1) * 10 + index + 1)
+            : undefined
+        }
         onHeight={onStoryHeight}
         onFocus={onStoryFocus}
+        seen={seenIds.has(story.hn_id)}
+        opened={openedIds.has(story.hn_id)}
+        onSeen={onSeen}
       />
     );
   };

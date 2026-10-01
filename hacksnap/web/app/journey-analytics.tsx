@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { recordVisit, track } from "../lib/analytics";
+import { markStoryOpened } from "../lib/story-history";
 
 export function ReaderVisit() {
   const path = usePathname();
@@ -19,6 +20,7 @@ export function StoryVisit({ id }: { id: string }) {
   const path = usePathname();
   useEffect(() => {
     track("story_view", { story_id: id }, `story:${id}`);
+    markStoryOpened(id);
   }, [id, path]);
   return null;
 }

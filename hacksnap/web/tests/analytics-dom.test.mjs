@@ -22,6 +22,7 @@ jest.unstable_mockModule("next/navigation", () => ({
   usePathname: () => window.location.pathname,
 }));
 const { ReaderVisit, StoryVisit, Recommendation } = await import("../app/journey-analytics.tsx");
+const { readStoryHistory } = await import("../lib/story-history.ts");
 const { ShareLinks } = await import("../app/share-links.tsx");
 
 test("production components emit truthful, deduplicated events through a complete controlled journey", async () => {
@@ -73,6 +74,11 @@ test("production components emit truthful, deduplicated events through a complet
   }
   try {
     await render("1");
+    assert.equal(
+      !!readStoryHistory().entries["1"]?.openedAt,
+      true,
+      "valid detail visit records opened",
+    );
     await render("1");
     assert.equal(count("reader_visit"), 1);
     assert.equal(count("story_view"), 1);

@@ -8,6 +8,7 @@ import { browsePagination } from "../lib/browse-feed";
 import { readFeedSnapshot } from "../lib/feed-snapshot-storage";
 import { StoryFeed } from "../app/story-feed";
 import { HOME_FEED_CHECKPOINT_KEY } from "../lib/home-feed-checkpoint";
+import { clearStoryHistory, markStorySeen, setHideSeen } from "../lib/story-history";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
@@ -67,9 +68,11 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
       const values = {
         IntersectionObserver: class {
           constructor(private callback: IntersectionObserverCallback) {}
-          observe() {
-            onIntersection = this.callback;
-            observations++;
+          observe(element: Element) {
+            if (element.classList.contains("home-feed-sentinel")) {
+              onIntersection = this.callback;
+              observations++;
+            }
           }
           disconnect() {
             if (onIntersection === this.callback) onIntersection = null;
@@ -197,7 +200,7 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
             {} as IntersectionObserver,
           );
         });
-        assert.match(document.querySelector("[role=status]")!.textContent!, /Loading more/);
+        assert.match(document.querySelector(".home-feed-status")!.textContent!, /Loading more/);
         assert.ok(document.querySelector(".home-feed-spinner"));
         await act(async () => focusTarget.focus());
         assert.equal(pendingSignal?.aborted, true);
@@ -223,7 +226,7 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         assert.equal(document.querySelectorAll(".story-list > li").length, 12);
         assert.equal(document.querySelector(".home-feed-spinner"), null);
         assert.match(
-          document.querySelector("[role=status]")!.textContent!,
+          document.querySelector(".home-feed-status")!.textContent!,
           /2 more stories loaded\. 12 total\./,
         );
         assert.equal(calls, 2);
@@ -235,14 +238,14 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
           );
         });
         assert.equal(document.querySelectorAll(".story-list > li").length, 12);
-        assert.match(document.querySelector("[role=status]")!.textContent!, /try again/i);
+        assert.match(document.querySelector(".home-feed-status")!.textContent!, /try again/i);
         assert.equal(document.querySelector(".home-feed-spinner"), null);
         assert.equal(
           document.querySelector(".home-feed-actions button")?.textContent,
           "Try loading again",
         );
         await act(async () => focusTarget.focus());
-        assert.match(document.querySelector("[role=status]")!.textContent!, /try again/i);
+        assert.match(document.querySelector(".home-feed-status")!.textContent!, /try again/i);
         assert.equal(calls, 3);
         assert.deepEqual(
           loadEvents,
@@ -279,7 +282,7 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
           );
         });
         assert.equal(calls, 5);
-        assert.match(document.querySelector("[role=status]")!.textContent!, /reached the end/);
+        assert.match(document.querySelector(".home-feed-status")!.textContent!, /reached the end/);
         assert.equal(document.querySelector(".home-feed-actions button"), null);
         assert.equal(document.querySelector(".home-feed-pages a"), null);
         assert.equal(dom.window.history.state.hacksnapHomeFeed.storyCount, 13);
@@ -447,6 +450,9 @@ test("a deep restored anchor is mounted before StoryFeed restores its scroll and
   );
   const { createRoot } = await import("react-dom/client");
   const root = createRoot(document.getElementById("root")!);
+  clearStoryHistory();
+  setHideSeen(true);
+  markStorySeen("301");
   try {
     await act(async () =>
       root.render(
@@ -474,6 +480,8 @@ test("a deep restored anchor is mounted before StoryFeed restores its scroll and
     assert.equal(document.querySelector('[data-home-story-id="301"]'), null);
   } finally {
     await act(async () => root.unmount());
+    clearStoryHistory();
+    setHideSeen(false);
     dom.window.close();
     Object.keys(values).forEach((key, index) => {
       if (previous[index]) Object.defineProperty(globalThis, key, previous[index]!);
