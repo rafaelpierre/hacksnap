@@ -663,21 +663,16 @@ export function StoryFeed({
             Start a fresh selection
           </a>
         )}
-        <nav className="home-feed-pages" aria-label="Story pages">
-          {initialPagination.page > 1 && (!ranked || initialPagination.previousCursor) && (
+        {initialPagination.page > 1 && (!ranked || initialPagination.previousCursor) && (
+          <nav className="home-feed-pages" aria-label="Story pages">
             <Link
               href={pageURL(initialPagination.page - 1, initialPagination.previousCursor)}
               prefetch={false}
             >
               Newer stories
             </Link>
-          )}
-          {feed.pagination.hasMore && (!ranked || feed.pagination.cursor) && (
-            <Link href={pageURL(feed.pagination.page + 1, feed.pagination.cursor)} prefetch={false}>
-              Next page
-            </Link>
-          )}
-        </nav>
+          </nav>
+        )}
       </div>
     </>
   );

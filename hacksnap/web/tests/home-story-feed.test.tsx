@@ -174,11 +174,13 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         assert.doesNotMatch(document.body.textContent!, /Load more stories/);
         assert.equal(document.querySelectorAll('a[href="#site-footer"]').length, 0);
         assert.doesNotMatch(document.body.textContent!, /Pause automatic|Resume automatic/);
-        const nextPage = document.querySelector<HTMLAnchorElement>(".home-feed-pages a")!;
-        await act(async () => nextPage.focus());
+        assert.equal(document.querySelector(".home-feed-pages"), null);
+        const focusTarget = document.querySelector<HTMLParagraphElement>(".home-feed-status")!;
+        focusTarget.tabIndex = 0;
+        await act(async () => focusTarget.focus());
         assert.equal(onIntersection, null);
         assert.equal(calls, 0);
-        await act(async () => nextPage.blur());
+        await act(async () => focusTarget.blur());
         assert.equal(observations, 2);
         assert.ok(onIntersection);
         await act(async () => {
@@ -189,7 +191,7 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         });
         assert.match(document.querySelector("[role=status]")!.textContent!, /Loading more/);
         assert.ok(document.querySelector(".home-feed-spinner"));
-        await act(async () => nextPage.focus());
+        await act(async () => focusTarget.focus());
         assert.equal(pendingSignal?.aborted, true);
         assert.deepEqual(
           loadEvents,
@@ -201,8 +203,8 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         });
         assert.equal(loadEvents.length, ranked ? 1 : 0);
         assert.equal(document.querySelectorAll(".story-list > li").length, 10);
-        assert.equal(document.activeElement, nextPage);
-        await act(async () => nextPage.blur());
+        assert.equal(document.activeElement, focusTarget);
+        await act(async () => focusTarget.blur());
         assert.ok(onIntersection);
         await act(async () => {
           (onIntersection as IntersectionObserverCallback)(
@@ -231,7 +233,7 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
           document.querySelector(".home-feed-actions button")?.textContent,
           "Try loading again",
         );
-        await act(async () => nextPage.focus());
+        await act(async () => focusTarget.focus());
         assert.match(document.querySelector("[role=status]")!.textContent!, /try again/i);
         assert.equal(calls, 3);
         assert.deepEqual(
@@ -247,10 +249,7 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         if (!ranked) {
           assert.match(document.body.textContent!, /Brief pending/);
           assert.equal(document.querySelectorAll("ol.story-list").length, 0);
-          assert.equal(
-            document.querySelector(".home-feed-pages a")?.getAttribute("href"),
-            `${listingPath}?page=3`,
-          );
+          assert.equal(document.querySelector(".home-feed-pages"), null);
         }
         if (listingPath.startsWith("/archive"))
           assert.equal(document.querySelectorAll("section > .feed-bar time").length, 2);
@@ -379,10 +378,7 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
           assert.equal(document.querySelectorAll(".story-list > li").length, attempt < 2 ? 30 : 31);
           if (attempt < 2) {
             assert.match(status, /No new stories in this batch/);
-            assert.equal(
-              document.querySelector(".home-feed-pages a")?.getAttribute("href"),
-              `${listingPath}?page=${attempt + 3}`,
-            );
+            assert.equal(document.querySelector(".home-feed-pages"), null);
           } else {
             assert.match(status, /reached the end/);
             assert.equal(document.querySelector(".home-feed-actions button"), null);
