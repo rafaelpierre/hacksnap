@@ -8,6 +8,8 @@ import {
   markStoryOpened,
   readStoryHistory,
   STORY_HISTORY_KEY,
+  STORY_OPENED_KEY_PREFIX,
+  MAX_HISTORY_STORIES,
 } from "../lib/story-history";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
@@ -57,7 +59,7 @@ function story(id: number) {
   };
 }
 
-test("legacy exposure is discarded and an unmounted tab preserves another tab's opening", () => {
+test("legacy openings migrate to independent keys and seen-only records disappear", () => {
   const dom = new JSDOM("", { url: "https://hacksnap.live/" });
   const restore = globals(dom);
   try {
@@ -73,27 +75,13 @@ test("legacy exposure is discarded and an unmounted tab preserves another tab's 
         },
       }),
     );
-    assert.equal(readStoryHistory().version, 3);
+    assert.equal(readStoryHistory().version, 4);
     assert.equal(readStoryHistory().entries["404"], undefined);
     assert.equal(!!readStoryHistory().entries["101"]?.openedAt, true);
     assert.equal("seenAt" in readStoryHistory().entries["101"], false);
-    markStoryOpened("303");
-    // No storage event or mounted feed subscription arrives during this interval.
-    dom.window.localStorage.setItem(
-      STORY_HISTORY_KEY,
-      JSON.stringify({
-        version: 3,
-        entries: {
-          "101": readStoryHistory().entries["101"],
-          "202": { openedAt: Date.now() },
-        },
-      }),
-    );
-    markStoryOpened("505");
-    assert.deepEqual(Object.keys(readStoryHistory().entries).sort(), ["101", "202", "505"]);
-    const saved = JSON.parse(dom.window.localStorage.getItem(STORY_HISTORY_KEY)!);
-    assert.equal(saved.version, 3);
-    assert.deepEqual(Object.keys(saved.entries).sort(), ["101", "202", "505"]);
+    assert.equal(dom.window.localStorage.getItem(STORY_HISTORY_KEY), null);
+    assert.match(dom.window.localStorage.getItem(STORY_OPENED_KEY_PREFIX + "101")!, /^1:/);
+    assert.equal(dom.window.localStorage.getItem(STORY_OPENED_KEY_PREFIX + "404"), null);
     clearStoryHistory();
     assert.deepEqual(readStoryHistory().entries, {});
     Object.defineProperty(globalThis, "localStorage", {
@@ -109,6 +97,81 @@ test("legacy exposure is discarded and an unmounted tab preserves another tab's 
       configurable: true,
       value: dom.window.localStorage,
     });
+    clearStoryHistory();
+    restore();
+    dom.window.close();
+  }
+});
+
+test("interleaved tabs opening different stories preserve both independent records", () => {
+  const dom = new JSDOM("", { url: "https://hacksnap.live/" });
+  const restore = globals(dom);
+  const real = dom.window.localStorage;
+  let interleaved = false;
+  try {
+    clearStoryHistory();
+    real.setItem("hacksnap:other-feature", "keep");
+    // Writer B completes while writer A is inside its storage write. A shared
+    // read/modify/write map loses B's ID in this exact order.
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        get length() {
+          return real.length;
+        },
+        key: (index: number) => real.key(index),
+        getItem: (key: string) => real.getItem(key),
+        removeItem: (key: string) => real.removeItem(key),
+        setItem: (key: string, value: string) => {
+          if (key === STORY_OPENED_KEY_PREFIX + "101" && !interleaved) {
+            interleaved = true;
+            // A separate tab writes its own key without sharing this module's memory.
+            real.setItem(STORY_OPENED_KEY_PREFIX + "202", `1:${Date.now()}`);
+          }
+          real.setItem(key, value);
+        },
+      },
+    });
+    markStoryOpened("101");
+    assert.equal(interleaved, true);
+    assert.deepEqual(Object.keys(readStoryHistory().entries).sort(), ["101", "202"]);
+    assert.match(real.getItem(STORY_OPENED_KEY_PREFIX + "101")!, /^1:/);
+    assert.match(real.getItem(STORY_OPENED_KEY_PREFIX + "202")!, /^1:/);
+    assert.equal(real.getItem("hacksnap:other-feature"), "keep");
+  } finally {
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: real });
+    clearStoryHistory();
+    restore();
+    dom.window.close();
+  }
+});
+
+test("retention prunes old and malformed records without touching other feature keys", () => {
+  const dom = new JSDOM("", { url: "https://hacksnap.live/" });
+  const restore = globals(dom);
+  const store = dom.window.localStorage;
+  try {
+    clearStoryHistory();
+    store.setItem("hacksnap:other-feature", "keep");
+    store.setItem(STORY_OPENED_KEY_PREFIX + "111", `1:${Date.now() - 181 * 86400_000}`);
+    store.setItem(STORY_OPENED_KEY_PREFIX + "222", "2:not-a-timestamp");
+    store.setItem(STORY_OPENED_KEY_PREFIX + "oops", `1:${Date.now()}`);
+    for (let id = 10000; id < 10000 + MAX_HISTORY_STORIES + 5; id++)
+      store.setItem(STORY_OPENED_KEY_PREFIX + id, `1:${Date.now()}`);
+    const history = readStoryHistory();
+    assert.equal(history.entries["111"], undefined);
+    assert.equal(history.entries["222"], undefined);
+    assert.equal(history.entries.oops, undefined);
+    assert.ok(Object.keys(history.entries).length <= MAX_HISTORY_STORIES);
+    let bytes = 0;
+    for (let index = 0; index < store.length; index++) {
+      const key = store.key(index)!;
+      if (key.startsWith(STORY_OPENED_KEY_PREFIX))
+        bytes += (key.length + store.getItem(key)!.length) * 2;
+    }
+    assert.ok(bytes <= 320 * 1024);
+    assert.equal(store.getItem("hacksnap:other-feature"), "keep");
+  } finally {
     clearStoryHistory();
     restore();
     dom.window.close();
@@ -134,6 +197,7 @@ test("only a successful opening changes a feed title; exposure has no visual mar
         },
       }),
     );
+    assert.equal(!!readStoryHistory().entries["102"]?.openedAt, true);
     await act(async () =>
       root.render(
         <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>

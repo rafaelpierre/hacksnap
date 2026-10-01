@@ -158,15 +158,16 @@ normal color; hover and keyboard focus restore the normal title color. Feed
 exposure and scrolling do not create history or change a card. The feed shows
 no Seen/Opened labels, history controls, or filters.
 
-The browser-local `hacksnap:story-history` key uses version 3 and retains the
-first opening timestamp for up to 4,000 HN story IDs and 320 KiB of serialized
-UTF-16, dropping oldest records first. Timestamps older than 180 days expire.
-Earlier records retain valid openings, while saved feed-exposure records and
-Hide seen preferences are ignored and dropped on the next write. Readers can
-clear this history through browser site-data settings. Blocked or full storage
-falls back to same-tab memory. Feed instances re-read storage on mount and
-writes so another tab's visits are reflected even after a period without a
-mounted feed; live tabs also receive `storage` events. Same-tab writes emit
+Opened history uses independent versioned `hacksnap:story-opened:<HN ID>`
+local-storage records. Each tab writes only the story it opened, so simultaneous
+visits to different stories cannot overwrite one another. The browser retains
+up to 4,000 IDs and 320 KiB of UTF-16 keys and values, dropping oldest records
+first; timestamps older than 180 days expire. Earlier shared-map records at
+`hacksnap:story-history` migrate their valid openings to per-story keys while
+saved feed-exposure records and Hide seen preferences are discarded. Readers
+can clear this history through browser site-data settings. Blocked or full
+storage falls back to same-tab memory. Feed instances re-read storage on mount;
+live tabs also receive `storage` events. Same-tab writes emit
 `hacksnap:story-history-change`. Visit baselines use a separate key and event.
 
 Analytics events `home_story_open` record actual activations of stories after the
