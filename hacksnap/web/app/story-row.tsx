@@ -32,13 +32,13 @@ export function StoryRow({
           <span className="archive-label">Archive</span>
         )}
       </div>
+      <h3 className={opened ? "story-title-opened" : undefined}>
+        <BrowseStoryLink id={story.hn_id} slug={story.story_slug} feedPosition={feedPosition}>
+          {story.title}
+        </BrowseStoryLink>
+      </h3>
       <ArticleImage image={image} alt="" className="feed-story-image" loading="lazy" />
       <div className="story-content">
-        <h3 className={opened ? "story-title-opened" : undefined}>
-          <BrowseStoryLink id={story.hn_id} slug={story.story_slug} feedPosition={feedPosition}>
-            {story.title}
-          </BrowseStoryLink>
-        </h3>
         {takeaway ? (
           <p className="feed-excerpt">{briefExcerpt(takeaway)}</p>
         ) : (

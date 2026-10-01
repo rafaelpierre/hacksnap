@@ -96,6 +96,37 @@ test("mocked feed row preserves a story link, category and shared Share control"
   assert.match(html, /aria-label="Share: A mocked story title"/);
 });
 
+test("ranked and unranked cards share semantic order, with Archive limited to ranked stories", () => {
+  const older = {
+    ...story,
+    is_recent: false,
+    summary: null,
+    image_status: "ready",
+    image_url: "https://store.public.blob.vercel-storage.com/articles/90000001.webp",
+    image_width: 1200,
+    image_height: 675,
+    image_mime_type: "image/webp",
+  };
+  const ranked = render(createElement(StoryRow, { story: older, variant: "ranked" }));
+  const unranked = render(createElement(StoryRow, { story: older, variant: "unranked" }));
+
+  for (const html of [ranked, unranked]) {
+    assert.match(html, /<article class="story-row feed-story">/);
+    const context = html.indexOf("story-context");
+    const title = html.indexOf("<h3>");
+    const image = html.indexOf("feed-story-image");
+    const excerpt = html.indexOf("Brief pending.");
+    assert.ok(context >= 0 && context < title);
+    assert.ok(title >= 0 && title < image);
+    assert.ok(image >= 0 && image < excerpt);
+    assert.match(html, /Brief pending\. Check back after the next summary update\./);
+    assert.match(html, /aria-label="Share: A mocked story title"/);
+    assert.match(html, /12 comments/);
+  }
+  assert.match(ranked, /class="archive-label">Archive/);
+  assert.doesNotMatch(unranked, /archive-label|Archive/);
+});
+
 test("cards and detail use a ready canonical image while invalid states keep the text fallback", () => {
   const withImage = {
     ...story,

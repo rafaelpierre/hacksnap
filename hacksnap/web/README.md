@@ -635,6 +635,12 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 
 ## Feed card layout
 
+Top Stories, Latest and topic feeds render the same `StoryRow` content order:
+category and ranking context, title, image, excerpt, then metadata and share
+actions. The title precedes the decorative image in both visual and document
+order. Top Stories alone can label older cards as Archive; the shared fields,
+image states, pending excerpt and actions keep the same structure everywhere.
+
 At phone widths (640px and below), cards stack the category, title,
 full-width image, then subtitle/excerpt and footer. The image uses its original
 proportions, including while loading or showing its error fallback. Cards without

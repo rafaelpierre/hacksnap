@@ -301,14 +301,6 @@ footer {
 .windowed-feed-spacer {
   pointer-events: none;
 }
-.story-row {
-  position: relative;
-  display: flex;
-  gap: 22px;
-  padding: var(--space-6) 0 var(--space-6) 4.25rem;
-  border-bottom: 1px solid var(--line);
-  transition: background 120ms;
-}
 .story-row:hover {
   background: var(--row-hover);
 }
@@ -791,10 +783,6 @@ body:has(#browse-content) .skip-browse {
     flex-direction: column;
     gap: 10px;
   }
-  .story-row {
-    gap: var(--space-3);
-    padding: 21px 0;
-  }
   .rank {
     font-size: var(--text-title);
     width: 2.375rem;
@@ -977,23 +965,6 @@ body:has(#browse-content) .skip-browse {
   }
 }
 @media (max-width: 47.5rem) {
-  .story-row {
-    --rank-size: 2.875rem;
-    display: grid;
-    grid-template-columns: var(--rank-size) minmax(0, 1fr);
-    gap: var(--space-4) var(--space-3);
-    padding-left: 0;
-  }
-  .story-row h3 {
-    position: relative;
-  }
-  .story-row .rank {
-    left: calc(-1 * (var(--rank-size) + var(--space-3)));
-    top: 0.675em;
-  }
-  .story-content {
-    grid-column: 2 / -1;
-  }
   .story-indicators {
     grid-column: 2 / -1;
     gap: var(--space-5);
@@ -1025,12 +996,6 @@ body:has(#browse-content) .skip-browse {
 }
 
 @media (max-width: 40rem) {
-  .story-row {
-    --rank-size: 2.375rem;
-  }
-  .story-row .rank {
-    top: 0.64125em;
-  }
   .story-indicators .sentiment {
     font-size: var(--text-xs);
   }
@@ -1685,6 +1650,8 @@ body:has(#browse-content) .skip-browse {
   align-items: start;
   gap: 0;
   padding: var(--space-6) var(--space-5);
+  border-bottom: 1px solid var(--line);
+  transition: background 120ms;
   min-width: 0;
 }
 .story-row.feed-story:has(.feed-story-image) {
@@ -1695,9 +1662,21 @@ body:has(#browse-content) .skip-browse {
   grid-column: 1 / -1;
   grid-row: 1;
 }
-.feed-story > .story-content {
-  grid-column: -2 / -1;
+.feed-story > h3 {
+  grid-column: 1 / -1;
   grid-row: 2;
+}
+.feed-story > .story-content {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+.feed-story:has(.feed-story-image) > h3 {
+  grid-column: 2;
+  grid-row: 2;
+}
+.feed-story:has(.feed-story-image) > .story-content {
+  grid-column: 2;
+  grid-row: 3;
 }
 .story-row.feed-story:focus-within {
   z-index: 2;
@@ -1711,7 +1690,7 @@ body:has(#browse-content) .skip-browse {
 }
 .feed-story-image {
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 2 / 4;
   align-self: start;
   min-width: 0;
   overflow: hidden;
@@ -1729,9 +1708,6 @@ body:has(#browse-content) .skip-browse {
   color: var(--accent);
   background: var(--accent-soft);
   font: 600 clamp(1.5rem, 3vw, 2.25rem) / 1 var(--heading);
-}
-.feed-story .story-domain {
-  margin-bottom: 7px;
 }
 .feed-story h3 {
   margin: 0 0 8px;
@@ -2006,18 +1982,17 @@ body:has(#browse-content) .skip-browse {
   margin-top: var(--space-2);
 }
 @container feed-card (max-width: 36rem) {
-  /* Keep the title beside the image; give the remaining copy the full width. */
-  .feed-story:has(.feed-story-image) > .story-content {
-    display: contents;
-  }
-  .feed-story:has(.feed-story-image) > .story-content > * {
-    grid-column: 1 / -1;
-  }
-  .feed-story:has(.feed-story-image) > .story-content > h3 {
+  /* Keep the title beside the image; let the excerpt and footer use the full row. */
+  .feed-story:has(.feed-story-image) > h3 {
     grid-column: 2;
     grid-row: 2;
   }
+  .feed-story:has(.feed-story-image) > .story-content {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
   .feed-story-image {
+    grid-row: 2;
     margin-bottom: var(--space-3);
   }
 }
@@ -2031,15 +2006,21 @@ body:has(#browse-content) .skip-browse {
     column-gap: 0;
   }
   /* Mobile reading order: category, title, full-width image, then excerpt. */
-  .feed-story:has(.feed-story-image) > .story-content {
-    display: contents;
-  }
-  .feed-story:has(.feed-story-image) > .story-content > * {
-    grid-column: 1 / -1;
-  }
-  .feed-story:has(.feed-story-image) > .story-content > h3 {
+  .feed-story > h3 {
     grid-column: 1;
     grid-row: 2;
+  }
+  .feed-story > .story-content {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .feed-story:has(.feed-story-image) > h3 {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .feed-story:has(.feed-story-image) > .story-content {
+    grid-column: 1;
+    grid-row: 4;
   }
   .feed-story-footer {
     flex-wrap: wrap;
