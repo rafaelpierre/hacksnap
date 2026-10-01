@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { publicStorySQL } from "../lib/public-story.ts";
+import { browseCapabilitiesSQL } from "../lib/browse-capabilities.ts";
 import { PGlite } from "@electric-sql/pglite";
 import { hasReadySummary } from "../lib/ready-stories.ts";
 import { ReadyStoryPageError } from "../lib/ready-story-pagination-errors.ts";
@@ -37,6 +38,16 @@ const client = {
     if (sql !== "ROLLBACK" && queryError) throw queryError;
     if (sql === discussionColumnsSQL) return { rows: [{ available }] };
     if (sql === imageColumnsSQL) return { rows: [{ available: imagesAvailable }] };
+    if (sql === browseCapabilitiesSQL)
+      return {
+        rows: [
+          {
+            discussion_available: available,
+            images_available: imagesAvailable,
+            slug_available: false,
+          },
+        ],
+      };
     const response = readyQuery?.(sql, values);
     if (response) return response;
     return { rows };
@@ -232,8 +243,10 @@ test("all story loaders tolerate an unmigrated database and detect migration on 
         rows = [{ items: [], stories: [], ingestion: null, ranked_at: new Date() }];
         queries.length = 0;
         await load();
-        assert.ok(queries.includes(discussionColumnsSQL));
-        assert.ok(queries.includes(imageColumnsSQL));
+        assert.ok(
+          queries.includes(discussionColumnsSQL) || queries.includes(browseCapabilitiesSQL),
+        );
+        assert.ok(queries.includes(imageColumnsSQL) || queries.includes(browseCapabilitiesSQL));
         assert.ok(queries.some((sql) => sql.includes(fields)));
       }
     }
@@ -255,7 +268,7 @@ test("story loaders omit unavailable image columns and pick them up after reader
       rows = [{ items: [], stories: [], ingestion: null, ranked_at: new Date() }];
       queries.length = 0;
       await data.getStory("789");
-      assert.ok(queries.includes(imageColumnsSQL));
+      assert.ok(queries.includes(imageColumnsSQL) || queries.includes(browseCapabilitiesSQL));
       assert.ok(
         queries.some((sql) => sql.includes(ready ? storyFields : storyFieldsWithoutImages)),
       );
@@ -283,7 +296,7 @@ test("image reads fall back to null projections until every reader grant is avai
       queries.length = 0;
       rows = [{ items: [], stories: [], ingestion: null, ranked_at: new Date() }];
       await load();
-      assert.ok(queries.includes(imageColumnsSQL));
+      assert.ok(queries.includes(imageColumnsSQL) || queries.includes(browseCapabilitiesSQL));
       assert.ok(queries.some((sql) => sql.includes(fields)));
       assert.ok(queries.every((sql) => !sql.includes("image_source_")));
     }
