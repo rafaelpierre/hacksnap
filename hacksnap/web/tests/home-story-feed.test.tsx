@@ -394,6 +394,90 @@ test("deep feeds keep a bounded interactive window, retain archive day headings,
   }
 });
 
+test("lead image priority waits for restoration and never targets an offscreen return", async () => {
+  const ready = {
+    ...story(1),
+    image_status: "ready",
+    image_url: "https://store.public.blob.vercel-storage.com/articles/1.webp",
+    image_width: 1200,
+    image_height: 675,
+    image_mime_type: "image/webp",
+  };
+  const element = (
+    <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
+      <StoryFeed initialStories={[ready]} initialPagination={pagination(1, false)} />
+    </AppRouterContext.Provider>
+  );
+  const serverHTML = renderToStaticMarkup(element);
+  assert.match(serverHTML, /loading="lazy"/);
+  assert.doesNotMatch(serverHTML, /fetchPriority="high"/);
+
+  for (const deepReturn of [false, true]) {
+    const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
+    if (deepReturn) {
+      dom.window.localStorage.setItem(
+        HOME_FEED_CHECKPOINT_KEY,
+        JSON.stringify({
+          version: 1,
+          snapshot: {
+            version: 1,
+            url: "/",
+            stories: [ready, story(2)],
+            pagination: pagination(1, false),
+            scrollY: 900,
+            focusStoryId: null,
+            savedAt: Date.now(),
+          },
+          anchor: null,
+        }),
+      );
+    }
+    dom.window.scrollTo = (() => {}) as typeof dom.window.scrollTo;
+    const values = {
+      self: dom.window,
+      window: dom.window,
+      document: dom.window.document,
+      localStorage: dom.window.localStorage,
+      navigator: dom.window.navigator,
+      IS_REACT_ACT_ENVIRONMENT: true,
+      IntersectionObserver: undefined,
+      requestAnimationFrame: (callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      },
+      cancelAnimationFrame: () => {},
+    };
+    const previous = Object.keys(values).map((key) =>
+      Object.getOwnPropertyDescriptor(globalThis, key),
+    );
+    Object.entries(values).forEach(([key, value]) =>
+      Object.defineProperty(globalThis, key, { value, configurable: true }),
+    );
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(document.getElementById("root")!);
+    try {
+      await act(async () => root.render(element));
+      const image = document.querySelector(".feed-story-image img");
+      assert.equal(image?.getAttribute("loading"), deepReturn ? "lazy" : "eager");
+      assert.equal(image?.getAttribute("fetchpriority"), deepReturn ? null : "high");
+      if (deepReturn) {
+        await act(async () => window.dispatchEvent(new dom.window.WheelEvent("wheel")));
+        assert.equal(
+          document.querySelector(".feed-story-image img")?.getAttribute("loading"),
+          "lazy",
+        );
+      }
+    } finally {
+      await act(async () => root.unmount());
+      dom.window.close();
+      Object.keys(values).forEach((key, index) => {
+        if (previous[index]) Object.defineProperty(globalThis, key, previous[index]!);
+        else Reflect.deleteProperty(globalThis, key);
+      });
+    }
+  }
+});
+
 test("a deep restored anchor is mounted before StoryFeed restores its scroll and focus", async () => {
   const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
   let scrollY = 0;

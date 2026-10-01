@@ -90,6 +90,7 @@ export function StoryFeed({
   const hasOlderPage = !ranked && feed.pagination.hasMore;
   const [restored, setRestored] = useState(false);
   const [history, setHistory] = useState(emptyStoryHistory);
+  const [restoredFromSnapshot, setRestoredFromSnapshot] = useState(false);
   const [positionPending, setPositionPending] = useState(false);
   const feedRef = useRef(feed);
   const initialized = useRef(false);
@@ -161,6 +162,7 @@ export function StoryFeed({
 
   useEffect(() => {
     const applySnapshot = (snapshot: FeedSnapshot, anchor: HomeFeedCheckpoint["anchor"]) => {
+      setRestoredFromSnapshot(true);
       scrollTarget.current = {
         y: snapshot.scrollY,
         storyId: anchor?.storyId ?? null,
@@ -495,6 +497,7 @@ export function StoryFeed({
           initialPage={initialPagination.page}
           groupByDay={groupByDay}
           pinnedStoryId={pinnedStoryId}
+          leadImagePriority={restored && !restoredFromSnapshot && !positionPending}
           onStoryTitleClickCapture={
             ranked
               ? (event) => {

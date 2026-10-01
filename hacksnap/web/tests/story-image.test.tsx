@@ -5,6 +5,8 @@ import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared
 import { StoryRow } from "../app/story-row";
 import { storyPreviewMetadata } from "../lib/preview-metadata";
 import { readyStoryImage } from "../lib/story-image";
+import { publicFeedStory } from "../lib/stories-api";
+import { WindowedStoryList } from "../app/windowed-story-list";
 import type { Story } from "../lib/data";
 
 const blobURL = "https://store-id.public.blob.vercel-storage.com/articles/90000001.webp";
@@ -85,4 +87,46 @@ test("ranked and unranked feed images preserve source dimensions without a fitti
       assert.match(html, new RegExp(`width="1200" height="${image_height}"`));
     }
   }
+});
+
+test("only an explicitly marked ready lead image gets eager high priority", () => {
+  const lead = render(<StoryRow story={story} leadImage />);
+  assert.match(lead, /loading="eager"/);
+  assert.match(lead, /fetchPriority="high"/);
+  assert.match(lead, /sizes="\(max-width: 640px\)/);
+
+  const following = render(<StoryRow story={story} />);
+  assert.match(following, /loading="lazy"/);
+  assert.doesNotMatch(following, /fetchPriority=/);
+
+  const unavailableLead = render(
+    <StoryRow story={{ ...story, image_status: "pending" }} leadImage />,
+  );
+  assert.doesNotMatch(unavailableLead, /<img/);
+});
+
+test("the initial first card alone can take image priority, including on later pages", () => {
+  const first = publicFeedStory(story);
+  const second = publicFeedStory({ ...story, hn_id: "90000002" });
+  const list = (stories: (typeof first)[], pinnedStoryId?: string) =>
+    render(
+      <WindowedStoryList
+        stories={stories}
+        ranked
+        initialPage={2}
+        groupByDay={false}
+        pinnedStoryId={pinnedStoryId}
+        leadImagePriority
+      />,
+    );
+  assert.deepEqual(
+    [...list([first, second]).matchAll(/<img[^>]+>/g)].map((match) =>
+      match[0].includes('fetchPriority="high"'),
+    ),
+    [true, false],
+  );
+  const noFirstImage = list([publicFeedStory({ ...story, image_status: "pending" }), second]);
+  assert.doesNotMatch(noFirstImage, /fetchPriority="high"/);
+  assert.match(noFirstImage, /loading="lazy"/);
+  assert.doesNotMatch(list([first, second], second.hn_id), /fetchPriority="high"/);
 });

@@ -3,6 +3,7 @@ export default {
   testMatch: ["<rootDir>/tests/**/*.test.mjs", "<rootDir>/tests/**/*.test.tsx"],
   extensionsToTreatAsEsm: [".ts", ".tsx"],
   moduleNameMapper: {
+    "^next/image$": "<rootDir>/tests/next-image-mock.cjs",
     "\\.module\\.css$": "<rootDir>/tests/style-module-mock.cjs",
   },
   // jsdom requires ESM dependencies; Jest on Node 22 needs them compiled to CJS.

@@ -534,6 +534,21 @@ so the complete image is visible without cropping or letterboxing. Error
 placeholders preserve the stored aspect ratio. This applies to Top, archive and
 category feeds. Social Open Graph images retain the existing generated template.
 
+Feed and detail images use the built-in Next image optimizer with layout-specific
+`sizes`, eight candidate widths from 128 to 1600 px, and one quality (75). The
+optimizer accepts only HTTPS `*.public.blob.vercel-storage.com/articles/**` URLs
+without a query string or redirects, after the ready-image contract above has
+validated the URL and dimensions. Once the client confirms a fresh feed, its
+first card image uses eager/high priority because it was the LCP element in the
+fixed browser fixture. Server HTML stays lazy while tab restoration is unknown;
+if that card has no ready image, later cards stay lazy. Restored feed visits stay
+lazy after scroll positioning settles. The detail hero uses eager/high priority. This
+strategy generates variants on demand and caches them per source/width/quality,
+so cold requests cost an origin fetch and image conversion; it needs no schema or
+image-ingestion pipeline change. The source remains a bounded WebP. See the
+[fixed fixture measurements](../../docs/evaluations/issue-142/README.md) for
+selected widths, image payload bytes, LCP and CLS, and their local-only limits.
+
 ## Discussion-analysis projections
 
 Deploy additive migration `0012_discussion_analysis` to enable discussion analysis.
