@@ -29,11 +29,9 @@ import {
 import { consumeFeedReturn, saveFeedHistory } from "./story-navigation";
 import { WindowedStoryList } from "./windowed-story-list";
 import {
-  clearStoryHistory,
   emptyStoryHistory,
   markStorySeen,
   readStoryHistory,
-  setHideSeen,
   subscribeStoryHistory,
 } from "../lib/story-history";
 
@@ -54,7 +52,6 @@ type ScrollTarget = {
 const FRESH_QUERY = "__hacksnap_fresh";
 const CHECKPOINT_DELAY_MS = 400;
 const POSITION_SETTLE_MS = 2000;
-const MAX_AUTOMATIC_HIDDEN_PAGES = 3;
 
 function currentURL() {
   return window.location.pathname + window.location.search;
@@ -98,13 +95,6 @@ export function StoryFeed({
   const hasOlderPage = !ranked && feed.pagination.hasMore;
   const [restored, setRestored] = useState(false);
   const [history, setHistory] = useState(emptyStoryHistory);
-  const [historyMessage, setHistoryMessage] = useState("");
-  const hideSeenControl = useRef<HTMLInputElement>(null);
-  const [hiddenIds, setHiddenIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [protectedStoryId, setProtectedStoryId] = useState<string | null>(null);
-  const [hiddenPagePause, setHiddenPagePause] = useState(false);
-  const hiddenPageCount = useRef(0);
-  const hideSeenRef = useRef(false);
   const [positionPending, setPositionPending] = useState(false);
   const feedRef = useRef(feed);
   const initialized = useRef(false);
@@ -129,65 +119,12 @@ export function StoryFeed({
     () => new Set(Object.keys(history.entries).filter((id) => !!history.entries[id]?.openedAt)),
     [history],
   );
-  const positionById = useMemo(
-    () =>
-      new Map(
-        feed.stories.map((story, index) => [
-          story.hn_id,
-          (initialPagination.page - 1) * 10 + index + 1,
-        ]),
-      ),
-    [feed.stories, initialPagination.page],
-  );
-  const visibleStories = history.hideSeen
-    ? feed.stories.filter(
-        (story) => !hiddenIds.has(story.hn_id) || story.hn_id === protectedStoryId,
-      )
-    : feed.stories;
-
-  const captureHidden = useCallback(
-    (nextHistory: ReturnType<typeof readStoryHistory>, preserveVisible = true) => {
-      const visible = new Set<string>();
-      if (preserveVisible) {
-        for (const row of document.querySelectorAll<HTMLElement>(
-          ".story-list [data-home-story-id]",
-        )) {
-          const rect = row.getBoundingClientRect();
-          if (rect.bottom > 0 && rect.top < window.innerHeight)
-            visible.add(row.dataset.homeStoryId!);
-        }
-      }
-      setHiddenIds(
-        new Set(
-          Object.keys(nextHistory.entries).filter(
-            (id) => !!nextHistory.entries[id]?.seenAt && !visible.has(id),
-          ),
-        ),
-      );
-      hiddenPageCount.current = 0;
-      setHiddenPagePause(false);
-    },
-    [],
-  );
+  const recordSeen = useCallback((id: string) => markStorySeen(id), []);
 
   useEffect(() => {
-    const initial = readStoryHistory();
-    hideSeenRef.current = initial.hideSeen;
-    setHistory(initial);
-    if (initial.hideSeen) captureHidden(initial, false);
-    return subscribeStoryHistory(() => {
-      const next = readStoryHistory();
-      setHistory(next);
-      if (Object.keys(next.entries).length === 0) setHiddenIds(new Set());
-      if (next.hideSeen !== hideSeenRef.current) {
-        hideSeenRef.current = next.hideSeen;
-        if (next.hideSeen) captureHidden(next);
-        else setHiddenIds(new Set());
-      }
-    });
-  }, [captureHidden]);
-
-  const recordSeen = useCallback((id: string) => markStorySeen(id), []);
+    setHistory(readStoryHistory());
+    return subscribeStoryHistory(() => setHistory(readStoryHistory()));
+  }, []);
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") setAutomaticLoadingAvailable(false);
@@ -241,7 +178,6 @@ export function StoryFeed({
         focusStoryId: snapshot.focusStoryId,
       };
       setPinnedStoryId(anchor?.storyId ?? snapshot.focusStoryId);
-      setProtectedStoryId(anchor?.storyId ?? snapshot.focusStoryId);
       positionSettled.current = false;
       setPositionPending(true);
       const next = {
@@ -443,14 +379,6 @@ export function StoryFeed({
         (ranked && !current.pagination.cursor)
       )
         return;
-      if (trigger === "auto" && hiddenPageCount.current >= MAX_AUTOMATIC_HIDDEN_PAGES) {
-        setHiddenPagePause(true);
-        return;
-      }
-      if (trigger === "manual") {
-        hiddenPageCount.current = 0;
-        setHiddenPagePause(false);
-      }
       const controller = new AbortController();
       const id = ++requestId.current;
       activeRequest.current = controller;
@@ -485,19 +413,6 @@ export function StoryFeed({
         if (ranked && stories.length === current.stories.length && page.pagination.hasMore)
           throw new Error("Story page made no progress");
         const added = stories.length - current.stories.length;
-        if (history.hideSeen) {
-          const encountered = readStoryHistory().entries;
-          const hiddenAdded = stories
-            .slice(current.stories.length)
-            .filter((story) => !!encountered[story.hn_id]?.seenAt);
-          if (hiddenAdded.length)
-            setHiddenIds(
-              (previous) => new Set([...previous, ...hiddenAdded.map((story) => story.hn_id)]),
-            );
-          hiddenPageCount.current = hiddenAdded.length === added ? hiddenPageCount.current + 1 : 0;
-          if (hiddenPageCount.current >= MAX_AUTOMATIC_HIDDEN_PAGES && page.pagination.hasMore)
-            setHiddenPagePause(true);
-        } else hiddenPageCount.current = 0;
         const next = {
           stories,
           pagination: page.pagination,
@@ -523,7 +438,7 @@ export function StoryFeed({
         if (id === requestId.current) activeRequest.current = null;
       }
     },
-    [history.hideSeen, listingPath, ranked],
+    [listingPath, ranked],
   );
 
   function startLatest(event: MouseEvent<HTMLAnchorElement>) {
@@ -548,7 +463,6 @@ export function StoryFeed({
       !feed.pagination.hasMore ||
       feed.phase !== "idle" ||
       continuationFocused ||
-      hiddenPagePause ||
       !sentinel.current ||
       typeof IntersectionObserver === "undefined"
     )
@@ -569,7 +483,6 @@ export function StoryFeed({
     feed.pagination.hasMore,
     feed.pagination.page,
     feed.phase,
-    hiddenPagePause,
     load,
     positionPending,
     restored,
@@ -577,60 +490,17 @@ export function StoryFeed({
 
   return (
     <>
-      {restored && (
-        <div className="story-history-controls">
-          <label>
-            <input
-              ref={hideSeenControl}
-              type="checkbox"
-              checked={history.hideSeen}
-              onChange={(event) => {
-                setHistoryMessage("");
-                setHideSeen(event.target.checked);
-              }}
-            />
-            Hide seen
-          </label>
-          {Object.keys(history.entries).length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                hideSeenControl.current?.focus();
-                clearStoryHistory();
-                setHistoryMessage("Viewing history cleared.");
-              }}
-            >
-              Clear viewing history
-            </button>
-          )}
-          <span role="status" aria-live="polite" className="sr-only">
-            {historyMessage}
-          </span>
-        </div>
-      )}
-      {visibleStories.length === 0 ? (
-        feed.stories.length > 0 && history.hideSeen ? (
+      {feed.stories.length === 0 ? (
+        (emptyState ?? (
           <div className="empty">
-            <h2>All loaded stories are seen.</h2>
-            <p>
-              {feed.pagination.hasMore
-                ? "Load more to look for unseen stories, or turn off Hide seen."
-                : "Turn off Hide seen to show them."}
-            </p>
+            <h2>No stories yet.</h2>
+            <p>Stories will appear after the next update.</p>
           </div>
-        ) : (
-          (emptyState ?? (
-            <div className="empty">
-              <h2>No stories yet.</h2>
-              <p>Stories will appear after the next update.</p>
-            </div>
-          ))
-        )
+        ))
       ) : (
         <WindowedStoryList
-          stories={visibleStories}
+          stories={feed.stories}
           ranked={ranked}
-          positionById={positionById}
           seenIds={seenIds}
           openedIds={openedIds}
           onSeen={recordSeen}
@@ -694,7 +564,7 @@ export function StoryFeed({
           !positionPending &&
           feed.pagination.hasMore &&
           feed.phase !== "expired" &&
-          (feed.phase === "failed" || !automaticLoadingAvailable || hiddenPagePause) && (
+          (feed.phase === "failed" || !automaticLoadingAvailable) && (
             <div className="home-feed-actions">
               <button
                 className="button"
@@ -705,11 +575,7 @@ export function StoryFeed({
                   void load("manual");
                 }}
               >
-                {feed.phase === "failed"
-                  ? "Try loading again"
-                  : hiddenPagePause
-                    ? "Find more unseen stories"
-                    : "Load more stories"}
+                {feed.phase === "failed" ? "Try loading again" : "Load more stories"}
               </button>
             </div>
           )}

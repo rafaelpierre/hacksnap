@@ -8,7 +8,6 @@ import { browsePagination } from "../lib/browse-feed";
 import { readFeedSnapshot } from "../lib/feed-snapshot-storage";
 import { StoryFeed } from "../app/story-feed";
 import { HOME_FEED_CHECKPOINT_KEY } from "../lib/home-feed-checkpoint";
-import { clearStoryHistory, markStorySeen, setHideSeen } from "../lib/story-history";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
@@ -450,9 +449,6 @@ test("a deep restored anchor is mounted before StoryFeed restores its scroll and
   );
   const { createRoot } = await import("react-dom/client");
   const root = createRoot(document.getElementById("root")!);
-  clearStoryHistory();
-  setHideSeen(true);
-  markStorySeen("301");
   try {
     await act(async () =>
       root.render(
@@ -480,8 +476,6 @@ test("a deep restored anchor is mounted before StoryFeed restores its scroll and
     assert.equal(document.querySelector('[data-home-story-id="301"]'), null);
   } finally {
     await act(async () => root.unmount());
-    clearStoryHistory();
-    setHideSeen(false);
     dom.window.close();
     Object.keys(values).forEach((key, index) => {
       if (previous[index]) Object.defineProperty(globalThis, key, previous[index]!);

@@ -186,7 +186,6 @@ export function WindowedStoryList({
   groupByDay,
   pinnedStoryId,
   onStoryTitleClickCapture,
-  positionById,
   seenIds = new Set<string>(),
   openedIds = new Set<string>(),
   onSeen = () => {},
@@ -197,7 +196,6 @@ export function WindowedStoryList({
   groupByDay: boolean;
   pinnedStoryId?: string | null;
   onStoryTitleClickCapture?: MouseEventHandler<HTMLOListElement>;
-  positionById?: ReadonlyMap<string, number>;
   seenIds?: ReadonlySet<string>;
   openedIds?: ReadonlySet<string>;
   onSeen?: (id: string) => void;
@@ -215,7 +213,7 @@ export function WindowedStoryList({
     () => (pinnedIndex >= 0 ? rangeForIndex(pinnedIndex, stories.length) : null),
     [pinnedIndex, stories.length],
   );
-  const renderedRange = pinnedRange ?? clampRange(range.start, stories.length);
+  const renderedRange = pinnedRange ?? range;
 
   const groups = useMemo(() => {
     if (!groupByDay) return [] as Group[];
@@ -344,11 +342,7 @@ export function WindowedStoryList({
         listSize={group ? group.end - group.start : stories.length}
         measure={stories.length > MAX_RENDERED_STORIES}
         ranked={ranked}
-        feedPosition={
-          ranked
-            ? (positionById?.get(story.hn_id) ?? (initialPage - 1) * 10 + index + 1)
-            : undefined
-        }
+        feedPosition={ranked ? (initialPage - 1) * 10 + index + 1 : undefined}
         onHeight={onStoryHeight}
         onFocus={onStoryFocus}
         seen={seenIds.has(story.hn_id)}

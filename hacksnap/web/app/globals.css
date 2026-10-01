@@ -360,40 +360,9 @@ footer {
   text-decoration: none;
 }
 .story-history-label {
-  border: 1px solid var(--control-line);
-  border-radius: 3px;
-  padding: 0 5px;
   color: var(--muted);
-  font-size: 0.625rem;
-  font-weight: 600;
-}
-.story-history-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  margin: 0 0 var(--space-4);
-  color: var(--muted);
-  font: var(--text-sm)/1.5 var(--sans);
-}
-.story-history-controls label,
-.story-history-controls button {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--touch-target);
-  gap: var(--space-2);
-  cursor: pointer;
-}
-.story-history-controls input {
-  accent-color: var(--accent);
-}
-.story-history-controls button {
-  border: 1px solid var(--control-line);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--muted);
-  padding: 0 var(--space-3);
   font: inherit;
+  white-space: nowrap;
 }
 .archive-label {
   border: 1px solid var(--line);

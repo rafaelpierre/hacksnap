@@ -161,26 +161,22 @@ valid story detail visit independently, including direct URLs and new tabs. Thes
 claim neither reading nor completion. The first valid exposure and first opening
 timestamps are retained separately by HN story ID.
 
-The optional **Hide seen** preference applies to Top Stories, archive and topic
-feeds. A fresh listing filters saved seen IDs after hydration. Toggling it while
-reading preserves cards currently in the viewport, and later exposures do not
-remove mounted cards. Newly loaded pages filter IDs already seen at the load
-boundary. A restored feed anchor stays visible even when it was seen, so Back and
-home checkpoint positioning can settle. The unfiltered cards remain in feed
-snapshots. At most three consecutive pages with no visible new cards load
-automatically; **Find more unseen stories** resumes another bounded search. Empty,
-loading and failure states remain visible.
+Seen and Opened appear as quiet text alongside a card's category, without changing
+its position or hiding it. Exposure updates can change a short label while the
+reader stays on a listing; the loaded feed and browser return snapshots remain
+unchanged.
 
-History uses version 1 of the `hacksnap:story-history` local-storage key. It
+History uses version 2 of the `hacksnap:story-history` local-storage key. It
 retains up to 4,000 IDs and 320 KiB of serialized UTF-16, dropping oldest
-encounters first; timestamps older than 180 days expire. **Clear viewing history**
-erases seen and opened timestamps while retaining the Hide seen preference.
-Blocked or full storage falls back to same-tab memory. Changes in another tab
-update labels and the preference through the browser `storage` event without
-removing current cards mid-scroll. Same-tab writes emit
-`hacksnap:story-history-change`. Future visit baselines should use their own
-versioned key and event, leaving these first-encounter timestamps independent
-of resume and visit snapshots.
+encounters first; timestamps older than 180 days expire. Version 1 records
+are read for their seen/opened timestamps, but their saved Hide seen preference
+is ignored and removed on the next write. Readers can clear this browser-local
+history through browser site-data settings; the feature-owned clear helper
+leaves resume and other keys intact. Blocked or full storage falls back to
+same-tab memory. Changes in another tab update labels through the browser
+`storage` event. Same-tab writes emit `hacksnap:story-history-change`.
+Future visit baselines use their own versioned key and event, leaving these
+first-encounter timestamps independent of resume and visit snapshots.
 
 Analytics events `home_story_open` record actual activations of stories after the
 first ten (`story_id`, 1-based `position`, `placement=home_feed`). Rendering or

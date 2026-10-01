@@ -1,16 +1,16 @@
 /** Browser-local encounters. Seen is card exposure; opened is a story visit. */
 export const STORY_HISTORY_KEY = "hacksnap:story-history";
 export const STORY_HISTORY_EVENT = "hacksnap:story-history-change";
-export const STORY_HISTORY_VERSION = 1;
+export const STORY_HISTORY_VERSION = 2;
 export const MAX_HISTORY_STORIES = 4000;
 const MAX_BYTES = 320 * 1024;
 const MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 const STORY_ID = /^[1-9][0-9]{0,14}$/;
 
 type Entry = { seenAt?: number; openedAt?: number };
-export type StoryHistory = { version: 1; hideSeen: boolean; entries: Record<string, Entry> };
+export type StoryHistory = { version: 2; entries: Record<string, Entry> };
 
-const empty = (): StoryHistory => ({ version: 1, hideSeen: false, entries: {} });
+const empty = (): StoryHistory => ({ version: 2, entries: {} });
 let current = empty();
 let loaded = false;
 
@@ -59,10 +59,9 @@ function decode(raw: string | null, now = Date.now()): StoryHistory {
   try {
     const value: unknown = JSON.parse(raw);
     if (!value || typeof value !== "object") return empty();
-    const record = value as { version?: unknown; hideSeen?: unknown; entries?: unknown };
+    const record = value as { version?: unknown; entries?: unknown };
     if (
-      record.version !== STORY_HISTORY_VERSION ||
-      typeof record.hideSeen !== "boolean" ||
+      (record.version !== 1 && record.version !== STORY_HISTORY_VERSION) ||
       !record.entries ||
       typeof record.entries !== "object" ||
       Array.isArray(record.entries)
@@ -77,7 +76,8 @@ function decode(raw: string | null, now = Date.now()): StoryHistory {
       if (timestamp(candidate.openedAt, now)) entry.openedAt = candidate.openedAt;
       if (entry.seenAt || entry.openedAt) entries[id] = entry;
     }
-    return prune({ version: 1, hideSeen: record.hideSeen, entries });
+    // Version 1 also saved a Hide seen preference. Ignore it so old data never hides cards.
+    return prune({ version: 2, entries });
   } catch {
     return empty();
   }
@@ -148,14 +148,9 @@ export function markStoryOpened(id: string, now = Date.now()) {
   });
 }
 
-export function setHideSeen(hideSeen: boolean) {
-  const history = readStoryHistory();
-  if (history.hideSeen !== hideSeen) save({ ...history, hideSeen });
-}
-
+/** Clear this feature's browser-local timestamps without touching resume or other keys. */
 export function clearStoryHistory() {
-  const history = readStoryHistory();
-  save({ version: 1, hideSeen: history.hideSeen, entries: {} });
+  save(empty());
 }
 
 /** Subscribe to same-tab writes and storage changes from another tab. */

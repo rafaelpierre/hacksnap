@@ -8,7 +8,6 @@ import {
   markStoryOpened,
   markStorySeen,
   readStoryHistory,
-  setHideSeen,
   STORY_HISTORY_KEY,
 } from "../lib/story-history";
 import { WindowedStoryList } from "../app/windowed-story-list";
@@ -60,12 +59,22 @@ function story(id: number) {
   };
 }
 
-test("seen, opened and preference persist independently; clear and blocked storage keep browsing usable", () => {
+test("legacy Hide seen data migrates without filtering intent; timestamps stay independent and clearable", () => {
   const dom = new JSDOM("", { url: "https://hacksnap.live/" });
   const restore = globals(dom);
   try {
+    dom.window.localStorage.setItem(
+      STORY_HISTORY_KEY,
+      JSON.stringify({
+        version: 1,
+        hideSeen: true,
+        entries: { "404": { seenAt: Date.now() } },
+      }),
+    );
+    assert.equal(readStoryHistory().version, 2);
+    assert.equal(!!readStoryHistory().entries["404"]?.seenAt, true);
+    assert.equal("hideSeen" in readStoryHistory(), false);
     clearStoryHistory();
-    setHideSeen(false);
     markStorySeen("101", 1_000_000_000_000);
     markStoryOpened("202");
     assert.equal(readStoryHistory().entries["101"]?.seenAt, undefined, "old exposures expire");
@@ -74,12 +83,9 @@ test("seen, opened and preference persist independently; clear and blocked stora
     assert.equal(readStoryHistory().entries["101"]?.openedAt, undefined);
     assert.equal(!!readStoryHistory().entries["202"]?.openedAt, true);
     assert.equal(readStoryHistory().entries["202"]?.seenAt, undefined);
-    setHideSeen(true);
-    assert.equal(JSON.parse(dom.window.localStorage.getItem(STORY_HISTORY_KEY)!).version, 1);
-    assert.equal(readStoryHistory().hideSeen, true);
+    assert.equal(JSON.parse(dom.window.localStorage.getItem(STORY_HISTORY_KEY)!).version, 2);
     clearStoryHistory();
     assert.deepEqual(readStoryHistory().entries, {});
-    assert.equal(readStoryHistory().hideSeen, true);
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
       get: () => {
@@ -89,7 +95,6 @@ test("seen, opened and preference persist independently; clear and blocked stora
     markStoryOpened("303");
     assert.equal(!!readStoryHistory().entries["303"]?.openedAt, true);
   } finally {
-    setHideSeen(false);
     clearStoryHistory();
     restore();
     dom.window.close();
@@ -161,111 +166,37 @@ test("a card needs 50% continuous exposure for 1.5 seconds in the foreground", a
   }
 });
 
-test("Hide seen skips three all-seen pages, pauses auto loading, then continues on request", async () => {
+test("previously seen cards remain in the feed with quiet Seen and Opened labels", async () => {
   const { StoryFeed } = await import("../app/story-feed");
   const { browsePagination } = await import("../lib/browse-feed");
   const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/archive" });
-  let sentinel: IntersectionObserverCallback | null = null;
-  const restore = globals(dom, {
-    IntersectionObserver: class {
-      constructor(private callback: IntersectionObserverCallback) {}
-      observe(element: Element) {
-        if (element.classList.contains("home-feed-sentinel")) sentinel = this.callback;
-      }
-      disconnect() {
-        if (sentinel === this.callback) sentinel = null;
-      }
-    },
-  });
-  const originalFetch = globalThis.fetch;
+  const restore = globals(dom, { IntersectionObserver: undefined });
   const { createRoot } = await import("react-dom/client");
   const root = createRoot(document.getElementById("root")!);
-  let requests = 0;
-  globalThis.fetch = (async () => {
-    requests++;
-    return {
-      ok: true,
-      status: 200,
-      json: async () => ({
-        stories: [story(101 + requests)],
-        pagination: browsePagination(1 + requests, true),
-      }),
-    } as Response;
-  }) as typeof fetch;
   try {
     clearStoryHistory();
-    for (const id of [101, 102, 103, 104]) markStorySeen(String(id));
-    setHideSeen(true);
+    markStorySeen("101");
+    markStoryOpened("102");
     await act(async () =>
       root.render(
         <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
           <StoryFeed
-            initialStories={[story(101)]}
-            initialPagination={browsePagination(1, true)}
+            initialStories={[story(101), story(102)]}
+            initialPagination={browsePagination(1, false)}
             listingPath="/archive"
           />
         </AppRouterContext.Provider>,
       ),
     );
-    assert.equal(document.querySelector('[data-home-story-id="101"]'), null);
-    assert.match(document.body.textContent!, /All loaded stories are seen/);
-    for (let page = 0; page < 3; page++) {
-      assert.ok(sentinel);
-      const fire = sentinel;
-      await act(async () =>
-        (fire as IntersectionObserverCallback)(
-          [{ isIntersecting: true } as IntersectionObserverEntry],
-          {} as IntersectionObserver,
-        ),
-      );
-    }
-    assert.equal(requests, 3);
-    assert.match(document.body.textContent!, /Find more unseen stories/);
-    await act(async () =>
-      (document.querySelector(".home-feed-actions button") as HTMLButtonElement).click(),
-    );
-    assert.equal(requests, 4);
-    assert.ok(document.querySelector('[data-home-story-id="105"]'));
-    await act(async () => markStorySeen("105"));
-    assert.ok(document.querySelector('[data-home-story-id="105"]'), "newly seen row stays mounted");
-    assert.match(document.querySelector('[data-home-story-id="105"]')!.textContent!, /Seen/);
-    await act(async () =>
-      (document.querySelector(".story-history-controls input") as HTMLInputElement).click(),
-    );
     assert.ok(document.querySelector('[data-home-story-id="101"]'));
-    Object.defineProperty(dom.window.HTMLElement.prototype, "getBoundingClientRect", {
-      configurable: true,
-      value: function (this: HTMLElement) {
-        const shown = this.dataset.homeStoryId === "105";
-        return {
-          top: shown ? 0 : 1000,
-          bottom: shown ? 100 : 1100,
-          left: 0,
-          right: 200,
-          width: 200,
-          height: 100,
-        };
-      },
-    });
-    await act(async () =>
-      (document.querySelector(".story-history-controls input") as HTMLInputElement).click(),
-    );
-    assert.ok(document.querySelector('[data-home-story-id="105"]'), "visible card survives toggle");
-    assert.equal(document.querySelector('[data-home-story-id="101"]'), null);
-    await act(async () =>
-      (document.querySelector(".story-history-controls button") as HTMLButtonElement).click(),
-    );
-    assert.equal(document.activeElement, document.querySelector(".story-history-controls input"));
-    assert.match(
-      document.querySelector('.story-history-controls [role="status"]')!.textContent!,
-      /Viewing history cleared/,
-    );
-    assert.ok(document.querySelector('[data-home-story-id="101"]'));
+    assert.ok(document.querySelector('[data-home-story-id="102"]'));
+    assert.equal(document.querySelector(".story-history-controls"), null);
+    assert.match(document.querySelector('[data-home-story-id="101"]')!.textContent!, /Seen/);
+    assert.match(document.querySelector('[data-home-story-id="102"]')!.textContent!, /Opened/);
+    assert.doesNotMatch(document.body.textContent!, /Hide seen|Clear viewing history/);
   } finally {
     await act(async () => root.unmount());
-    setHideSeen(false);
     clearStoryHistory();
-    globalThis.fetch = originalFetch;
     restore();
     dom.window.close();
   }
