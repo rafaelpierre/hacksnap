@@ -281,7 +281,10 @@ test("reader input before the first restore frame releases loading and saving", 
       await act(async () => dom.window.dispatchEvent(new dom.window.Event("wheel")));
       flushFrames();
       assert.equal(scrolls.length, 0, "canceled restore does not fight the reader");
-      assert.equal(document.querySelector(".home-feed-actions button"), null);
+      assert.equal(
+        document.querySelector(".home-feed-continuation .home-feed-actions button")?.textContent,
+        "Load more stories",
+      );
       dom.window.dispatchEvent(new dom.window.Event("pagehide"));
       const saved = JSON.parse(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY)!);
       assert.ok(saved.snapshot.savedAt > Date.now() - 30_000);

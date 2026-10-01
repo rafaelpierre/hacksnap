@@ -98,8 +98,13 @@ export function StoryFeed({
   const scrollTarget = useRef<ScrollTarget | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const [continuationFocused, setContinuationFocused] = useState(false);
+  const [automaticLoadingAvailable, setAutomaticLoadingAvailable] = useState(true);
   const activeTrigger = useRef<"auto" | "manual" | null>(null);
   feedRef.current = feed;
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") setAutomaticLoadingAvailable(false);
+  }, []);
 
   function snapshotNow(): FeedSnapshot {
     const current = feedRef.current;
@@ -629,13 +634,26 @@ export function StoryFeed({
                 : ""
             }`}
         </p>
-        {restored && !positionPending && feed.phase === "failed" && (
-          <div className="home-feed-actions">
-            <button className="button" type="button" onClick={() => void load("manual")}>
-              Try loading again
-            </button>
-          </div>
-        )}
+        {restored &&
+          !positionPending &&
+          feed.pagination.hasMore &&
+          feed.phase !== "expired" &&
+          (feed.phase === "failed" || !automaticLoadingAvailable) && (
+            <div className="home-feed-actions">
+              <button
+                className="button"
+                type="button"
+                disabled={feed.phase === "loading"}
+                onClick={() => {
+                  if (pendingOlder.current) useFreshFeed();
+                  setContinuationFocused(false);
+                  void load("manual");
+                }}
+              >
+                {feed.phase === "failed" ? "Try loading again" : "Load more stories"}
+              </button>
+            </div>
+          )}
         {feed.phase === "expired" && (
           <a
             className="button"

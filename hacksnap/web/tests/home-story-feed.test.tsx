@@ -126,8 +126,8 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         assert.equal(
           String(_url),
           ranked
-            ? `/api/ready-stories?cursor=cursor_${calls > 2 ? 3 : 2}`
-            : `/api/browse-stories?${new URLSearchParams({ path: listingPath, page: calls > 2 ? "3" : "2" })}`,
+            ? `/api/ready-stories?cursor=cursor_${calls === 5 ? 4 : calls > 2 ? 3 : 2}`
+            : `/api/browse-stories?${new URLSearchParams({ path: listingPath, page: String(calls === 5 ? 4 : calls > 2 ? 3 : 2) })}`,
         );
         if (calls === 1) {
           pendingSignal = options?.signal as AbortSignal;
@@ -141,7 +141,13 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
           return {
             ok: true,
             status: 200,
-            json: async () => ({ stories: [], pagination: pageState(3, false) }),
+            json: async () => ({ stories: [story(13)], pagination: pageState(3, true) }),
+          } as Response;
+        if (calls === 5)
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ stories: [], pagination: pageState(4, false) }),
           } as Response;
         return { ok: false, status: 503 } as Response;
       }) as typeof fetch;
@@ -248,19 +254,30 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         }
         if (listingPath.startsWith("/archive"))
           assert.equal(document.querySelectorAll("section > .feed-bar time").length, 2);
-        await act(async () =>
-          (document.querySelector(".home-feed-actions button") as HTMLButtonElement).click(),
-        );
+        const retry = document.querySelector(".home-feed-actions button") as HTMLButtonElement;
+        await act(async () => retry.focus());
+        assert.equal(document.activeElement, retry);
+        await act(async () => retry.click());
         assert.equal(calls, 4);
+        assert.equal(document.querySelectorAll(".story-list > li").length, 13);
+        assert.equal(document.querySelector(".home-feed-actions button"), null);
+        assert.ok(onIntersection, "automatic loading resumes after the focused retry unmounts");
+        await act(async () => {
+          (onIntersection as IntersectionObserverCallback)(
+            [{ isIntersecting: true } as IntersectionObserverEntry],
+            {} as IntersectionObserver,
+          );
+        });
+        assert.equal(calls, 5);
         assert.match(document.querySelector("[role=status]")!.textContent!, /reached the end/);
         assert.equal(document.querySelector(".home-feed-actions button"), null);
         assert.equal(document.querySelector(".home-feed-pages a"), null);
-        assert.equal(dom.window.history.state.hacksnapHomeFeed.stories.length, 12);
+        assert.equal(dom.window.history.state.hacksnapHomeFeed.stories.length, 13);
 
         await act(async () => root.unmount());
         const restored = createRoot(document.getElementById("root")!);
         await render(restored);
-        assert.equal(document.querySelectorAll(".story-list > li").length, 12);
+        assert.equal(document.querySelectorAll(".story-list > li").length, 13);
         await act(async () => restored.unmount());
       } finally {
         globalThis.fetch = originalFetch;
@@ -384,3 +401,57 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
     }
   });
 }
+
+test("a same-list Load more button remains available without IntersectionObserver", async () => {
+  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
+  const values = {
+    self: dom.window,
+    window: dom.window,
+    document: dom.window.document,
+    navigator: dom.window.navigator,
+    IS_REACT_ACT_ENVIRONMENT: true,
+    IntersectionObserver: undefined,
+  };
+  const previous = Object.keys(values).map((key) =>
+    Object.getOwnPropertyDescriptor(globalThis, key),
+  );
+  Object.entries(values).forEach(([key, value]) =>
+    Object.defineProperty(globalThis, key, { value, configurable: true }),
+  );
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ stories: [story(11)], pagination: pagination(2, false) }),
+    } as Response;
+  }) as typeof fetch;
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(document.getElementById("root")!);
+  try {
+    await act(async () =>
+      root.render(
+        <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
+          <StoryFeed initialStories={[story(1)]} initialPagination={pagination(1, true)} />
+        </AppRouterContext.Provider>,
+      ),
+    );
+    assert.equal(calls, 0);
+    const loadMore = document.querySelector(".home-feed-actions button") as HTMLButtonElement;
+    assert.equal(loadMore.textContent, "Load more stories");
+    await act(async () => loadMore.click());
+    assert.equal(calls, 1);
+    assert.equal(document.querySelectorAll(".story-list > li").length, 2);
+    assert.equal(document.querySelector(".home-feed-actions button"), null);
+  } finally {
+    await act(async () => root.unmount());
+    globalThis.fetch = originalFetch;
+    dom.window.close();
+    Object.keys(values).forEach((key, i) => {
+      if (previous[i]) Object.defineProperty(globalThis, key, previous[i]!);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+});
