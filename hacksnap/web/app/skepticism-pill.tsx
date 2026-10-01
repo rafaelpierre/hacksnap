@@ -1,9 +1,9 @@
 import { MessageCircle } from "lucide-react";
 import type { Story } from "../lib/data";
-import type { PublicReadyStory } from "../lib/stories-api";
+import type { PublicFeedStory } from "../lib/stories-api";
 import { skepticismDisplay } from "../lib/sentiment";
 
-export function SkepticismPill({ story }: { story: Story | PublicReadyStory }) {
+export function SkepticismPill({ story }: { story: Story | PublicFeedStory }) {
   const coverage = story.summary?.source_coverage;
   const count = coverage?.sentiment?.included_comments ?? coverage?.included_comments;
   const { label } = skepticismDisplay(story.summary?.sentiment ?? null, count === 0);

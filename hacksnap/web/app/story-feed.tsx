@@ -1,15 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
-import type { PublicReadyStory } from "../lib/stories-api";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
+import type { PublicFeedStory } from "../lib/stories-api";
 import {
   appendUniqueStories,
   homePageURL,
-  validHomeFeedPage,
-  type HomeFeedPagination,
-  type HomeFeedSnapshot,
-} from "../lib/home-feed-state";
+  validFeedPage,
+  type FeedPagination,
+  type FeedSnapshot,
+} from "../lib/feed-state";
 import { track } from "../lib/analytics";
 import {
   clearHomeFeedCheckpoint,
@@ -18,11 +26,11 @@ import {
   type HomeFeedCheckpoint,
 } from "../lib/home-feed-checkpoint";
 import { StoryRow } from "./story-row";
-import { consumeHomeFeedReturn, saveHomeFeedHistory } from "./story-navigation";
+import { consumeFeedReturn, saveFeedHistory } from "./story-navigation";
 
 type FeedState = {
-  stories: PublicReadyStory[];
-  pagination: HomeFeedPagination;
+  stories: PublicFeedStory[];
+  pagination: FeedPagination;
   phase: "idle" | "loading" | "failed" | "expired";
   announcement: string;
 };
@@ -53,13 +61,22 @@ function viewportAnchor(): HomeFeedCheckpoint["anchor"] {
   return null;
 }
 
-export function HomeStoryFeed({
+export function StoryFeed({
   initialStories,
   initialPagination,
+  listingPath = "/",
+  groupByDay = false,
+  emptyState,
 }: {
-  initialStories: PublicReadyStory[];
-  initialPagination: HomeFeedPagination;
+  initialStories: PublicFeedStory[];
+  initialPagination: FeedPagination;
+  listingPath?: string;
+  groupByDay?: boolean;
+  emptyState?: ReactNode;
 }) {
+  const ranked = listingPath === "/";
+  const pageURL = (page: number, cursor: string | null) =>
+    ranked ? homePageURL(page, cursor) : page === 1 ? listingPath : `${listingPath}?page=${page}`;
   const [feed, setFeed] = useState<FeedState>({
     stories: initialStories,
     pagination: initialPagination,
@@ -88,7 +105,7 @@ export function HomeStoryFeed({
   const activeTrigger = useRef<"auto" | "manual" | null>(null);
   feedRef.current = feed;
 
-  function snapshotNow(): HomeFeedSnapshot {
+  function snapshotNow(): FeedSnapshot {
     const current = feedRef.current;
     return {
       version: 1,
@@ -131,12 +148,12 @@ export function HomeStoryFeed({
     pendingOlder.current = null;
     canPersist.current = true;
     setResumeNotice("none");
-    saveHomeFeedHistory(snapshotNow());
+    saveFeedHistory(snapshotNow());
     persistNow();
   }
 
   useEffect(() => {
-    const applySnapshot = (snapshot: HomeFeedSnapshot, anchor: HomeFeedCheckpoint["anchor"]) => {
+    const applySnapshot = (snapshot: FeedSnapshot, anchor: HomeFeedCheckpoint["anchor"]) => {
       scrollTarget.current = {
         y: snapshot.scrollY,
         storyId: anchor?.storyId ?? null,
@@ -168,7 +185,7 @@ export function HomeStoryFeed({
         clearHomeFeedCheckpoint();
         canPersist.current = true;
       } else {
-        const historyReturn = consumeHomeFeedReturn(url);
+        const historyReturn = consumeFeedReturn(url);
         if (historyReturn) {
           applySnapshot(historyReturn, null);
           canPersist.current = true;
@@ -198,7 +215,7 @@ export function HomeStoryFeed({
       activeRequest.current?.abort();
       activeRequest.current = null;
       requestId.current++;
-      const restoredPage = consumeHomeFeedReturn(window.location.pathname + window.location.search);
+      const restoredPage = consumeFeedReturn(window.location.pathname + window.location.search);
       if (!restoredPage) return;
       pendingOlder.current = null;
       canPersist.current = true;
@@ -290,7 +307,7 @@ export function HomeStoryFeed({
 
   useEffect(() => {
     if (!restored || pendingOlder.current) return;
-    saveHomeFeedHistory(snapshotNow());
+    saveFeedHistory(snapshotNow());
     if (!positionPending) persistNow();
   }, [feed.stories, feed.pagination, positionPending, restored]);
 
@@ -319,7 +336,7 @@ export function HomeStoryFeed({
   }, [restored]);
 
   useEffect(() => {
-    if (!restored || feed.pagination.hasMore) return;
+    if (!ranked || !restored || feed.pagination.hasMore) return;
     track(
       "home_feed_end",
       {
@@ -329,80 +346,92 @@ export function HomeStoryFeed({
       },
       `home-end:${feed.pagination.page}`,
     );
-  }, [feed.pagination, feed.stories.length, restored]);
+  }, [feed.pagination, feed.stories.length, restored, ranked]);
 
-  const load = useCallback(async (trigger: "auto" | "manual") => {
-    const current = feedRef.current;
-    if (
-      activeRequest.current ||
-      !positionSettled.current ||
-      pendingOlder.current ||
-      current.phase === "expired" ||
-      !current.pagination.hasMore ||
-      !current.pagination.cursor
-    )
-      return;
-    const controller = new AbortController();
-    const id = ++requestId.current;
-    activeRequest.current = controller;
-    activeTrigger.current = trigger;
-    setFeed((state) => ({ ...state, phase: "loading", announcement: "" }));
-    const onAbort = () =>
-      track("home_feed_load", { outcome: "cancelled", trigger, position: current.stories.length });
-    controller.signal.addEventListener("abort", onAbort, { once: true });
-    try {
-      const query = new URLSearchParams({ cursor: current.pagination.cursor });
-      const response = await fetch(`/api/ready-stories?${query}`, {
-        signal: controller.signal,
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      });
-      if (id !== requestId.current || controller.signal.aborted) return;
-      if (response.status === 410) {
-        if (currentURL() === "/") clearHomeFeedCheckpoint();
-        setFeed((state) => ({ ...state, phase: "expired" }));
-        track("home_feed_load", { outcome: "expired", trigger, position: current.stories.length });
-        return;
-      }
-      if (!response.ok) throw new Error("Story load failed");
-      const page = validHomeFeedPage(await response.json());
-      if (!page || page.pagination.page !== current.pagination.page + 1)
-        throw new Error("Invalid story page");
-      if (id !== requestId.current || controller.signal.aborted) return;
-      const stories = appendUniqueStories(current.stories, page.stories);
-      if (stories.length === current.stories.length && page.pagination.hasMore)
-        throw new Error("Story page made no progress");
-      const added = stories.length - current.stories.length;
-      const next = {
-        stories,
-        pagination: page.pagination,
-        phase: "idle" as const,
-        announcement: added
-          ? `${added} more ${added === 1 ? "story" : "stories"} loaded. ${stories.length} total.`
-          : "No new stories in this batch.",
+  const load = useCallback(
+    async (trigger: "auto" | "manual") => {
+      const trackLoad = (params: Parameters<typeof track>[1]) => {
+        if (ranked) track("home_feed_load", params);
       };
-      feedRef.current = next;
-      setFeed(next);
-      track("home_feed_load", {
-        outcome: page.stories.length ? "success" : "empty",
-        trigger,
-        position: stories.length,
-      });
-    } catch {
-      if (id === requestId.current && !controller.signal.aborted) {
-        setFeed((state) => ({ ...state, phase: "failed" }));
-        track("home_feed_load", { outcome: "failure", trigger, position: current.stories.length });
+      const current = feedRef.current;
+      if (
+        activeRequest.current ||
+        !positionSettled.current ||
+        pendingOlder.current ||
+        current.phase === "expired" ||
+        !current.pagination.hasMore ||
+        (ranked && !current.pagination.cursor)
+      )
+        return;
+      const controller = new AbortController();
+      const id = ++requestId.current;
+      activeRequest.current = controller;
+      activeTrigger.current = trigger;
+      setFeed((state) => ({ ...state, phase: "loading", announcement: "" }));
+      const onAbort = () =>
+        trackLoad({ outcome: "cancelled", trigger, position: current.stories.length });
+      controller.signal.addEventListener("abort", onAbort, { once: true });
+      try {
+        const query = ranked
+          ? new URLSearchParams({ cursor: current.pagination.cursor! })
+          : new URLSearchParams({ path: listingPath, page: String(current.pagination.page + 1) });
+        const response = await fetch(`/api/${ranked ? "ready" : "browse"}-stories?${query}`, {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (id !== requestId.current || controller.signal.aborted) return;
+        if (response.status === 410) {
+          if (currentURL() === "/") clearHomeFeedCheckpoint();
+          setFeed((state) => ({ ...state, phase: "expired" }));
+          trackLoad({ outcome: "expired", trigger, position: current.stories.length });
+          return;
+        }
+        if (!response.ok) throw new Error("Story load failed");
+        const page = validFeedPage(await response.json(), listingPath);
+        if (!page || page.pagination.page !== current.pagination.page + 1)
+          throw new Error("Invalid story page");
+        if (id !== requestId.current || controller.signal.aborted) return;
+        const stories = appendUniqueStories(current.stories, page.stories);
+        // Live offsets can repeat a whole batch after new arrivals; keep their page advance.
+        if (ranked && stories.length === current.stories.length && page.pagination.hasMore)
+          throw new Error("Story page made no progress");
+        const added = stories.length - current.stories.length;
+        const next = {
+          stories,
+          pagination: page.pagination,
+          phase: "idle" as const,
+          announcement: added
+            ? `${added} more ${added === 1 ? "story" : "stories"} loaded. ${stories.length} total.`
+            : "No new stories in this batch.",
+        };
+        feedRef.current = next;
+        setFeed(next);
+        trackLoad({
+          outcome: page.stories.length ? "success" : "empty",
+          trigger,
+          position: stories.length,
+        });
+      } catch {
+        if (id === requestId.current && !controller.signal.aborted) {
+          setFeed((state) => ({ ...state, phase: "failed" }));
+          trackLoad({ outcome: "failure", trigger, position: current.stories.length });
+        }
+      } finally {
+        controller.signal.removeEventListener("abort", onAbort);
+        if (id === requestId.current) activeRequest.current = null;
       }
-    } finally {
-      controller.signal.removeEventListener("abort", onAbort);
-      if (id === requestId.current) activeRequest.current = null;
-    }
-  }, []);
+    },
+    [listingPath, ranked],
+  );
 
   function resumeOlder() {
     const checkpoint = pendingOlder.current;
     if (!checkpoint) return;
-    if (Date.parse(checkpoint.snapshot.pagination.expiresAt) <= Date.now()) {
+    if (
+      !checkpoint.snapshot.pagination.expiresAt ||
+      Date.parse(checkpoint.snapshot.pagination.expiresAt) <= Date.now()
+    ) {
       pendingOlder.current = null;
       canPersist.current = true;
       clearHomeFeedCheckpoint();
@@ -492,6 +521,26 @@ export function HomeStoryFeed({
     return () => window.removeEventListener("scroll", onScroll);
   }, [autoReady]);
 
+  const rows = (stories: PublicFeedStory[]) =>
+    stories.map((story, index) => (
+      <li key={story.hn_id} data-home-story-id={story.hn_id}>
+        <StoryRow
+          story={story}
+          variant={ranked ? "ranked" : "unranked"}
+          feedPosition={ranked ? (initialPagination.page - 1) * 10 + index + 1 : undefined}
+        />
+      </li>
+    ));
+  const groups = new Map<string, PublicFeedStory[]>();
+  if (groupByDay) {
+    for (const story of feed.stories) {
+      const day = story.date_added.slice(0, 10);
+      const group = groups.get(day) ?? [];
+      group.push(story);
+      groups.set(day, group);
+    }
+  }
+
   return (
     <>
       {resumeNotice === "older" && (
@@ -517,17 +566,41 @@ export function HomeStoryFeed({
       {resumeNotice === "resumed" && (
         <div className="home-feed-resume">
           <p role="status">Your reading place is restored.</p>
-          <a className="button" href={`/?${FRESH_QUERY}=1`} onClick={startLatest}>
+          <a
+            className="button"
+            href={ranked ? `/?${FRESH_QUERY}=1` : listingPath}
+            onClick={ranked ? startLatest : undefined}
+          >
             Back to latest
           </a>
         </div>
       )}
       {feed.stories.length === 0 ? (
-        <div className="empty">
-          <h2>No stories yet.</h2>
-          <p>Stories will appear after the next update.</p>
-        </div>
-      ) : (
+        (emptyState ?? (
+          <div className="empty">
+            <h2>No stories yet.</h2>
+            <p>Stories will appear after the next update.</p>
+          </div>
+        ))
+      ) : groupByDay ? (
+        [...groups].map(([day, stories]) => (
+          <section key={day} aria-labelledby={`day-${day}`}>
+            <div className="feed-bar">
+              <h2 id={`day-${day}`}>
+                <time dateTime={day}>
+                  {new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  })}
+                </time>
+              </h2>
+            </div>
+            <ul className="story-list">{rows(stories)}</ul>
+          </section>
+        ))
+      ) : ranked ? (
         <ol
           className="story-list"
           start={initialPagination.page > 1 ? (initialPagination.page - 1) * 10 + 1 : undefined}
@@ -547,16 +620,10 @@ export function HomeStoryFeed({
             persistNow();
           }}
         >
-          {feed.stories.map((story, index) => (
-            <li key={story.hn_id} data-home-story-id={story.hn_id}>
-              <StoryRow
-                story={story}
-                variant="ranked"
-                feedPosition={(initialPagination.page - 1) * 10 + index + 1}
-              />
-            </li>
-          ))}
+          {rows(feed.stories)}
         </ol>
+      ) : (
+        <ul className="story-list">{rows(feed.stories)}</ul>
       )}
       <div ref={sentinel} className="home-feed-sentinel" aria-hidden="true" />
       <div
@@ -606,24 +673,25 @@ export function HomeStoryFeed({
           </div>
         )}
         {feed.phase === "expired" && (
-          <a className="button" href={`/?${FRESH_QUERY}=1`} onClick={startLatest}>
+          <a
+            className="button"
+            href={ranked ? `/?${FRESH_QUERY}=1` : listingPath}
+            onClick={ranked ? startLatest : undefined}
+          >
             Start a fresh selection
           </a>
         )}
         <nav className="home-feed-pages" aria-label="Story pages">
-          {initialPagination.page > 1 && initialPagination.previousCursor && (
+          {initialPagination.page > 1 && (!ranked || initialPagination.previousCursor) && (
             <Link
-              href={homePageURL(initialPagination.page - 1, initialPagination.previousCursor)}
+              href={pageURL(initialPagination.page - 1, initialPagination.previousCursor)}
               prefetch={false}
             >
               Newer stories
             </Link>
           )}
-          {feed.pagination.hasMore && feed.pagination.cursor && (
-            <Link
-              href={homePageURL(feed.pagination.page + 1, feed.pagination.cursor)}
-              prefetch={false}
-            >
+          {feed.pagination.hasMore && (!ranked || feed.pagination.cursor) && (
+            <Link href={pageURL(feed.pagination.page + 1, feed.pagination.cursor)} prefetch={false}>
               Next page
             </Link>
           )}

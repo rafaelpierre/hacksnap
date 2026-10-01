@@ -3,7 +3,7 @@ import { jest, test } from "@jest/globals";
 import React, { act } from "react";
 import { createRequire } from "node:module";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
-import { HomeStoryFeed } from "../app/home-story-feed";
+import { StoryFeed } from "../app/story-feed";
 import { HOME_FEED_CHECKPOINT_KEY } from "../lib/home-feed-checkpoint";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
@@ -129,7 +129,7 @@ async function withFeed(
     act(async () => {
       root.render(
         <AppRouterContext.Provider value={router as never}>
-          <HomeStoryFeed initialStories={[story(90)]} initialPagination={pagination(1)} />
+          <StoryFeed initialStories={[story(90)]} initialPagination={pagination(1)} />
         </AppRouterContext.Provider>,
       );
     });

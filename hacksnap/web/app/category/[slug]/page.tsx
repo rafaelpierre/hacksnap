@@ -1,15 +1,16 @@
 import { availableData } from "../../../lib/data-availability";
 import { withDataFallback } from "../../with-data-fallback";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCategoryCounts, getCategoryStories } from "../../../lib/data";
 import { categoryBySlug, categoryURL } from "../../../lib/categories";
 import { archivePage } from "../../../lib/archive";
-import { StoryRow } from "../../story-row";
+import { StoryFeed } from "../../story-feed";
+import { browsePagination } from "../../../lib/browse-feed";
+import { publicFeedStory } from "../../../lib/stories-api";
 import { BrowseLayout } from "../../topic-sidebar";
-import { ListPositionRestorer } from "../../story-navigation";
 import { Suspense } from "react";
 import type { CategoryId } from "../../../lib/categories";
 
@@ -55,7 +56,6 @@ async function CategoryPage(props: Props) {
   if (page > 1 && !stories.length) notFound();
   return (
     <BrowseLayout active={category.id}>
-      <ListPositionRestorer />
       <header className="feed-header category-header" data-color={category.color}>
         <div className="channel-path">
           <Link href="/">hacksnap</Link> / <Link href="/topics">topics</Link> /{" "}
@@ -77,38 +77,21 @@ async function CategoryPage(props: Props) {
           </h2>
           <p>Newest first</p>
         </div>
-        {!stories.length ? (
-          <div className="empty">
-            <h2>No stories in this topic yet.</h2>
-            <p>New stories will appear here as they’re added.</p>
-            <Link className="button" href="/">
-              Browse top stories <ChevronRight className="inline-icon" aria-hidden="true" />
-            </Link>
-          </div>
-        ) : (
-          <ul className="story-list">
-            {stories.map((story) => (
-              <li key={story.hn_id}>
-                <StoryRow story={story} />
-              </li>
-            ))}
-          </ul>
-        )}
-        {!!stories.length && (
-          <nav className="archive-pagination" aria-label="Category pages">
-            {page > 1 && (
-              <Link className="button" href={categoryURL(category, page - 1)}>
-                <ChevronLeft className="inline-icon" aria-hidden="true" /> Newer stories
+        <StoryFeed
+          key={`${category.slug}:${page}`}
+          listingPath={categoryURL(category)}
+          initialStories={stories.map(publicFeedStory)}
+          initialPagination={browsePagination(page, hasNext)}
+          emptyState={
+            <div className="empty">
+              <h2>No stories in this topic yet.</h2>
+              <p>New stories will appear here as they’re added.</p>
+              <Link className="button" href="/">
+                Browse top stories <ChevronRight className="inline-icon" aria-hidden="true" />
               </Link>
-            )}
-            <span>Page {page}</span>
-            {hasNext && (
-              <Link className="button" href={categoryURL(category, page + 1)}>
-                Older stories <ChevronRight className="inline-icon" aria-hidden="true" />
-              </Link>
-            )}
-          </nav>
-        )}
+            </div>
+          }
+        />
       </section>
     </BrowseLayout>
   );
