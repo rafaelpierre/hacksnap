@@ -278,3 +278,71 @@ def test_classifier_failure_stops_waiting_callers(scan, monkeypatch):
     assert state["writes"] == 0
     assert state["finished"][0]["stories_examined"] == 4
     assert state["finished"][0]["status"] == "failed"
+
+
+@pytest.mark.parametrize("concurrency", [1, 4])
+@pytest.mark.parametrize("timeout_type", [
+    httpx.ReadTimeout, httpx.ConnectTimeout, httpx.WriteTimeout, httpx.PoolTimeout,
+])
+@pytest.mark.parametrize("all_timeout", [False, True])
+def test_classifier_timeouts_are_logged_and_scan_continues(
+    scan, monkeypatch, concurrency, timeout_type, all_timeout,
+):
+    import logfire
+    from logfire.testing import TestExporter as SpanExporter
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from hn_trending import telemetry
+
+    _, state = scan
+    calls = []
+    exporter = SpanExporter()
+    logfire.configure(
+        send_to_logfire=False, console=False,
+        additional_span_processors=[SimpleSpanProcessor(exporter)],
+    )
+    monkeypatch.setattr(telemetry, "_configured", True)
+
+    def respond(request):
+        import json
+        title = json.loads(json.loads(request.content)["messages"][1]["content"])["title"]
+        calls.append(title)
+        if all_timeout or title == "AI story 1":
+            raise timeout_type("inference timed out", request=request)
+        return httpx.Response(200, json={"choices": [{
+            "finish_reason": "stop",
+            "message": {"content": '{"relevant": true, "category": "agents_coding"}'},
+        }]})
+
+    monkeypatch.setenv("MODAL_LLM_API_KEY", "offline-key")
+    monkeypatch.setattr(cli, "get_category_assignments", lambda *args: {})
+    monkeypatch.setattr(topic_filter, "REQUEST_PAUSE_SECONDS", 0)
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        classifier = topic_filter.TitleTopicClassifier("offline-key", client=client)
+        monkeypatch.setattr(cli, "TitleTopicClassifier", lambda *args, **kwargs: classifier)
+        result = CliRunner().invoke(
+            cli.main, ["--classify-topic", "--story-concurrency", str(concurrency)],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert sorted(calls) == [f"AI story {i}" for i in range(1, 5)]
+    expected_ids = [] if all_timeout else [2, 3, 4]
+    assert [row["hn_id"] for row in state["rows"]] == expected_ids
+    assert state["writes"] == 1
+    assert state["finished"] == [{
+        "status": "succeeded", "stories_examined": 4,
+        "threads_matched": len(expected_ids), "snapshots_inserted": len(expected_ids),
+    }]
+    assert f"skipped={4 if all_timeout else 1}" in result.output
+    logfire.force_flush()
+    errors = [span for span in exporter.exported_spans
+              if span.attributes.get("handled") is True]
+    assert sorted(span.attributes["story_id"] for span in errors) == (
+        [1, 2, 3, 4] if all_timeout else [1]
+    )
+    for span in errors:
+        assert span.attributes["operation"] == "classification"
+        assert span.attributes["error_type"] == timeout_type.__name__
+        assert span.attributes["model"] == classifier.model
+        assert span.attributes["action"] == "skip_story"
+        assert span.attributes["run_id"]
+        assert any(event.name == "exception" for event in span.events)

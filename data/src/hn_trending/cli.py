@@ -24,7 +24,7 @@ from hn_trending.storage import (
     start_ingestion_run,
     store_threads_and_snapshots,
 )
-from hn_trending.telemetry import traced_operation
+from hn_trending.telemetry import report_error, traced_operation
 from hn_trending.topic_filter import MODAL_LLM_BASE_URL, MODAL_LLM_MODEL, TitleTopicClassifier
 
 
@@ -190,6 +190,21 @@ def main(
                                 return None
                             try:
                                 decision = classifier.classify(title)
+                            except httpx.TimeoutException as error:
+                                # Leave this story uncategorized for the next scan.
+                                # A transient inference timeout must not stop other stories.
+                                report_error(
+                                    error, operation="classification", handled=True,
+                                    story_id=story_id, model=classifier.model,
+                                    run_id=str(run_id), action="skip_story",
+                                )
+                                with counter_lock:
+                                    skipped += 1
+                                click.echo(
+                                    f"{prefix} Skipped story {story_id}: topic classification "
+                                    "timed out; will retry on a future scan."
+                                )
+                                return None
                             except Exception:
                                 classification_failed = True
                                 raise
