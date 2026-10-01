@@ -119,8 +119,10 @@ press Enter/Space to reveal the exact timestamp in local time. The disclosure
 also works without JavaScript, using UTC.
 
 The root homepage also saves a browser-local reading checkpoint under
-`hacksnap:home-feed-checkpoint`. Reloading or reopening `/` within 30 minutes
-restores the loaded selection and the visible story's offset in the viewport.
+`hacksnap:home-feed-checkpoint`. Reopening `/` within 30 minutes restores the loaded
+selection and the visible story's offset in the viewport. An explicit browser reload
+of `/` clears both the history snapshot and durable checkpoint so the latest
+server-rendered selection remains visible after hydration.
 Older or expired checkpoints silently start a fresh reading session with the latest
 stories. Saving the new reading position and automatic loading begin immediately,
 without a resume prompt or confirmation.

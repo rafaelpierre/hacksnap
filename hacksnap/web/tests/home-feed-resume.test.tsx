@@ -145,6 +145,35 @@ async function withFeed(
   }
 }
 
+test("reloading home keeps fresh server cards instead of restoring the durable checkpoint", async () => {
+  await withFeed(async ({ dom, render, scrolls }) => {
+    const old = checkpoint(Date.now() - 60_000);
+    dom.window.localStorage.setItem(HOME_FEED_CHECKPOINT_KEY, JSON.stringify(old));
+    dom.window.localStorage.setItem("unrelated-preference", "keep");
+    dom.window.history.replaceState({ hacksnapHomeFeed: old.snapshot }, "");
+    Object.defineProperty(dom.window.performance, "getEntriesByType", {
+      configurable: true,
+      value: () => [{ type: "reload", name: "https://hacksnap.live/" }],
+    });
+    await render();
+    assert.deepEqual(
+      [...document.querySelectorAll(".story-list > li")].map((row) =>
+        row.getAttribute("data-home-story-id"),
+      ),
+      ["90"],
+      "hydration must not replace fresh server results with yesterday's saved selection",
+    );
+    assert.equal(scrolls.length, 0);
+    assert.equal(dom.window.localStorage.getItem("unrelated-preference"), "keep");
+    await act(async () => dom.window.dispatchEvent(new dom.window.Event("pagehide")));
+    const saved = JSON.parse(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY)!);
+    assert.deepEqual(
+      saved.snapshot.stories.map((item: { hn_id: string }) => item.hn_id),
+      ["90"],
+    );
+  });
+});
+
 test("a recent root checkpoint restores cards by story and viewport offset across reflow", async () => {
   await withFeed(async ({ dom, render, storyTop, scrolls }) => {
     dom.window.localStorage.setItem(

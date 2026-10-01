@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { track } from "../lib/analytics";
 import Link from "next/link";
 import { storyPath } from "../lib/story-url";
+import { clearHomeFeedCheckpoint } from "../lib/home-feed-checkpoint";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type MouseEvent, type ReactNode } from "react";
 import { browseLabel, validBrowseContext, type BrowseContext } from "../lib/navigation-context";
@@ -252,6 +253,9 @@ export function consumeFeedReturn(url: string): FeedSnapshot | null {
       /* An unavailable timing entry does not override a saved return. */
     }
     if (reloadedHome) {
+      // StoryFeed checks the durable checkpoint after history restoration.
+      // Clear both sources so a reload cannot replace fresh server cards.
+      clearHomeFeedCheckpoint();
       const state = { ...window.history.state };
       delete state[HOME_HISTORY_KEY];
       window.history.replaceState(state, "");
