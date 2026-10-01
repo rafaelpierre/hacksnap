@@ -408,8 +408,10 @@ status announcements, and story-return restoration. Server routes own filtering
 and ordering; Latest/archives retain UTC day headings and topics use an unranked
 list. Each archive/topic request loads up to 30 stories through
 `/api/browse-stories?path=...&page=...`, using the same bounded data readers as HTML.
-Pending briefs remain visible. Ordinary page links and canonical URLs still work
-without JavaScript. Loaded rows are deduplicated and saved with the exact listing
+Pending briefs remain visible. Server-rendered Newer/Older stories links and
+canonical URLs work without JavaScript. The Older stories link advances to the
+next unread page as automatic loading appends rows and disappears at the end;
+Newer stories returns to the page before the requested listing page. Loaded rows are deduplicated and saved with the exact listing
 URL in browser history for back/forward and explicit story returns. Archive/topic
 pagination retains its existing live offset ordering, so new arrivals can shift
 page boundaries during browsing; it does not freeze a ranked selection.
@@ -451,7 +453,13 @@ category, newest first. The homepage has no category directory or menu.
 The six category pages use stable slugs from `lib/categories.ts`, paginate at 30
 stories, include pending summaries, and return 404 for unknown slugs or invalid
 pages. They render on request and each pagination URL has its own canonical URL.
-The sitemap includes all six topic landing pages. API responses expose the
+The sitemap includes all six topic landing pages. `lib/category-metadata.ts`
+provides stable, topic-specific search titles and descriptions explaining the
+article summaries and Hacker News discussions, independently of short navigation
+labels and visible introductions. Search, Open Graph, and Twitter copy agree;
+later pages add their page number and keep self-referencing canonical URLs.
+Article takeaways remain in server-rendered HTML rather than being concatenated
+into metadata. API responses expose the
 nullable category identifier; homepage and article Markdown include category links.
 
 Deploy database migration `0011_categories` before this website version. Only the

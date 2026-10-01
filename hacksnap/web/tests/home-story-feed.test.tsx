@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "@jest/globals";
 import React, { act } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { createRequire } from "node:module";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import { browsePagination } from "../lib/browse-feed";
@@ -176,8 +177,13 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         assert.doesNotMatch(document.body.textContent!, /Load more stories/);
         assert.equal(document.querySelectorAll('a[href="#site-footer"]').length, 0);
         assert.doesNotMatch(document.body.textContent!, /Pause automatic|Resume automatic/);
-        assert.equal(document.querySelector(".home-feed-pages"), null);
-        const focusTarget = document.querySelector<HTMLParagraphElement>(".home-feed-status")!;
+        assert.equal(
+          document.querySelector(".home-feed-pages a")?.getAttribute("href") ?? null,
+          ranked ? null : `${listingPath}?page=2`,
+        );
+        const focusTarget = document.querySelector<HTMLElement>(
+          ranked ? ".home-feed-status" : ".home-feed-pages a",
+        )!;
         focusTarget.tabIndex = 0;
         await act(async () => focusTarget.focus());
         assert.equal(onIntersection, null);
@@ -251,7 +257,10 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         if (!ranked) {
           assert.match(document.body.textContent!, /Brief pending/);
           assert.equal(document.querySelectorAll("ol.story-list").length, 0);
-          assert.equal(document.querySelector(".home-feed-pages"), null);
+          assert.equal(
+            document.querySelector(".home-feed-pages a")?.getAttribute("href"),
+            `${listingPath}?page=3`,
+          );
         }
         if (listingPath.startsWith("/archive"))
           assert.equal(document.querySelectorAll("section > .feed-bar time").length, 2);
@@ -561,7 +570,10 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
           assert.equal(document.querySelectorAll(".story-list > li").length, attempt < 2 ? 30 : 31);
           if (attempt < 2) {
             assert.match(status, /No new stories in this batch/);
-            assert.equal(document.querySelector(".home-feed-pages"), null);
+            assert.equal(
+              document.querySelector(".home-feed-pages a")?.getAttribute("href"),
+              `${listingPath}?page=${attempt + 3}`,
+            );
           } else {
             assert.match(status, /reached the end/);
             assert.equal(document.querySelector(".home-feed-actions button"), null);
@@ -634,3 +646,40 @@ test("a same-list Load more button remains available without IntersectionObserve
     });
   }
 });
+
+for (const listingPath of ["/archive", "/archive/2026/09", "/category/agents-coding"]) {
+  for (const [page, hasMore] of [
+    [1, true],
+    [2, true],
+    [2, false],
+    [100, false],
+  ] as const) {
+    test(`${listingPath} page ${page}, more=${hasMore}: server HTML exposes crawlable pagination`, () => {
+      const html = renderToStaticMarkup(
+        <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
+          <StoryFeed
+            listingPath={listingPath}
+            initialStories={[story(1)]}
+            initialPagination={browsePagination(page, hasMore)}
+          />
+        </AppRouterContext.Provider>,
+      );
+      const dom = new JSDOM(html);
+      try {
+        const links = [...dom.window.document.querySelectorAll(".home-feed-pages a")];
+        assert.deepEqual(
+          links.map((link) => [link.textContent, link.getAttribute("href")]),
+          [
+            ...(page > 1
+              ? [["Newer stories", page === 2 ? listingPath : `${listingPath}?page=${page - 1}`]]
+              : []),
+            ...(hasMore ? [["Older stories", `${listingPath}?page=${page + 1}`]] : []),
+          ],
+        );
+        assert.match(html, /Takeaway 1/);
+      } finally {
+        dom.window.close();
+      }
+    });
+  }
+}
