@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import type { PublicReadyStory } from "../lib/stories-api";
 import {
   appendUniqueStories,
@@ -11,6 +11,12 @@ import {
   type HomeFeedSnapshot,
 } from "../lib/home-feed-state";
 import { track } from "../lib/analytics";
+import {
+  clearHomeFeedCheckpoint,
+  readHomeFeedCheckpoint,
+  saveHomeFeedCheckpoint,
+  type HomeFeedCheckpoint,
+} from "../lib/home-feed-checkpoint";
 import { StoryRow } from "./story-row";
 import { consumeHomeFeedReturn, saveHomeFeedHistory } from "./story-navigation";
 
@@ -20,6 +26,32 @@ type FeedState = {
   phase: "idle" | "loading" | "failed" | "expired";
   announcement: string;
 };
+
+type ScrollTarget = {
+  y: number;
+  storyId: string | null;
+  offset: number | null;
+  focusStoryId: string | null;
+};
+
+const FRESH_QUERY = "__hacksnap_fresh";
+const CHECKPOINT_DELAY_MS = 400;
+const POSITION_SETTLE_MS = 2000;
+
+function currentURL() {
+  return window.location.pathname + window.location.search;
+}
+
+function viewportAnchor(): HomeFeedCheckpoint["anchor"] {
+  const rows = document.querySelectorAll<HTMLElement>(".story-list [data-home-story-id]");
+  for (const row of rows) {
+    const rect = row.getBoundingClientRect();
+    if (rect.bottom > 0 && rect.top < window.innerHeight) {
+      return { storyId: row.dataset.homeStoryId!, offset: rect.top };
+    }
+  }
+  return null;
+}
 
 export function HomeStoryFeed({
   initialStories,
@@ -35,23 +67,84 @@ export function HomeStoryFeed({
     announcement: "",
   });
   const [restored, setRestored] = useState(false);
+  const [positionPending, setPositionPending] = useState(false);
+  const [resumeNotice, setResumeNotice] = useState<"none" | "older" | "expired" | "resumed">(
+    "none",
+  );
   const feedRef = useRef(feed);
+  const initialized = useRef(false);
+  const pendingOlder = useRef<HomeFeedCheckpoint | null>(null);
+  const canPersist = useRef(false);
+  const suppressPersistence = useRef(false);
+  const positionSettled = useRef(true);
+  const checkpointTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
   const requestId = useRef(0);
-  const scrollTarget = useRef<{ y: number; storyId: string | null } | null>(null);
+  const scrollTarget = useRef<ScrollTarget | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const lastAutoY = useRef<number | null>(null);
   const [autoReady, setAutoReady] = useState(true);
   const [continuationFocused, setContinuationFocused] = useState(false);
   const activeTrigger = useRef<"auto" | "manual" | null>(null);
-  const url =
-    typeof window === "undefined" ? "/" : window.location.pathname + window.location.search;
   feedRef.current = feed;
 
+  function snapshotNow(): HomeFeedSnapshot {
+    const current = feedRef.current;
+    return {
+      version: 1,
+      url: currentURL(),
+      stories: current.stories,
+      pagination: current.pagination,
+      scrollY: window.scrollY,
+      focusStoryId: null,
+      savedAt: Date.now(),
+    };
+  }
+
+  function persistNow() {
+    if (
+      !canPersist.current ||
+      suppressPersistence.current ||
+      !positionSettled.current ||
+      currentURL() !== "/" ||
+      feedRef.current.phase === "expired"
+    )
+      return;
+    saveHomeFeedCheckpoint({ version: 1, snapshot: snapshotNow(), anchor: viewportAnchor() });
+  }
+
+  function cancelCheckpointTimer() {
+    if (checkpointTimer.current !== null) clearTimeout(checkpointTimer.current);
+    checkpointTimer.current = null;
+  }
+
+  function scheduleCheckpoint() {
+    if (!canPersist.current || suppressPersistence.current) return;
+    cancelCheckpointTimer();
+    checkpointTimer.current = setTimeout(() => {
+      checkpointTimer.current = null;
+      persistNow();
+    }, CHECKPOINT_DELAY_MS);
+  }
+
+  function useFreshFeed() {
+    pendingOlder.current = null;
+    canPersist.current = true;
+    setResumeNotice("none");
+    saveHomeFeedHistory(snapshotNow());
+    persistNow();
+  }
+
   useEffect(() => {
-    const snapshot = consumeHomeFeedReturn(window.location.pathname + window.location.search);
-    if (snapshot) {
-      scrollTarget.current = { y: snapshot.scrollY, storyId: snapshot.focusStoryId };
+    const applySnapshot = (snapshot: HomeFeedSnapshot, anchor: HomeFeedCheckpoint["anchor"]) => {
+      scrollTarget.current = {
+        y: snapshot.scrollY,
+        storyId: anchor?.storyId ?? null,
+        offset: anchor?.offset ?? null,
+        focusStoryId: snapshot.focusStoryId,
+      };
+      positionSettled.current = false;
+      setPositionPending(true);
       const next = {
         stories: snapshot.stories,
         pagination: snapshot.pagination,
@@ -60,23 +153,57 @@ export function HomeStoryFeed({
       };
       feedRef.current = next;
       setFeed(next);
+    };
+    if (!initialized.current) {
+      initialized.current = true;
+      const url = currentURL();
+      const freshURL = new URL(window.location.href);
+      const freshRequested =
+        freshURL.pathname === "/" && freshURL.searchParams.get(FRESH_QUERY) === "1";
+      if (freshRequested) {
+        freshURL.searchParams.delete(FRESH_QUERY);
+        const state = { ...window.history.state };
+        delete state.hacksnapHomeFeed;
+        window.history.replaceState(state, "", freshURL.pathname + freshURL.search);
+        clearHomeFeedCheckpoint();
+        canPersist.current = true;
+      } else {
+        const historyReturn = consumeHomeFeedReturn(url);
+        if (historyReturn) {
+          applySnapshot(historyReturn, null);
+          canPersist.current = true;
+        } else if (url === "/") {
+          const result = readHomeFeedCheckpoint(url);
+          if (result?.status === "recent") {
+            applySnapshot(result.checkpoint.snapshot, result.checkpoint.anchor);
+            setResumeNotice("resumed");
+            canPersist.current = true;
+          } else if (result?.status === "older") {
+            pendingOlder.current = result.checkpoint;
+            setResumeNotice("older");
+          } else if (result?.status === "expired") {
+            clearHomeFeedCheckpoint();
+            setResumeNotice("expired");
+            canPersist.current = true;
+          } else {
+            canPersist.current = true;
+          }
+        } else {
+          canPersist.current = true;
+        }
+      }
+      setRestored(true);
     }
-    setRestored(true);
     const onPopState = () => {
       activeRequest.current?.abort();
       activeRequest.current = null;
       requestId.current++;
       const restoredPage = consumeHomeFeedReturn(window.location.pathname + window.location.search);
       if (!restoredPage) return;
-      scrollTarget.current = { y: restoredPage.scrollY, storyId: restoredPage.focusStoryId };
-      const next = {
-        stories: restoredPage.stories,
-        pagination: restoredPage.pagination,
-        phase: "idle" as const,
-        announcement: "",
-      };
-      feedRef.current = next;
-      setFeed(next);
+      pendingOlder.current = null;
+      canPersist.current = true;
+      setResumeNotice("none");
+      applySnapshot(restoredPage, null);
     };
     window.addEventListener("popstate", onPopState);
     return () => {
@@ -89,32 +216,107 @@ export function HomeStoryFeed({
   useLayoutEffect(() => {
     if (!restored || !scrollTarget.current) return;
     const target = scrollTarget.current;
-    scrollTarget.current = null;
-    const frame = requestAnimationFrame(() => {
-      if (target.storyId) {
+    let frame = 0;
+    let active = true;
+    let focused = false;
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    const position = () => {
+      frame = 0;
+      if (!active || scrollTarget.current !== target) return;
+      const row = target.storyId
+        ? document.querySelector<HTMLElement>(`[data-home-story-id="${target.storyId}"]`)
+        : null;
+      const top =
+        row && target.offset !== null
+          ? window.scrollY + row.getBoundingClientRect().top - target.offset
+          : target.y;
+      window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+      if (!focused && target.focusStoryId) {
         const link = document.querySelector<HTMLAnchorElement>(
-          `[data-home-story-id="${target.storyId}"] h3 a`,
+          `[data-home-story-id="${target.focusStoryId}"] h3 a`,
         );
         link?.focus({ preventScroll: true });
+        focused = true;
       }
-      window.scrollTo({ top: target.y, behavior: "instant" });
+      // Background tabs may run timers while suspending animation frames.
+      // Keep the target and checkpoint protected until positioning has run.
+      if (settleTimer === null) {
+        settleTimer = setTimeout(() => {
+          active = false;
+          if (scrollTarget.current === target) scrollTarget.current = null;
+          positionSettled.current = true;
+          setPositionPending(false);
+        }, POSITION_SETTLE_MS);
+      }
+      positionSettled.current = true;
+      setPositionPending(false);
+    };
+    const schedulePosition = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(position);
+    };
+    const stop = () => {
+      scrollTarget.current = null;
+      active = false;
+      if (settleTimer !== null) clearTimeout(settleTimer);
+      positionSettled.current = true;
+      setPositionPending(false);
+    };
+    schedulePosition();
+    const list = document.querySelector<HTMLElement>(".story-list");
+    const observer =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedulePosition) : null;
+    if (list) observer?.observe(list);
+    window.addEventListener("resize", schedulePosition);
+    window.addEventListener("wheel", stop, { passive: true });
+    window.addEventListener("touchstart", stop, { passive: true });
+    window.addEventListener("pointerdown", stop, { passive: true });
+    window.addEventListener("keydown", stop);
+    void document.fonts?.ready.then(() => {
+      if (active) schedulePosition();
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      active = false;
+      if (settleTimer !== null) clearTimeout(settleTimer);
+      if (frame) cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener("resize", schedulePosition);
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("touchstart", stop);
+      window.removeEventListener("pointerdown", stop);
+      window.removeEventListener("keydown", stop);
+    };
   }, [feed.stories, restored]);
 
   useEffect(() => {
+    if (!restored || pendingOlder.current) return;
+    saveHomeFeedHistory(snapshotNow());
+    if (!positionPending) persistNow();
+  }, [feed.stories, feed.pagination, positionPending, restored]);
+
+  useEffect(() => {
     if (!restored) return;
-    const snapshot: HomeFeedSnapshot = {
-      version: 1,
-      url,
-      stories: feed.stories,
-      pagination: feed.pagination,
-      scrollY: window.scrollY,
-      focusStoryId: null,
-      savedAt: Date.now(),
+    const onScroll = () => {
+      if (pendingOlder.current) return;
+      scheduleCheckpoint();
     };
-    saveHomeFeedHistory(snapshot);
-  }, [feed.stories, feed.pagination, restored, url]);
+    const flush = () => {
+      cancelCheckpointTimer();
+      persistNow();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+      cancelCheckpointTimer();
+    };
+  }, [restored]);
 
   useEffect(() => {
     if (!restored || feed.pagination.hasMore) return;
@@ -133,6 +335,8 @@ export function HomeStoryFeed({
     const current = feedRef.current;
     if (
       activeRequest.current ||
+      !positionSettled.current ||
+      pendingOlder.current ||
       current.phase === "expired" ||
       !current.pagination.hasMore ||
       !current.pagination.cursor
@@ -155,6 +359,7 @@ export function HomeStoryFeed({
       });
       if (id !== requestId.current || controller.signal.aborted) return;
       if (response.status === 410) {
+        if (currentURL() === "/") clearHomeFeedCheckpoint();
         setFeed((state) => ({ ...state, phase: "expired" }));
         track("home_feed_load", { outcome: "expired", trigger, position: current.stories.length });
         return;
@@ -194,9 +399,58 @@ export function HomeStoryFeed({
     }
   }, []);
 
+  function resumeOlder() {
+    const checkpoint = pendingOlder.current;
+    if (!checkpoint) return;
+    if (Date.parse(checkpoint.snapshot.pagination.expiresAt) <= Date.now()) {
+      pendingOlder.current = null;
+      canPersist.current = true;
+      clearHomeFeedCheckpoint();
+      setResumeNotice("expired");
+      persistNow();
+      return;
+    }
+    pendingOlder.current = null;
+    canPersist.current = true;
+    positionSettled.current = false;
+    scrollTarget.current = {
+      y: checkpoint.snapshot.scrollY,
+      storyId: checkpoint.anchor?.storyId ?? null,
+      offset: checkpoint.anchor?.offset ?? null,
+      focusStoryId: checkpoint.anchor?.storyId ?? checkpoint.snapshot.stories[0]?.hn_id ?? null,
+    };
+    setPositionPending(true);
+    setResumeNotice("resumed");
+    const next: FeedState = {
+      stories: checkpoint.snapshot.stories,
+      pagination: checkpoint.snapshot.pagination,
+      phase: "idle",
+      announcement: "",
+    };
+    feedRef.current = next;
+    setFeed(next);
+  }
+
+  function startLatest(event: MouseEvent<HTMLAnchorElement>) {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.defaultPrevented
+    )
+      return;
+    suppressPersistence.current = true;
+    cancelCheckpointTimer();
+    clearHomeFeedCheckpoint();
+  }
+
   useEffect(() => {
     if (
       !restored ||
+      positionPending ||
+      resumeNotice === "older" ||
       !feed.pagination.hasMore ||
       feed.phase !== "idle" ||
       !autoReady ||
@@ -208,6 +462,7 @@ export function HomeStoryFeed({
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
+        if (!positionSettled.current || pendingOlder.current) return;
         lastAutoY.current = window.scrollY;
         setAutoReady(false);
         void load("auto");
@@ -217,7 +472,16 @@ export function HomeStoryFeed({
     );
     observer.observe(sentinel.current);
     return () => observer.disconnect();
-  }, [autoReady, continuationFocused, feed.pagination.hasMore, feed.phase, load, restored]);
+  }, [
+    autoReady,
+    continuationFocused,
+    feed.pagination.hasMore,
+    feed.phase,
+    load,
+    positionPending,
+    restored,
+    resumeNotice,
+  ]);
 
   useEffect(() => {
     if (autoReady || lastAutoY.current === null) return;
@@ -230,6 +494,34 @@ export function HomeStoryFeed({
 
   return (
     <>
+      {resumeNotice === "older" && (
+        <div className="home-feed-resume">
+          <p role="status">
+            Your previous reading place is still available. The latest stories are shown below.
+          </p>
+          <div className="home-feed-actions">
+            <button className="button" type="button" onClick={resumeOlder}>
+              Continue where you left off
+            </button>
+            <button className="button" type="button" onClick={useFreshFeed}>
+              Keep latest stories
+            </button>
+          </div>
+        </div>
+      )}
+      {resumeNotice === "expired" && (
+        <p className="home-feed-resume" role="status">
+          Your saved story selection expired. The latest stories are shown below.
+        </p>
+      )}
+      {resumeNotice === "resumed" && (
+        <div className="home-feed-resume">
+          <p role="status">Your reading place is restored.</p>
+          <a className="button" href={`/?${FRESH_QUERY}=1`} onClick={startLatest}>
+            Back to latest
+          </a>
+        </div>
+      )}
       {feed.stories.length === 0 ? (
         <div className="empty">
           <h2>No stories yet.</h2>
@@ -239,6 +531,21 @@ export function HomeStoryFeed({
         <ol
           className="story-list"
           start={initialPagination.page > 1 ? (initialPagination.page - 1) * 10 + 1 : undefined}
+          onClickCapture={(event) => {
+            if (
+              event.defaultPrevented ||
+              event.button !== 0 ||
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey ||
+              !(event.target as Element).closest("[data-home-story-id] h3 a")
+            )
+              return;
+            if (pendingOlder.current) useFreshFeed();
+            cancelCheckpointTimer();
+            persistNow();
+          }}
         >
           {feed.stories.map((story, index) => (
             <li key={story.hn_id} data-home-story-id={story.hn_id}>
@@ -283,20 +590,23 @@ export function HomeStoryFeed({
                 : ""
             }`}
         </p>
-        {restored && feed.pagination.hasMore && feed.phase !== "expired" && (
+        {restored && !positionPending && feed.pagination.hasMore && feed.phase !== "expired" && (
           <div className="home-feed-actions">
             <button
               className="button"
               type="button"
               disabled={feed.phase === "loading"}
-              onClick={() => void load("manual")}
+              onClick={() => {
+                if (pendingOlder.current) useFreshFeed();
+                void load("manual");
+              }}
             >
               {feed.phase === "failed" ? "Try loading again" : "Load more stories"}
             </button>
           </div>
         )}
         {feed.phase === "expired" && (
-          <a className="button" href="/">
+          <a className="button" href={`/?${FRESH_QUERY}=1`} onClick={startLatest}>
             Start a fresh selection
           </a>
         )}

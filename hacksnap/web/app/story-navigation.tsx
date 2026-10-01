@@ -15,6 +15,10 @@ const TAB_PREFIX = "hacksnap-tab:";
 const HISTORY_KEY = "hacksnapJourney";
 const HISTORY_CONTEXT_KEY = "hacksnapBrowseContext";
 const HOME_HISTORY_KEY = "hacksnapHomeFeed";
+// Keep at most 40 journey records per tab and discard records older than eight
+// hours. Cleanup only touches keys owned by this feature.
+const MAX_JOURNEY_RECORDS = 40;
+const JOURNEY_MAX_AGE_MS = 8 * 60 * 60 * 1000;
 // router.push has no state argument. Hand off the token in memory until the
 // destination commits, then attach it to that entry without changing its URL.
 let pendingJourney: {
@@ -24,6 +28,12 @@ let pendingJourney: {
   homeFeed: HomeFeedSnapshot | null;
 } | null = null;
 let pendingHomeReturn: { context: BrowseContext; homeFeed: HomeFeedSnapshot } | null = null;
+let pendingListReturn: BrowseContext | null = null;
+let memoryTabId: string | null = null;
+const memoryJourneys = new Map<
+  string,
+  { context: BrowseContext | null; homeFeed: HomeFeedSnapshot | null }
+>();
 let initialHomeRestoreChecked = false;
 
 function cancelPendingJourney() {
@@ -50,13 +60,91 @@ function storage(): Storage | null {
 }
 
 function currentTabId(): string | null {
-  return window.name.startsWith(TAB_PREFIX) ? window.name : null;
+  try {
+    if (window.name.startsWith(TAB_PREFIX)) memoryTabId = window.name;
+  } catch {
+    // The same-tab memory fallback does not depend on window.name.
+  }
+  return memoryTabId;
+}
+
+function ensureTabId(): string | null {
+  const existing = currentTabId();
+  if (existing) return existing;
+  try {
+    if (typeof window.crypto?.randomUUID !== "function") return null;
+    memoryTabId = TAB_PREFIX + window.crypto.randomUUID();
+    try {
+      window.name = memoryTabId;
+    } catch {
+      // window.name is only needed to carry identity across navigation.
+    }
+    return memoryTabId;
+  } catch {
+    return null;
+  }
+}
+
+function cleanupJourneyStorage(store: Storage) {
+  try {
+    const records: Array<{ key: string; savedAt: number }> = [];
+    const journeyKeys: string[] = [];
+    for (let index = 0; index < store.length; index += 1) {
+      const key = store.key(index);
+      if (!key?.startsWith(PREFIX)) continue;
+      journeyKeys.push(key);
+    }
+    for (const key of journeyKeys) {
+      let savedAt = 0;
+      try {
+        const record = JSON.parse(store.getItem(key) ?? "null");
+        const context = validBrowseContext(record?.context);
+        savedAt = context?.savedAt ?? 0;
+      } catch {
+        // Malformed records cannot be used for a return.
+      }
+      if (Date.now() - savedAt > JOURNEY_MAX_AGE_MS) {
+        try {
+          store.removeItem(key);
+        } catch {
+          return;
+        }
+      } else {
+        records.push({ key, savedAt });
+      }
+    }
+    records.sort((a, b) => b.savedAt - a.savedAt);
+    for (const { key } of records.slice(MAX_JOURNEY_RECORDS)) {
+      try {
+        store.removeItem(key);
+      } catch {
+        return;
+      }
+    }
+  } catch {
+    // Storage is optional and may be partially blocked by browser policy.
+  }
+}
+
+function cleanupMemoryJourneys() {
+  const records = [...memoryJourneys.entries()]
+    .filter(([, record]) => {
+      const savedAt = record.context?.savedAt ?? 0;
+      return Date.now() - savedAt <= JOURNEY_MAX_AGE_MS;
+    })
+    .sort((a, b) => (b[1].context?.savedAt ?? 0) - (a[1].context?.savedAt ?? 0));
+  memoryJourneys.clear();
+  for (const [token, record] of records.slice(0, MAX_JOURNEY_RECORDS)) {
+    memoryJourneys.set(token, record);
+  }
 }
 
 function readJourney(token: string | null): BrowseContext | null {
   const fromHistory = validBrowseContext(window.history.state?.[HISTORY_CONTEXT_KEY]);
   if (fromHistory && window.history.state?.[HISTORY_KEY] === token) return fromHistory;
   if (!token || !/^[0-9a-f-]{36}$/.test(token)) return null;
+  const memory = memoryJourneys.get(token);
+  if (memory) return validBrowseContext(memory.context);
   const store = storage();
   const tabId = currentTabId();
   if (!store || !tabId) return null;
@@ -68,6 +156,14 @@ function readJourney(token: string | null): BrowseContext | null {
   }
 }
 
+function readJourneyHomeFeed(token: string | null, url: string): HomeFeedSnapshot | null {
+  const fromHistory = validHomeFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url);
+  if (fromHistory) return fromHistory;
+  if (!token) return null;
+  const fromMemory = memoryJourneys.get(token)?.homeFeed;
+  return validHomeFeedSnapshot(fromMemory, url);
+}
+
 function journeyToken(): string | null {
   const url = new URL(window.location.href);
   const legacyToken = url.searchParams.get("journey");
@@ -75,16 +171,20 @@ function journeyToken(): string | null {
   const token = pending ? pending.token : (window.history.state?.[HISTORY_KEY] ?? legacyToken);
   if (pending || url.searchParams.has("journey")) {
     url.searchParams.delete("journey");
-    window.history.replaceState(
-      {
-        ...window.history.state,
-        [HISTORY_KEY]: token,
-        ...(pending?.context ? { [HISTORY_CONTEXT_KEY]: pending.context } : {}),
-        ...(pending?.homeFeed ? { [HOME_HISTORY_KEY]: pending.homeFeed } : {}),
-      },
-      "",
-      url.pathname + url.search + url.hash,
-    );
+    try {
+      window.history.replaceState(
+        {
+          ...window.history.state,
+          [HISTORY_KEY]: token,
+          ...(pending?.context ? { [HISTORY_CONTEXT_KEY]: pending.context } : {}),
+          ...(pending?.homeFeed ? { [HOME_HISTORY_KEY]: pending.homeFeed } : {}),
+        },
+        "",
+        url.pathname + url.search + url.hash,
+      );
+    } catch {
+      // The same-tab memory journey can still provide a return link.
+    }
     if (pending) cancelPendingJourney();
   }
   return typeof token === "string" ? token : null;
@@ -119,6 +219,7 @@ export function consumeHomeFeedReturn(url: string): HomeFeedSnapshot | null {
       delete state[HOME_HISTORY_KEY];
       window.history.replaceState(state, "");
       pendingHomeReturn = null;
+      pendingListReturn = null;
       try {
         storage()?.removeItem(RESTORE_KEY);
       } catch {
@@ -139,7 +240,11 @@ export function consumeHomeFeedReturn(url: string): HomeFeedSnapshot | null {
       const context = record?.tabId === currentTabId() ? validBrowseContext(record?.context) : null;
       const snapshot = context?.url === url ? validHomeFeedSnapshot(record?.homeFeed, url) : null;
       if (snapshot) {
-        store.removeItem(RESTORE_KEY);
+        try {
+          store.removeItem(RESTORE_KEY);
+        } catch {
+          // Cleanup is best effort; the snapshot has already been recovered.
+        }
         return snapshot;
       }
     } catch {
@@ -195,14 +300,20 @@ export function BrowseStoryLink({
     const context: BrowseContext | null = label
       ? { url, label, scrollY: window.scrollY, savedAt: Date.now() }
       : null;
-    if (store && label && typeof window.crypto?.randomUUID === "function") {
+    if (label && typeof window.crypto?.randomUUID === "function") {
       try {
-        if (!currentTabId()) window.name = TAB_PREFIX + crypto.randomUUID();
-        const token = crypto.randomUUID();
-        store.setItem(PREFIX + token, JSON.stringify({ tabId: currentTabId(), context, homeFeed }));
+        const tabId = ensureTabId();
+        const token = window.crypto.randomUUID();
+        memoryJourneys.set(token, { context, homeFeed });
         journey = token;
+        cleanupMemoryJourneys();
+        if (store && tabId) {
+          cleanupJourneyStorage(store);
+          store.setItem(PREFIX + token, JSON.stringify({ tabId, context, homeFeed }));
+          cleanupJourneyStorage(store);
+        }
       } catch {
-        /* Use the canonical destination when storage is unavailable. */
+        /* History and same-tab memory can preserve the return without storage. */
       }
     }
     event.preventDefault();
@@ -253,9 +364,7 @@ export function NextStoryLink({
     const journey = readJourney(token) ? token : null;
     event.preventDefault();
     const context = readJourney(journey);
-    const homeFeed = context
-      ? validHomeFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], context.url)
-      : null;
+    const homeFeed = context ? readJourneyHomeFeed(journey, context.url) : null;
     prepareJourney(href, journey, context, homeFeed);
     startTransition(() => router.push(href));
   }
@@ -305,16 +414,18 @@ export function StoryReturnLink({
     }
     const store = storage();
     if (!context) return;
-    const homeFeed = validHomeFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], context.url);
+    pendingListReturn = context;
+    const homeFeed = readJourneyHomeFeed(journeyToken(), context.url);
     if (homeFeed) pendingHomeReturn = { context, homeFeed };
-    if (!store) return;
-    try {
-      store.setItem(
-        RESTORE_KEY,
-        JSON.stringify({ tabId: currentTabId(), context, ...(homeFeed ? { homeFeed } : {}) }),
-      );
-    } catch {
-      /* The link still returns to the list. */
+    if (store) {
+      try {
+        store.setItem(
+          RESTORE_KEY,
+          JSON.stringify({ tabId: currentTabId(), context, ...(homeFeed ? { homeFeed } : {}) }),
+        );
+      } catch {
+        /* The same-tab memory fallback still restores this return. */
+      }
     }
   }
   if (archiveOnly && !context) return null;
@@ -335,18 +446,26 @@ export function StoryReturnLink({
 export function ListPositionRestorer() {
   useEffect(() => {
     const store = storage();
-    if (!store) return;
     let record: { tabId?: string; context?: unknown } | null = null;
-    try {
-      record = JSON.parse(store.getItem(RESTORE_KEY) ?? "null");
-    } catch {
-      return;
+    if (store) {
+      try {
+        record = JSON.parse(store.getItem(RESTORE_KEY) ?? "null");
+      } catch {
+        // Continue to the same-tab memory fallback.
+      }
     }
-    const context = record?.tabId === currentTabId() ? validBrowseContext(record?.context) : null;
+    const storedContext =
+      record?.tabId === currentTabId() ? validBrowseContext(record?.context) : null;
+    const context = validBrowseContext(pendingListReturn) ?? storedContext;
     if (!context || context.url !== window.location.pathname + window.location.search) return;
     const frame = requestAnimationFrame(() => {
       window.scrollTo({ top: context.scrollY, behavior: "auto" });
-      store.removeItem(RESTORE_KEY);
+      pendingListReturn = null;
+      try {
+        store?.removeItem(RESTORE_KEY);
+      } catch {
+        // Stale storage cleanup must not interrupt the restored page.
+      }
     });
     return () => cancelAnimationFrame(frame);
   }, []);

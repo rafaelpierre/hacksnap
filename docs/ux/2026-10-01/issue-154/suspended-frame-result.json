@@ -1,0 +1,10 @@
+{
+  "name": "Suspended first animation frame preserves checkpoint beyond settling deadline",
+  "pass": true,
+  "withheldMilliseconds": 3200,
+  "beforeScrollY": 0,
+  "originalCheckpointScrollY": 2400,
+  "afterScrollY": 2814,
+  "restoredAnchorTop": -34.984375,
+  "pageErrors": []
+}
