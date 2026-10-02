@@ -321,10 +321,12 @@ tracked in issue #170.
 `experimental.inlineCss` embeds the small shared stylesheet in production HTML,
 removing a blocking stylesheet round trip. This increases HTML size and gives up
 independent stylesheet caching on full page loads; reassess if the CSS grows.
-Google Analytics uses `lazyOnload` to fetch after the load event during browser
-idle time. Its configuration is queued after hydration. This delays analytics
-work rather than reducing the Google script's size, and very short visits may
-leave before analytics loads.
+Google Analytics queues its configuration and early journey events in a small
+inline script. The 175 KiB Google tag downloads only after the first pointer,
+keyboard, or scroll input. An untouched visit sends no data to GA; an external
+navigation immediately after the first input can also interrupt the download.
+This reduces bytes on passive visits, not the Google script's size or the shared
+Next.js/React client runtime.
 
 In Cloudflare, disable **Email Address Obfuscation** for `hacksnap.live` (use a
 hostname-scoped configuration rule if the zone serves other sites). Cloudflare
