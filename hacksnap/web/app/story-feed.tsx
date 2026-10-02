@@ -691,7 +691,8 @@ export function StoryFeed({
           initialPage={startingPage}
           groupByDay={groupByDay}
           pinnedStoryId={pinnedStoryId}
-          leadImagePriority={restored && !restoredFromSnapshot && !positionPending}
+          // The first image must be eager in server HTML, before restoration runs.
+          leadImagePriority={!restored || (!restoredFromSnapshot && !positionPending)}
           onStoryTitleClickCapture={
             ranked
               ? (event) => {

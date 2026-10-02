@@ -394,7 +394,7 @@ test("deep feeds keep a bounded interactive window, retain archive day headings,
   }
 });
 
-test("lead image priority waits for restoration and never targets an offscreen return", async () => {
+test("lead image priority starts in HTML and clears on an offscreen return", async () => {
   const ready = {
     ...story(1),
     image_status: "ready",
@@ -409,8 +409,8 @@ test("lead image priority waits for restoration and never targets an offscreen r
     </AppRouterContext.Provider>
   );
   const serverHTML = renderToStaticMarkup(element);
-  assert.match(serverHTML, /loading="lazy"/);
-  assert.doesNotMatch(serverHTML, /fetchPriority="high"/);
+  assert.match(serverHTML, /loading="eager"/);
+  assert.match(serverHTML, /fetchPriority="high"/);
 
   for (const deepReturn of [false, true]) {
     const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });

@@ -557,10 +557,11 @@ Feed and detail images use the built-in Next image optimizer with layout-specifi
 `sizes`, eight candidate widths from 128 to 1600 px, and one quality (75). The
 optimizer accepts only HTTPS `*.public.blob.vercel-storage.com/articles/**` URLs
 without a query string or redirects, after the ready-image contract above has
-validated the URL and dimensions. Once the client confirms a fresh feed, its
-first card image uses eager/high priority because it was the LCP element in the
-fixed browser fixture. Server HTML stays lazy while tab restoration is unknown;
-if that card has no ready image, later cards stay lazy. Restored feed visits stay
+validated the URL and dimensions. The first card image uses eager/high priority
+in server HTML because it was the LCP element in the fixed browser fixture. This
+lets the browser discover and prioritize it before hydration; a deep restored
+feed may fetch that one image before the client restores its scroll position. If
+that card has no ready image, later cards stay lazy. Restored feed visits stay
 lazy after scroll positioning settles. The detail hero uses eager/high priority. This
 strategy generates variants on demand and caches them per source/width/quality,
 so cold requests cost an origin fetch and image conversion; it needs no schema or
