@@ -1,4 +1,12 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": [".next/**", "node_modules/**", "package-lock.json", "next-env.d.ts"]
+  "ignorePatterns": [
+    ".next/**",
+    "node_modules/**",
+    "package-lock.json",
+    "next-env.d.ts",
+    ".browser-app/**",
+    "playwright-report/**",
+    "test-results/**"
+  ]
 }
