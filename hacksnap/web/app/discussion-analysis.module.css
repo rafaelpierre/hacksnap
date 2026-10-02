@@ -1,0 +1,247 @@
+/* Story-only evidence styles; global class names remain DOM/test hooks. */
+.root h3 {
+  font: 600 var(--text-title)/1.5 var(--heading);
+  color: var(--ink);
+  margin-bottom: var(--space-4);
+}
+.root :global(.analysis-coverage),
+.root :global(.analysis-selection) {
+  font-size: var(--text-label);
+  color: var(--muted);
+}
+.root :global(.analysis-coverage) time {
+  font-family: inherit;
+}
+.root :global(.analysis-themes) {
+  container: discussion-themes / inline-size;
+  margin-block: var(--space-8);
+}
+.root :global(.analysis-theme) {
+  anchor-scope: --analysis-source-trigger;
+  position: relative;
+  border-top: 1px solid var(--line);
+}
+.root :global(.analysis-theme):last-child {
+  border-bottom: 1px solid var(--line);
+}
+.root :global(.analysis-theme-details) > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  list-style: none;
+  cursor: pointer;
+  min-height: var(--touch-target);
+  padding: var(--space-3) calc(var(--touch-target) + var(--space-2)) var(--space-3) var(--space-2);
+  font-weight: 600;
+  color: var(--ink);
+}
+.root :global(.analysis-theme-details) > summary > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.root :global(.analysis-theme-details) > summary::-webkit-details-marker {
+  display: none;
+}
+.root :global(.analysis-theme-chevron) {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 200ms ease;
+}
+.root :global(.analysis-theme-details)[open] :global(.analysis-theme-chevron) {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .root :global(.analysis-theme-chevron) {
+    transition: none;
+  }
+}
+.root :global(.analysis-theme-body) {
+  padding: var(--space-3) var(--space-2);
+}
+.root :global(.analysis-source-info),
+.root :global(.analysis-source-close) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  flex-shrink: 0;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.root :global(.analysis-source-info) {
+  anchor-name: --analysis-source-trigger;
+}
+.root :global(.analysis-theme) > :global(.analysis-source-info) {
+  position: absolute;
+  top: var(--space-1);
+  right: 0;
+}
+.root :global(.analysis-source-info):hover,
+.root :global(.analysis-source-close):hover {
+  color: var(--accent);
+  background: var(--surface);
+}
+.root :global(.analysis-source-popup) {
+  --source-popup-width: min(20rem, calc(100vw - 2rem));
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: var(--source-popup-width);
+  max-height: min(24rem, calc(100dvh - 2rem));
+  overflow: auto;
+  padding: var(--space-3);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+@supports (anchor-scope: --analysis-source-trigger) {
+  .root :global(.analysis-theme) {
+    anchor-scope: --analysis-source-trigger, --analysis-theme-title;
+  }
+  .root :global(.analysis-theme-details) > summary {
+    gap: calc(var(--touch-target) + var(--space-4));
+    padding-inline: var(--space-2);
+  }
+  .root :global(.analysis-theme-details) > summary > span {
+    anchor-name: --analysis-theme-title;
+  }
+  .root :global(.analysis-theme) > :global(.analysis-source-info) {
+    position-anchor: --analysis-theme-title;
+    top: anchor(center);
+    left: anchor(right);
+    right: auto;
+    transform: translateY(-50%);
+  }
+  @container discussion-themes (max-width: 16rem) {
+    .root :global(.analysis-theme-details) > summary {
+      position: relative;
+      display: block;
+      padding-bottom: calc(var(--touch-target) + var(--space-3));
+    }
+    .root :global(.analysis-theme-details) > summary > span {
+      display: block;
+    }
+    .root :global(.analysis-theme-chevron) {
+      position: absolute;
+      right: var(--space-2);
+      bottom: calc(var(--space-2) + var(--touch-target) / 2 - 0.5rem);
+    }
+    .root :global(.analysis-theme) > :global(.analysis-source-info) {
+      top: calc(anchor(bottom) + var(--space-1));
+      left: anchor(left);
+      transform: none;
+    }
+  }
+  .root :global(.analysis-source-popup) {
+    position-anchor: --analysis-source-trigger;
+    inset: auto;
+    top: clamp(var(--space-4), anchor(bottom), calc(100dvh - 26rem));
+    right: clamp(
+      var(--space-4),
+      anchor(right),
+      calc(100vw - var(--source-popup-width) - var(--space-4))
+    );
+    margin: var(--space-1) 0;
+  }
+}
+.root :global(.analysis-source-header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.root :global(.analysis-source-header) > p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: 600;
+}
+.root :global(.analysis-sources),
+.root :global(.analysis-highlights) {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.root :global(.analysis-sources) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.root :global(.analysis-source) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-target);
+  font-size: var(--text-label);
+  text-decoration: underline;
+}
+.root :global(.analysis-source) svg {
+  flex-shrink: 0;
+}
+.root :global(.analysis-groups) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+.root :global(.analysis-group) {
+  min-width: 0;
+}
+.root :global(.discussion-title) {
+  flex-wrap: wrap;
+}
+.root :global(.discussion-title),
+.root :global(.analysis-group-heading) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.root :global(.discussion-title-icon),
+.root :global(.analysis-group-icon) {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.root :global(.analysis-highlights) > li {
+  border-top: 1px solid var(--line);
+  padding-block: var(--space-4);
+}
+.root :global(.analysis-highlights) > li > p {
+  margin-bottom: var(--space-3);
+}
+.root :global(.analysis-stance) {
+  color: var(--accent);
+  font-size: var(--text-label);
+  font-weight: 600;
+}
+.root :global(.analysis-paraphrase) {
+  font-weight: 600;
+  color: var(--ink);
+}
+.root :global(.analysis-highlight-header) {
+  anchor-scope: --analysis-source-trigger;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.root :global(.analysis-claim) {
+  min-width: 0;
+  margin: 0;
+  color: var(--prose);
+  overflow-wrap: anywhere;
+}

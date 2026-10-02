@@ -1,3 +1,4 @@
+import styles from "./discussion-analysis.module.css";
 import { ArrowUpRight, ChevronDown, Info, ListTree, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import type {
   CriticalCommentHighlight,
@@ -145,7 +146,7 @@ export function DiscussionAnalysis({
   const date = analyzedAt ? new Date(analyzedAt) : null;
   const validDate = date && Number.isFinite(date.getTime()) ? date : null;
   return (
-    <div className="discussion-analysis">
+    <div className={`discussion-analysis ${styles.root}`}>
       <div className="analysis-coverage">
         <p>
           {coverage

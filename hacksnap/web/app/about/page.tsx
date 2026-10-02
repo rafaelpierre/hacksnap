@@ -1,3 +1,4 @@
+import styles from "./page.module.css";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <article className="about-page">
+    <article className={styles.page}>
       <p className="channel-path">
         hacksnap / <span>about</span>
       </p>

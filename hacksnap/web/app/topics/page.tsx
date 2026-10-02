@@ -1,3 +1,4 @@
+import styles from "./page.module.css";
 import { availableData } from "../../lib/data-availability";
 import { ArrowUpRight } from "lucide-react";
 import type { Metadata } from "next";
@@ -22,7 +23,7 @@ export default async function TopicsPage() {
         <h1>Browse topics</h1>
         <p>Browse AI stories and Hacker News discussions by subject.</p>
       </header>
-      <ul className="topic-directory">
+      <ul className={`topic-directory ${styles.directory}`}>
         {CATEGORIES.map((category) => (
           <li key={category.id}>
             <NavigationPendingLink
@@ -34,8 +35,8 @@ export default async function TopicsPage() {
                 {category.label}
                 <ArrowUpRight className="inline-icon" aria-hidden="true" />
               </strong>
-              <span className="topic-description">{category.description}</span>
-              <span className="topic-count">
+              <span className={styles.description}>{category.description}</span>
+              <span className={styles.count}>
                 {counts
                   ? `${counts[category.id] ?? 0} ${counts[category.id] === 1 ? "story" : "stories"}`
                   : "Story counts unavailable"}

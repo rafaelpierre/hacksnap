@@ -1,0 +1,41 @@
+{
+  "description": "Fixed-fixture cold desktop navigation, Chromium, DPR 1. Asset bytes are decoded response bodies, gzip bytes use level 9. Rendering limits accommodate CI machine variance.",
+  "routes": {
+    "/": {
+      "jsBytes": 610000,
+      "cssBytes": 46000,
+      "imageBytes": 1500,
+      "jsGzipBytes": 180000,
+      "cssGzipBytes": 10000,
+      "lcpMs": 3500,
+      "cls": 0.1
+    },
+    "/archive": {
+      "jsBytes": 610000,
+      "cssBytes": 46000,
+      "imageBytes": 1500,
+      "jsGzipBytes": 180000,
+      "cssGzipBytes": 10000,
+      "lcpMs": 3500,
+      "cls": 0.1
+    },
+    "/category/models-products": {
+      "jsBytes": 610000,
+      "cssBytes": 46000,
+      "imageBytes": 1500,
+      "jsGzipBytes": 180000,
+      "cssGzipBytes": 10000,
+      "lcpMs": 3500,
+      "cls": 0.1
+    },
+    "/story/91000001": {
+      "jsBytes": 590000,
+      "cssBytes": 46000,
+      "imageBytes": 3500,
+      "jsGzipBytes": 180000,
+      "cssGzipBytes": 10000,
+      "lcpMs": 3500,
+      "cls": 0.1
+    }
+  }
+}

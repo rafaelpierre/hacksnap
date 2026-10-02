@@ -20,8 +20,7 @@ const config: NextConfig = {
       },
     ],
   },
-  // The small shared stylesheet should not add a round trip before mobile paint.
-  experimental: { inlineCss: true },
+  // Keep shared CSS cacheable across full-document visits.
   outputFileTracingIncludes: { "/*": ["./certs/supabase-ca.crt"] },
   async headers() {
     return [

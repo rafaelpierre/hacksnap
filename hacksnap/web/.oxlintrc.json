@@ -1,6 +1,13 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "ignorePatterns": [".next/**", "node_modules/**", "next-env.d.ts"],
+  "ignorePatterns": [
+    ".next/**",
+    "node_modules/**",
+    "next-env.d.ts",
+    ".browser-app/**",
+    "playwright-report/**",
+    "test-results/**"
+  ],
   "categories": {
     "correctness": "error"
   }

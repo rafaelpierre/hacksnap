@@ -318,9 +318,12 @@ tracked in issue #170.
 
 ### Mobile loading performance
 
-`experimental.inlineCss` embeds the small shared stylesheet in production HTML,
-removing a blocking stylesheet round trip. This increases HTML size and gives up
-independent stylesheet caching on full page loads; reassess if the CSS grows.
+`experimental.inlineCss` is disabled. Stylesheets use Next.js content-hashed URLs
+and can be cached independently across full page loads. Shared foundations remain
+in `app/globals.css`; About, Topics and discussion analysis own their feature CSS
+modules. This adds initial stylesheet requests while reducing compressed HTML and
+repeat navigation transfer. See the [CSS audit and measurements](../../docs/performance/issue-149-css.md)
+for the removal audit, cold/repeat figures and the inlining decision.
 Google Analytics queues its configuration and early journey events in a small
 inline script. The 175 KiB Google tag downloads only after the first pointer,
 keyboard, or scroll input. An untouched visit sends no data to GA; an external
@@ -343,7 +346,7 @@ not remove this already-built framework code.
 
 After deployment, rerun PageSpeed Insights in mobile mode for the homepage and a
 story. Check FCP, LCP, and total blocking time across several runs, verify there is
-no initial external stylesheet request or email-decoding script, and confirm GA
+cacheable stylesheet responses and no email-decoding script, and confirm GA
 still records visits and client-side navigation. Deferring GA does not guarantee
 that Lighthouse's unused-JavaScript warning disappears.
 
@@ -783,3 +786,24 @@ that gains a takeaway. Reader edits survive same-story refreshes and closing and
 reopening the editor. Reset draft restores the latest suggestion and focuses the
 textarea. Changing story identity resets the draft and copy feedback; delayed
 clipboard completions cannot update a replacement identity or draft.
+
+## Production browser regression suite
+
+Use Node 22, `npm ci`, and `npx playwright install chromium`, then run
+`npm run test:browser:ci`. This builds a credential-free production fixture copy
+and runs Chromium journeys, accessibility, responsive layout, and route asset /
+rendering budgets. For test-only edits after the build, use `npm run test:browser`.
+The suite uses port 3100; override `BROWSER_PORT` when another local app uses it.
+
+Fixtures replace the server-only data module only inside ignored `.browser-app`.
+The normal application has no fixture switch, import or endpoint. The runner
+copies an explicit source-file allowlist and allowlists only runtime basics in its child
+process environment. Browser requests to analytics are served locally and other
+external requests fail the suite. Images use generated local WebP variants through
+Next's real `srcset` URLs; no live database, Blob service, fonts or credentials
+are required. Generated output must never be deployed.
+
+CI stores screenshots, failure traces and route measurements for 14 days. See
+[`docs/performance/issue-148-browser-regressions.md`](../../docs/performance/issue-148-browser-regressions.md)
+for scenario coverage, measurement definitions, budget review and the release
+screen-reader checklist. The existing Jest and production build jobs remain gates.

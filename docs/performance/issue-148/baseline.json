@@ -1,0 +1,99 @@
+{
+  "recorded": "2026-10-02",
+  "environment": "macOS arm64, Node 22.23.3, Playwright 1.63.0, Chromium desktop 1280x720 DPR 1; fixture app uses external CSS",
+  "measurement": "Decoded initial response bytes and deterministic gzip level-9 estimates; synthetic local image bytes. LCP/CLS are local fixed-fixture observations, not production latency.",
+  "routes": [
+    {
+      "route": "/story/91000001",
+      "browser": "153.0.8010.12",
+      "measurements": {
+        "jsBytes": 526642,
+        "cssBytes": 40951,
+        "imageBytes": 2696,
+        "jsGzipBytes": 159617,
+        "cssGzipBytes": 8970,
+        "lcpMs": 32,
+        "cls": 0
+      },
+      "budget": {
+        "jsBytes": 590000,
+        "cssBytes": 46000,
+        "imageBytes": 3500,
+        "jsGzipBytes": 180000,
+        "cssGzipBytes": 10000,
+        "lcpMs": 3500,
+        "cls": 0.1
+      },
+      "documentBytes": 60224
+    },
+    {
+      "route": "/category/models-products",
+      "browser": "153.0.8010.12",
+      "measurements": {
+        "jsBytes": 551025,
+        "cssBytes": 40951,
+        "imageBytes": 1102,
+        "jsGzipBytes": 168025,
+        "cssGzipBytes": 8970,
+        "lcpMs": 48,
+        "cls": 5.27191162109375e-06
+      },
+      "budget": {
+        "jsBytes": 610000,
+        "cssBytes": 46000,
+        "imageBytes": 1500,
+        "jsGzipBytes": 180000,
+        "cssGzipBytes": 10000,
+        "lcpMs": 3500,
+        "cls": 0.1
+      },
+      "documentBytes": 216225
+    },
+    {
+      "route": "/",
+      "browser": "153.0.8010.12",
+      "measurements": {
+        "jsBytes": 551025,
+        "cssBytes": 40951,
+        "imageBytes": 1102,
+        "jsGzipBytes": 168025,
+        "cssGzipBytes": 8970,
+        "lcpMs": 40,
+        "cls": 9.665171305338541e-06
+      },
+      "budget": {
+        "jsBytes": 610000,
+        "cssBytes": 46000,
+        "imageBytes": 1500,
+        "jsGzipBytes": 180000,
+        "cssGzipBytes": 10000,
+        "lcpMs": 3500,
+        "cls": 0.1
+      },
+      "documentBytes": 97069
+    },
+    {
+      "route": "/archive",
+      "browser": "153.0.8010.12",
+      "measurements": {
+        "jsBytes": 551025,
+        "cssBytes": 40951,
+        "imageBytes": 1102,
+        "jsGzipBytes": 168025,
+        "cssGzipBytes": 8970,
+        "lcpMs": 48,
+        "cls": 5.27191162109375e-06
+      },
+      "budget": {
+        "jsBytes": 610000,
+        "cssBytes": 46000,
+        "imageBytes": 1500,
+        "jsGzipBytes": 180000,
+        "cssGzipBytes": 10000,
+        "lcpMs": 3500,
+        "cls": 0.1
+      },
+      "documentBytes": 215814
+    }
+  ]
+}
