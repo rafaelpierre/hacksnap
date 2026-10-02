@@ -7,6 +7,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { StickyHeader } from "./sticky-header";
 import { MainNavigation } from "./main-navigation";
 import { themeInitScript } from "../lib/theme";
+import { analyticsBootstrap } from "../lib/analytics-bootstrap";
 import "./globals.css";
 import { ReaderVisit } from "./journey-analytics";
 
@@ -60,17 +61,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-059PVYBN82"
-          strategy="lazyOnload"
-        />
-        {/* Queue configuration early; download the analytics library after load, when idle. */}
-        <Script id="google-analytics" strategy="beforeInteractive">{`
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-059PVYBN82');
-    `}</Script>
+        {/* Queue visits early; fetch GA only after the reader interacts. */}
+        <Script id="google-analytics" strategy="beforeInteractive">
+          {analyticsBootstrap}
+        </Script>
         <ReaderVisit />
         <a className="skip-link skip-main" href="#main">
           Skip to content
