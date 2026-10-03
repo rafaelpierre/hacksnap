@@ -112,6 +112,11 @@ the current-thread table, immutable ingestion runs and thread snapshots, and
 versioned LLM summary records. These tables are private by default: RLS is
 enabled and no Data API policies are created.
 
+Migration `0018_discussion_themes_schema` updates the discussion analysis checks
+for theme-only schema v2. It preserves v1 rows, allows v2 rows with empty claim
+and stance arrays, and performs no backfill. Apply it before the v2 worker runs.
+Downgrading to `0017_archive_order` is refused while v2 analysis rows exist.
+
 ## GitHub Actions
 
 The [schema workflow](../.github/workflows/supabase-schema.yml) validates changes

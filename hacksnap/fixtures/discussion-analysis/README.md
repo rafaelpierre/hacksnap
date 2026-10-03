@@ -69,7 +69,8 @@ for name, model in [("analysis.schema.json", DiscussionAnalysis),
 
 ## Storage (issue #35)
 
-Apply Alembic revision `0012_discussion_analysis` before deploying repository code.
+Apply Alembic revisions `0012_discussion_analysis` and
+`0018_discussion_themes_schema` before deploying the v2 worker.
 It adds nullable analysis, internal metadata, and analysis timestamp columns to
 `hacksnap_summaries`, plus a generated public coverage column. Existing rows remain
 null; the migration does not update story data or create indexes or tables.

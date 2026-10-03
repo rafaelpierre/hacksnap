@@ -443,6 +443,11 @@ does not re-fetch the article or regenerate its brief. New analysis no longer as
 the model for reference claims or critical/supportive comments. Legacy stories continue
 through sentiment-only refresh and receive no analysis backfill.
 
+Apply Alembic migration `0018_discussion_themes_schema` before deploying this worker.
+It keeps historical v1 analyses valid and lets v2 theme-only analyses persist with
+empty claim and stance arrays. It changes two check constraints without rewriting
+or backfilling rows. Downgrading requires removing v2 analysis rows first.
+
 The discussion cache includes the full prepared sample, available parent context,
 coverage, source version, model, schema and refresh-prompt version.
 Initial generation primes that cache. The metadata still records the prompt that
