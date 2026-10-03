@@ -59,7 +59,7 @@ function discussionMarkdown(summary: DiscussionFields): string[] {
     return lines;
   }
   for (const topic of analysis.topics) {
-    lines.push(`#### ${text(topic.title)}`, text(topic.summary));
+    lines.push(`### ${text(topic.title)}`, text(topic.summary));
     if (topic.comment_ids.length)
       lines.push(
         "Sources: " +

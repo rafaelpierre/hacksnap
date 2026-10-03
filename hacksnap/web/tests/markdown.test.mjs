@@ -171,10 +171,11 @@ test.each(analysisFixtures)(
     assert.match(body, /Analyzed: 2026\\-09\\-27T09:00:00Z/);
     assert.doesNotMatch(body, /Some context|A disagreement/);
     for (const topic of expected.topics) {
-      assert.ok(body.includes(topic.title.replaceAll("-", "\\-")));
+      assert.ok(body.includes(`### ${topic.title.replaceAll("-", "\\-")}`));
       for (const id of topic.comment_ids)
         assert.ok(body.includes(`[Comment ${id}](<https://news.ycombinator.com/item?id=${id}>)`));
     }
+    assert.doesNotMatch(body, /^#### /m);
     assert.doesNotMatch(body, /Claim addressed|Most critical|Most supportive|paraphrased/);
     if (expected.status === "no_comments") assert.match(body, /No usable comments were available/);
     if (!expected.topics.length && expected.status !== "no_comments")
