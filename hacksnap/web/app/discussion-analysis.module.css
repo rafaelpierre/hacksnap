@@ -1,11 +1,5 @@
 /* Story-only evidence styles; global class names remain DOM/test hooks. */
-.root h3 {
-  font: 600 var(--text-title)/1.5 var(--heading);
-  color: var(--ink);
-  margin-bottom: var(--space-4);
-}
-.root :global(.analysis-coverage),
-.root :global(.analysis-selection) {
+.root :global(.analysis-coverage) {
   font-size: var(--text-label);
   color: var(--muted);
 }
@@ -14,7 +8,7 @@
 }
 .root :global(.analysis-themes) {
   container: discussion-themes / inline-size;
-  margin-block: var(--space-8);
+  margin-block: var(--space-6);
 }
 .root :global(.analysis-theme) {
   anchor-scope: --analysis-source-trigger;
@@ -168,8 +162,7 @@
   font-size: var(--text-label);
   font-weight: 600;
 }
-.root :global(.analysis-sources),
-.root :global(.analysis-highlights) {
+.root :global(.analysis-sources) {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -190,58 +183,17 @@
 .root :global(.analysis-source) svg {
   flex-shrink: 0;
 }
-.root :global(.analysis-groups) {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-  gap: var(--space-8);
-  margin-bottom: var(--space-8);
-}
-.root :global(.analysis-group) {
-  min-width: 0;
-}
 .root :global(.discussion-title) {
   flex-wrap: wrap;
 }
-.root :global(.discussion-title),
-.root :global(.analysis-group-heading) {
+.root :global(.discussion-title) {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-.root :global(.discussion-title-icon),
-.root :global(.analysis-group-icon) {
+.root :global(.discussion-title-icon) {
   width: 1em;
   height: 1em;
   flex-shrink: 0;
   color: var(--muted);
-}
-.root :global(.analysis-highlights) > li {
-  border-top: 1px solid var(--line);
-  padding-block: var(--space-4);
-}
-.root :global(.analysis-highlights) > li > p {
-  margin-bottom: var(--space-3);
-}
-.root :global(.analysis-stance) {
-  color: var(--accent);
-  font-size: var(--text-label);
-  font-weight: 600;
-}
-.root :global(.analysis-paraphrase) {
-  font-weight: 600;
-  color: var(--ink);
-}
-.root :global(.analysis-highlight-header) {
-  anchor-scope: --analysis-source-trigger;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-.root :global(.analysis-claim) {
-  min-width: 0;
-  margin: 0;
-  color: var(--prose);
-  overflow-wrap: anywhere;
 }

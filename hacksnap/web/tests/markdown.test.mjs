@@ -68,7 +68,6 @@ test("story Markdown preserves public content, citations and coverage without HT
     "The takeaway",
     "The article brief",
     "First point",
-    "The discussion",
     "Some context",
     "item?id=456",
     "8 of 10",
@@ -76,6 +75,8 @@ test("story Markdown preserves public content, citations and coverage without HT
     "AI-generated summary",
   ])
     assert.ok(body.includes(value), value);
+  assert.match(body, /## Discussion themes/);
+  assert.doesNotMatch(body, /The discussion/);
   assert.ok(body.includes("[Read original](<https://example.com/a(b)>)"));
   assert.ok(body.includes("Example \\[story\\] \\<script\\>"));
   assert.ok(!body.includes("internal_diagnostics"));
@@ -174,25 +175,10 @@ test.each(analysisFixtures)(
       for (const id of topic.comment_ids)
         assert.ok(body.includes(`[Comment ${id}](<https://news.ycombinator.com/item?id=${id}>)`));
     }
-    for (const highlight of [...expected.critical_comments, ...expected.supportive_comments]) {
-      assert.ok(
-        body.includes(
-          `[Comment ${highlight.comment_id}](<https://news.ycombinator.com/item?id=${highlight.comment_id}>)`,
-        ),
-      );
-      assert.match(body, /Claim addressed/);
-      assert.ok(body.includes(highlight.paraphrase.replace(/([\\`*_{}[\]<>#+.!|~-])/g, "\\$1")));
-      assert.ok(body.includes(highlight.explanation.replace(/([\\`*_{}[\]<>#+.!|~-])/g, "\\$1")));
-    }
+    assert.doesNotMatch(body, /Claim addressed|Most critical|Most supportive|paraphrased/);
     if (expected.status === "no_comments") assert.match(body, /No usable comments were available/);
-    if (expected.status === "insufficient_context")
-      assert.match(body, /did not contain a clear claim/);
-    if (expected.status === "available") {
-      assert.match(body, /text below is paraphrased/);
-      for (const kind of ["critical", "supportive"])
-        if (!expected[`${kind}_comments`].length)
-          assert.ok(body.includes(`No clear ${kind} examples in the analyzed comments`));
-    }
+    if (!expected.topics.length && expected.status !== "no_comments")
+      assert.match(body, /No distinct themes were identified/);
   },
 );
 
@@ -202,14 +188,11 @@ test("Markdown preserves legacy content when analysis is absent or null", () => 
   assert.doesNotMatch(storyMarkdown(analysisStory(null)), /Discussion analysis|Analyzed:/);
 });
 
-test("Markdown escapes all analysis text, keeps qualifications and excludes private metadata", () => {
+test("Markdown escapes theme text and excludes private metadata", () => {
   const analysis = structuredClone(
     analysisFixtures.find((fixture) => fixture.id === "qualified_agreement").expected,
   );
   const hostile = "<script> [fake](javascript:alert(1))\n# injected *bold*";
-  analysis.reference_claims[0].text = hostile;
-  analysis.supportive_comments[0].paraphrase = hostile;
-  analysis.supportive_comments[0].explanation = hostile;
   analysis.topics[0].title = hostile;
   analysis.topics[0].summary = hostile;
   analysis.raw_payload = "private-marker";
@@ -219,7 +202,7 @@ test("Markdown escapes all analysis text, keeps qualifications and excludes priv
   const body = storyMarkdown(row);
   assert.doesNotMatch(body, /<script>|\[fake\]\(javascript:|\n# injected|private-marker/);
   assert.ok(body.includes("\\<script\\> \\[fake\\](javascript:alert(1))\n\\# injected \\*bold\\*"));
-  assert.match(body, /Agrees with reservations/);
+  assert.doesNotMatch(body, /Agrees with reservations|Claim addressed/);
   assert.match(body, /item\?id=106/);
   row.summary.discussion_analyzed_at = null;
   row.summary.discussion_analysis_coverage = null;
@@ -228,7 +211,7 @@ test("Markdown escapes all analysis text, keeps qualifications and excludes priv
   assert.match(unknown, /Analyzed-comment count unavailable/);
 });
 
-test("Discussion introduction preserves paragraph breaks and escapes source markup", () => {
+test("Discussion introductions are omitted from Markdown", () => {
   const body = storyMarkdown({
     ...story,
     summary: {
@@ -236,11 +219,10 @@ test("Discussion introduction preserves paragraph breaks and escapes source mark
       discussion_summary: "The central question\n\nA separate concern <script>",
     },
   });
-  assert.ok(body.includes("The central question\n\nA separate concern \\<script\\>"));
-  assert.ok(!body.includes("<script>"));
+  assert.doesNotMatch(body, /The central question|A separate concern|<script>/);
 });
 
-test("Discussion bullets remain list items while their contents are escaped", () => {
+test("Discussion bullets are omitted from Markdown", () => {
   const body = storyMarkdown({
     ...story,
     summary: {
@@ -249,10 +231,5 @@ test("Discussion bullets remain list items while their contents are escaped", ()
         "The central question\n\n- One argument\n- <script> and [unsafe](javascript:alert)",
     },
   });
-  assert.ok(
-    body.includes(
-      "The central question\n\n- One argument\n- \\<script\\> and \\[unsafe\\](javascript:alert)",
-    ),
-  );
-  assert.ok(!body.includes("<script>"));
+  assert.doesNotMatch(body, /The central question|One argument|unsafe|<script>/);
 });

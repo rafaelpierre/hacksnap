@@ -304,7 +304,7 @@
             }
           }
         },
-        "description": "AI-generated analysis of a sample. Highlights are paraphrases with explicit stance toward a reference claim, not a vote or a measure of community opinion. no_comments means no usable comments; all evidence lists are empty. insufficient_context means no source claim could be assessed; topics may still be present, claims and stance highlights are empty."
+        "description": "AI-generated themes from a comment sample. New analyses leave reference_claims, critical_comments, and supportive_comments empty; historical rows may retain them. no_comments means no usable comments. Historical rows may use insufficient_context. Themes do not measure community opinion."
       },
       "DiscussionCoverage": {
         "type": "object",

@@ -174,15 +174,15 @@ The source and underlying technical questions lead the coverage.
   Source validation requires at least one bullet when comments are supplied and
   rejects bullets when no comments are supplied, before any summary is saved.
   The worker inserts blank lines and bullet markers into the stored summary string.
-  HTML renders a semantic list, Markdown preserves list syntax, and RSS/API retain
-  the same plain-text content. Existing prose continues to render as paragraphs.
+  RSS/API retain the same plain-text content. Story HTML and Markdown now show
+  discussion themes instead of this introduction.
   Storage and public API schemas are unchanged; no migration is needed.
 - Distinguish proposals, reported results, verified findings and interpretations.
   Attribute experience or original evidence where provenance matters, retain material
   uncertainty, and avoid hype, generic openings and claims of community consensus.
 - The model performs a final editorial pass on those three fields. Detailed discussion
-  points, claims, supportive/critical highlights, topics, sentiment and the takeaway
-  keep their existing instructions. The response remains schema-constrained JSON,
+  points, topics, sentiment and the takeaway keep their existing instructions.
+  The response remains schema-constrained JSON,
   with the existing 32,000-token response limit and concise output targets (up to
   180 words for the Discussion introduction).
 
@@ -438,13 +438,13 @@ database connection strings, request headers and response bodies are not logged.
 
 ### Discussion analysis refresh
 
-Existing new-format stories refresh stance highlights and topics from retained
-comments and their saved reference claims. Claims are reused verbatim; the worker
-never re-fetches the article or regenerates its brief. Legacy stories continue
+Existing new-format stories refresh themes from retained comments. The worker
+does not re-fetch the article or regenerate its brief. New analysis no longer asks
+the model for reference claims or critical/supportive comments. Legacy stories continue
 through sentiment-only refresh and receive no analysis backfill.
 
 The discussion cache includes the full prepared sample, available parent context,
-coverage, reference claims, source version, model, schema and refresh-prompt version.
+coverage, source version, model, schema and refresh-prompt version.
 Initial generation primes that cache. The metadata still records the prompt that
 actually generated the analysis. Existing analyses from the earlier worker may
 refresh once to adopt this fingerprint format. Unchanged inputs skip inference;
@@ -745,8 +745,9 @@ The summary prompt distinguishes real article body text from navigation-only pag
 bot challenges, access/login/paywall notices, and JavaScript fallback pages. When a
 retrieved page is unusable, the structured output uses the fixed notice
 “Article unavailable: the retrieved page did not contain usable article text.”
-with no article key points or article-sourced reference claims. The notice is an
-inference-only marker: after validation, the pipeline persists `article_summary: null`
+with no article key points. New discussion analysis does not generate reference
+claims. The notice is an inference-only marker: after validation, the pipeline persists
+`article_summary: null`
 and `article_status: unavailable`. Existing web consumers then show unavailable copy
 and the source link, and describe the page as discussion-only in preview metadata.
 Available comments (and substantive HN story text) can still be summarized. True

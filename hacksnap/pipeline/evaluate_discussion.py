@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from .models import DISCUSSION_ANALYSIS_SCHEMA_VERSION, DiscussionAnalysis
+from .models import DISCUSSION_ANALYSIS_SCHEMA_VERSION
 from .prompts import DISCUSSION_REFRESH_PROMPT_VERSION, PROMPT_VERSION
 from .refresh import discussion_source
 from .summarise import ModalSummarizer
@@ -52,14 +52,12 @@ def evaluate_case(fixture: dict, mode: str, summarizer) -> dict:
             })
             analysis = result.discussion_analysis
         else:
-            # Isolate refresh quality using the fixture's established claims.
-            analysis = DiscussionAnalysis.model_validate(fixture["expected"])
             count = len(source["comments"])
             result = summarizer.refresh_discussion(discussion_source(
                 source["comments"],
                 {"stored_comments": count, "included_comments": count,
                  "comments_truncated": False},
-                analysis, "synthetic-fixture",
+                "synthetic-fixture",
             ))
             analysis = result
         record.update(

@@ -81,7 +81,7 @@ def test_initial_and_refreshed_sentiment_use_glm_while_editorial_stays_deepseek(
         elif name == "hacksnap_summary":
             result = inference_output()
         else:
-            result = output()["discussion_analysis"]
+            result = inference_output()["discussion_analysis"]
         return httpx.Response(200, json={"choices": [{
             "finish_reason": "stop", "message": {"content": json.dumps(result)},
         }]})
@@ -94,9 +94,9 @@ def test_initial_and_refreshed_sentiment_use_glm_while_editorial_stays_deepseek(
         summary = model.summarize({"article": "article", "comments": comments})
         assert summary.sentiment == -1  # Override the editorial response's zero.
         assert summary.article_summary == output()["article_summary"]
-        assert summary.discussion_analysis.model_dump() == output()["discussion_analysis"]
+        assert summary.discussion_analysis.reference_claims == []
+        assert summary.discussion_analysis.critical_comments == []
         model.refresh_discussion({
-            "reference_claims": output()["discussion_analysis"]["reference_claims"],
             "comments": comments,
         })
         assert model.estimate_sentiment(comments).sentiment == -1

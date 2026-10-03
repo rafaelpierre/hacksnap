@@ -58,8 +58,11 @@ test("mocked story renders the reading journey and recommendations without a dat
   assert.match(html, /<h1>A mocked story title<\/h1>/);
   assert.match(html, /id="article-heading"[^>]*>TLDR;/);
   assert.match(html, /The mocked article brief/);
-  assert.match(html, /id="discussion-heading"[^>]*>.*?<span>Discussion<\/span><\/h2>/);
-  assert.match(html, /The mocked discussion brief/);
+  assert.match(
+    html,
+    /id="discussion-themes-heading"[^>]*>.*?<span>Discussion themes<\/span><\/h2>/,
+  );
+  assert.doesNotMatch(html, /The mocked discussion brief/);
   assert.match(html, /Low skepticism/);
   assert.match(html, /href="\/story\/90000004"/);
   assert.match(html, /href="\/category\/agents-coding"/);
@@ -175,7 +178,7 @@ test("compact header and recommendations preserve the new story component and tr
   assert.match(header, /aria-label="Share: A mocked story title"/);
   assert.match(
     html,
-    /id="discussion-heading"[^>]*>.*?<span>Discussion<\/span><\/h2><span class="skepticism-pill/,
+    /id="discussion-themes-heading"[^>]*>.*?<span>Discussion themes<\/span><\/h2><span class="skepticism-pill/,
   );
   const next = html.match(/<ul class="related-story-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
   assert.match(next, /related-topic/);
@@ -242,7 +245,7 @@ const discussionFixtures: { id: string; expected: DiscussionAnalysis }[] = JSON.
   readFileSync(new URL("../../fixtures/discussion-analysis/valid.json", import.meta.url), "utf8"),
 );
 
-test("new discussion replaces old points, retains its introduction and has a stable feed anchor", () => {
+test("new discussion replaces old points and shows only themes at the stable anchor", () => {
   const analysis = discussionFixtures[0].expected;
   const next: Story = {
     ...story,
@@ -264,9 +267,9 @@ test("new discussion replaces old points, retains its introduction and has a sta
   };
   const html = render(createElement(StoryContent, { story: next, relatedStories: [] }));
   assert.match(html, /id="discussion-analysis"/);
-  assert.match(html, /The mocked discussion brief/);
+  assert.match(html, /Discussion themes/);
   assert.match(html, /3 comments analyzed/);
-  assert.match(html, /Most critical/);
+  assert.doesNotMatch(html, /The mocked discussion brief|Most critical|Most supportive/);
   assert.doesNotMatch(html, /Old duplicate theme|Repeated content|skepticism-pill/);
 });
 
@@ -392,7 +395,7 @@ test("missing, null, empty and no-comments previews add no discussion UI", () =>
   }
 });
 
-test("discussion paragraphs stay separate and escaped for current and legacy summaries", () => {
+test("old discussion introductions are hidden for current and legacy summaries", () => {
   for (const discussion_analysis of [undefined, discussionFixtures[0].expected]) {
     const next: Story = {
       ...story,
@@ -404,14 +407,15 @@ test("discussion paragraphs stay separate and escaped for current and legacy sum
       },
     };
     const html = render(createElement(StoryContent, { story: next, relatedStories: [] }));
-    assert.match(html, /<p>The central question is production reliability\.<\/p>/);
-    assert.match(html, /<p>A separate concern is latency\.<\/p>/);
-    assert.match(html, /<p>&lt;script&gt;unsafe&lt;\/script&gt;<\/p>/);
-    assert.doesNotMatch(html, /<script>unsafe|<p>\s*<\/p>/);
+    assert.doesNotMatch(
+      html,
+      /The central question is production reliability|A separate concern is latency|unsafe/,
+    );
+    assert.match(html, /Discussion themes/);
   }
 });
 
-test("Discussion opening and bullets render as a safe list for current and legacy analysis", () => {
+test("old discussion bullets are hidden for current and legacy analysis", () => {
   for (const discussion_analysis of [undefined, discussionFixtures[0].expected]) {
     const next: Story = {
       ...story,
@@ -423,12 +427,11 @@ test("Discussion opening and bullets render as a safe list for current and legac
       },
     };
     const html = render(createElement(StoryContent, { story: next, relatedStories: [] }));
-    assert.match(html, /<p>The question is production reliability\.<\/p>/);
-    assert.match(
+    assert.doesNotMatch(
       html,
-      /<ul class="key-points"><li>Evidence: One workload was measured\.<\/li><li>Limits: &lt;script&gt;unsafe&lt;\/script&gt; &amp; unverified\.<\/li><\/ul>/,
+      /The question is production reliability|One workload was measured|unsafe/,
     );
-    assert.doesNotMatch(html, /<script>unsafe|<p>- Evidence/);
+    assert.match(html, /Discussion themes/);
   }
 });
 
@@ -445,6 +448,6 @@ test("unavailable article retains the source CTA and discussion without an artic
   const html = render(createElement(StoryContent, { story: unavailable, relatedStories: [] }));
   assert.match(html, /The original article was unavailable to summarize/);
   assert.match(html, /href="https:\/\/example.com\/article"[^>]*>Open the original source/);
-  assert.match(html, /The mocked discussion brief/);
+  assert.match(html, /Discussion themes/);
   assert.doesNotMatch(html, /The mocked article brief|class="key-points"/);
 });

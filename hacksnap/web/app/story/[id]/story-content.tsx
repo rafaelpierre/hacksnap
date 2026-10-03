@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronRight, MessagesSquare } from "lucide-react";
+import { ArrowUpRight, ChevronRight, ListTree } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById, categoryURL } from "../../../lib/categories";
@@ -7,7 +7,6 @@ import { storyDiscussion, storySource } from "../../../lib/story-presentation";
 import { DiscussionAnalysis } from "../../discussion-analysis";
 import { SkepticismPill } from "../../skepticism-pill";
 import { ShareLinks } from "../../share-links";
-import { discussionBriefBlocks } from "../../../lib/discussion-brief";
 import { briefExcerpt } from "../../../lib/brief";
 import { StoryAddedTime } from "../../story-added-time";
 import { RelatedStories } from "../../related-stories";
@@ -15,20 +14,6 @@ import { StoryReturnLink } from "../../story-navigation";
 import { ArticleImage } from "../../article-image";
 import { canonicalArticleImage } from "../../../lib/article-image";
 import type { ReactNode } from "react";
-
-function DiscussionIntroduction({ text }: { text: string }) {
-  return discussionBriefBlocks(text).map((block, index) =>
-    block.type === "paragraph" ? (
-      <p key={index}>{block.text}</p>
-    ) : (
-      <ul className="key-points" key={index}>
-        {block.items.map((item, itemIndex) => (
-          <li key={itemIndex}>{item}</li>
-        ))}
-      </ul>
-    ),
-  );
-}
 
 function StoryShare({ story, placement }: { story: Story; placement: "story_top" | "story_end" }) {
   return (
@@ -150,67 +135,59 @@ export function StoryContent({
           <section
             id="discussion-analysis"
             className="discussion-section"
-            aria-labelledby="discussion-heading"
+            aria-labelledby="discussion-themes-heading"
           >
-            <div className="discussion-heading">
-              <h2 id="discussion-heading" className="discussion-title">
-                <MessagesSquare className="discussion-title-icon" aria-hidden="true" />
-                <span>Discussion</span>
-              </h2>
-              {discussion.kind !== "analysis" && <SkepticismPill story={story} />}
-            </div>
             {discussion.kind === "analysis" ? (
-              <>
-                {summary.discussion_summary.trim() && discussion.status !== "no_comments" && (
-                  <>
-                    <p className="muted">
-                      Legacy summary sample: {discussion.legacyCoverage.included_comments} of{" "}
-                      {discussion.legacyCoverage.stored_comments} usable stored comments.
-                    </p>
-                    <DiscussionIntroduction text={summary.discussion_summary} />
-                  </>
-                )}
-                <DiscussionAnalysis
-                  analysis={discussion.analysis}
-                  coverage={summary.discussion_analysis_coverage}
-                  analyzedAt={summary.discussion_analyzed_at}
-                  hnURL={hnURL}
-                />
-              </>
-            ) : discussion.kind === "legacy" ? (
-              <>
-                <DiscussionIntroduction text={summary.discussion_summary} />
-                <div className="discussion-points">
-                  {discussion.topics.map((point, i) => (
-                    <section className="discussion-point" key={i}>
-                      <h3>{point.title}</h3>
-                      <p>{point.summary}</p>
-                      {point.comment_ids.length > 0 && (
-                        <div className="comment-links">
-                          <span>Source comments</span>
-                          {point.comment_ids.map((comment, index) => (
-                            <a
-                              key={comment}
-                              href={`https://news.ycombinator.com/item?id=${comment}`}
-                              aria-label={`Source comment ${comment} for ${point.title}`}
-                            >
-                              [{index + 1}]{" "}
-                              <ArrowUpRight className="inline-icon" aria-hidden="true" />
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  ))}
-                </div>
-              </>
+              <DiscussionAnalysis
+                analysis={discussion.analysis}
+                coverage={summary.discussion_analysis_coverage}
+                analyzedAt={summary.discussion_analyzed_at}
+                hnURL={hnURL}
+              />
             ) : (
-              <p className="muted">
-                No usable discussion was available for this summary.{" "}
-                <a href={hnURL}>
-                  Read the HN thread <ArrowUpRight className="inline-icon" aria-hidden="true" />
-                </a>
-              </p>
+              <>
+                <div className="discussion-heading">
+                  <h2 id="discussion-themes-heading" className="discussion-title">
+                    <ListTree className="discussion-title-icon" aria-hidden="true" />
+                    <span>Discussion themes</span>
+                  </h2>
+                  <SkepticismPill story={story} />
+                </div>
+                {discussion.kind === "legacy" && discussion.topics.length ? (
+                  <div className="discussion-points">
+                    {discussion.topics.map((point, i) => (
+                      <section className="discussion-point" key={i}>
+                        <h3>{point.title}</h3>
+                        <p>{point.summary}</p>
+                        {point.comment_ids.length > 0 && (
+                          <div className="comment-links">
+                            <span>Source comments</span>
+                            {point.comment_ids.map((comment, index) => (
+                              <a
+                                key={comment}
+                                href={`https://news.ycombinator.com/item?id=${comment}`}
+                                aria-label={`Source comment ${comment} for ${point.title}`}
+                              >
+                                [{index + 1}]{" "}
+                                <ArrowUpRight className="inline-icon" aria-hidden="true" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </section>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="muted">
+                    {discussion.kind === "legacy"
+                      ? "No distinct themes were identified in this summary."
+                      : "No usable discussion was available for this summary."}{" "}
+                    <a href={hnURL}>
+                      Read the HN thread <ArrowUpRight className="inline-icon" aria-hidden="true" />
+                    </a>
+                  </p>
+                )}
+              </>
             )}
           </section>
         </div>

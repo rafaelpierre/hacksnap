@@ -47,7 +47,8 @@ def test_change_outside_sentiment_sample_refreshes_full_analysis_and_preserves_a
     assert old.source_version == new.source_version
     assert old.input_fingerprint != new.input_fingerprint
     assert old.analyzed_at <= new.analyzed_at
-    assert after["discussion_analysis"].reference_claims == before["discussion_analysis"].reference_claims
+    assert after["discussion_analysis"].reference_claims == []
+    assert "reference_claims" not in model.discussion_calls[0]
     assert process_story(item, repo, None, model) == "unchanged"
     assert len(model.discussion_calls) == 1
     assert repo.saved[100]["discussion_analysis_metadata"].analyzed_at == new.analyzed_at
@@ -66,7 +67,14 @@ def test_initial_generation_primes_cache_and_raw_only_changes_acknowledge_withou
     assert repo.saved[100]["discussion_content_hash"] == "b" * 64
 
 
-@pytest.mark.parametrize("change", ["model", "prompt", "source_version", "claims", "parent"])
+def test_historical_claims_do_not_enter_themes_refresh_cache():
+    item, repo, model = setup_story()
+    repo.saved[100]["discussion_analysis"].reference_claims[0].text = "Historical claim"
+    assert process_story(item, repo, None, model) == "unchanged"
+    assert model.discussion_calls == []
+
+
+@pytest.mark.parametrize("change", ["model", "prompt", "source_version", "parent"])
 def test_material_input_or_version_change_refreshes(change, monkeypatch):
     item, repo, model = setup_story()
     if change == "model":
@@ -76,8 +84,6 @@ def test_material_input_or_version_change_refreshes(change, monkeypatch):
                             "DISCUSSION_REFRESH_PROMPT_VERSION", "v2-refresh")
     elif change == "source_version":
         repo.saved[100]["discussion_analysis_metadata"].source_version = "c" * 64
-    elif change == "claims":
-        repo.saved[100]["discussion_analysis"].reference_claims[0].text = "Updated persisted claim"
     else:
         payload = json.loads(item["full_raw_text_contents"])
         payload["comments"][1]["item"]["parent"] = payload["comments"][0]["item"]["id"]
@@ -87,16 +93,15 @@ def test_material_input_or_version_change_refreshes(change, monkeypatch):
 
 
 def test_schema_version_is_part_of_fingerprint(monkeypatch):
-    item, repo, model = setup_story()
+    item, _, model = setup_story()
     comments, coverage = prepare_comments(json.loads(item["full_raw_text_contents"]))
-    analysis = repo.saved[100]["discussion_analysis"]
-    before = discussion_source(comments, coverage, analysis, "a" * 64)
-    monkeypatch.setattr(importlib.import_module("pipeline.refresh"), "DISCUSSION_ANALYSIS_SCHEMA_VERSION", "2")
-    after = discussion_source(comments, coverage, analysis, "a" * 64)
+    before = discussion_source(comments, coverage, "a" * 64)
+    monkeypatch.setattr(importlib.import_module("pipeline.refresh"), "DISCUSSION_ANALYSIS_SCHEMA_VERSION", "3")
+    after = discussion_source(comments, coverage, "a" * 64)
     assert source_fingerprint(before, model.model, "v1") != source_fingerprint(after, model.model, "v1")
 
 
-@pytest.mark.parametrize("failure", ["inference", "claim_rewrite", "citation", "persist", "concurrent"])
+@pytest.mark.parametrize("failure", ["inference", "invalid_status", "citation", "persist", "concurrent"])
 def test_failure_preserves_last_valid_analysis_and_other_stories_continue(failure):
     item, repo, model = setup_story()
     change_comment(item)
@@ -107,8 +112,8 @@ def test_failure_preserves_last_valid_analysis_and_other_stories_continue(failur
         if failure == "inference":
             raise RuntimeError("failure")
         result = original(source)
-        if failure == "claim_rewrite":
-            result.reference_claims[0].text = "Invented claim"
+        if failure == "invalid_status":
+            result.status = "no_comments"
         elif failure == "citation":
             result = DiscussionAnalysis.model_validate({**result.model_dump(), "topics": [{
                 "key": "evidence", "title": "Evidence", "summary": "An invented citation",
@@ -135,37 +140,34 @@ def test_absent_retained_source_preserves_new_analysis_without_fetch_or_backfill
     assert repo.saved[100] == before and not model.discussion_calls
 
 
-@pytest.mark.parametrize("claims", [True, False])
 @pytest.mark.parametrize("comments", [True, False])
-def test_refresh_statuses_use_persisted_claims_and_retained_sample(claims, comments):
+def test_refresh_statuses_use_retained_sample(comments):
     item, repo, model = setup_story()
-    if not claims:
-        repo.saved[100]["discussion_analysis"] = DiscussionAnalysis(
-            status="insufficient_context", reference_claims=[], critical_comments=[],
-            supportive_comments=[], topics=[],
-        )
     if not comments:
         item["full_raw_text_contents"] = json.dumps({"comments": []})
     model.model = "new-model"
     assert process_story(item, repo, None, model) == "analysis_updated"
-    expected = "no_comments" if not comments else "available" if claims else "insufficient_context"
+    expected = "no_comments" if not comments else "available"
     assert repo.saved[100]["discussion_analysis"].status == expected
 
 
 @pytest.mark.parametrize("finish_reason", ["stop", "length"])
 def test_refresh_endpoint_uses_discussion_only_schema_and_rejects_truncation(finish_reason):
-    item, repo, model = setup_story()
+    item, _, model = setup_story()
     comments, coverage = prepare_comments(json.loads(item["full_raw_text_contents"]))
-    source = discussion_source(comments, coverage, repo.saved[100]["discussion_analysis"], "a" * 64)
+    source = discussion_source(comments, coverage, "a" * 64)
     result = model.refresh_discussion(source)
     def handler(request):
         body = json.loads(request.content)
         assert body["max_tokens"] == 32000
         assert body["response_format"]["json_schema"]["name"] == "hacksnap_discussion_refresh"
         assert "article_summary" not in body["response_format"]["json_schema"]["schema"]["properties"]
-        assert json.loads(body["messages"][1]["content"]) == source
+        assert json.loads(body["messages"][1]["content"]) == {"comments": comments}
+        assert set(body["response_format"]["json_schema"]["schema"]["properties"]) == {"status", "topics"}
         return httpx.Response(200, json={"choices": [{"finish_reason": finish_reason,
-                              "message": {"content": result.model_dump_json()}}]})
+                              "message": {"content": json.dumps({
+                                  "status": result.status, "topics": [topic.model_dump() for topic in result.topics],
+                              })}}]})
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
         summarizer = ModalSummarizer(client, "https://mock.invalid/v1", "test", "fake")
         if finish_reason == "stop":

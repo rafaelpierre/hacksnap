@@ -65,10 +65,10 @@ export default function ApiDocs() {
         An analysis contains <code>status</code>, <code>analyzed_at</code> (UTC timestamp or null),{" "}
         <code>coverage</code> (object or null), <code>reference_claims</code>,{" "}
         <code>critical_comments</code>, <code>supportive_comments</code>, and <code>topics</code>.
-        Status is <code>available</code>, <code>no_comments</code> (all evidence lists empty), or{" "}
-        <code>insufficient_context</code> (no assessable source claim; themes may still be present,
-        with empty claims and stance highlights). Missing coverage or time is unknown, never
-        borrowed from the article summary.
+        New analysis uses <code>available</code> or <code>no_comments</code>. Older rows may have{" "}
+        <code>insufficient_context</code>. New rows leave claim and stance arrays empty; they remain
+        in the response for compatibility. Missing coverage or time is unknown, never borrowed from
+        the article summary.
       </p>
       <p>
         Reference claims contain <code>id</code>, <code>text</code>, and <code>source</code> (
@@ -77,7 +77,7 @@ export default function ApiDocs() {
         <code>paraphrase</code>, and <code>explanation</code>. Critical stances are{" "}
         <code>disagrees</code> or <code>qualified_disagreement</code>; supportive stances are{" "}
         <code>agrees</code> or <code>qualified_agreement</code>. Qualifications and the targeted
-        claim must be retained when displaying a highlight.
+        claim were recorded in older analyses; new analyses produce themes only.
       </p>
       <p>
         Topics contain <code>key</code>, <code>title</code>, <code>summary</code>, and{" "}
@@ -90,10 +90,9 @@ export default function ApiDocs() {
         independent of article summary generation.
       </p>
       <p>
-        Highlights are AI-generated paraphrases selected for explicit stance and explanation. Their
-        inclusion does not establish correctness. Empty groups mean no clear examples in the
-        analyzed sample. Selected evidence does not measure community opinion or how common a view
-        is. Internal worker metadata and raw source payloads are excluded.
+        Historical highlights are AI-generated paraphrases; their inclusion does not establish
+        correctness. Selected themes do not measure community opinion or how common a view is.
+        Internal worker metadata and raw source payloads are excluded.
       </p>
       <h2>Errors and freshness</h2>
       <p>

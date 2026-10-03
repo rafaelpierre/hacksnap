@@ -99,11 +99,10 @@ test.each(analysisFixtures)(
     } else {
       for (const value of [html, markdown, description]) assert.match(value, /New topic/);
       assert.match(description, /15 sampled comments/);
-      assert.match(html, /Legacy summary sample: 2 of 8/);
-      assert.match(markdown, /Legacy summary sample: Based on 2 of 8/);
+      assert.doesNotMatch(html, /Legacy summary sample|Older discussion summary/);
     }
     assert.match(markdown, /Analysis sample: Based on (0|15) of 30/);
-    assert.match(markdown, /Legacy summary sample: Based on 2 of 8/);
+    assert.match(markdown, /Based on 2 of 8/);
     assert.doesNotMatch(html, /<script>/);
     assert.doesNotMatch(markdown, /<script>/);
   },

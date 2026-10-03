@@ -18,7 +18,7 @@ def test_evaluator_retains_real_output_and_leaves_semantic_review_pending():
             return StorySummary.model_validate(fixture_output(fixture))
 
         def refresh_discussion(self, source):
-            assert source["reference_claims"] == fixture["expected"]["reference_claims"]
+            assert "reference_claims" not in source
             return DiscussionAnalysis.model_validate(fixture["expected"])
 
     for mode in ("initial", "refresh"):
