@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass
 from urllib.parse import quote, urlsplit
 
+from .preprocess import DEFAULT_COMMENT_CHARS
+
 MAX_STORIES_PER_RUN = 50
 SENTIMENT_BASE_URL = "https://rafaelpierre--ep-glm-5-3-flash-nvfp4-server.us-west.modal.direct/v1"
 SENTIMENT_MODEL = "nvidia/GLM-5.3-Flash-NVFP4"
@@ -33,7 +35,7 @@ class Settings:
     llm_reasoning_effort: str = "low"
     kestrel_binary: str = "/usr/local/bin/kestrel"
     article_chars: int = 24000
-    comment_chars: int = 48000
+    comment_chars: int = DEFAULT_COMMENT_CHARS
     fetch_timeout: int = 30
     llm_timeout: int = 120
     sentiment_base_url: str = SENTIMENT_BASE_URL

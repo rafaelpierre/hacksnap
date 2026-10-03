@@ -396,10 +396,27 @@ validated summary and sentiment together. Sentiment-only updates preserve summar
 text, generation time, source fingerprint, and summarized content hash, and keep
 sentiment sampling metadata separate from the original summary's coverage.
 
-Comment processing removes dead/deleted/empty entries, preserves ancestry, and
-prefers active branches within a deterministic character budget. The input caps
-are 24,000 article characters, 48,000 serialized comment characters and 8,000 HN
-post characters, plus prompt/schema overhead; configure an endpoint with a
+Initial summaries and discussion refreshes use the same deterministic sample of at
+most four top-level threads. Roots rank by descendant count in the retained tree,
+then comment ID ascending. Removed nodes count as retained activity and connect
+ancestry, but dead/deleted/empty text is never supplied. Replies with missing root
+ancestry or cycles are omitted. Root context is selected first, then active reply
+branches, keeping all usable ancestors before a reply. Selected threads serialize
+in root rank order, with parents before children. Oversized comments and replies
+whose usable ancestors cannot fit are omitted whole; the selector never cuts prose.
+
+The combined comment list defaults to 12,000 characters, including comment metadata,
+JSON escaping, separators and brackets, using the inference serializer's
+`ensure_ascii=False` format. Configure `Settings.comment_chars` or the explicit
+`comment_budget` argument on `process_story`/`refresh`; budgets below two characters
+are rejected because even `[]` needs two. Coverage counts usable stored comments,
+actually included comments, and omissions. The existing selection-method schema
+is preserved; new prompt versions invalidate cached analysis under this policy.
+The prompts synthesize only the selected sample and never require opposing views
+or imply consensus. Sentiment still samples at most ten of the prepared comments.
+
+The input caps are 24,000 article characters, 12,000 serialized comment characters
+and 8,000 HN post characters, plus prompt/schema overhead; configure an endpoint with a
 sufficient context window (128K or larger for typical text; reduce the budgets
 for unusually token-dense input). This is not a tokenizer-specific exact token
 count. The UI discloses stored-comment sampling

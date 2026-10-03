@@ -175,3 +175,44 @@ def test_refresh_endpoint_uses_discussion_only_schema_and_rejects_truncation(fin
         else:
             with pytest.raises(ValueError, match="complete normally"):
                 summarizer.refresh_discussion(source)
+
+
+def test_four_thread_sample_is_shared_by_initial_and_refresh_and_cache_tracks_selection():
+    from test_preprocess import entry, payload
+
+    class CapturingSummarizer(FakeSummarizer):
+        def summarize(self, source):
+            self.initial_source = copy.deepcopy(source)
+            return super().summarize(source)
+
+    data = payload(*(entry(i) for i in range(1, 7)))
+    item = {**story(), "full_raw_text_contents": json.dumps(data)}
+    repo, model = FakeRepository(), CapturingSummarizer()
+    assert process_story(item, repo, SimpleNamespace(fetch=lambda _: "article"), model) == "generated"
+    initial = model.initial_source["comments"]
+    assert [c["id"] for c in initial] == [1, 2, 3, 4]
+    previous = repo.saved[100]["discussion_analysis_metadata"]
+    assert previous.coverage.included_comments == 4
+    assert previous.coverage.stored_comments == 6
+    assert previous.coverage.comments_truncated
+    assert process_story(item, repo, None, model) == "unchanged"
+
+    # Unselected text cannot invalidate the selected discussion or sentiment.
+    data["comments"][-1]["item"]["text"] += " Unselected change."
+    item["full_raw_text_contents"] = json.dumps(data)
+    assert process_story(item, repo, None, model) == "unchanged"
+    assert not model.discussion_calls
+
+    # The same selector supplies refreshes when the selected input changes.
+    data["comments"][0]["item"]["text"] += " A qualification."
+    item["full_raw_text_contents"] = json.dumps(data)
+    assert process_story(item, repo, None, model) == "analysis_updated"
+    assert model.discussion_calls[-1]["comments"] == prepare_comments(data)[0]
+    assert repo.saved[100]["discussion_analysis_metadata"].input_fingerprint != previous.input_fingerprint
+
+    # New reply activity changes the root ranking and evicts the fourth root.
+    data["comments"].append(entry(60, 6))
+    item["full_raw_text_contents"] = json.dumps(data)
+    assert process_story(item, repo, None, model) == "analysis_updated"
+    assert [c["id"] for c in model.discussion_calls[-1]["comments"]] == [6, 60, 1, 2, 3]
+    assert repo.saved[100]["discussion_analysis_metadata"].coverage.included_comments == 5
