@@ -45,7 +45,7 @@ test("deferred share editor preserves edited Unicode drafts and keyboard, outsid
       ),
     );
     assert.equal(document.querySelector(".share-panel"), null);
-    trigger().focus();
+    await act(async () => trigger().focus());
     await click(trigger());
     assert.equal(trigger().getAttribute("aria-expanded"), "true");
     assert.equal(document.activeElement, button("Copy link"));
@@ -60,7 +60,7 @@ test("deferred share editor preserves edited Unicode drafts and keyboard, outsid
     assert.equal(draft.value, edited);
     assert.match(document.querySelector(".share-count").textContent, /304\/280 on X/);
     assert.ok(button("X (edit first)"));
-    draft.focus();
+    await act(async () => draft.focus());
     await act(async () =>
       draft.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
     );
@@ -81,7 +81,8 @@ test("deferred share editor preserves edited Unicode drafts and keyboard, outsid
     window.open = (...args) => opened.push(args);
     await click(document.querySelector('button[aria-label="LinkedIn (opens in a new tab)"]'));
     assert.equal(new URL(opened[0][0]).searchParams.get("url"), "https://hacksnap.live/story/123");
-    document.getElementById("outside").focus();
+    await act(async () => document.getElementById("outside").focus());
+    assert.equal(document.querySelector(".share-panel"), null);
     await act(async () =>
       document.getElementById("outside").dispatchEvent(new Event("pointerdown", { bubbles: true })),
     );
