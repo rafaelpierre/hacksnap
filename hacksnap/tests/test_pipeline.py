@@ -715,7 +715,10 @@ def test_sentiment_endpoint_receives_only_comments_and_validates_score(score):
 
 def many_comments_payload():
     return {"comments": [
-        {"depth": 1, "item": {"id": i, "parent": 100, "by": f"user{i}", "text": f"Opinion {i}"}}
+        {"depth": 1 if i <= 4 else 2, "item": {
+            "id": i, "parent": 100 if i <= 4 else (i % 4) + 1,
+            "by": f"user{i}", "text": f"Opinion {i}",
+        }}
         for i in range(1, 31)
     ]}
 
@@ -727,7 +730,9 @@ def test_sentiment_sample_is_capped_stable_and_handles_small_discussions():
     assert len(sample) == 10
     assert sample == sample_sentiment_comments(list(reversed(comments)))
     assert sample_sentiment_comments([]) == []
-    assert sample_sentiment_comments(comments[:4]) == comments[:4]
+    assert sample_sentiment_comments(comments[:4]) == sorted(
+        comments[:4], key=lambda c: (c["depth"], c["id"])
+    )
 
 
 def test_sentiment_cache_tracks_only_the_ten_comment_sample():

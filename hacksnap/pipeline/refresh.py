@@ -21,7 +21,13 @@ from .models import (
     DiscussionAnalysisMetadata,
     StorySummary,
 )
-from .preprocess import plain_text, prepare_comments, sample_sentiment_comments, source_fingerprint
+from .preprocess import (
+    DEFAULT_COMMENT_CHARS,
+    plain_text,
+    prepare_comments,
+    sample_sentiment_comments,
+    source_fingerprint,
+)
 from .prompts import DISCUSSION_REFRESH_PROMPT_VERSION, PROMPT_VERSION, SENTIMENT_PROMPT_VERSION
 from .summarise import ModalSummarizer, RoutedSummarizer, Summarizer
 from .supabase import Repository
@@ -112,7 +118,7 @@ def process_story(
     repository,
     fetcher,
     summarizer: Summarizer,
-    comment_budget: int = 48000,
+    comment_budget: int = DEFAULT_COMMENT_CHARS,
     prompt_version: str = PROMPT_VERSION,
     image_enabled: bool = False,
 ) -> str:
@@ -253,7 +259,7 @@ def process_story(
 
 
 @traced_operation("enrichment_batch")
-def refresh(repository, fetcher, summarizer, comment_budget: int = 48000,
+def refresh(repository, fetcher, summarizer, comment_budget: int = DEFAULT_COMMENT_CHARS,
             *, image_enabled: bool = False) -> dict:
     started = perf_counter()
 
