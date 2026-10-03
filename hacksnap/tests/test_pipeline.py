@@ -98,6 +98,12 @@ def output(article=True):
 def inference_output(summary=None):
     """Encode a saved-summary fixture using the model's structured brief contract."""
     result = dict(summary if summary is not None else output())
+    analysis = result.get("discussion_analysis")
+    if isinstance(analysis, dict):
+        result["discussion_analysis"] = {
+            "status": "available" if analysis["status"] == "insufficient_context" else analysis["status"],
+            "topics": analysis["topics"],
+        }
     discussion = result.get("discussion_summary")
     if isinstance(discussion, str):
         opening, *bullets = discussion.split("\n\n")
@@ -180,9 +186,8 @@ class FakeSummarizer:
     def refresh_discussion(self, source):
         self.discussion_calls.append(copy.deepcopy(source))
         return DiscussionAnalysis(
-            status=("no_comments" if not source["comments"] else
-                    "available" if source["reference_claims"] else "insufficient_context"),
-            reference_claims=source["reference_claims"], critical_comments=[],
+            status="no_comments" if not source["comments"] else "available",
+            reference_claims=[], critical_comments=[],
             supportive_comments=[], topics=[],
         )
 

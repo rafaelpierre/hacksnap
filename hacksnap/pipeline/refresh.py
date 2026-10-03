@@ -56,12 +56,11 @@ def log_event(story: dict, stage: str, status: str, error: Exception | None = No
 
 
 def discussion_source(
-    comments: list[dict], coverage: dict, analysis: DiscussionAnalysis, source_version: str
+    comments: list[dict], coverage: dict, source_version: str
 ) -> dict:
     """Canonical refresh inputs; initial generation also primes this cache."""
     return {
         "comments": comments,
-        "reference_claims": [claim.model_dump() for claim in analysis.reference_claims],
         "source_version": source_version,
         "schema_version": DISCUSSION_ANALYSIS_SCHEMA_VERSION,
         "coverage": {
@@ -74,12 +73,12 @@ def discussion_source(
 
 
 def refresh_discussion(story, existing, comments, coverage, repository, summarizer) -> bool:
-    """Use only retained comments and persisted claims; never fetch historical source."""
-    analysis = DiscussionAnalysis.model_validate(existing["discussion_analysis"])
+    """Use only retained comments; never fetch historical source."""
+    DiscussionAnalysis.model_validate(existing["discussion_analysis"])
     previous = DiscussionAnalysisMetadata.model_validate_json(
         json.dumps(existing["discussion_analysis_metadata"])
     )
-    source = discussion_source(comments, coverage, analysis, previous.source_version)
+    source = discussion_source(comments, coverage, previous.source_version)
     fingerprint = source_fingerprint(source, summarizer.model, DISCUSSION_REFRESH_PROMPT_VERSION)
     if fingerprint == previous.input_fingerprint:
         # Normalization or sample limits can leave inference inputs unchanged even
@@ -88,7 +87,7 @@ def refresh_discussion(story, existing, comments, coverage, repository, summariz
         return False
     result = summarizer.refresh_discussion(source)
     result = DiscussionAnalysis.model_validate_json(result.model_dump_json())
-    result.validate_refresh(source["reference_claims"], comments)
+    result.validate_refresh(comments)
     metadata = DiscussionAnalysisMetadata(
         schema_version=DISCUSSION_ANALYSIS_SCHEMA_VERSION,
         prompt_version=DISCUSSION_REFRESH_PROMPT_VERSION,
@@ -206,11 +205,11 @@ def process_story(
             prompt_version=prompt_version,
             model=summarizer.model,
             source_version=source_version,
-            # The initial call already analyzed these comments with these claims.
+            # The initial call already analyzed these comments into themes.
             # Prime the refresh cache while retaining the actual generation prompt
             # in metadata.prompt_version for provenance.
             input_fingerprint=source_fingerprint(
-                discussion_source(comments, coverage, summary.discussion_analysis, source_version),
+                discussion_source(comments, coverage, source_version),
                 summarizer.model,
                 DISCUSSION_REFRESH_PROMPT_VERSION,
             ),

@@ -77,7 +77,11 @@ def test_semantic_fixtures_survive_initial_generation(fixture):
     status, repo = generate(fixture)
     assert status == "generated"
     record = repo.saved[100]
-    assert record["discussion_analysis"].model_dump() == fixture["expected"]
+    assert record["discussion_analysis"].model_dump() == {
+        "status": "no_comments" if not fixture["inputs"]["comments"] else "available",
+        "reference_claims": [], "critical_comments": [], "supportive_comments": [],
+        "topics": fixture["expected"]["topics"],
+    }
     metadata = record["discussion_analysis_metadata"]
     assert metadata.schema_version == DISCUSSION_ANALYSIS_SCHEMA_VERSION
     assert metadata.prompt_version == PROMPT_VERSION
@@ -89,12 +93,9 @@ def test_semantic_fixtures_survive_initial_generation(fixture):
 
 @pytest.mark.parametrize("mutation", [
     lambda r: r.pop("discussion_analysis"),
-    lambda r: r["discussion_analysis"]["critical_comments"][0].update(comment_id=999),
-    lambda r: r["discussion_analysis"]["critical_comments"][0].update(claim_id="invented"),
-    lambda r: r["discussion_analysis"]["critical_comments"][0].update(stance="agrees"),
-    lambda r: r["discussion_analysis"].update(status="no_comments"),
-    lambda r: r["discussion_analysis"]["reference_claims"][0].update(source="story_text"),
-    lambda r: r["discussion_analysis"].update(extra="untrusted"),
+    lambda r: r["discussion_analysis"]["topics"][0].update(comment_ids=[999]),
+    lambda r: r["discussion_analysis"]["topics"][0].update(key="invented"),
+    lambda r: r["discussion_analysis"].update(status="invalid"),
 ])
 def test_invalid_output_never_saves_partial_summary(mutation):
     result = fixture_output(VALID[0])
@@ -203,7 +204,9 @@ def test_initial_analysis_uses_existing_atomic_repository_write(monkeypatch):
     connection.execute.assert_called_once()
     sql, record = connection.execute.call_args.args
     assert "INSERT INTO hacksnap_summaries" in sql
-    assert record["discussion_analysis"].obj == VALID[0]["expected"]
+    assert record["discussion_analysis"].obj["topics"] == VALID[0]["expected"]["topics"]
+    assert record["discussion_analysis"].obj["critical_comments"] == []
+    assert record["discussion_analysis"].obj["supportive_comments"] == []
     assert record["discussion_analysis_metadata"].obj["analyzed_at"]
     assert record["discussion_analyzed_at"] is not None
     assert record["article_summary"]
@@ -255,7 +258,8 @@ def test_editorial_paragraphs_and_bullets_survive_generation_and_storage():
     for field in ("article_summary", "article_key_points"):
         assert getattr(stored, field) == result[field]
     assert stored.discussion_summary == result["discussion_summary"].replace("\n\n", "\n\n- ")
-    assert stored.discussion_analysis.model_dump() == VALID[0]["expected"]
+    assert stored.discussion_analysis.topics[0].title == VALID[0]["expected"]["topics"][0]["title"]
+    assert stored.discussion_analysis.critical_comments == []
 
 
 @pytest.mark.parametrize("brief", [
@@ -318,6 +322,9 @@ def test_brief_schema_requires_separate_opening_and_bullets_but_storage_stays_te
     from pipeline.models import GeneratedStorySummary, StorySummary
 
     schema = GeneratedStorySummary.model_json_schema()
+    assert set(schema["$defs"]["GeneratedDiscussionAnalysis"]["properties"]) == {
+        "status", "topics",
+    }
     brief = schema["$defs"]["DiscussionBrief"]
     assert set(brief["required"]) == {"opening", "bullets"}
     assert brief["additionalProperties"] is False

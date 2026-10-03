@@ -451,39 +451,6 @@
     "expected_error": "cannot contain claims or highlights"
   },
   {
-    "id": "available_without_claims",
-    "inputs": {
-      "article": "The engine halves latency in our single-client test.",
-      "story_text": null,
-      "comments": [
-        {
-          "id": 107,
-          "parent": 100,
-          "author": "reader_107",
-          "depth": 1,
-          "text": "How much RAM did each configuration use?"
-        }
-      ]
-    },
-    "expected": {
-      "status": "available",
-      "reference_claims": [],
-      "critical_comments": [],
-      "supportive_comments": [],
-      "topics": [
-        {
-          "key": "technical_limitations",
-          "title": "Memory requirements",
-          "summary": "A commenter asks about memory usage in the comparison.",
-          "comment_ids": [
-            107
-          ]
-        }
-      ]
-    },
-    "expected_error": "requires reference claims"
-  },
-  {
     "id": "comments_with_empty_status",
     "inputs": {
       "article": "The engine halves latency in our single-client test.",

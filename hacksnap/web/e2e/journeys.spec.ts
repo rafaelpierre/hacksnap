@@ -69,8 +69,14 @@ test("keyboard source popover and share controls preserve focus and accessibilit
   page,
 }) => {
   await page.goto(storyPath);
+  const theme = page.locator("summary").filter({ hasText: "Measuring useful work" });
+  await theme.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByText("Readers ask for repeatable measurements of realistic tasks."),
+  ).toBeVisible();
   const source = page.getByRole("button", {
-    name: "Source comments for Maintenance costs still matter.",
+    name: "Source comments for Measuring useful work",
   });
   await source.focus();
   await page.keyboard.press("Enter");
@@ -198,8 +204,12 @@ test.describe("without JavaScript", () => {
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "TLDR;", exact: true })).toBeVisible();
+    await page.locator("summary").filter({ hasText: "Measuring useful work" }).click();
+    await expect(
+      page.getByText("Readers ask for repeatable measurements of realistic tasks."),
+    ).toBeVisible();
     const source = page.getByRole("button", {
-      name: "Source comments for Maintenance costs still matter.",
+      name: "Source comments for Measuring useful work",
     });
     await source.click();
     await expect(page.getByRole("dialog", { name: "Source comments", exact: true })).toBeVisible();

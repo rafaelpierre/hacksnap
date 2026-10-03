@@ -55,7 +55,7 @@ def check_routing():
         assert summary.sentiment == 1
         model.refresh_discussion(discussion_source(
             comments, {"stored_comments": 1, "included_comments": 1, "comments_truncated": False},
-            summary.discussion_analysis, "synthetic-routing-check",
+            "synthetic-routing-check",
         ))
         assert model.estimate_sentiment(comments).sentiment == 1
         assert model.estimate_sentiment([]).sentiment is None

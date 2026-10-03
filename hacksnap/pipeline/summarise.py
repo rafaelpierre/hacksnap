@@ -9,7 +9,13 @@ from uuid import uuid4
 
 import httpx
 
-from .models import CommentSentiment, DiscussionAnalysis, GeneratedStorySummary, StorySummary
+from .models import (
+    CommentSentiment,
+    DiscussionAnalysis,
+    GeneratedDiscussionAnalysis,
+    GeneratedStorySummary,
+    StorySummary,
+)
 from .preprocess import sample_sentiment_comments
 from .prompts import DISCUSSION_REFRESH_PROMPT, SENTIMENT_PROMPT, SYSTEM_PROMPT
 from .telemetry import post_chat_completion, traced_operation
@@ -88,10 +94,12 @@ class ModalSummarizer:
     @traced_operation("discussion_analysis")
     def refresh_discussion(self, source: dict) -> DiscussionAnalysis:
         result = self._infer(
-            source, DISCUSSION_REFRESH_PROMPT, DiscussionAnalysis, "hacksnap_discussion_refresh"
+            {"comments": source["comments"]}, DISCUSSION_REFRESH_PROMPT, GeneratedDiscussionAnalysis,
+            "hacksnap_discussion_refresh"
         )
-        result.validate_refresh(source["reference_claims"], source["comments"])
-        return result
+        analysis = result.to_analysis()
+        analysis.validate_refresh(source["comments"])
+        return analysis
 
     @traced_operation("sentiment_analysis")
     def estimate_sentiment(self, comments: list[dict]) -> CommentSentiment:

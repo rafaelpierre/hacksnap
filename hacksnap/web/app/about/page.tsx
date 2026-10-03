@@ -47,24 +47,18 @@ export default function AboutPage() {
       </section>
 
       <section aria-labelledby="discussion-analysis-heading">
-        <h2 id="discussion-analysis-heading">Themes and competing reactions</h2>
+        <h2 id="discussion-analysis-heading">Discussion themes</h2>
         <p>
-          Newly analyzed stories include discussion themes and selected Most critical and Most
-          supportive comments. Each example paraphrases a comment, explains its stance and
-          reservations, identifies the original claim it addresses, and links to the source comment.
-          Theme links show the evidence behind each summary.
+          Newly analyzed stories group the discussion into themes. Each theme summarizes a topic
+          raised by the selected comments, with links to the source comments behind it.
         </p>
         <p>
-          These examples come from the available sample, selected for explicit stance and
-          explanation. They are not an exhaustive ranking, a measure of correctness, or a vote.
-          Either side can be empty when clear evidence is missing. Neutral questions, mixed
-          reactions and disagreements with other commenters do not by themselves count as support
-          for the original claim.
+          Themes describe the available sample. They are not an exhaustive ranking, a measure of
+          correctness, or a vote by the HN community.
         </p>
         <p>
           Analysis time and coverage describe the discussion sample separately from the article
-          brief. When the source has no usable claim, themes can still be shown without stance
-          highlights. Older stories retain their original discussion summaries; this feature is not
+          brief. Older stories retain their original discussion summaries; this feature is not
           backfilled.
         </p>
       </section>

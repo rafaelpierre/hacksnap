@@ -8,10 +8,10 @@ import pytest
 from pydantic import ValidationError
 
 from pipeline.models import (
-    DISCUSSION_ANALYSIS_SCHEMA_VERSION,
     DiscussionAnalysis,
     DiscussionAnalysisCoverage,
     DiscussionAnalysisMetadata,
+    GeneratedDiscussionAnalysis,
     StorySummary,
 )
 
@@ -107,7 +107,7 @@ def test_metadata_json_round_trip_and_source_count_validation():
     result = DiscussionAnalysis.model_validate(VALID[0]["expected"])
     metadata.validate_analysis(result, VALID[0]["inputs"]["comments"])
     assert metadata.model_dump(mode="json") == METADATA
-    assert metadata.schema_version == DISCUSSION_ANALYSIS_SCHEMA_VERSION
+    assert metadata.schema_version == "1"
     with pytest.raises(ValueError, match="Coverage disagrees"):
         metadata.validate_analysis(result, [])
     with pytest.raises(ValueError, match="status disagrees"):
@@ -128,7 +128,7 @@ def test_invalid_coverage(change):
 
 
 @pytest.mark.parametrize("change", [
-    {"schema_version": "2"}, {"schema_version": 1}, {"input_fingerprint": "unknown"},
+    {"schema_version": "3"}, {"schema_version": 1}, {"input_fingerprint": "unknown"},
     {"source_version": ""}, {"prompt_version": " "}, {"model": " "},
     {"analyzed_at": "2026-09-27T12:00:00"},
 ])
@@ -150,3 +150,15 @@ def test_schema_artifacts_match_models_and_all_object_fields_are_required():
 
 def test_initial_summary_requires_analysis():
     assert StorySummary.model_fields["discussion_analysis"].is_required()
+
+
+def test_generation_contract_contains_only_themes_and_rejects_legacy_highlights():
+    payload = {"status": "available", "topics": VALID[0]["expected"]["topics"]}
+    generated = GeneratedDiscussionAnalysis.model_validate(payload)
+    analysis = generated.to_analysis()
+    analysis.validate_comments(VALID[0]["inputs"]["comments"])
+    assert analysis.reference_claims == []
+    assert analysis.critical_comments == []
+    assert analysis.supportive_comments == []
+    with pytest.raises(ValidationError):
+        GeneratedDiscussionAnalysis.model_validate({**payload, "critical_comments": []})

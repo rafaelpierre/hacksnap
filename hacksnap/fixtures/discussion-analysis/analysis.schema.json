@@ -171,7 +171,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Standalone inference contract; source-dependent checks require validate_sources().",
+  "description": "Persisted contract keeps historical evidence readable; inference requests themes only.",
   "properties": {
     "status": {
       "enum": [

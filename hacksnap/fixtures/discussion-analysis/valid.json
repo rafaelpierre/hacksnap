@@ -45,7 +45,7 @@
       ]
     },
     "semantic_expectations": [
-      "The supportive list must be empty; do not invent balance."
+      "Unequal benchmark conditions belong in an evidence theme; preserve the objection."
     ]
   },
   {
@@ -85,7 +85,7 @@
       "topics": []
     },
     "semantic_expectations": [
-      "One comment is sufficient for one supported highlight; do not pad topics."
+      "A substantive replication report can support one evidence theme; do not pad topics."
     ]
   },
   {
@@ -125,7 +125,7 @@
       "topics": []
     },
     "semantic_expectations": [
-      "Miraculous speedup is sarcasm, not evidence of agreement."
+      "Treat sarcastic praise as a challenge to test design, not as endorsement."
     ]
   },
   {
@@ -180,7 +180,7 @@
       "topics": []
     },
     "semantic_expectations": [
-      "Interpret comment 105 with parent 104; disagreement in a reply can support the article."
+      "Interpret comment 105 with parent 104 before summarizing their debate."
     ]
   },
   {
@@ -237,7 +237,7 @@
       ]
     },
     "semantic_expectations": [
-      "Preserve the concurrency caveat.",
+      "Preserve the concurrency caveat in the applicable themes.",
       "A comment may cite multiple topics."
     ]
   },
@@ -279,7 +279,7 @@
       ]
     },
     "semantic_expectations": [
-      "The question establishes neither agreement nor disagreement; both highlight lists stay empty."
+      "A RAM-usage question supports a technical-limitations theme without inventing measured usage."
     ]
   },
   {
@@ -328,7 +328,7 @@
       ]
     },
     "semantic_expectations": [
-      "An ethical concern about an application does not refute the latency measurement."
+      "Separate the ethical concern from the data-deletion concern without treating either as a test result."
     ]
   },
   {
@@ -382,8 +382,8 @@
       ]
     },
     "semantic_expectations": [
-      "Target the cost claim and preserve agreement with the separate latency claim.",
-      "Select this comment once rather than duplicating it across highlight lists."
+      "Summarize the cost challenge while preserving any material acceptance of the latency result.",
+      "Do not split one argument into redundant themes."
     ]
   },
   {
@@ -401,7 +401,7 @@
       "topics": []
     },
     "semantic_expectations": [
-      "All evidence lists are empty; this is different from missing historical analysis."
+      "No comments yields no_comments and an empty themes list."
     ]
   },
   {
@@ -436,7 +436,7 @@
       ]
     },
     "semantic_expectations": [
-      "Do not reconstruct article claims from comments; topics remain possible."
+      "Missing method details support an evidence theme without reconstructing the unavailable article."
     ]
   },
   {
@@ -476,7 +476,7 @@
       "topics": []
     },
     "semantic_expectations": [
-      "HN story text can supply the reference claim without an external article."
+      "HN story text provides context, but every theme must be supported by the comment."
     ]
   },
   {
@@ -511,7 +511,7 @@
       ]
     },
     "semantic_expectations": [
-      "Available text can lack a proposition to agree with; topics are still useful."
+      "An open question can support an applicability theme without assessing agreement."
     ]
   }
 ]

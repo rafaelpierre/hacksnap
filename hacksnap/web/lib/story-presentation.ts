@@ -37,7 +37,6 @@ export function storyDiscussion(summary: DiscussionSummary | null) {
       status: summary.discussion_analysis.status,
       topics: summary.discussion_analysis.topics,
       coverage: summary.discussion_analysis_coverage ?? null,
-      legacyCoverage: summary.source_coverage,
     };
   }
   return {

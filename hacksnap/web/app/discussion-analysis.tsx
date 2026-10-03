@@ -1,18 +1,9 @@
 import styles from "./discussion-analysis.module.css";
-import { ArrowUpRight, ChevronDown, Info, ListTree, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Info, ListTree, X } from "lucide-react";
 import type {
-  CriticalCommentHighlight,
-  SupportiveCommentHighlight,
   DiscussionAnalysis as Analysis,
   DiscussionAnalysisCoverage,
 } from "../lib/discussion-analysis";
-
-const stanceLabels = {
-  disagrees: "Disagrees",
-  qualified_disagreement: "Disagrees with qualifications",
-  agrees: "Agrees",
-  qualified_agreement: "Agrees with reservations",
-};
 
 function SourceComment({ id, context }: { id: number; context: string }) {
   return (
@@ -77,61 +68,6 @@ function SourceComments({
   );
 }
 
-function HighlightGroup({
-  kind,
-  highlights,
-  claims,
-}: {
-  kind: "critical" | "supportive";
-  highlights: (CriticalCommentHighlight | SupportiveCommentHighlight)[];
-  claims: Analysis["reference_claims"];
-}) {
-  const title = kind === "critical" ? "Most critical" : "Most supportive";
-  const Icon = kind === "critical" ? ThumbsDown : ThumbsUp;
-  return (
-    <section className="analysis-group" aria-labelledby={`most-${kind}`}>
-      <h3 id={`most-${kind}`} className="analysis-group-heading">
-        <Icon className="analysis-group-icon" aria-hidden="true" />
-        <span>{title}</span>
-      </h3>
-      {highlights.length ? (
-        <ul className="analysis-highlights">
-          {highlights.map((highlight) => {
-            const claim = claims.find((item) => item.id === highlight.claim_id);
-            return (
-              <li key={highlight.comment_id}>
-                <div className="analysis-highlight-header">
-                  {claim && (
-                    <p className="analysis-claim">
-                      <span className="sr-only">
-                        Claim addressed ({claim.source === "article" ? "article" : "HN post"}):{" "}
-                      </span>
-                      <em>{claim.text}</em>
-                    </p>
-                  )}
-                  <SourceComments
-                    id={`highlight-source-${kind}-${highlight.comment_id}`}
-                    context={highlight.paraphrase}
-                    commentIds={[highlight.comment_id]}
-                  />
-                </div>
-                <p className="analysis-stance">{stanceLabels[highlight.stance]}</p>
-                <p className="analysis-paraphrase">{highlight.paraphrase}</p>
-                <p>{highlight.explanation}</p>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="muted">
-          No clear {kind} examples in the analyzed comments. Other views may exist elsewhere in the
-          thread.
-        </p>
-      )}
-    </section>
-  );
-}
-
 export function DiscussionAnalysis({
   analysis,
   coverage,
@@ -147,6 +83,10 @@ export function DiscussionAnalysis({
   const validDate = date && Number.isFinite(date.getTime()) ? date : null;
   return (
     <div className={`discussion-analysis ${styles.root}`}>
+      <h2 id="discussion-themes-heading" className="discussion-title">
+        <ListTree className="discussion-title-icon" aria-hidden="true" />
+        <span>Discussion themes</span>
+      </h2>
       <div className="analysis-coverage">
         <p>
           {coverage
@@ -179,22 +119,15 @@ export function DiscussionAnalysis({
               usable stored comments because of the input limit.
             </>
           )}{" "}
-          Selected examples and themes do not measure community opinion or how common a view is.
+          Selected themes do not measure community opinion or how common a view is.
         </p>
       </div>
       {analysis.status === "no_comments" ? (
-        <p>
-          No usable comments were available for this analysis. Themes and stance examples could not
-          be selected.
-        </p>
+        <p>No usable comments were available for this analysis, so no themes could be selected.</p>
       ) : (
         <>
-          {analysis.topics.length > 0 && (
-            <section className="analysis-themes" aria-labelledby="discussion-themes-heading">
-              <h3 id="discussion-themes-heading" className="discussion-title">
-                <ListTree className="discussion-title-icon" aria-hidden="true" />
-                <span>Discussion themes</span>
-              </h3>
+          {analysis.topics.length > 0 ? (
+            <div className="analysis-themes">
               {analysis.topics.map((topic, topicIndex) => (
                 <div className="analysis-theme" key={`${topic.key}-${topicIndex}`}>
                   <details className="analysis-theme-details">
@@ -213,33 +146,9 @@ export function DiscussionAnalysis({
                   />
                 </div>
               ))}
-            </section>
-          )}
-          {analysis.status === "insufficient_context" ? (
-            <p>
-              The original source was unavailable or did not contain a clear claim to assess.
-              Critical and supportive examples could not be identified against a source claim.
-            </p>
+            </div>
           ) : (
-            <>
-              <p className="analysis-selection">
-                Among the comments analyzed. Examples are selected for explicit stance and
-                explanation; their inclusion does not establish that an argument is correct. Comment
-                text below is paraphrased.
-              </p>
-              <div className="analysis-groups">
-                <HighlightGroup
-                  kind="critical"
-                  highlights={analysis.critical_comments}
-                  claims={analysis.reference_claims}
-                />
-                <HighlightGroup
-                  kind="supportive"
-                  highlights={analysis.supportive_comments}
-                  claims={analysis.reference_claims}
-                />
-              </div>
-            </>
+            <p className="muted">No distinct themes were identified in the analyzed comments.</p>
           )}
         </>
       )}

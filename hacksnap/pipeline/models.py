@@ -10,7 +10,7 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
 
-DISCUSSION_ANALYSIS_SCHEMA_VERSION = "1"
+DISCUSSION_ANALYSIS_SCHEMA_VERSION = "2"
 
 Stance = Literal[
     "disagrees", "qualified_disagreement", "mixed", "qualified_agreement", "agrees", "unclear"
@@ -62,7 +62,7 @@ class DiscussionTopic(StrictModel):
 
 
 class DiscussionAnalysis(StrictModel):
-    """Standalone inference contract; source-dependent checks require validate_sources()."""
+    """Persisted contract keeps historical evidence readable; inference requests themes only."""
 
     status: Literal["available", "no_comments", "insufficient_context"]
     reference_claims: list[ReferenceClaim] = Field(max_length=6)
@@ -85,8 +85,6 @@ class DiscussionAnalysis(StrictModel):
             raise ValueError("No-comments analysis cannot contain comment evidence")
         if self.status == "insufficient_context" and (self.reference_claims or highlights):
             raise ValueError("Insufficient-context analysis cannot contain claims or highlights")
-        if self.status == "available" and not self.reference_claims:
-            raise ValueError("Available analysis requires reference claims")
         return self
 
     def validate_sources(
@@ -101,10 +99,7 @@ class DiscussionAnalysis(StrictModel):
         if any(not (sources[claim.source] or "").strip() for claim in self.reference_claims):
             raise ValueError("Reference claim requires its supplied source")
 
-    def validate_refresh(self, reference_claims: list[dict], comments: list[dict]) -> None:
-        """Refreshes reuse previously source-validated claims verbatim."""
-        if [claim.model_dump() for claim in self.reference_claims] != reference_claims:
-            raise ValueError("Refresh changed persisted reference claims")
+    def validate_refresh(self, comments: list[dict]) -> None:
         self.validate_comments(comments)
 
     def validate_comments(self, comments: list[dict]) -> None:
@@ -136,13 +131,32 @@ class DiscussionAnalysisCoverage(StrictModel):
         return self
 
 
+class GeneratedDiscussionAnalysis(StrictModel):
+    """Only themes are requested from the model; legacy evidence stays readable."""
+
+    status: Literal["available", "no_comments"]
+    topics: list[DiscussionTopic] = Field(max_length=6)
+
+    @model_validator(mode="after")
+    def consistent_evidence(self) -> Self:
+        if self.status == "no_comments" and self.topics:
+            raise ValueError("No-comments analysis cannot contain topics")
+        return self
+
+    def to_analysis(self) -> DiscussionAnalysis:
+        return DiscussionAnalysis(
+            status=self.status, reference_claims=[], critical_comments=[],
+            supportive_comments=[], topics=self.topics,
+        )
+
+
 class DiscussionAnalysisMetadata(StrictModel):
     """Application-owned provenance; never ask the inference model to invent these fields.
 
     Only coverage and analyzed_at are public. Versions, fingerprints and model stay internal.
     """
 
-    schema_version: Literal["1"]
+    schema_version: Literal["1", "2"]
     prompt_version: Title
     model: Title
     source_version: Fingerprint
@@ -240,6 +254,7 @@ class DiscussionBrief(StrictModel):
 
 
 class GeneratedStorySummary(SummaryContent):
+    discussion_analysis: GeneratedDiscussionAnalysis
     discussion_summary: DiscussionBrief
 
     def to_summary(self) -> StorySummary:
@@ -249,5 +264,6 @@ class GeneratedStorySummary(SummaryContent):
         if brief.bullets:
             discussion += "\n\n" + "\n".join(f"- {bullet}" for bullet in brief.bullets)
         return StorySummary.model_validate({
-            **self.model_dump(), "discussion_summary": discussion,
+            **self.model_dump(), "discussion_analysis": self.discussion_analysis.to_analysis(),
+            "discussion_summary": discussion,
         })

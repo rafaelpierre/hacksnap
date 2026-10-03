@@ -628,28 +628,24 @@ outside data reads still reach the normal error boundary.
 ## Story discussion analysis
 
 New-format story pages expose `#discussion-analysis` for feed links. They use the
-public analysis contract to show expandable, cited themes and two groups of
-paraphrased comments with explicit stance, caveats and original target claims.
+public analysis contract to show expandable, cited discussion themes.
 Each theme places its info icon beside the title and reserves the far-right chevron
 for expansion. The info icon opens a small source-comment popup, independently
-of the theme description. Critical and supportive highlights show the addressed
-claim in italics above their stance label and commentary. Each highlight has the
-same info popup for its original comment link. A close icon, Escape, or clicking
-outside dismisses the popup.
+of the theme description. A close icon, Escape, or clicking outside dismisses
+the popup.
 Native popovers work without JavaScript; CSS anchor positioning places them beside
 the info icon, with a centered fallback in browsers without anchor support.
-Groups stack when space is limited; native disclosures and ordinary source links
+Native disclosures and ordinary source links
 work with keyboard navigation and without JavaScript. Coverage and UTC analysis
 time come from discussion fields, independently of the article summary.
 
-New themes replace legacy discussion points, keeping the discussion summary as
-the introduction. New summaries contain a short opening followed by plain-text
-`- ` bullet lines. HTML renders semantic lists and Markdown retains list markers,
-while escaping each item's content. Legacy prose remains separate paragraphs.
-The stored summary string, RSS and public API contract remain unchanged. Null or
-absent analysis preserves legacy rendering without promising a backfill. No-comments
-and insufficient-context states explain their limits; empty groups only describe missing evidence within the analyzed sample.
-Legacy skepticism is never treated as explicit support.
+New themes replace legacy discussion points. Story HTML and Markdown show a single
+**Discussion themes** section without the older introduction or stance cards. The
+stored summary string, RSS and public API contract remain unchanged. Historical
+claim and stance arrays stay available through the API; new analysis leaves them
+empty. Null or absent analysis uses legacy cited points without promising a backfill.
+No-comments and empty-theme states explain their limits. Legacy skepticism is never
+treated as explicit support.
 
 Run `npm test -- tests/discussion-analysis.test.tsx tests/story-content.test.tsx`.
 These tests use the shared `../fixtures/discussion-analysis/valid.json` contract
@@ -657,13 +653,13 @@ fixtures and need no live analysis or database.
 
 ## Discussion exports
 
-Story Markdown includes themes, source-comment links, paraphrased stance highlights,
-claim context, sample limitations, and independent analysis coverage/time. Missing
-analysis keeps legacy discussion points; explicit no-comments and insufficient-context
-results describe their limits. Nothing triggers a backfill or export regeneration.
+Story Markdown includes themes, source-comment links, sample limitations, and
+independent analysis coverage/time. Missing analysis keeps legacy discussion points;
+no-comments and empty-theme results describe their limits. Nothing triggers a
+backfill or export regeneration.
 
 `GET /api/stories/{id}` adds optional, nullable `summary.discussion_analysis`.
-The object explicitly exports status, claims, highlights, cited themes, `analyzed_at`,
+The object explicitly exports status, historical claims/highlights, cited themes, `analyzed_at`,
 and `coverage`. Nested fields are allowlisted, excluding worker metadata and raw
 source payloads. The list endpoint retains its compact summary; request a detail
 for evidence. OpenAPI 1.1.0, HTML docs, and negotiated Markdown docs describe the
