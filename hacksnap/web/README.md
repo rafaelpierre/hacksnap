@@ -3,15 +3,18 @@
 ## Typography
 
 Bricolage Grotesque at weight 600 is used for headlines and the wordmark. Source
-Sans 3 is used for reading text, navigation and labels. Article copy is 18px on
-desktop and 17px on phones, with a 1.7 line height. Monospace is reserved for
-code and compact numeric details.
+Sans 3 is used for reading text, navigation and labels. Article copy is 20px on
+desktop and 19px on phones, with a 1.7 line height. The introductory text is 21px
+at both sizes. Monospace is reserved for code and compact numeric details.
 
 The variable WOFF2 files and their licenses live in `app/fonts`. `next/font/local`
 serves and preloads the fonts with `font-display: swap` and adjusted fallbacks;
 builds and visits do not need an external font service.
 
 ## Color theme
+
+Light appearance uses a pure white page background. Dark appearance uses white
+headlines and reading text, with muted metadata and colored accents.
 
 The Appearance select in the header offers System, Light and Dark. System is the
 default and follows OS changes immediately through CSS `color-scheme` and
