@@ -142,7 +142,6 @@ export function StoryContent({
                 analysis={discussion.analysis}
                 coverage={summary.discussion_analysis_coverage}
                 analyzedAt={summary.discussion_analyzed_at}
-                hnURL={hnURL}
               />
             ) : (
               <>

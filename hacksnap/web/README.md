@@ -675,8 +675,11 @@ the popup.
 Native popovers work without JavaScript; CSS anchor positioning places them beside
 the info icon, with a centered fallback in browsers without anchor support.
 Native disclosures and ordinary source links
-work with keyboard navigation and without JavaScript. Coverage and UTC analysis
-time come from discussion fields, independently of the article summary.
+work with keyboard navigation and without JavaScript. The info icon beside the
+section heading opens coverage, UTC analysis time, and sampling limitations;
+these details are hidden until clicked and come from discussion fields,
+independently of the article summary. The section omits the full HN discussion
+footer link; theme source-comment links remain available.
 
 New themes replace legacy discussion points. Story HTML and Markdown show a single
 **Discussion themes** section without the older introduction or stance cards. The

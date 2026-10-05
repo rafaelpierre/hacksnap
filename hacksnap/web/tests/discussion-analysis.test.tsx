@@ -27,7 +27,6 @@ function render(analysis: Analysis, extra = {}) {
       analysis,
       coverage,
       analyzedAt: "2026-09-27T12:00:00Z",
-      hnURL: "https://news.ycombinator.com/item?id=100",
       ...extra,
     }),
   );
@@ -167,4 +166,24 @@ test("topics sharing a category key target their own source popup", () => {
     const label = document.getElementById(panel.getAttribute("aria-labelledby")!)!;
     assert.ok(panel.contains(label), "each popup resolves its own accessible heading");
   }
+});
+
+test("analysis coverage is inside a named, initially closed info popup", () => {
+  const document = render(fixture("one_sided_criticism"));
+  const trigger = document.querySelector(".analysis-heading > button")!;
+  const panel = document.getElementById(trigger.getAttribute("popovertarget")!)!;
+  assert.equal(trigger.getAttribute("aria-label"), "About this discussion analysis");
+  assert.equal(panel.getAttribute("popover"), "auto");
+  assert.equal(panel.getAttribute("role"), "dialog");
+  assert.equal(panel.hasAttribute("open"), false);
+  assert.ok(panel.contains(document.querySelector(".analysis-coverage")));
+  assert.equal(
+    document.getElementById(panel.getAttribute("aria-labelledby")!)?.textContent,
+    "Analysis details",
+  );
+  const close = panel.querySelector("button")!;
+  assert.equal(close.getAttribute("popovertarget"), panel.id);
+  assert.equal(close.getAttribute("popovertargetaction"), "hide");
+  assert.equal(close.getAttribute("aria-label"), "Close analysis information");
+  assert.doesNotMatch(document.body.textContent!, /Read the full HN discussion/);
 });
