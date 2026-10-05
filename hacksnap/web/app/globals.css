@@ -19,6 +19,7 @@
   --focus: var(--accent);
   --sans: var(--font-body), Arial, sans-serif;
   --heading: var(--font-heading), Arial, sans-serif;
+  --serif: var(--font-editorial), Georgia, "Times New Roman", serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
@@ -314,10 +315,11 @@ footer {
   font-size: 0.625rem;
 }
 .story-row h3 {
+  font-family: var(--serif);
   font-size: var(--text-title);
   font-weight: 600;
   line-height: 1.35;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.01em;
   margin: 0 0 7px;
   overflow-wrap: anywhere;
 }
@@ -331,6 +333,8 @@ footer {
   color: var(--ink);
 }
 .feed-excerpt {
+  font-family: var(--serif);
+  font-optical-sizing: auto;
   font-size: var(--text-base);
   line-height: 1.6;
   color: var(--prose);
@@ -404,20 +408,26 @@ footer > span {
   margin-bottom: var(--space-8);
 }
 .story-header h1 {
+  font-family: var(--serif);
   font-size: var(--text-story);
   font-weight: 600;
   line-height: 1.16;
-  letter-spacing: -1.3px;
+  letter-spacing: -0.02em;
   margin: var(--space-4) 0 var(--space-5);
   overflow-wrap: anywhere;
 }
 .standfirst {
+  font-family: var(--serif);
+  font-optical-sizing: auto;
   font-size: var(--text-deck);
   line-height: 1.6;
   color: var(--prose);
   margin: 28px 0 22px;
 }
 .editorial {
+  --heading: var(--serif);
+  font-family: var(--serif);
+  font-optical-sizing: auto;
   font-size: var(--text-body);
   line-height: var(--leading-body);
   overflow-wrap: anywhere;
@@ -434,6 +444,11 @@ footer > span {
 .editorial p {
   white-space: pre-line;
   margin-bottom: 22px;
+}
+.story-pending {
+  --heading: var(--serif);
+  font-family: var(--serif);
+  font-optical-sizing: auto;
 }
 .key-points {
   padding-left: var(--space-5);
@@ -485,6 +500,7 @@ footer > span {
   min-height: 15rem;
 }
 .related-stories h2 {
+  font-family: var(--serif);
   font-size: var(--text-section);
   font-weight: 600;
   line-height: 1.4;
@@ -500,6 +516,7 @@ footer > span {
   border-bottom: 1px solid var(--line);
 }
 .related-story-list h3 {
+  font-family: var(--serif);
   font-size: var(--text-body);
   font-weight: 600;
   line-height: 1.5;
@@ -612,9 +629,6 @@ body:has(#browse-content) .skip-browse {
   }
   .back-link {
     margin-bottom: 25px;
-  }
-  .story-header h1 {
-    letter-spacing: -0.8px;
   }
   .standfirst {
     font-size: var(--text-deck);

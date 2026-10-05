@@ -7,12 +7,14 @@ export const ogImageSize = { width: 1200, height: 630 };
 
 // Bundle local, static TTFs: the OG renderer cannot use the site's variable WOFF2s.
 // Cache asset reads across requests; the fixed random grain keeps previews stable.
-let assets: Promise<[Buffer, Buffer, Buffer]> | undefined;
+let assets: Promise<[Buffer, Buffer, Buffer, Buffer, Buffer]> | undefined;
 function loadAssets() {
   return (assets ??= Promise.all([
     readFile(join(process.cwd(), "app/fonts/bricolage-grotesque-og-600.ttf")),
     readFile(join(process.cwd(), "app/fonts/source-sans-3-og-400.ttf")),
     readFile(join(process.cwd(), "lib/assets/og-grain.png")),
+    readFile(join(process.cwd(), "app/fonts/newsreader-og-600.ttf")),
+    readFile(join(process.cwd(), "app/fonts/newsreader-og-400.ttf")),
   ]).catch((error) => {
     assets = undefined;
     throw error;
@@ -25,7 +27,7 @@ export async function ogImage({
   source,
   takeaway,
 }: { title?: string; source?: string; takeaway?: string | null } = {}) {
-  const [heading, body, grain] = await loadAssets();
+  const [heading, body, grain, editorialHeading, editorialBody] = await loadAssets();
   const cleanTitle = title.replace(/\s+/g, " ").trim() || "AI on Hacker News";
   const characters = Array.from(cleanTitle);
   const headline =
@@ -127,10 +129,10 @@ export async function ogImage({
           <div
             style={{
               display: "block",
-              fontFamily: "Bricolage Grotesque",
+              fontFamily: "Newsreader",
               fontSize,
               fontWeight: 600,
-              letterSpacing: -2,
+              letterSpacing: -0.02 * fontSize,
               lineHeight: 1.1,
               wordBreak: "break-word",
               lineClamp: 4,
@@ -145,6 +147,7 @@ export async function ogImage({
               style={{
                 display: "block",
                 flexShrink: 0,
+                fontFamily: "Newsreader",
                 fontSize: 26,
                 lineHeight: 1.25,
                 color: "#9a9fa0",
@@ -186,6 +189,8 @@ export async function ogImage({
       fonts: [
         { name: "Bricolage Grotesque", data: heading, weight: 600, style: "normal" },
         { name: "Source Sans 3", data: body, weight: 400, style: "normal" },
+        { name: "Newsreader", data: editorialHeading, weight: 600, style: "normal" },
+        { name: "Newsreader", data: editorialBody, weight: 400, style: "normal" },
       ],
     },
   );

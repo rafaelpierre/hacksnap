@@ -27,6 +27,17 @@ const reading = localFont({
   fallback: ["Arial", "sans-serif"],
 });
 
+const editorial = localFont({
+  src: [
+    { path: "./fonts/newsreader-latin-variable.woff2", weight: "200 800", style: "normal" },
+    { path: "./fonts/newsreader-latin-italic-variable.woff2", weight: "200 800", style: "italic" },
+  ],
+  variable: "--font-editorial",
+  display: "swap",
+  adjustFontFallback: "Times New Roman",
+  fallback: ["Georgia", "Times New Roman", "serif"],
+});
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://hacksnap.live"),
   applicationName: "Hacksnap",
@@ -52,7 +63,7 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${headlines.variable} ${reading.variable}`}>
+    <html lang="en" className={`${headlines.variable} ${reading.variable} ${editorial.variable}`}>
       <head>
         <script
           type="application/ld+json"

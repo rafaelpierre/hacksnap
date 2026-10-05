@@ -2,14 +2,21 @@
 
 ## Typography
 
-Bricolage Grotesque at weight 600 is used for headlines and the wordmark. Source
-Sans 3 is used for reading text, navigation and labels. Article copy is 20px on
-desktop and 19px on phones, with a 1.7 line height. The introductory text is 21px
-at both sizes. Monospace is reserved for code and compact numeric details.
+Newsreader is used for story headlines, card excerpts, article and discussion
+copy, and related-story headlines. Headlines use weight 600; reading text uses
+weight 400. Both upright and italic variable fonts use automatic optical sizing,
+with looser headline tracking suited to a serif. Article copy is 20px on desktop
+and 19px on phones, with a 1.7 line height. The introductory text is 20px on
+desktop and 18px on phones. Bricolage Grotesque remains the wordmark and general
+page-heading font; Source Sans 3 remains the navigation, label and metadata font.
+Monospace is reserved for code and compact numeric details.
 
 The variable WOFF2 files and their licenses live in `app/fonts`. `next/font/local`
 serves and preloads the fonts with `font-display: swap` and adjusted fallbacks;
-builds and visits do not need an external font service.
+builds and visits do not need an external font service. Newsreader uses an adjusted
+Times New Roman fallback, with Georgia and system serifs as additional fallbacks.
+Social previews use static local Newsreader instances for headlines and excerpts,
+while retaining the existing brand and metadata fonts.
 
 ## Color theme
 
