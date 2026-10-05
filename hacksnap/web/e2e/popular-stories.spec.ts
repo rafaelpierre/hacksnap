@@ -101,25 +101,53 @@ test("keyboard activation records a click separately from the mounted story view
   context,
 }) => {
   const events: Array<{ kind: string; story_id: string; visit_id: string }> = [];
+  let releaseRuntime!: () => void;
+  const runtimeGate = new Promise<void>((resolve) => {
+    releaseRuntime = resolve;
+  });
+  await context.route("**/_next/static/chunks/*.js", async (route) => {
+    await runtimeGate;
+    await route.fallback();
+  });
   await context.route("**/api/story-events", async (route) => {
     events.push(route.request().postDataJSON());
     await route.fulfill({ status: 202, body: "" });
   });
-  await page.goto("/");
   const first = page.getByRole("complementary", { name: "Most read" }).getByRole("link").first();
+  try {
+    await page.goto("/", { waitUntil: "commit" });
+    // Server-rendered links are already usable while the client runtime is held.
+    await expect(first).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem("hacksnap:visit-anchor"))).toBeNull();
+  } finally {
+    releaseRuntime();
+  }
+  // In this fresh context only ReaderVisit writes this anchor. Its synchronous
+  // effect installs the click listeners before this browser evaluation can run.
+  await page.waitForFunction(() => Number(localStorage.getItem("hacksnap:visit-anchor")) > 0);
   await first.focus();
   await first.press("Enter");
   await expect(page).toHaveURL(/\/story\/91000001/);
-  await expect.poll(() => events.filter(({ kind }) => kind === "view").length).toBe(1);
-  expect(events.map(({ kind, story_id }) => [kind, story_id])).toEqual([
-    ["click", "91000001"],
-    ["view", "91000001"],
-  ]);
+  // Independent keepalive requests may arrive in either order; require both.
+  await expect
+    .poll(() => events.map(({ kind, story_id }) => [kind, story_id]).sort())
+    .toEqual([
+      ["click", "91000001"],
+      ["view", "91000001"],
+    ]);
   expect(new Set(events.map(({ visit_id }) => visit_id)).size).toBe(2);
   for (const event of events)
     expect(Object.keys(event).sort()).toEqual(["kind", "story_id", "visit_id"]);
   await page.reload();
-  await expect.poll(() => events.filter(({ kind }) => kind === "view").length).toBe(2);
+  await expect
+    .poll(() => events.map(({ kind, story_id }) => [kind, story_id]).sort())
+    .toEqual([
+      ["click", "91000001"],
+      ["view", "91000001"],
+      ["view", "91000001"],
+    ]);
+  for (const event of events)
+    expect(Object.keys(event).sort()).toEqual(["kind", "story_id", "visit_id"]);
   expect(
     new Set(events.filter(({ kind }) => kind === "view").map(({ visit_id }) => visit_id)).size,
   ).toBe(2);
