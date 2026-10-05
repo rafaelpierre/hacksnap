@@ -63,7 +63,6 @@ test("frontend pages render a recoverable outage while invalid routes remain 404
   const { DataUnavailable } = await import("../app/data-unavailable.tsx");
   for (const [path, params] of [
     ["../app/[[...path]]/page.tsx", {}],
-    ["../app/archive/[[...date]]/page.tsx", {}],
     ["../app/category/[slug]/page.tsx", { slug: "agents-coding" }],
     ["../app/story/[id]/page.tsx", { id: "123" }],
   ]) {
@@ -118,7 +117,7 @@ test("topics and sitemap remain available without database data", async () => {
   const { default: sitemap } = await import("../app/sitemap.ts");
   const urls = (await sitemap()).map((entry) => entry.url);
   assert.ok(urls.includes("https://hacksnap.live/"));
-  assert.ok(urls.includes("https://hacksnap.live/archive"));
+  assert.ok(urls.every((url) => !url.includes("/archive")));
 });
 
 test("RSS and legacy story preview URLs return retryable, uncached 503s during an outage", async () => {

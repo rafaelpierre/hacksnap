@@ -16,7 +16,7 @@ export const test = base.extend<{ browserErrors: string[]; expectedNetworkErrors
           !(
             expectedNetworkErrors &&
             /Failed to load resource.*503/.test(message.text()) &&
-            message.location().url.includes("/api/ready-stories")
+            message.location().url.includes("/api/browse-stories")
           )
         )
           errors.push(message.text());

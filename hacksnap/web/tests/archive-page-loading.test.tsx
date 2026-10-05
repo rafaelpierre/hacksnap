@@ -40,8 +40,11 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
   },
 }));
 jest.unstable_mockModule("next/navigation", () => ({
-  usePathname: () => "/archive",
+  usePathname: () => "/",
   useRouter: () => ({ refresh: () => {} }),
+  permanentRedirect: (url: string) => {
+    throw new Error(`redirect:${url}`);
+  },
   notFound: () => {
     throw routeSignal;
   },
@@ -70,14 +73,13 @@ jest.unstable_mockModule("../app/topic-sidebar.tsx", () => ({
     React.createElement("main", null, children),
 }));
 
-const { default: ArchivePage, generateMetadata } =
-  await import("../app/archive/[[...date]]/page.tsx");
+const { default: ArchivePage, generateMetadata } = await import("../app/[[...path]]/page.tsx");
 const { ArchiveStoryList } = await import("../app/archive-story-list.tsx");
 const { DataUnavailableError } = await import("../lib/data-availability.ts");
 
 function props(date?: string[], page?: string) {
   return {
-    params: Promise.resolve({ date }),
+    params: Promise.resolve({ path: date }),
     searchParams: Promise.resolve({ page }),
   };
 }
@@ -109,6 +111,35 @@ function storyFeedElement(
   }
   return storyFeedElement(children);
 }
+
+function headingElement(node: React.ReactNode): React.ReactElement | undefined {
+  if (!React.isValidElement(node)) return undefined;
+  if (node.type === "h1") return node;
+  const children = (node.props as { children?: React.ReactNode }).children;
+  if (Array.isArray(children)) {
+    for (const child of children) {
+      const found = headingElement(child);
+      if (found) return found;
+    }
+  }
+  return headingElement(children);
+}
+
+test("Latest keeps an accessible heading without a visible hero", async () => {
+  const shell = await ArchivePage(props());
+  const heading = headingElement(shell);
+  assert.ok(heading);
+  assert.deepEqual(heading.props, { className: "sr-only", children: "Latest stories" });
+  assert.ok(React.isValidElement(shell));
+  assert.equal((shell.props as { active: string }).active, "home");
+});
+
+test("dated archives retain their visible month heading", async () => {
+  const shell = await ArchivePage(props(["2026", "09"]));
+  const heading = headingElement(shell);
+  assert.ok(heading);
+  assert.deepEqual(heading.props, { children: "September 2026" });
+});
 
 test("latest archive renders the deferred list without starting a story read", async () => {
   events.length = 0;
@@ -199,4 +230,39 @@ test("month-index outages use the fallback before streaming", async () => {
   assert.match(html, /temporarily unavailable/i);
   assert.deepEqual(events, ["months"]);
   monthsFailure = null;
+});
+
+test("canonical Latest landing metadata preserves the homepage search and social branding", async () => {
+  events.length = 0;
+  for (const input of [props(), props([], "1")]) {
+    const metadata = await generateMetadata(input);
+    assert.deepEqual(metadata.title, { absolute: "Hacksnap | AI News" });
+    assert.equal(metadata.alternates?.canonical, "/");
+    assert.equal(metadata.openGraph?.title, "Hacksnap | AI News");
+    assert.equal(metadata.twitter?.title, "Hacksnap | AI News");
+    assert.ok(metadata.openGraph && "url" in metadata.openGraph);
+    assert.equal(metadata.openGraph.url, "/");
+    assert.equal(metadata.openGraph.description, metadata.description);
+    assert.equal(metadata.twitter?.description, metadata.description);
+    assert.deepEqual(metadata.robots, { index: true, follow: true });
+  }
+  assert.deepEqual(events, []);
+});
+
+test("later Latest and monthly archive metadata retain their page titles and canonicals", async () => {
+  events.length = 0;
+  for (const [input, title, canonical] of [
+    [props(undefined, "2"), "Latest stories — Page 2", "/?page=2"],
+    [props(["2026", "09"]), "September 2026 archive", "/2026/09"],
+    [props(["2026", "09"], "2"), "September 2026 archive — Page 2", "/2026/09?page=2"],
+  ] as const) {
+    const metadata = await generateMetadata(input);
+    assert.equal(metadata.title, title);
+    assert.equal(metadata.alternates?.canonical, canonical);
+    assert.equal(metadata.openGraph?.title, title);
+    assert.equal(metadata.twitter?.title, title);
+    assert.ok(metadata.openGraph && "url" in metadata.openGraph);
+    assert.equal(metadata.openGraph.url, canonical);
+  }
+  assert.deepEqual(events, []);
 });

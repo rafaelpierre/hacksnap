@@ -1,4 +1,5 @@
-import { assertBrowsePage } from "./archive";
+import { ARCHIVE_PAGE_SIZE, assertBrowsePage } from "./archive";
+import { readySummarySQL } from "./ready-stories";
 
 export const CATEGORIES = [
   {
@@ -63,18 +64,19 @@ export function categoryURL(category: Category, page = 1): string {
   return page === 1 ? base : `${base}?page=${page}`;
 }
 
-export const CATEGORY_PAGE_SIZE = 30;
-export const categoryCountsSQL = `SELECT category, count(*)::int AS count FROM hacker_news_threads
-  WHERE category IS NOT NULL AND date_added <= CURRENT_TIMESTAMP
-    AND hn_id BETWEEN 1 AND 999999999999999 GROUP BY category`;
+export const CATEGORY_PAGE_SIZE = ARCHIVE_PAGE_SIZE;
+export const categoryCountsSQL = `SELECT t.category, count(*)::int AS count FROM hacker_news_threads t
+  INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+  WHERE t.category IS NOT NULL AND t.date_added <= CURRENT_TIMESTAMP
+    AND t.hn_id BETWEEN 1 AND 999999999999999 AND ${readySummarySQL} GROUP BY t.category`;
 
 export function categoryQuery(fields: string, category: CategoryId, page: number) {
   assertBrowsePage(page);
   return {
     text: `SELECT ${fields} FROM hacker_news_threads t
-    LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+    INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
     WHERE t.category = $1 AND t.date_added <= CURRENT_TIMESTAMP
-      AND t.hn_id BETWEEN 1 AND 999999999999999
+      AND t.hn_id BETWEEN 1 AND 999999999999999 AND ${readySummarySQL}
     ORDER BY t.date_added DESC, t.hn_id DESC LIMIT $2 OFFSET $3`,
     values: [category, CATEGORY_PAGE_SIZE + 1, (page - 1) * CATEGORY_PAGE_SIZE],
   };
@@ -92,6 +94,7 @@ export function relatedStoriesQuery(
     WHERE t.category = $1 AND t.hn_id <> $2
       AND t.date_added <= CURRENT_TIMESTAMP
       AND t.hn_id BETWEEN 1 AND 999999999999999
+      AND ${readySummarySQL}
     ORDER BY t.date_added DESC, t.hn_id DESC LIMIT 3`,
     values: [category, currentStoryId],
   };

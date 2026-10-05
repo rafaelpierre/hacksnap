@@ -12,6 +12,7 @@ import {
   saveFeedHistory,
 } from "../app/story-navigation";
 import { browseLabel } from "../lib/navigation-context";
+import { ARCHIVE_PAGE_SIZE } from "../lib/archive";
 import type { FeedSnapshot } from "../lib/feed-state";
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
@@ -52,7 +53,7 @@ test("archive return preserves route, pagination and scroll without changing bre
       root.render(
         <AppRouterContext.Provider value={router as never}>
           <div key={key}>
-            <StoryReturnLink destination={{ href: "/", label: "Top Stories" }} />
+            <StoryReturnLink destination={{ href: "/", label: "Latest" }} />
             <StoryReturnLink
               destination={{ href: "/category/safety-privacy", label: "Safety & Privacy" }}
             />
@@ -62,12 +63,7 @@ test("archive return preserves route, pagination and scroll without changing bre
       ),
     );
   try {
-    for (const url of [
-      "/archive",
-      "/archive?page=3",
-      "/archive/2026/09",
-      "/archive/2026/09?page=2",
-    ]) {
+    for (const url of ["/", "/?page=3", "/2026/09", "/2026/09?page=2"]) {
       window.history.replaceState({ hacksnapJourney: token }, "", `/story/headline-42`);
       const context = { url, label: browseLabel(url), scrollY: 820, savedAt: Date.now() };
       sessionStorageSet(context);
@@ -75,7 +71,7 @@ test("archive return preserves route, pagination and scroll without changing bre
       const links = [...document.querySelectorAll("a")];
       assert.deepEqual(
         links.map((link) => link.getAttribute("href")),
-        ["/", "/category/safety-privacy", url],
+        [url.startsWith("/?") ? url : "/", "/category/safety-privacy", url],
       );
       assert.match(links[2].textContent!, /Back to /);
       await act(async () => links[2].click());
@@ -93,7 +89,7 @@ test("archive return preserves route, pagination and scroll without changing bre
       [
         "expired",
         {
-          url: "/archive",
+          url: "/",
           label: "Latest stories",
           scrollY: 10,
           savedAt: Date.now() - 9 * 3600000,
@@ -102,7 +98,7 @@ test("archive return preserves route, pagination and scroll without changing bre
       ],
       [
         "other-tab",
-        { url: "/archive", label: "Latest stories", scrollY: 10, savedAt: Date.now() },
+        { url: "/", label: "Latest stories", scrollY: 10, savedAt: Date.now() },
         "hacksnap-tab:other",
       ],
       [
@@ -135,7 +131,7 @@ test("archive return preserves route, pagination and scroll without changing bre
 });
 
 test("story URLs stay clean while each history entry retains its own journey", async () => {
-  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/archive?page=3" });
+  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/?page=3" });
   const values = {
     self: dom.window,
     window: dom.window,
@@ -173,7 +169,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
   try {
     const savedFeed: FeedSnapshot = {
       version: 1,
-      url: "/archive?page=3",
+      url: "/?page=3",
       stories: [
         {
           hn_id: "42",
@@ -192,7 +188,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
           image_width: null,
           image_height: null,
           image_mime_type: null,
-          summary: null,
+          summary: { overall_takeaway: "Saved brief", sentiment: null, source_coverage: null },
         },
       ],
       pagination: {
@@ -200,6 +196,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
         previousCursor: null,
         hasMore: true,
         page: 3,
+        pageSize: ARCHIVE_PAGE_SIZE,
         expiresAt: null,
         selectionLimited: false,
       },
@@ -218,7 +215,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
     assert.deepEqual(pushes, ["/story/headline-42"]);
     await render(<StoryReturnLink archiveOnly />, "story");
     assert.equal(window.location.search, "");
-    assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
+    assert.equal(document.querySelector("a")?.getAttribute("href"), "/?page=3");
     const firstState = window.history.state;
     assert.ok(firstState.hacksnapJourney);
     assert.equal(firstState.frameworkState, "preserved");
@@ -229,8 +226,8 @@ test("story URLs stay clean while each history entry retains its own journey", a
     assert.ok(journeyRecord.length < 1000);
     assert.equal(JSON.parse(journeyRecord).homeFeedRef.id, firstState.hacksnapHomeFeed.id);
     await click();
-    window.history.replaceState({}, "", "/archive?page=3");
-    const returned = consumeFeedReturn("/archive?page=3")!;
+    window.history.replaceState({}, "", "/?page=3");
+    const returned = consumeFeedReturn("/?page=3")!;
     assert.equal(returned.stories[0].hn_id, "42");
     assert.equal(returned.focusStoryId, "42");
     window.history.replaceState(firstState, "", "/story/headline-42");
@@ -246,9 +243,9 @@ test("story URLs stay clean while each history entry retains its own journey", a
     assert.equal(window.location.pathname, "/story/headline-43");
     assert.equal(window.location.search, "");
     assert.equal(window.history.state.hacksnapJourney, firstState.hacksnapJourney);
-    assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
+    assert.equal(document.querySelector("a")?.getAttribute("href"), "/?page=3");
 
-    for (const source of ["/", "/archive?page=3", "/category/agents-coding?page=2"]) {
+    for (const source of ["/", "/?page=3", "/category/agents-coding?page=2"]) {
       window.history.replaceState({}, "", source);
       await render(
         <BrowseStoryLink id="42" slug="headline-42" anchor="discussion-analysis">
@@ -281,7 +278,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
     );
     assert.equal(window.history.state.hacksnapJourney, firstState.hacksnapJourney);
     assert.equal(window.history.state.frameworkState, "preserved");
-    assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
+    assert.equal(document.querySelector("a")?.getAttribute("href"), "/?page=3");
 
     window.history.replaceState({}, "", "/story/headline-43?journey=invalid");
     await render(<StoryReturnLink archiveOnly />, "invalid-legacy-url");
@@ -291,9 +288,9 @@ test("story URLs stay clean while each history entry retains its own journey", a
 
     // A remount (as on reload) reads the committed entry, with no pending token.
     await render(<StoryReturnLink archiveOnly />, "reload");
-    assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
+    assert.equal(document.querySelector("a")?.getAttribute("href"), "/?page=3");
 
-    window.history.pushState({}, "", "/archive?page=2");
+    window.history.pushState({}, "", "/?page=2");
     await render(
       <BrowseStoryLink id="42" slug="headline-42">
         Story
@@ -304,12 +301,12 @@ test("story URLs stay clean while each history entry retains its own journey", a
     await render(<StoryReturnLink archiveOnly />, "second-visit");
     const secondState = window.history.state;
     assert.notEqual(secondState.hacksnapJourney, firstState.hacksnapJourney);
-    assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=2");
+    assert.equal(document.querySelector("a")?.getAttribute("href"), "/?page=2");
 
     // Exercise popstate even when both history entries have the same pathname.
     for (const [state, href] of [
-      [firstState, "/archive?page=3"],
-      [secondState, "/archive?page=2"],
+      [firstState, "/?page=3"],
+      [secondState, "/?page=2"],
     ] as const) {
       await act(async () => {
         window.history.replaceState(state, "", "/story/headline-42");
@@ -344,7 +341,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
 });
 
 test("readable storage with failing writes and cleanup still restores the list in this tab", async () => {
-  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/archive?page=3" });
+  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/?page=3" });
   const values = {
     self: dom.window,
     window: dom.window,
@@ -412,9 +409,9 @@ test("readable storage with failing writes and cleanup still restores the list i
     );
     await act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
     await render(<StoryReturnLink />);
-    assert.equal(document.querySelector("a")?.getAttribute("href"), "/archive?page=3");
+    assert.equal(document.querySelector("a")?.getAttribute("href"), "/?page=3");
     await act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
-    window.history.replaceState({}, "", "/archive?page=3");
+    window.history.replaceState({}, "", "/?page=3");
     await render(<ListPositionRestorer />);
     assert.deepEqual(scrolls, [0]);
     assert.equal(
@@ -438,7 +435,7 @@ test("readable storage with failing writes and cleanup still restores the list i
 });
 
 test("journey cleanup expires old records, caps owned keys, and preserves other storage", async () => {
-  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/archive" });
+  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
   const values = {
     self: dom.window,
     window: dom.window,
@@ -457,7 +454,7 @@ test("journey cleanup expires old records, caps owned keys, and preserves other 
   const router = { push: () => {}, prefetch: async () => {} };
   document.addEventListener("click", (event) => event.preventDefault());
   const now = Date.now();
-  const context = { url: "/archive", label: "Latest stories", scrollY: 30, savedAt: now };
+  const context = { url: "/", label: "Latest stories", scrollY: 30, savedAt: now };
   const expired = { ...context, savedAt: now - 9 * 60 * 60 * 1000 };
   window.sessionStorage.setItem("unrelated:preference", "keep");
   window.sessionStorage.setItem("hacksnap:journey:expired", JSON.stringify({ context: expired }));

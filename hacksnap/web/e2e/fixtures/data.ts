@@ -5,6 +5,8 @@ import type { CategoryId, CategoryCounts } from "../../lib/categories";
 import type { RankingMetrics } from "../../lib/story-metrics";
 import type { PublicStory } from "../../lib/public-story";
 import { DataUnavailableError } from "../../lib/data-availability";
+import { ARCHIVE_PAGE_SIZE } from "../../lib/archive";
+import { CATEGORY_PAGE_SIZE } from "../../lib/categories";
 import {
   createReadyStoryCursor,
   parseReadyStoryCursor,
@@ -180,11 +182,18 @@ export async function getArchiveMonths() {
 export async function getCategoryCounts(): Promise<CategoryCounts> {
   return { models_products: stories.length };
 }
-export async function getCategoryStories(_category: CategoryId, page: number) {
-  return { stories: cards.slice((page - 1) * 30, page * 30), hasNext: page * 30 < cards.length };
+export async function getCategoryStories(category: CategoryId, page: number) {
+  if (category === "safety_privacy") return { stories: [], hasNext: false };
+  return {
+    stories: cards.slice((page - 1) * CATEGORY_PAGE_SIZE, page * CATEGORY_PAGE_SIZE),
+    hasNext: page * CATEGORY_PAGE_SIZE < cards.length,
+  };
 }
 export async function getArchiveStories(_month: string | null, page: number) {
-  return getCategoryStories("models_products", page);
+  return {
+    stories: cards.slice((page - 1) * ARCHIVE_PAGE_SIZE, page * ARCHIVE_PAGE_SIZE),
+    hasNext: page * ARCHIVE_PAGE_SIZE < cards.length,
+  };
 }
 export async function getRelatedStories(
   _category: CategoryId,

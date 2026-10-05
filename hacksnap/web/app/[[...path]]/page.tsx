@@ -1,16 +1,14 @@
-import type { Metadata } from "next";
 import { withDataFallback } from "../with-data-fallback";
-import { ChevronRight } from "lucide-react";
-import { NavigationPendingLink } from "../navigation-pending-link";
-import { notFound } from "next/navigation";
-import { Suspense, type ReactNode } from "react";
-import { getReadyStoryPage } from "../../lib/data";
-import { shouldStreamBrowse } from "../../lib/browse-streaming";
-import { ReadyStoryPageError } from "../../lib/ready-story-pagination";
-import { publicFeedStory } from "../../lib/stories-api";
-import { BrowseLayout } from "../topic-sidebar";
-import { StoryFeed } from "../story-feed";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound, permanentRedirect } from "next/navigation";
+import { getArchiveMonths, getArchiveStories } from "../../lib/data";
+import { archiveMonth, archivePage, archiveURL, monthLabel } from "../../lib/archive";
+import { Suspense } from "react";
+import { ArchiveStoryList } from "../archive-story-list";
 import { BrowseLoading } from "../browse-loading";
+import { shouldStreamBrowse } from "../../lib/browse-streaming";
+import { BrowseLayout } from "../topic-sidebar";
 
 export const dynamic = "force-dynamic";
 
@@ -19,109 +17,77 @@ type Props = {
   searchParams: Promise<{ page?: string | string[]; cursor?: string | string[] }>;
 };
 
-export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
-  const { page, cursor } = await searchParams;
-  const continuation = page !== undefined || cursor !== undefined;
+async function selection({ params, searchParams }: Props) {
+  const { path = [] } = await params;
+  const month = path.length ? archiveMonth(path) : null;
+  if (path.length && !month) notFound();
+  const page = archivePage((await searchParams).page);
+  if (page === null) notFound();
+  return { month, page };
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { month, page } = await selection(props);
+  const homepage = month === null && page === 1;
+  const legacyCursor = (await props.searchParams).cursor !== undefined;
+  const title = homepage
+    ? "Hacksnap | AI News"
+    : `${month ? monthLabel(month) + " archive" : "Latest stories"}${page > 1 ? ` — Page ${page}` : ""}`;
+  const description = month
+    ? "Browse past Hacker News stories and discussion summaries by the date they were added to Hacksnap."
+    : "AI stories from Hacker News, newest first, with article briefs and highlights from the discussion.";
+  const canonical = archiveURL(month, page);
   return {
-    robots: { index: !continuation, follow: true },
-    ...(continuation
+    title: homepage ? { absolute: title } : title,
+    description,
+    robots: { index: !legacyCursor, follow: true },
+    ...(legacyCursor
       ? {}
       : {
           alternates: {
-            canonical: "/",
+            canonical,
             types: { "application/rss+xml": "https://hacksnap.live/feed.xml" },
           },
         }),
+    openGraph: { title, description, url: canonical },
+    twitter: { title, description },
   };
 }
 
-function HomeShell({ children }: { children: ReactNode }) {
+async function Latest(props: Props) {
+  const { month, page } = await selection(props);
+  // Frozen ranked selections are obsolete; keep their public page destination.
+  if ((await props.searchParams).cursor !== undefined) permanentRedirect(archiveURL(month, page));
+  if (month) {
+    const months = await getArchiveMonths();
+    if (!months.some((item) => item.month === month)) notFound();
+  }
+  // Later pages must establish existence before any loading UI flushes a 200.
+  const result =
+    page > 1 || !(await shouldStreamBrowse()) ? await getArchiveStories(month, page) : undefined;
+  if (page > 1 && result && result.stories.length === 0) notFound();
+  const content = result ? (
+    await ArchiveStoryList({ month, page, result })
+  ) : (
+    <Suspense key={`${archiveURL(month)}:${page}`} fallback={<BrowseLoading />}>
+      <ArchiveStoryList month={month} page={page} />
+    </Suspense>
+  );
   return (
-    <BrowseLayout active="home">
-      <header className="feed-header home-intro">
-        <h1>AI news for people who build.</h1>
-        <p>AI stories and highlights from Hacker News discussions.</p>
-      </header>
-      <section aria-label="Top stories">{children}</section>
+    <BrowseLayout active={month ? undefined : "home"}>
+      {month ? (
+        <header className="feed-header archive-month-header">
+          <div className="channel-path">
+            <Link href="/">latest</Link> / <span>{monthLabel(month)}</span>
+          </div>
+          <h1>{monthLabel(month)}</h1>
+        </header>
+      ) : (
+        <h1 className="sr-only">Latest stories</h1>
+      )}
+      {content}
     </BrowseLayout>
   );
 }
 
-const HomeStories = withDataFallback(async function HomeStories({
-  rawPage,
-  rawCursor,
-}: {
-  rawPage?: string;
-  rawCursor?: string;
-}) {
-  let result;
-  try {
-    result = await getReadyStoryPage({
-      page: rawPage ? Number(rawPage) : undefined,
-      cursor: rawCursor,
-    });
-  } catch (error) {
-    if (error instanceof ReadyStoryPageError) {
-      if (error.status === 400) notFound();
-      return (
-        <BrowseLayout active="home">
-          <div className="empty home-feed-expired">
-            <h1>This story selection has expired.</h1>
-            <p>Start a fresh selection to see the current stories.</p>
-            <a className="button" href="/">
-              Start fresh
-            </a>
-          </div>
-        </BrowseLayout>
-      );
-    }
-    throw error;
-  }
-  const { stories, ingestion, pagination, selectionIds } = result;
-  const stale = ingestion && Date.now() - ingestion.getTime() > 3 * 60 * 60 * 1000;
-  return (
-    <HomeShell>
-      {stale && <p className="notice">Updates are delayed. These are the latest saved stories.</p>}
-      <StoryFeed
-        key={`${pagination.page}:${rawCursor ?? "fresh"}`}
-        initialStories={stories.map(publicFeedStory)}
-        initialPagination={pagination}
-        initialSelectionIds={selectionIds}
-      />
-      <p className="archive-cta">
-        <NavigationPendingLink
-          className="browse-latest-link"
-          href="/archive"
-          pendingLabel="Loading latest stories…"
-        >
-          Browse latest stories <ChevronRight className="inline-icon" aria-hidden="true" />
-        </NavigationPendingLink>
-      </p>
-    </HomeShell>
-  );
-});
-
-async function Home({ params, searchParams }: Props) {
-  // Only the root URL belongs to this page; unknown paths must remain 404s.
-  if ((await params).path?.length) notFound();
-  const { page: rawPage, cursor: rawCursor } = await searchParams;
-  if (Array.isArray(rawPage) || Array.isArray(rawCursor)) notFound();
-  if (rawPage && (!/^[1-9][0-9]*$/.test(rawPage) || Number(rawPage) > 10000)) notFound();
-
-  // Query pages can fail cursor validation; document requests must remain useful without JS.
-  if (rawPage !== undefined || rawCursor !== undefined || !(await shouldStreamBrowse()))
-    return HomeStories({ rawPage, rawCursor });
-  return (
-    <Suspense
-      fallback={
-        <HomeShell>
-          <BrowseLoading />
-        </HomeShell>
-      }
-    >
-      <HomeStories />
-    </Suspense>
-  );
-}
-
-export default withDataFallback(Home);
+export default withDataFallback(Latest);

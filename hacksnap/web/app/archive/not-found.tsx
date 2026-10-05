@@ -5,7 +5,7 @@ export default function ArchiveNotFound() {
     <div className="empty">
       <h1>Archive page not found.</h1>
       <p>There are no stories on this archive page.</p>
-      <Link className="button" href="/archive">
+      <Link className="button" href="/">
         Back to archive
       </Link>
     </div>

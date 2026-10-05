@@ -4,7 +4,6 @@ import { ChevronLeft } from "lucide-react";
 import { track } from "../lib/analytics";
 import Link from "next/link";
 import { storyPath } from "../lib/story-url";
-import { clearHomeFeedCheckpoint } from "../lib/home-feed-checkpoint";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type MouseEvent, type ReactNode } from "react";
 import { browseLabel, validBrowseContext, type BrowseContext } from "../lib/navigation-context";
@@ -45,7 +44,6 @@ const memoryJourneys = new Map<
   string,
   { context: BrowseContext | null; homeFeedRef: FeedSnapshotRef | null }
 >();
-let initialHomeRestoreChecked = false;
 
 function cancelPendingJourney() {
   pendingJourney = null;
@@ -237,38 +235,6 @@ export function saveFeedHistory(snapshot: FeedSnapshot) {
 }
 
 export function consumeFeedReturn(url: string): FeedSnapshot | null {
-  const initialCheck = !initialHomeRestoreChecked;
-  initialHomeRestoreChecked = true;
-  const navigation = window.performance?.getEntriesByType?.("navigation")?.[0] as
-    | PerformanceNavigationTiming
-    | undefined;
-  if (initialCheck && url === "/" && navigation?.type === "reload") {
-    let reloadedHome = false;
-    try {
-      const documentURL = new URL(navigation.name);
-      reloadedHome =
-        documentURL.origin === window.location.origin &&
-        documentURL.pathname + documentURL.search === url;
-    } catch {
-      /* An unavailable timing entry does not override a saved return. */
-    }
-    if (reloadedHome) {
-      // StoryFeed checks the durable checkpoint after history restoration.
-      // Clear both sources so a reload cannot replace fresh server cards.
-      clearHomeFeedCheckpoint();
-      const state = { ...window.history.state };
-      delete state[HOME_HISTORY_KEY];
-      window.history.replaceState(state, "");
-      pendingHomeReturn = null;
-      pendingListReturn = null;
-      try {
-        storage()?.removeItem(RESTORE_KEY);
-      } catch {
-        /* Storage is optional. */
-      }
-      return null;
-    }
-  }
   if (pendingHomeReturn?.context.url === url) {
     const snapshot = readFeedSnapshot(pendingHomeReturn.homeFeedRef, url);
     pendingHomeReturn = null;
@@ -456,7 +422,7 @@ export function StoryReturnLink({
       const saved = readJourney(journeyToken());
       const path = saved?.url.split("?")[0];
       const matches = archiveOnly
-        ? path === "/archive" || path?.startsWith("/archive/")
+        ? path === "/" || /^\/[1-9]\d{3}\/(0[1-9]|1[0-2])$/.test(path ?? "")
         : !destination || path === destination.href;
       setContext(saved && matches ? saved : null);
     }
@@ -507,7 +473,7 @@ export function StoryReturnLink({
     >
       {!destination && <ChevronLeft className="inline-icon" aria-hidden="true" />}{" "}
       {archiveOnly && "Back to "}
-      {destination?.label ?? context?.label ?? "Top stories"}
+      {destination?.label ?? context?.label ?? "Latest stories"}
     </Link>
   );
 }

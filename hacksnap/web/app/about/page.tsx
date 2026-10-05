@@ -63,14 +63,13 @@ export default function AboutPage() {
         </p>
       </section>
 
-      <section aria-labelledby="ranking-heading">
-        <h2 id="ranking-heading">Ranking</h2>
+      <section aria-labelledby="story-order-heading">
+        <h2 id="story-order-heading">Story order</h2>
         <p>
-          The Top stories list puts recent eligible stories first and fills remaining places with
-          older stories. Within each group, stories are ordered by Hacker News points. A story’s
-          position and the Hotness chart describe Hacksnap’s own ranking, not its rank on the HN
-          front page. The chart connects recorded positions; movement between observations is
-          unknown.
+          Latest lists summarized AI stories by when they were added to Hacksnap, newest first.
+          Topic feeds use the same order. Monthly archives keep older stories accessible. Hacker
+          News points and comments describe the stored discussion activity and do not control the
+          feed order.
         </p>
       </section>
 

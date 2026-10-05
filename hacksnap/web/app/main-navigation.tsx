@@ -4,11 +4,10 @@ import { usePathname } from "next/navigation";
 import { NavigationPendingLink } from "./navigation-pending-link";
 
 const destinations = [
-  { href: "/", label: "Top stories", active: (path: string) => path === "/" },
   {
-    href: "/archive",
+    href: "/",
     label: "Latest",
-    active: (path: string) => path === "/archive" || path.startsWith("/archive/"),
+    active: (path: string) => path === "/" || /^\/\d{4}\/\d{2}$/.test(path),
   },
   {
     href: "/topics",

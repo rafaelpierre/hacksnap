@@ -97,7 +97,7 @@ test("missing or expired history is unknown and one observation cannot establish
   assert.match(one, /rank #8/);
 });
 
-test("sitemap exposes latest content modification on homepage and keeps each story timestamp", () => {
+test("sitemap exposes latest content modification on Latest and keeps each story timestamp", () => {
   const older = new Date("2026-09-19T12:00:00Z");
   const latest = new Date(asOf);
   const entries = sitemapEntries([

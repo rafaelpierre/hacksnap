@@ -66,7 +66,7 @@ test("ordinary negotiation and non-read methods retain their behavior", () => {
 });
 
 test("AI Markdown preserves noindex for temporary homepage pagination", () => {
-  for (const query of ["?page=2", "?cursor=expired", "?page="]) {
+  for (const query of ["?page=2&cursor=expired", "?cursor=expired", "?cursor="]) {
     for (const method of ["GET", "HEAD"]) {
       const response = proxy(
         new NextRequest(`https://hacksnap.live/${query}`, {
@@ -77,5 +77,102 @@ test("AI Markdown preserves noindex for temporary homepage pagination", () => {
       assert.ok(response.headers.get("x-middleware-rewrite"));
       assert.equal(response.headers.get("x-robots-tag"), "noindex, follow");
     }
+  }
+});
+
+test("Latest Markdown negotiation preserves the requested page through its rewrite", () => {
+  const response = proxy(
+    new NextRequest("https://hacksnap.live/?page=2", {
+      headers: { Accept: "text/markdown" },
+    }),
+  );
+  const rewrite = new URL(response.headers.get("x-middleware-rewrite"));
+  assert.equal(rewrite.pathname, "/markdown");
+  assert.equal(rewrite.searchParams.get("page"), "/");
+  assert.equal(response.headers.get("x-middleware-request-x-hacksnap-markdown-page"), "/");
+  assert.equal(response.headers.get("x-middleware-request-x-hacksnap-markdown-query"), "?page=2");
+  assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+});
+
+test("HTML and unsupported methods keep normal routing and negotiation headers", () => {
+  for (const [method, accept] of [
+    ["GET", "text/html"],
+    ["POST", "text/markdown"],
+  ]) {
+    const response = proxy(
+      new NextRequest("https://hacksnap.live/", {
+        method,
+        headers: { Accept: accept },
+      }),
+    );
+    assert.equal(response.headers.get("x-middleware-rewrite"), null);
+    assert.equal(response.headers.get("x-middleware-next"), "1");
+    assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+  }
+});
+
+test("AI Latest negotiation preserves pagination without excluding canonical pages from indexing", () => {
+  for (const method of ["GET", "HEAD"]) {
+    const response = proxy(
+      new NextRequest("https://hacksnap.live/?page=2", {
+        method,
+        headers: { "user-agent": "ChatGPT-User/1.0", accept: "text/html" },
+      }),
+    );
+    assert.equal(new URL(response.headers.get("x-middleware-rewrite")).pathname, "/markdown");
+    assert.equal(response.headers.get("x-middleware-request-x-hacksnap-markdown-query"), "?page=2");
+    assert.equal(response.headers.get("x-robots-tag"), null);
+    assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+  }
+});
+
+test("AI agents and explicit Markdown requests leave APIs, assets and unrelated paths untouched", () => {
+  for (const path of [
+    "/api/stories",
+    "/api/stories/123",
+    "/api/browse-stories",
+    "/api/ready-stories",
+    "/assets/site.css",
+    "/fonts/reading.woff2",
+    "/_next/static/chunks/app.js",
+    "/favicon.ico",
+    "/icon.svg",
+    "/feed.xml",
+    "/openapi.json",
+    "/opengraph-image",
+    "/story/123/opengraph-image",
+    "/unknown/path",
+    "/2026/13",
+    "/archive/unknown",
+  ]) {
+    for (const method of ["GET", "HEAD"]) {
+      for (const accept of ["application/json", "text/markdown"]) {
+        const response = proxy(
+          new NextRequest(`https://hacksnap.live${path}`, {
+            method,
+            headers: { "user-agent": "ChatGPT-User/1.0", accept },
+          }),
+        );
+        assert.equal(response.headers.get("x-middleware-next"), "1", path);
+        assert.equal(response.headers.get("x-middleware-rewrite"), null, path);
+        assert.equal(response.headers.get("x-middleware-override-headers"), null, path);
+        assert.equal(response.headers.get("vary"), null, path);
+        assert.equal(response.headers.get("x-robots-tag"), null, path);
+      }
+    }
+  }
+});
+
+test("recognized canonical and legacy dated feeds still negotiate AI Markdown", () => {
+  for (const path of ["/2026/09", "/archive", "/archive/2026/09"]) {
+    const response = proxy(
+      new NextRequest(`https://hacksnap.live${path}?page=2`, {
+        headers: { "user-agent": "ChatGPT-User/1.0", accept: "text/html" },
+      }),
+    );
+    assert.equal(new URL(response.headers.get("x-middleware-rewrite")).pathname, "/markdown");
+    assert.equal(response.headers.get("x-middleware-request-x-hacksnap-markdown-page"), path);
+    assert.equal(response.headers.get("x-middleware-request-x-hacksnap-markdown-query"), "?page=2");
+    assert.equal(response.headers.get("vary"), "Accept, User-Agent");
   }
 });

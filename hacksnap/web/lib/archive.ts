@@ -1,5 +1,7 @@
-export const ARCHIVE_PAGE_SIZE = 30;
-// At most 3,000 stories per listing; older archive stories remain reachable by month.
+import { readySummarySQL } from "./ready-stories";
+
+export const ARCHIVE_PAGE_SIZE = 15;
+// At most 1,500 stories per listing; older archive stories remain reachable by month.
 export const MAX_BROWSE_PAGE = 100;
 export function assertBrowsePage(page: number): void {
   if (!Number.isInteger(page) || page < 1 || page > MAX_BROWSE_PAGE)
@@ -34,13 +36,14 @@ export function monthLabel(month: string): string {
 }
 
 export function archiveURL(month: string | null, page = 1): string {
-  const base = month ? `/archive/${month.replace("-", "/")}` : "/archive";
+  const base = month ? `/${month.replace("-", "/")}` : "/";
   return page === 1 ? base : `${base}?page=${page}`;
 }
 
-export const archiveMonthsSQL = `SELECT to_char(date_added AT TIME ZONE 'UTC', 'YYYY-MM') AS month,
-  count(*)::int AS count FROM hacker_news_threads
-  WHERE hn_id BETWEEN 1 AND 999999999999999
+export const archiveMonthsSQL = `SELECT to_char(t.date_added AT TIME ZONE 'UTC', 'YYYY-MM') AS month,
+  count(*)::int AS count FROM hacker_news_threads t
+  INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+  WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${readySummarySQL}
   GROUP BY 1 ORDER BY 1 DESC`;
 
 export function archiveQuery(fields: string, month: string | null, page: number) {
@@ -52,8 +55,8 @@ export function archiveQuery(fields: string, month: string | null, page: number)
   values.push(ARCHIVE_PAGE_SIZE + 1, (page - 1) * ARCHIVE_PAGE_SIZE);
   return {
     text: `SELECT ${fields} FROM hacker_news_threads t
-    LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
-    WHERE t.hn_id BETWEEN 1 AND 999999999999999 ${range}
+    INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+    WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${readySummarySQL} ${range}
     ORDER BY t.date_added DESC, t.hn_id DESC
     LIMIT $${values.length - 1} OFFSET $${values.length}`,
     values,

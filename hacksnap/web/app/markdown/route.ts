@@ -1,19 +1,15 @@
 import { storyIdFromSlug, storyPath } from "../../lib/story-url";
-import { getMarkdownLeaderboard, getStory, getStoryMetrics } from "../../lib/data";
-import {
-  isAiAgent,
-  leaderboardMarkdown,
-  markdownResponse,
-  storyMarkdown,
-} from "../../lib/markdown";
+import { getArchiveMonths, getArchiveStories, getStory, getStoryMetrics } from "../../lib/data";
+import { isAiAgent, latestMarkdown, markdownResponse, storyMarkdown } from "../../lib/markdown";
+import { archiveMonth, archivePage, archiveURL } from "../../lib/archive";
 import { apiDocsMarkdown } from "../../lib/api-docs-markdown";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const requestURL = new URL(request.url);
   const page =
-    request.headers.get("x-hacksnap-markdown-page") ??
-    new URL(request.url).searchParams.get("page");
+    request.headers.get("x-hacksnap-markdown-page") ?? requestURL.searchParams.get("page");
   const aiAgent = isAiAgent(request.headers.get("user-agent"));
   const respond = (body: string, pagePath: string) =>
     markdownResponse(
@@ -22,7 +18,41 @@ export async function GET(request: Request) {
         : body,
     );
   try {
-    if (page === "/") return respond(leaderboardMarkdown(await getMarkdownLeaderboard()), "/");
+    const dated = page?.match(/^\/([1-9]\d{3})\/(0[1-9]|1[0-2])$/);
+    const legacyDated = page?.match(/^\/archive\/([1-9]\d{3})\/(0[1-9]|1[0-2])$/);
+    if (page === "/" || page === "/archive" || dated || legacyDated) {
+      const dateMatch = dated ?? legacyDated;
+      const month = dateMatch ? archiveMonth(dateMatch.slice(1)) : null;
+      const query = new URLSearchParams(
+        request.headers.get("x-hacksnap-markdown-query") ??
+          (request.headers.has("x-hacksnap-markdown-page") ? requestURL.search : ""),
+      );
+      const pages = query.getAll("page");
+      // Direct handler requests reserve `page` for the negotiated route.
+      if (
+        !request.headers.has("x-hacksnap-markdown-page") &&
+        !request.headers.has("x-hacksnap-markdown-query")
+      )
+        pages.push(...requestURL.searchParams.getAll("feedPage"));
+      const feedPage = archivePage(pages.length > 1 ? pages : pages[0]);
+      if (feedPage === null) return markdownResponse("# Not found\n", 404);
+      const canonical = archiveURL(month, feedPage);
+      if (page === "/archive" || legacyDated || query.has("cursor"))
+        return new Response(null, {
+          status: 308,
+          headers: {
+            Location: canonical,
+            Vary: "Accept, User-Agent",
+            "Cache-Control": "no-store",
+            ...(query.has("cursor") ? { "X-Robots-Tag": "noindex, follow" } : {}),
+          },
+        });
+      if (month && !(await getArchiveMonths()).some((item) => item.month === month))
+        return markdownResponse("# Not found\n", 404);
+      const result = await getArchiveStories(month, feedPage);
+      if (feedPage > 1 && !result.stories.length) return markdownResponse("# Not found\n", 404);
+      return respond(latestMarkdown({ ...result, month, page: feedPage }), canonical);
+    }
     if (page === "/docs/api") return respond(apiDocsMarkdown, "/docs/api");
     const match = page?.match(/^\/story\/([^/]+)$/);
     const id = match ? storyIdFromSlug(match[1]) : null;

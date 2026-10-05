@@ -10,16 +10,12 @@ for (const route of ["/", "/archive", "/category/models-products"]) {
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     const returnName =
-      route === "/"
-        ? "Top Stories"
-        : route === "/archive"
-          ? "Back to Latest stories"
-          : "Models & Products";
+      route === "/" || route === "/archive" ? "Back to Latest stories" : "Models & Products";
     await page
       .getByRole("navigation", { name: "Breadcrumb" })
       .getByRole("link", { name: returnName, exact: true })
       .click();
-    await expect(page).toHaveURL((url) => url.pathname === route);
+    await expect(page).toHaveURL((url) => url.pathname === (route === "/archive" ? "/" : route));
     await expect(card).toBeVisible();
     await card.click();
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
@@ -39,12 +35,12 @@ test("same-path listing entries retain their own feed depth across Back/Forward"
   await page.getByRole("link", { name: title, exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
-  // The wordmark opens a new / entry through the Next router, independently of
+  // The wordmark opens a new Latest entry through the Next router, independently of
   // the saved story-return journey. Never synthesize entries with pushState.
   await page.getByRole("link", { name: "Hacksnap home", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await page
-    .getByRole("link", { name: "Practical AI research update 10", exact: true })
+    .getByRole("link", { name: "Practical AI research update 15", exact: true })
     .scrollIntoViewIfNeeded();
   const later = page.getByRole("link", { name: "Practical AI research update 20", exact: true });
   await later.scrollIntoViewIfNeeded();
@@ -158,7 +154,7 @@ test.describe("controlled continuation failure", () => {
   test.use({ expectedNetworkErrors: true });
   test("retry keeps loaded cards and restores continuation", async ({ page }) => {
     let fail = true;
-    await page.route("**/api/ready-stories?**", async (route) => {
+    await page.route("**/api/browse-stories?**", async (route) => {
       if (fail)
         await route.fulfill({
           status: 503,
@@ -169,7 +165,7 @@ test.describe("controlled continuation failure", () => {
     });
     await page.goto("/");
     await page
-      .getByRole("link", { name: "Practical AI research update 10", exact: true })
+      .getByRole("link", { name: "Practical AI research update 15", exact: true })
       .scrollIntoViewIfNeeded();
     const retry = page.getByRole("button", { name: "Try loading again", exact: true });
     await expect(retry).toBeVisible();
@@ -200,7 +196,8 @@ test("HTML and Markdown negotiation keep route semantics", async ({ request }) =
 });
 
 test("AI user agents receive Markdown with the public URL heading", async ({ request }) => {
-  for (const route of ["/", storyPath, "/docs/api"]) {
+  for (const route of ["/", "/archive", storyPath, "/docs/api"]) {
+    const publicPath = route === "/archive" ? "/" : route;
     for (const agent of ["ChatGPT-User", "OAI-SearchBot", "Claude-User", "Claude-SearchBot"]) {
       const headers = { Accept: "text/html", "User-Agent": `${agent}/1.0` };
       const response = await request.get(route, { headers });
@@ -210,7 +207,7 @@ test("AI user agents receive Markdown with the public URL heading", async ({ req
       expect(response.headers()["cache-control"]).toContain("no-store");
       expect(
         (await response.text()).startsWith(
-          `# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live${route}\n\n# `,
+          `# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live${publicPath}\n\n# `,
         ),
       ).toBe(true);
       const head = await request.head(route, { headers });
@@ -227,10 +224,45 @@ test("AI user agents receive Markdown with the public URL heading", async ({ req
   expect(api.headers()["content-type"]).toContain("application/json");
 });
 
+test("obsolete ranked cursors redirect to indexable Latest pagination", async ({ request }) => {
+  for (const accept of ["text/html", "text/markdown"]) {
+    const redirected = await request.get("/?page=2&cursor=obsolete", {
+      headers: { Accept: accept },
+      maxRedirects: 0,
+    });
+    expect(redirected.status()).toBe(308);
+    expect(new URL(redirected.headers().location, redirected.url()).pathname).toBe("/");
+    expect(new URL(redirected.headers().location, redirected.url()).search).toBe("?page=2");
+    expect(redirected.headers()["x-robots-tag"]).toBe("noindex, follow");
+    const latest = await request.get("/?page=2", { headers: { Accept: accept } });
+    expect(latest.status()).toBe(200);
+    expect(latest.headers()["x-robots-tag"]).toBeUndefined();
+  }
+});
+
 test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false, colorScheme: "dark" });
+  test("Latest starts with fifteen stories and the next page remains reachable", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator("[data-home-story-id]")).toHaveCount(15);
+    await expect(page.getByRole("heading", { name: "15 January 2026", exact: true })).toHaveCount(
+      0,
+    );
+    await expect(page.getByRole("link", { name: "Top stories", exact: true })).toHaveCount(0);
+    await expect(page.getByText("AI stories from Hacker News, newest first.")).toHaveCount(0);
+    await expect(page.getByText(/Brief pending/)).toHaveCount(0);
+    await page.getByRole("link", { name: "Older stories", exact: true }).click();
+    await expect(page).toHaveURL(/\/\?page=2$/);
+    await expect(page.locator("[data-home-story-id]")).toHaveCount(15);
+    await expect(
+      page.getByRole("link", { name: "Practical AI research update 16", exact: true }),
+    ).toBeVisible();
+  });
   test("server content and ordinary links remain readable", async ({ page }) => {
-    await page.goto("/archive");
+    await page.goto("/");
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     await expect(page.getByRole("button", { name: /Switch to .* mode/ })).toHaveCount(0);
     await page.getByRole("link", { name: title, exact: true }).click();
@@ -249,7 +281,7 @@ test.describe("without JavaScript", () => {
     await page.keyboard.press("Escape");
     await page
       .getByRole("navigation", { name: "Breadcrumb" })
-      .getByRole("link", { name: "Top Stories", exact: true })
+      .getByRole("link", { name: "Latest", exact: true })
       .click();
     await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
   });
@@ -285,6 +317,28 @@ test("feature routes remain reachable by keyboard", async ({ page }) => {
   await expect(page).toHaveURL(/\/openapi.json$/);
 });
 
+test("desktop topics stay left of the feed and close to the header", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await page.evaluate(() => document.fonts.ready);
+  const sidebar = page.locator(".topic-sidebar");
+  const sidebarBounds = await sidebar.boundingBox();
+  const headerBounds = await page.getByRole("banner").boundingBox();
+  const storyBounds = await page.locator(".story-list > li").first().boundingBox();
+  expect(sidebarBounds!.x + sidebarBounds!.width).toBeLessThan(storyBounds!.x);
+  expect(sidebarBounds!.y).toBeGreaterThanOrEqual(headerBounds!.y + headerBounds!.height);
+  expect(sidebarBounds!.y).toBeLessThanOrEqual(headerBounds!.y + headerBounds!.height + 32);
+  const topics = sidebar.getByRole("navigation", { name: "Topics", exact: true });
+  const lastTopic = topics.getByRole("link", { name: "Industry & Society", exact: true });
+  await lastTopic.focus();
+  await expect(lastTopic).toBeFocused();
+  await expect(lastTopic).toBeInViewport();
+  const bounds = await lastTopic.boundingBox();
+  expect(bounds!.height).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/category\/industry-society$/);
+});
+
 test("a delayed story navigation keeps the feed and announces progress", async ({ page }) => {
   let release: (() => void) | undefined;
   const pending = new Promise<void>((resolve) => {
@@ -300,12 +354,66 @@ test("a delayed story navigation keeps the feed and announces progress", async (
   try {
     await expect(link).toHaveAttribute("aria-busy", "true");
     await expect(page.getByRole("status").filter({ hasText: "Opening story…" })).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "AI news for people who build." }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Latest stories" })).toBeAttached();
   } finally {
     release!();
   }
   await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+});
+
+test("category and API documentation home links open Latest directly", async ({ page }) => {
+  await page.goto("/category/safety-privacy");
+  await expect(page.getByRole("heading", { name: "No stories in this topic yet." })).toBeVisible();
+  const breadcrumb = page
+    .locator(".channel-path")
+    .getByRole("link", { name: "hacksnap", exact: true });
+  await expect(breadcrumb).toHaveAttribute("href", "/");
+  const browse = page.getByRole("link", { name: "Browse latest stories" });
+  await expect(browse).toHaveAttribute("href", "/");
+  await browse.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/category\/safety-privacy$/);
+  await expect(browse).toBeVisible();
+  await page.goto("/docs/api");
+  const back = page.locator("main .back-link");
+  await expect(back).toHaveAttribute("href", "/");
+  await back.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
+});
+
+test("Latest owns root and dated canonicals while legacy archive URLs only redirect", async ({
+  request,
+}) => {
+  for (const accept of ["text/html", "text/markdown"]) {
+    for (const [legacy, canonical] of [
+      ["/archive", "/"],
+      ["/archive?page=2", "/?page=2"],
+      ["/archive/2026/01", "/2026/01"],
+    ]) {
+      const response = await request.get(legacy, { headers: { Accept: accept }, maxRedirects: 0 });
+      expect(response.status()).toBe(308);
+      const location = new URL(response.headers().location, response.url());
+      expect(location.pathname + location.search).toBe(canonical);
+    }
+    for (const route of ["/", "/?page=2", "/2026/01"]) {
+      const response = await request.get(route, { headers: { Accept: accept }, maxRedirects: 0 });
+      expect(response.status()).toBe(200);
+      expect(response.headers()["x-robots-tag"]).toBeUndefined();
+      const body = await response.text();
+      expect(body).not.toContain("hacksnap.live/archive");
+      expect(body).not.toContain('href="/archive');
+    }
+  }
+  const sitemap = await request.get("/sitemap.xml");
+  expect(sitemap.status()).toBe(200);
+  const xml = await sitemap.text();
+  expect(xml).toContain("<loc>https://hacksnap.live/</loc>");
+  expect(xml).toContain("<loc>https://hacksnap.live/2026/01</loc>");
+  expect(xml).not.toContain("/archive");
 });

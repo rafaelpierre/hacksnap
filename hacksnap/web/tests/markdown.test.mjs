@@ -5,6 +5,7 @@ import {
   acceptsMarkdown,
   isAiAgent,
   leaderboardMarkdown,
+  latestMarkdown,
   storyMarkdown,
   markdownResponse,
 } from "../lib/markdown.ts";
@@ -258,4 +259,33 @@ test("Discussion bullets are omitted from Markdown", () => {
     },
   });
   assert.doesNotMatch(body, /The central question|One argument|unsafe|<script>/);
+});
+
+test("Latest Markdown follows supplied chronological order, omits pending cards and links pagination", () => {
+  const newer = {
+    ...story,
+    hn_id: "456",
+    title: "Newer story",
+    date_added: new Date("2026-09-20T12:00:00Z"),
+    points: 1,
+  };
+  const body = latestMarkdown({
+    stories: [newer, story, { ...story, hn_id: "999", summary: null }],
+    page: 2,
+    hasNext: true,
+  });
+  assert.match(body, /^# Latest stories/);
+  assert.ok(body.indexOf("Newer story") < body.indexOf("Example"));
+  assert.ok(body.includes("Added 2026\\-09\\-20T12:00:00\\.000Z"));
+  assert.match(body, /Newer stories.*https:\/\/hacksnap.live\//);
+  assert.match(body, /Older stories.*https:\/\/hacksnap.live\/\?page=3/);
+  assert.doesNotMatch(body, /Top stories|Archive|story\/999|never expose this/);
+});
+
+test("dated feed Markdown pagination never generates legacy archive URLs", () => {
+  const body = latestMarkdown({ stories: [story], month: "2026-09", page: 2, hasNext: true });
+  assert.match(body, /^# September 2026 stories/);
+  assert.ok(body.includes("[Newer stories](<https://hacksnap.live/2026/09>)"));
+  assert.ok(body.includes("[Older stories](<https://hacksnap.live/2026/09?page=3>)"));
+  assert.doesNotMatch(body, /\/archive/);
 });

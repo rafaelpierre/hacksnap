@@ -7,7 +7,7 @@ import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared
 import { browsePagination } from "../lib/browse-feed";
 import { readFeedSnapshot } from "../lib/feed-snapshot-storage";
 import { StoryFeed } from "../app/story-feed";
-import { HOME_FEED_CHECKPOINT_KEY } from "../lib/home-feed-checkpoint";
+import { ARCHIVE_PAGE_SIZE } from "../lib/archive";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
@@ -43,20 +43,11 @@ function story(id: number) {
 }
 
 function pagination(page: number, hasMore: boolean) {
-  return {
-    cursor: hasMore ? `cursor_${page + 1}` : null,
-    previousCursor: page > 1 ? `cursor_${page - 1}` : null,
-    hasMore,
-    page,
-    expiresAt: new Date(Date.now() + 60_000).toISOString(),
-    selectionLimited: false,
-  };
+  return browsePagination(page, hasMore);
 }
 
-for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agents-coding"]) {
-  const ranked = listingPath === "/";
-  const pageState = (page: number, more: boolean) =>
-    ranked ? pagination(page, more) : browsePagination(page, more);
+for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
+  const pageState = browsePagination;
   for (const settlement of ["resolve", "reject"] as const) {
     test(`${listingPath}: automatic loading survives focus cancellation when fetch ${settlement}s and preserves history`, async () => {
       const dom = new JSDOM('<div id="root"></div>', {
@@ -98,13 +89,11 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
       const { createRoot } = await import("react-dom/client");
       const router = { push: () => {}, prefetch: async () => {} };
       const first = Array.from({ length: 10 }, (_, index) => story(index + 1));
-      const second = ranked
-        ? [story(11), story(12)]
-        : [
-            story(10),
-            { ...story(11), summary: null, rank: null },
-            { ...story(12), date_added: "2026-09-28T12:00:00.000Z" },
-          ];
+      const second = [
+        story(10),
+        { ...story(11), rank: null },
+        { ...story(12), date_added: "2026-09-28T12:00:00.000Z" },
+      ];
       const loadEvents: { outcome: string; trigger: string; position: number }[] = [];
       dom.window.gtag = (
         _command: string,
@@ -130,9 +119,7 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         calls++;
         assert.equal(
           String(_url),
-          ranked
-            ? `/api/ready-stories?cursor=cursor_${calls === 5 ? 4 : calls > 2 ? 3 : 2}`
-            : `/api/browse-stories?${new URLSearchParams({ path: listingPath, page: String(calls === 5 ? 4 : calls > 2 ? 3 : 2) })}`,
+          `/api/browse-stories?${new URLSearchParams({ path: listingPath, page: String(calls === 5 ? 4 : calls > 2 ? 3 : 2) })}`,
         );
         if (calls === 1) {
           pendingSignal = options?.signal as AbortSignal;
@@ -164,7 +151,6 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
             <AppRouterContext.Provider value={router as never}>
               <StoryFeed
                 listingPath={listingPath}
-                groupByDay={listingPath.startsWith("/archive")}
                 initialStories={first}
                 initialPagination={pageState(1, true)}
               />
@@ -181,11 +167,9 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         assert.doesNotMatch(document.body.textContent!, /Pause automatic|Resume automatic/);
         assert.equal(
           document.querySelector(".home-feed-pages a")?.getAttribute("href") ?? null,
-          ranked ? null : `${listingPath}?page=2`,
+          `${listingPath}?page=2`,
         );
-        const focusTarget = document.querySelector<HTMLElement>(
-          ranked ? ".home-feed-status" : ".home-feed-pages a",
-        )!;
+        const focusTarget = document.querySelector<HTMLElement>(".home-feed-pages a")!;
         focusTarget.tabIndex = 0;
         await act(async () => focusTarget.focus());
         assert.equal(onIntersection, null);
@@ -205,13 +189,14 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         assert.equal(pendingSignal?.aborted, true);
         assert.deepEqual(
           loadEvents,
-          ranked ? [{ outcome: "cancelled", trigger: "auto", position: 10 }] : [],
+          [],
+          "Latest and topic feeds do not emit retired ranked analytics",
         );
         await act(async () => {
           if (settlement === "resolve") resolvePending!(success());
           else rejectPending!(new DOMException("Aborted", "AbortError"));
         });
-        assert.equal(loadEvents.length, ranked ? 1 : 0);
+        assert.equal(loadEvents.length, 0);
         assert.equal(document.querySelectorAll(".story-list > li").length, 10);
         assert.equal(document.activeElement, focusTarget);
         await act(async () => focusTarget.blur());
@@ -246,26 +231,13 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         await act(async () => focusTarget.focus());
         assert.match(document.querySelector(".home-feed-status")!.textContent!, /try again/i);
         assert.equal(calls, 3);
-        assert.deepEqual(
-          loadEvents,
-          ranked
-            ? [
-                { outcome: "cancelled", trigger: "auto", position: 10 },
-                { outcome: "success", trigger: "auto", position: 12 },
-                { outcome: "failure", trigger: "auto", position: 12 },
-              ]
-            : [],
+        assert.doesNotMatch(document.body.textContent!, /Brief pending/);
+        assert.equal(document.querySelectorAll("ol.story-list").length, 0);
+        assert.equal(
+          document.querySelector(".home-feed-pages a")?.getAttribute("href"),
+          `${listingPath}?page=3`,
         );
-        if (!ranked) {
-          assert.match(document.body.textContent!, /Brief pending/);
-          assert.equal(document.querySelectorAll("ol.story-list").length, 0);
-          assert.equal(
-            document.querySelector(".home-feed-pages a")?.getAttribute("href"),
-            `${listingPath}?page=3`,
-          );
-        }
-        if (listingPath.startsWith("/archive"))
-          assert.equal(document.querySelectorAll("section > .feed-bar time").length, 2);
+        assert.equal(document.querySelectorAll("section > .feed-bar time").length, 0);
         const retry = document.querySelector(".home-feed-actions button") as HTMLButtonElement;
         await act(async () => retry.focus());
         assert.equal(document.activeElement, retry);
@@ -308,7 +280,7 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
 }
 
 test("deep feeds keep a bounded interactive window, retain archive day headings, and shift it for keyboard focus", async () => {
-  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/archive" });
+  const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
   let scrollY = 0;
   Object.defineProperty(dom.window, "scrollY", { configurable: true, get: () => scrollY });
   dom.window.scrollTo = ((options: ScrollToOptions) => {
@@ -358,7 +330,7 @@ test("deep feeds keep a bounded interactive window, retain archive day headings,
       root.render(
         <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
           <StoryFeed
-            listingPath="/archive"
+            listingPath="/"
             groupByDay
             initialStories={stories}
             initialPagination={browsePagination(1, true)}
@@ -415,11 +387,9 @@ test("lead image priority starts in HTML and clears on an offscreen return", asy
   for (const deepReturn of [false, true]) {
     const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
     if (deepReturn) {
-      dom.window.localStorage.setItem(
-        HOME_FEED_CHECKPOINT_KEY,
-        JSON.stringify({
-          version: 1,
-          snapshot: {
+      dom.window.history.replaceState(
+        {
+          hacksnapHomeFeed: {
             version: 1,
             url: "/",
             stories: [ready, story(2)],
@@ -428,8 +398,9 @@ test("lead image priority starts in HTML and clears on an offscreen return", asy
             focusStoryId: null,
             savedAt: Date.now(),
           },
-          anchor: null,
-        }),
+        },
+        "",
+        "/",
       );
     }
     dom.window.scrollTo = (() => {}) as typeof dom.window.scrollTo;
@@ -515,11 +486,9 @@ test("a deep restored anchor is mounted before StoryFeed restores its scroll and
     Object.defineProperty(globalThis, key, { value, configurable: true }),
   );
   const stories = Array.from({ length: 400 }, (_, index) => story(index + 1));
-  dom.window.localStorage.setItem(
-    HOME_FEED_CHECKPOINT_KEY,
-    JSON.stringify({
-      version: 1,
-      snapshot: {
+  dom.window.history.replaceState(
+    {
+      hacksnapHomeFeed: {
         version: 1,
         url: "/",
         stories,
@@ -528,8 +497,9 @@ test("a deep restored anchor is mounted before StoryFeed restores its scroll and
         focusStoryId: "301",
         savedAt: Date.now(),
       },
-      anchor: { storyId: "301", offset: -24 },
-    }),
+    },
+    "",
+    "/",
   );
   const { createRoot } = await import("react-dom/client");
   const root = createRoot(document.getElementById("root")!);
@@ -546,7 +516,7 @@ test("a deep restored anchor is mounted before StoryFeed restores its scroll and
       80,
     );
     assert.ok(document.querySelector('[data-home-story-id="301"]'));
-    assert.equal(scrolls.at(-1), 1524);
+    assert.equal(scrolls.at(-1), 840);
     assert.equal(
       document.activeElement?.closest("[data-home-story-id]")?.getAttribute("data-home-story-id"),
       "301",
@@ -568,11 +538,9 @@ test("a deep restored anchor is mounted before StoryFeed restores its scroll and
   }
 });
 
-for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agents-coding"]) {
-  test(`${listingPath}: duplicate-only batches advance live offsets but not frozen cursors`, async () => {
-    const ranked = listingPath === "/";
-    const pageState = (page: number, more: boolean) =>
-      ranked ? pagination(page, more) : browsePagination(page, more);
+for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
+  test(`${listingPath}: duplicate-only batches advance live offsets`, async () => {
+    const pageState = browsePagination;
     const dom = new JSDOM('<div id="root"></div>', {
       url: `https://hacksnap.live${listingPath}`,
     });
@@ -602,19 +570,17 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
     const originalFetch = globalThis.fetch;
     const { createRoot } = await import("react-dom/client");
     const root = createRoot(document.getElementById("root")!);
-    const first = Array.from({ length: ranked ? 10 : 30 }, (_, index) => story(index + 1));
+    const first = Array.from({ length: ARCHIVE_PAGE_SIZE }, (_, index) => story(index + 1));
     const requested: number[] = [];
     globalThis.fetch = (async (input) => {
       const url = new URL(String(input), dom.window.location.origin);
-      const page = ranked
-        ? Number(url.searchParams.get("cursor")!.split("_")[1])
-        : Number(url.searchParams.get("page"));
+      const page = Number(url.searchParams.get("page"));
       requested.push(page);
       return {
         ok: true,
         status: 200,
         json: async () => ({
-          stories: page < 4 ? first : [story(30), story(31)],
+          stories: page < 4 ? first : [story(first.length), story(first.length + 1)],
           pagination: pageState(page, page < 4),
         }),
       } as Response;
@@ -632,41 +598,32 @@ for (const listingPath of ["/", "/archive", "/archive/2026/09", "/category/agent
         ),
       );
       for (let attempt = 0; attempt < 3; attempt++) {
-        if (ranked && attempt > 0) {
-          await act(async () =>
-            (document.querySelector(".home-feed-actions button") as HTMLButtonElement).click(),
+        assert.ok(onIntersection);
+        await act(async () => {
+          (onIntersection as IntersectionObserverCallback)(
+            [{ isIntersecting: true } as IntersectionObserverEntry],
+            {} as IntersectionObserver,
+          );
+        });
+        const status = document.querySelector(".home-feed-status")!.textContent!;
+        assert.doesNotMatch(status, /try again/i);
+        assert.equal(dom.window.history.state.hacksnapHomeFeed.pagination.page, attempt + 2);
+        assert.equal(
+          document.querySelectorAll(".story-list > li").length,
+          ARCHIVE_PAGE_SIZE + (attempt < 2 ? 0 : 1),
+        );
+        if (attempt < 2) {
+          assert.match(status, /No new stories in this batch/);
+          assert.equal(
+            document.querySelector(".home-feed-pages a")?.getAttribute("href"),
+            `${listingPath}?page=${attempt + 3}`,
           );
         } else {
-          assert.ok(onIntersection);
-          await act(async () => {
-            (onIntersection as IntersectionObserverCallback)(
-              [{ isIntersecting: true } as IntersectionObserverEntry],
-              {} as IntersectionObserver,
-            );
-          });
-        }
-        const status = document.querySelector(".home-feed-status")!.textContent!;
-        if (ranked) {
-          assert.match(status, /try again/i);
-          assert.equal(dom.window.history.state.hacksnapHomeFeed.pagination.page, 1);
-          assert.equal(document.querySelectorAll(".story-list > li").length, 10);
-        } else {
-          assert.doesNotMatch(status, /try again/i);
-          assert.equal(dom.window.history.state.hacksnapHomeFeed.pagination.page, attempt + 2);
-          assert.equal(document.querySelectorAll(".story-list > li").length, attempt < 2 ? 30 : 31);
-          if (attempt < 2) {
-            assert.match(status, /No new stories in this batch/);
-            assert.equal(
-              document.querySelector(".home-feed-pages a")?.getAttribute("href"),
-              `${listingPath}?page=${attempt + 3}`,
-            );
-          } else {
-            assert.match(status, /reached the end/);
-            assert.equal(document.querySelector(".home-feed-actions button"), null);
-          }
+          assert.match(status, /reached the end/);
+          assert.equal(document.querySelector(".home-feed-actions button"), null);
         }
       }
-      assert.deepEqual(requested, ranked ? [2, 2, 2] : [2, 3, 4]);
+      assert.deepEqual(requested, [2, 3, 4]);
     } finally {
       await act(async () => root.unmount());
       globalThis.fetch = originalFetch;
@@ -733,7 +690,7 @@ test("a same-list Load more button remains available without IntersectionObserve
   }
 });
 
-for (const listingPath of ["/archive", "/archive/2026/09", "/category/agents-coding"]) {
+for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
   for (const [page, hasMore] of [
     [1, true],
     [2, true],

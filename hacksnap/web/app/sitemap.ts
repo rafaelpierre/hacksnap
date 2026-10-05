@@ -17,9 +17,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...sitemapEntries(stories),
     ...CATEGORIES.map((category) => ({ url: `https://hacksnap.live${categoryURL(category)}` })),
-    { url: "https://hacksnap.live/archive" },
     ...months.map(({ month }) => ({
-      url: `https://hacksnap.live/archive/${month.replace("-", "/")}`,
+      url: `https://hacksnap.live/${month.replace("-", "/")}`,
     })),
   ];
 }

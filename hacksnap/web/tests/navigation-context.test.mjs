@@ -3,18 +3,18 @@ import { test } from "@jest/globals";
 import { browseLabel, validBrowseContext } from "../lib/navigation-context.ts";
 
 test("browse context retains list selection and page", () => {
-  assert.equal(browseLabel("/"), "Top stories");
-  assert.equal(browseLabel("/?page=2&cursor=frozen_123"), "Top stories · page 2");
-  assert.equal(browseLabel("/?page=1&cursor=frozen_123"), "Top stories");
-  assert.equal(browseLabel("/archive?page=3"), "Latest stories · page 3");
-  assert.equal(browseLabel("/archive/2026/09?page=2"), "September 2026 archive · page 2");
+  assert.equal(browseLabel("/"), "Latest stories");
+  assert.equal(browseLabel("/?page=2"), "Latest stories · page 2");
+  assert.equal(browseLabel("/?page=1"), "Latest stories");
+  assert.equal(browseLabel("/?page=3"), "Latest stories · page 3");
+  assert.equal(browseLabel("/2026/09?page=2"), "September 2026 archive · page 2");
   assert.equal(browseLabel("/category/agents-coding?page=4"), "Agents & Coding · page 4");
 });
 
 test("return destination must be a recent internal browse route", () => {
   const now = Date.now();
   const context = {
-    url: "/archive/2026/09?page=2",
+    url: "/2026/09?page=2",
     label: "September 2026 archive · page 2",
     scrollY: 820,
     savedAt: now,
@@ -24,6 +24,13 @@ test("return destination must be a recent internal browse route", () => {
   assert.equal(validBrowseContext({ ...context, scrollY: -1 }, now), null);
   assert.equal(validBrowseContext({ ...context, label: "Top stories" }, now), null);
   for (const url of [
+    "/?cursor=frozen_123",
+    "/?page=2&cursor=frozen_123",
+    "/?page=101",
+    "/2026/09?page=101",
+    "/category/agents-coding?page=101",
+    "/archive",
+    "/archive/2026/09",
     "//evil.example",
     "/\\evil.example",
     "https://evil.example",
@@ -31,7 +38,7 @@ test("return destination must be a recent internal browse route", () => {
     "/archive?next=https://evil.example",
     "/?cursor=frozen_123",
     "/?page=2&cursor=unsafe!",
-    "/archive/2026/13",
+    "/2026/13",
     "/category/unknown",
   ]) {
     assert.equal(browseLabel(url), null, url);

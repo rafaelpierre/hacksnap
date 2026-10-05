@@ -170,7 +170,7 @@ test("compact header and recommendations preserve the new story component and tr
   assert.ok(header.indexOf("story-breadcrumbs") < header.indexOf("<h1>"));
   assert.doesNotMatch(header, /skepticism-pill|points/);
   assert.match(header, /aria-label="Breadcrumb"/);
-  assert.match(header, /href="\/">[^<]*Top Stories/);
+  assert.match(header, /href="\/">[^<]*Latest/);
   assert.match(header, /href="\/category\/agents-coding"/);
   assert.match(header, /class="story-metadata"/);
   assert.match(header, /Added <time dateTime="2026-09-26T10:00:00.000Z"/);

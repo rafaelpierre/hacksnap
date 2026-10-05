@@ -82,6 +82,32 @@ test("pending summaries describe their state and remain excluded from indexing",
   assert.deepEqual(metadata.robots, { index: false, follow: true });
 });
 
+test.each([null, undefined, "", " ", "\n\t\r "])(
+  "stored summaries with unpublished takeaway %j stay noindex without changing canonical or social metadata",
+  (overall_takeaway) => {
+    const story = {
+      hn_id: "1",
+      story_slug: "small-models-1",
+      title: "Small models",
+      summary: summary(),
+    };
+    const published = storyPreviewMetadata(story);
+    const pending = storyPreviewMetadata({ ...story, summary: summary({ overall_takeaway }) });
+    assert.deepEqual(pending.robots, { index: false, follow: true });
+    assert.deepEqual({ ...pending, robots: published.robots }, published);
+    assert.equal(pending.alternates.canonical, "https://hacksnap.live/story/small-models-1");
+  },
+);
+
+test("a published takeaway surrounded by whitespace stays indexed", () => {
+  const metadata = storyPreviewMetadata({
+    hn_id: "1",
+    title: "Small models",
+    summary: summary({ overall_takeaway: " \n Published takeaway. \t " }),
+  });
+  assert.deepEqual(metadata.robots, { index: true, follow: true });
+});
+
 test("discussion-only pages do not promise an article summary", () => {
   for (const article_status of ["unavailable", "not_applicable"]) {
     const metadata = storyPreviewMetadata({
