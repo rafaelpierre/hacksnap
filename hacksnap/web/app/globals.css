@@ -856,14 +856,15 @@ body:has(#browse-content) .skip-browse {
   grid-template-columns: 14rem minmax(0, 1fr);
   align-items: start;
   gap: clamp(var(--space-8), 4vw, var(--space-12));
+  padding-top: var(--space-3);
 }
 .browse-content {
   min-width: 0;
+  width: 100%;
 }
 .topic-sidebar {
   position: sticky;
   top: calc(var(--site-header-height) + var(--space-6));
-  margin-top: 150px;
   max-height: calc(100dvh - var(--site-header-height) - var(--space-12));
   overflow-y: auto;
   padding: var(--space-2);
@@ -878,6 +879,9 @@ body:has(#browse-content) .skip-browse {
   padding: 0 10px;
 }
 .topic-sidebar h2 a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
   text-decoration: none;
 }
 .topic-sidebar ul {
@@ -899,6 +903,10 @@ body:has(#browse-content) .skip-browse {
   text-decoration: none;
   overflow-wrap: anywhere;
 }
+.topic-sidebar .topic-icon {
+  flex-shrink: 0;
+  color: var(--category-color, var(--accent));
+}
 .topic-sidebar li a:hover,
 .topic-sidebar li a[aria-current="page"] {
   background: var(--surface);
@@ -914,6 +922,12 @@ body:has(#browse-content) .skip-browse {
 }
 .channel-path a {
   color: inherit;
+}
+.archive-month-header {
+  padding: var(--space-2) 0 var(--space-4);
+}
+.archive-month-header h1 {
+  margin-top: var(--space-2);
 }
 @media (max-width: 50rem) {
   .browse-layout {

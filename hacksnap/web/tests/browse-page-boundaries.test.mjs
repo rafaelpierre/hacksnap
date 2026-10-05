@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
 import { jest, test } from "@jest/globals";
-import { Children, isValidElement, Suspense } from "react";
+import { Suspense } from "react";
 
 const missing = new Error("not found");
+const redirects = jest.fn((url) => {
+  throw new Error(`redirect:${url}`);
+});
 const shouldStreamBrowse = jest.fn(async () => true);
 const getReadyStoryPage = jest.fn(async () => ({
   stories: [],
   ingestion: null,
   pagination: { page: 1, hasMore: false, cursor: null },
 }));
+const getArchiveStories = jest.fn(async () => ({ stories: [], hasNext: false }));
 const getCategoryStories = jest.fn(async () => ({ stories: [], hasNext: false }));
 
 jest.unstable_mockModule("server-only", () => ({}));
@@ -17,12 +21,15 @@ jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({ shouldStreamBrow
 jest.unstable_mockModule("next/navigation", () => ({
   useRouter: () => ({ refresh: () => {} }),
   usePathname: () => "/",
+  permanentRedirect: redirects,
   notFound: () => {
     throw missing;
   },
 }));
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getReadyStoryPage,
+  getArchiveStories,
+  getArchiveMonths: async () => [{ month: "2026-09" }],
   getCategoryStories,
   getCategoryCounts: async () => ({}),
 }));
@@ -30,8 +37,8 @@ jest.unstable_mockModule("../app/story-feed.tsx", () => ({ StoryFeed: () => null
 
 const { default: Home, generateMetadata: homeMetadata } =
   await import("../app/[[...path]]/page.tsx");
+const { default: LegacyArchive } = await import("../app/archive/[[...date]]/page.tsx");
 const { default: CategoryPage, generateMetadata } = await import("../app/category/[slug]/page.tsx");
-const { ReadyStoryPageError } = await import("../lib/ready-story-pagination-errors.ts");
 
 function home(path, query = {}) {
   return Home({ params: Promise.resolve({ path }), searchParams: Promise.resolve(query) });
@@ -47,9 +54,7 @@ function category(slug, page) {
 test("valid first browse pages expose Suspense before their story read", async () => {
   getReadyStoryPage.mockClear();
   getCategoryStories.mockClear();
-  const top = await home(undefined);
   const topic = await category("agents-coding");
-  assert.equal(top.type, Suspense);
   assert.equal(topic.type, Suspense);
   assert.equal(getReadyStoryPage.mock.calls.length, 0);
   assert.equal(getCategoryStories.mock.calls.length, 0);
@@ -58,12 +63,9 @@ test("valid first browse pages expose Suspense before their story read", async (
 test("full document requests load their stories before returning a page", async () => {
   getReadyStoryPage.mockClear();
   getCategoryStories.mockClear();
-  shouldStreamBrowse.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
-  const top = await home(undefined);
+  shouldStreamBrowse.mockResolvedValueOnce(false);
   const topic = await category("agents-coding");
-  assert.notEqual(top.type, Suspense);
   assert.notEqual(topic.type, Suspense);
-  assert.equal(getReadyStoryPage.mock.calls.length, 1);
   assert.equal(getCategoryStories.mock.calls.length, 1);
 });
 
@@ -76,28 +78,50 @@ test("invalid paths and data-dependent query pages finish validation before stre
   assert.equal(getReadyStoryPage.mock.calls.length, 0);
   assert.equal(getCategoryStories.mock.calls.length, 0);
 
-  getReadyStoryPage.mockRejectedValueOnce(new ReadyStoryPageError("invalid_cursor"));
-  await assert.rejects(home(undefined, { cursor: "" }), (error) => error === missing);
-  assert.equal(getReadyStoryPage.mock.calls.length, 1);
-
   await assert.rejects(category("agents-coding", "2"), (error) => error === missing);
   assert.equal(getCategoryStories.mock.calls.length, 1);
 });
 
-test("the homepage Latest CTA uses its own pending navigation feedback", async () => {
-  const { NavigationPendingLink } = await import("../app/navigation-pending-link.tsx");
-  shouldStreamBrowse.mockResolvedValueOnce(false);
-  const page = await home(undefined);
-  function findCTA(node) {
-    if (!isValidElement(node)) return undefined;
-    if (node.props.className === "browse-latest-link") return node;
-    return Children.toArray(node.props.children).map(findCTA).find(Boolean);
+test("legacy archive URLs redirect to canonical Latest and dated feeds", async () => {
+  for (const [date, query, destination] of [
+    [undefined, {}, "/"],
+    [undefined, { page: "1" }, "/"],
+    [undefined, { page: "2" }, "/?page=2"],
+    [["2026", "09"], {}, "/2026/09"],
+    [["2026", "09"], { page: "2" }, "/2026/09?page=2"],
+    [undefined, { page: "100", cursor: "obsolete" }, "/?page=100"],
+  ]) {
+    await assert.rejects(
+      LegacyArchive({ params: Promise.resolve({ date }), searchParams: Promise.resolve(query) }),
+      { message: `redirect:${destination}` },
+    );
   }
-  const cta = findCTA(page);
-  assert.ok(cta);
-  assert.equal(cta.type, NavigationPendingLink);
-  assert.equal(cta.props.href, "/archive");
-  assert.equal(cta.props.pendingLabel, "Loading latest stories…");
+  for (const date of [["missing"], ["2026", "13"], ["2026", "09", "extra"]])
+    await assert.rejects(
+      LegacyArchive({ params: Promise.resolve({ date }), searchParams: Promise.resolve({}) }),
+      (error) => error === missing,
+    );
+  for (const page of ["0", "00", "101", "1.5", "-1", "", ["1", "2"]]) {
+    await assert.rejects(home(undefined, { page }), (error) => error === missing);
+    await assert.rejects(
+      LegacyArchive({ params: Promise.resolve({}), searchParams: Promise.resolve({ page }) }),
+      (error) => error === missing,
+    );
+  }
+});
+
+test("Latest renders directly and obsolete root cursor requests redirect to the clean page", async () => {
+  getArchiveStories.mockClear();
+  const first = await home(undefined);
+  assert.notEqual(first.type, undefined);
+  assert.equal(getArchiveStories.mock.calls.length, 0);
+  for (const [query, destination] of [
+    [{ cursor: "obsolete" }, "/"],
+    [{ page: "2", cursor: "obsolete" }, "/?page=2"],
+    [{ cursor: ["one", "two"] }, "/"],
+  ])
+    await assert.rejects(home(undefined, query), { message: `redirect:${destination}` });
+  assert.equal(getArchiveStories.mock.calls.length, 0);
 });
 
 test("category search metadata is distinct, paginated, and available without a story read", async () => {
@@ -145,29 +169,30 @@ test("category search metadata is distinct, paginated, and available without a s
   }
 });
 
-test("homepage continuation metadata excludes temporary selections without reading stories", async () => {
-  getReadyStoryPage.mockClear();
+test("Latest pagination is canonical and indexable while obsolete cursors stay noindex", async () => {
   const metadata = (query) =>
     homeMetadata({ params: Promise.resolve({}), searchParams: Promise.resolve(query) });
-  for (const query of [{}, { utm_source: "google" }]) {
+  for (const [query, canonical] of [
+    [{}, "/"],
+    [{ utm_source: "google" }, "/"],
+    [{ page: "1" }, "/"],
+    [{ page: "4" }, "/?page=4"],
+  ]) {
     const clean = await metadata(query);
     assert.deepEqual(clean.robots, { index: true, follow: true });
-    assert.equal(clean.alternates.canonical, "/");
+    assert.equal(clean.alternates.canonical, canonical);
     assert.equal(clean.alternates.types["application/rss+xml"], "https://hacksnap.live/feed.xml");
   }
   for (const query of [
     { page: "4", cursor: "frozen_selection" },
-    { page: "4" },
-    { page: "1" },
     { cursor: "expired_selection" },
-    { page: "" },
     { cursor: "" },
-    { page: ["1", "4"] },
     { cursor: ["one", "two"] },
   ]) {
     const continuation = await metadata(query);
     assert.deepEqual(continuation.robots, { index: false, follow: true });
     assert.equal(continuation.alternates?.canonical, undefined);
   }
-  assert.equal(getReadyStoryPage.mock.calls.length, 0);
+  for (const page of ["", "101", ["1", "4"]])
+    await assert.rejects(metadata({ page }), (error) => error === missing);
 });

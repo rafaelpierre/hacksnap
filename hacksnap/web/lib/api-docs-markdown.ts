@@ -8,7 +8,7 @@ A public, read-only JSON API for Hacker News stories and AI-generated summaries.
 
 \`GET https://hacksnap.live/api/stories\`
 
-Returns \`{stories: [...], ingestion: string | null}\`. Stories follow the homepage ranking, with the same selection and a 60-second per-instance data cache. The ingestion timestamp records the last successful collection. No pagination or query parameters are supported.
+Returns \`{stories: [...], ingestion: string | null}\`. Stories follow Hacksnap ranking, with a 60-second per-instance data cache. The ingestion timestamp records the last successful collection. No pagination or query parameters are supported.
 
 ## Get a story
 

@@ -27,9 +27,11 @@ preferences do not affect the page. There is no appearance control or theme scri
 
 ## Shared design foundations
 
-Home, archive and category feeds show topic navigation on the left at desktop
-widths, with decorative Lucide icons beside each label. Below the existing 50rem
-breakpoint, the sidebar is hidden and topics remain available through the header.
+Latest, dated archive and category feeds retain vertical topic navigation on the
+left at desktop widths, aligned beside the feed close to the sticky header.
+Decorative Lucide icons accompany full labels and 44px controls. Below 50rem the
+sidebar is hidden and Topics remains accessible from the main header.
+Latest has an accessible page heading without a visible hero or breadcrumb.
 
 `app/globals.css` owns the semantic theme colors, relative type scale, spacing,
 page/reading widths, responsive gutters and 44px (2.75rem) control target. Use
@@ -68,114 +70,47 @@ before the collector to ensure newly inserted slugs are used immediately. No bac
 or production migration is performed by local checks. Rolling back ingestion keeps
 saved slugs; rolling back the migration discards them and should be avoided once published.
 
-## Homepage indexing
+## Root indexing
 
-The clean homepage `/` is indexable and declares itself canonical. Homepage URLs
-containing `page` or `cursor` are temporary feed selections and send
-`X-Robots-Tag: noindex, follow`; HTML also includes the matching robots metadata.
-The header covers HTML and negotiated Markdown GET/HEAD requests, including
-expired or invalid selections. Tracking-only queries retain homepage indexing.
-Pagination stays crawlable so search engines can read the exclusion and discover
-story links. Existing indexed selections disappear after deployment and recrawling;
-blocking them in `robots.txt` would prevent crawlers from seeing `noindex`.
+Latest lives at `/`, with indexable, self-canonical pagination such as `/?page=2`.
+Obsolete ranked `cursor` queries redirect to clean Latest URLs and retain
+`X-Robots-Tag: noindex, follow`, including negotiated Markdown GET/HEAD.
+Tracking-only queries retain ordinary indexing. Retired archive URLs redirect to
+the corresponding root or dated feed and never appear in sitemap entries or
+public navigation. These routes remain crawlable so search engines can follow
+the redirects; `robots.txt` does not block them.
 
-## Homepage continuation and return navigation
+## Latest continuation and return navigation
 
-The homepage server-renders ten ready stories from the existing ranking. Near the
-bottom, it loads the next ten into the same list. Cards use uniform styling with
-no position numbers or special first-place highlight; ranking still controls
-the story order. A visible Load more button works
-when automatic loading is unavailable. Direct paginated requests retain a
-Newer stories link; `/?page=N` uses the current selection, and that link carries
-a frozen cursor so navigation retains the ranking and order.
-The cursor is portable across instances and expires after eight hours. An expired or
-invalidated continuation keeps already loaded cards visible and offers a fresh
-selection. The selection is bounded to 400 stories; if it reaches that cap, the UI
-points readers to the archive instead of claiming the site has no more stories.
+`/` renders the canonical Latest feed. `/?page=N` serves subsequent pages, and
+`/YYYY/MM` filters by UTC month. Obsolete ranked cursors are discarded through
+redirects. Unknown root paths and invalid page parameters return 404.
+Latest orders published stories by date added, newest first, and loads 15 stories
+per request. Topic and dated archive feeds use the same batch size. Stories with
+missing or blank published takeaways are filtered before limits, offsets and
+counts; they remain available at their existing detail URLs.
 
-While a Top feed is open, it keeps the full bounded selection's story IDs fixed
-for update checks. A visible tab checks at most once a minute for IDs that entered
-the current ready selection. A new ID shows a small **Show new stories**
-pill; cards and scroll position stay put. The pill explicitly loads
-a fresh selection, returns to the top and focuses its first story; enlarged text
-may scroll farther to keep that focus visible. The check does
-not count stories or retain a previous-visit baseline. Loading later pages of the
-original selection never raises the banner. A ranked story crossing the 400-story
-selection boundary may raise it even if that story was previously published;
-the banner describes a changed selection, not a publication timestamp. Network
-failures leave the current feed intact and retry on a later visible check. A fresh
-selection works even when the old continuation cursor has expired.
+Near the bottom, the feed appends the next batch. A visible Load more button and
+server-rendered Newer/Older links preserve navigation when automatic loading or
+JavaScript is unavailable. Failures keep loaded cards visible and offer a retry.
+Automatic loading stops while continuation controls have keyboard focus.
 
-Opening a feed story saves the loaded cards once per listing entry in tab-scoped
-session storage. Browser history and story journeys keep small references with
-the depth, pagination, position and focused story, so Back/Forward reconstructs
-the exact earlier depth from the shared card record. Repeated appends replace that
-record; 40 journey entries do not make 40 deep copies. Cards use a compact,
-versioned representation and are validated after decoding. Stored feed records
-are capped at 4 MiB each, 8 MiB total and four listing entries, with eight-hour
-expiry. Older entries whose card record has been evicted still navigate normally.
-Blocked or full session storage falls back to same-tab memory, preserving returns
-until a reload. Reloading an archive or topic listing restores a retained record;
-reloading `/` follows the separate homepage checkpoint behavior below. Journey
-records remain capped at 40 per tab with eight-hour expiry; cleanup touches only
-feature-owned keys. Story URLs
-stay canonical, and modified clicks use their normal browser behavior. The header
-stays visible while scrolling, and the desktop left topic sidebar
-sticks below its measured height. Tall navigation areas scroll within the viewport.
-All main destinations remain available without reaching the footer. Automatic
-loading stops while the continuation controls have keyboard focus, cancelling any
-pending automatic request. A spinner shows while more stories load, and a retry
-button appears only after a failed request. There is no separate Pause/Resume
-control.
+Opening a story saves loaded cards once per listing entry in tab-scoped session
+storage. Browser Back/Forward and explicit story returns restore the loaded depth,
+scroll position and focused story. Blocked or full storage falls back to same-tab
+memory. Feed records retain the existing bounded storage budgets and eight-hour
+expiry. Older snapshots without the current page-size marker are rejected so pagination and pending
+stories cannot reappear from a saved feed. Reloading Latest restores a valid
+listing record; the former root-only ranked checkpoint no longer applies.
 
-The snapshot budget was measured with representative public card fixtures using
-`MEASURE_FEED_SNAPSHOTS=1 npm test -- tests/feed-snapshot-storage.test.tsx --runInBand`.
-At 100, 1,000 and 3,000 archive cards, full JSON occupied 117 KiB, 1,150 KiB and
-3,470 KiB in conservative UTF-16 accounting; compact records occupied 51 KiB,
-521 KiB and 1,583 KiB. In the Node 22/jsdom check, compact encoding took about
-0.1, 0.5–1.9 and 1.1 ms, and validated decoding took about 0.3, 2.2 and 7 ms.
-A 3,000-card save to available session storage took about 1.3 ms and cold decoding
-after storage read took 7 ms; a denied storage write with the memory fallback took
-about 1.2 ms and memory restoration took 3.3 ms. These are fixture measurements, not a browser
-performance profile or a guaranteed timing limit.
+The header remains visible while scrolling. Desktop topic navigation sits to the left of the feed, close to the header.
+Cards show compact time since first added; its native disclosure reveals the exact
+timestamp and remains usable without JavaScript. Stories become opened only after
+visiting their detail page, never merely by loading or scrolling the feed.
 
-Story cards show time since first added in compact days and hours (e.g. `1d 2h`,
-`5h`, or `<1h`), refreshed every minute. Before hydration, the UTC date is shown.
-Each age is a native disclosure with a 44px target: click, tap, or focus it and
-press Enter/Space to reveal the exact timestamp in local time. The disclosure
-also works without JavaScript, using UTC.
-
-The root homepage also saves a browser-local reading checkpoint under
-`hacksnap:home-feed-checkpoint`. Reopening `/` within 30 minutes restores the loaded
-selection and the visible story's offset in the viewport. An explicit browser reload
-of `/` clears both the history snapshot and durable checkpoint so the latest
-server-rendered selection remains visible after hydration.
-Older or expired checkpoints silently start a fresh reading session with the latest
-stories. Saving the new reading position and automatic loading begin immediately,
-without a resume prompt or confirmation.
-The **Start a fresh selection** link on an expired continuation explicitly requests
-a fresh selection; its temporary query flag is removed after initialization.
-Browser Back/Forward and explicit story returns take precedence over the durable
-checkpoint.
-
-Checkpoints store the loaded public story cards, pagination, a story ID and its
-signed viewport offset, and a save timestamp. Position writes are debounced by
-400ms and flushed when opening a feed story or when the page is hidden or left.
-Storage is limited to one record, at most 400 stories and a conservative 2 MiB serialized UTF-16 size;
-records older than seven days are ignored. This retention does not extend the
-selection's eight-hour cursor lifetime. An expired saved selection silently shows fresh
-stories; a continuation invalidated by the server keeps its
-loaded cards and offers a fresh selection. Missing anchors fall back to the saved
-scroll coordinate. Initial layout/font changes can correct the anchor for up to
-two seconds after the first positioning frame, or until the reader interacts.
-Background tabs retain their target while animation frames are suspended; the
-settling deadline cannot overwrite an unpositioned checkpoint.
-
-Durable resume applies only to `/`; explicit paginated URLs keep their existing
-history-based behavior. Progress is local to this browser, with no login or
-cross-device synchronization. Unavailable storage, malformed records, and quota
-failures leave ordinary browsing functional. The reading checkpoint does not imply
-that a story was seen or opened.
+The legacy `/api/ready-stories`, `/api/story-freshness` and leaderboard endpoints
+retain their ranked contracts for existing API clients. Their selection cursors
+and ranking do not control the Latest interface.
 
 ## Browser-local opened stories
 
@@ -197,7 +132,7 @@ storage falls back to same-tab memory. Feed instances re-read storage on mount;
 live tabs also receive `storage` events. Same-tab writes emit
 `hacksnap:story-history-change`. Visit baselines use a separate key and event.
 
-Analytics events `home_story_open` record actual activations of stories after the
+Legacy ranked-feed analytics events `home_story_open` record actual activations after the
 first ten (`story_id`, 1-based `position`, `placement=home_feed`). Rendering or
 fetching a card never emits that event. `home_feed_load` records each attempted
 automatic or manual request with `trigger`, `outcome` (success, empty, failure,
@@ -205,8 +140,8 @@ expired, cancelled) and resulting `position`; `home_feed_end` records exhausted 
 selections once per route occurrence. These are client events and do not fire
 without JavaScript. A cancelled request records its original trigger and the
 number of loaded stories at request start exactly once, whether its aborted fetch
-rejects or later resolves; it does not also record success or failure. Existing
-`story_view` still records a rendered story page.
+rejects or later resolves; it does not also record success or failure. Latest uses the existing browse journey events; the ranked-only events above
+do not fire on Latest. `story_view` still records a rendered story page.
 
 Run `npm test -- tests/home-feed-state.test.mjs tests/story-navigation.test.tsx
 tests/navigation-context.test.mjs tests/analytics.test.mjs` for continuation,
@@ -214,7 +149,7 @@ return, and event contract coverage.
 
 ## Markdown content negotiation
 
-The homepage, `/story/:id`, and `/docs/api` return Markdown when requested with
+`/`, `/YYYY/MM`, `/story/:id`, and `/docs/api` return Markdown when requested with
 `Accept: text/markdown` or a recognized AI user agent: `ChatGPT-User`,
 `OAI-SearchBot`, `GPTBot`, `Claude-User`, `Claude-SearchBot`, `ClaudeBot`,
 `PerplexityBot`, or `Perplexity-User`. Agent product tokens are matched
@@ -223,7 +158,8 @@ Markdown even without an Accept header or when they request HTML.
 Other clients retain HTML as the default, including wildcard requests.
 For those clients, Accept quality weights are respected; Markdown wins a tie when
 explicitly requested. This behavior applies to GET and HEAD only.
-JSON APIs, RSS, metadata endpoints, and static assets retain their existing formats.
+The root URL renders Latest for both HTML and Markdown requests. JSON APIs,
+RSS, metadata endpoints, and static assets retain their existing formats.
 
 ```sh
 curl -i -H 'Accept: text/markdown' https://hacksnap.live/
@@ -243,7 +179,7 @@ error responses retain their existing semantics.
 Markdown responses use `Cache-Control: no-store` to preserve negotiation across
 CDNs. Story data behind the handler has a bounded 30-minute cache shared by
 HTML/metadata reads in the same instance; missing stories expire after 60 seconds.
-The leaderboard uses a bounded 60-second per-instance data cache. Homepage, story HTML,
+The leaderboard uses a bounded 60-second per-instance data cache. Latest, story HTML,
 and `/docs/api` render per request. The proxy rewrites Markdown requests to the
 Markdown handler before rendering.
 Next.js replaces the HTML `Vary` header with its own router headers, so an
@@ -278,10 +214,11 @@ Run `npm run test:history` for ranking calculations and metric formatting unit t
 
 ## Search metadata
 
-The homepage title is `Hacksnap | AI News`, including its Open Graph and Twitter
-titles. The shared layout supplies `WebSite` structured data naming the site
-`Hacksnap` at `https://hacksnap.live/` so search engines can recognize the brand.
-Other pages retain their own `<page title> | Hacksnap` titles.
+The canonical homepage at `/` uses `Hacksnap | AI News` for its search,
+Open Graph and Twitter titles. The shared layout supplies `WebSite` structured
+data naming the site `Hacksnap` at `https://hacksnap.live/` so search engines can
+recognize the brand. Later Latest pages, monthly archives and other pages retain
+their own `<page title> | Hacksnap` titles.
 
 The favicon uses the existing copper `h/` mark on a dark background. Next.js
 serves `app/icon.svg`, a 96px `app/icon.png`, a multi-size `app/favicon.ico`, and
@@ -290,11 +227,10 @@ the raster copies from the SVG with `node scripts/generate-icons.mjs`.
 Google chooses its displayed title, site name, and favicon after recrawling;
 deploying these preferences does not immediately change existing search results.
 
-`/sitemap.xml` lists the homepage, archive pages, and stories with summaries. Story `lastmod`
+`/sitemap.xml` lists the canonical Latest feed, archive pages, and stories with published takeaways. Story `lastmod`
 values use the latest stored publication, summary update, content snapshot, or ranking observation
 timestamp. They remain stable between content writes; requests do not advance them.
-The homepage omits `lastmod` because its ranking can change with time without a
-database write. `changefreq` and `priority` are intentionally omitted.
+The Latest landing page omits `lastmod`; story timestamps retain their stored values. `changefreq` and `priority` are intentionally omitted.
 
 Story SEO titles use `<headline> | Hacksnap`, keeping the original article title
 as the H1. Preview headlines are shortened to 60 characters. Open Graph and
@@ -302,9 +238,9 @@ Twitter titles use the shortened headline without an added reaction label. Descr
 up to three existing discussion-point titles, with 155-character search and
 125-character social targets. Discussion-only summaries do not claim article
 coverage, and zero-comment samples are identified explicitly. Each story also
-supplies its canonical URL and Twitter large-image card. Pending summaries use a descriptive
-fallback and `noindex, follow`, and are excluded from the sitemap. Once a summary is
-available, the story enters the sitemap and becomes indexable on the page's next
+supplies its canonical URL and Twitter large-image card. Missing or blank published takeaways use a descriptive
+fallback and `noindex, follow`, and are excluded from the sitemap. Once a takeaway is
+published, the story enters the sitemap and becomes indexable on the page's next
 revalidation (the existing cache interval is 30 minutes). The metadata and page
 share a request-scoped read backed by the bounded per-instance story cache.
 
@@ -332,7 +268,7 @@ Run `npm test -- tests/rss.test.mjs` and `npm run build` from this directory.
 
 ## Browse navigation loading
 
-Top stories, Latest, and topic links show a small pending indicator during a
+Latest and topic links show a small pending indicator during a
 client-side navigation. The links retain their ordinary destinations and native
 modified-click behavior. For client navigation, once the server has validated an initial feed request,
 it streams the page heading and navigation with three decorative story-card
@@ -341,7 +277,7 @@ feed; placeholder cards contain no focusable controls. Both indicators respect
 reduced motion and the current theme.
 
 The suspense boundaries sit after route validation so invalid routes do not flush
-successful HTML before returning 404. Later pages and ranked cursor requests keep
+successful HTML before returning 404. Later pages keep
 their required validation before rendering; their link indicator covers the wait.
 Dated archives still check that the month exists, while unfiltered Latest skips
 that unnecessary month-index read. Data failures replace the feed placeholder
@@ -410,20 +346,20 @@ use their own dedicated tokens.
 
 ### Page cache configuration
 
-The homepage and `/story/:id` render per request so outages cannot become cached
-HTML. The homepage accepts only `/`; unmatched paths return 404 before data access.
+Latest and `/story/:id` render per request so outages cannot become cached
+HTML. The root catch-all accepts `/` and valid `/YYYY/MM` selections; unmatched paths
+return 404 before data access.
 Builds need no database connection. Runtime requests use `HACKSNAP_WEB_DATABASE_URL`
 with the dedicated `hacksnap_reader` login. Leaderboard data uses a bounded
 60-second per-instance cache with one entry and one pending load. The shared selection
 contains the first ten cards, bounded continuation IDs/ranks/recency flags, ingestion
-time, and observation time from one SQL statement. `getLeaderboard()` and the first HTML/ready-stories page read that same cached
-snapshot. Markdown and `/api/stories` use its same selection, with separately
+time, and observation time from one SQL statement. `getLeaderboard()` and the first ready-stories API page read that same cached
+snapshot. `/api/stories` uses its same selection, with separately
 bounded 60-second reads for history and export summary fields; request order
 cannot populate independent first-page rankings or timestamps.
 Concurrent callers share a load; after expiry they wait for fresh data, and failures use the existing
 unavailable response rather than returning stale rankings. Separate instances can
-differ within that one-minute window. This applies to homepage HTML, Markdown and
-the list API; it also refreshes ranking changes caused by the 24-hour recency cutoff.
+differ within that one-minute window. This applies to the legacy ranked APIs; it also refreshes ranking changes caused by the 24-hour recency cutoff.
 Story data uses the bounded per-instance cache documented below. Story HTML waits
 for the required story and canonical URL check, then streams the article while
 the optional "Read next" query resolves. Category HTML waits for its required
@@ -482,18 +418,17 @@ cache merely to improve its cache-hit metric.
 
 Unit tests verify cache expiry, format headers, and route validation using mocks.
 
-## Archive
+## Latest and dated feeds
 
-`/archive` lists all retained public stories, including the current Top 10, newest
-first. `/archive/YYYY/MM` filters by the UTC month in which a story was added to
-Hacksnap. Daily headings use that same date, not the summary update time.
-Top Stories, Latest, dated archives, and topic listings reuse `app/story-feed.tsx`
+`/` lists retained stories with a published takeaway, newest first. `/YYYY/MM` filters by the UTC month in which a story was added to
+Hacksnap. Feeds render one continuous chronological list without date groupings.
+Latest, dated archives, and topic listings reuse `app/story-feed.tsx`
 for automatic loading near the end of the feed, failed-load retries, accessible
 status announcements, and story-return restoration. Server routes own filtering
-and ordering; Latest/archives retain UTC day headings and topics use an unranked
-list. Each archive/topic request loads up to 30 stories through
+and ordering; Latest, dated archives and topics use a continuous unranked list.
+Each archive/topic request loads up to 15 stories through
 `/api/browse-stories?path=...&page=...`, using the same bounded data readers as HTML.
-Pending briefs remain visible. Server-rendered Newer/Older stories links and
+Pending briefs are excluded before pagination. Server-rendered Newer/Older stories links and
 canonical URLs work without JavaScript. The Older stories link advances to the
 next unread page as automatic loading appends rows and disappears at the end;
 Newer stories returns to the page before the requested listing page. Loaded rows are deduplicated and saved with the exact listing
@@ -502,16 +437,16 @@ pagination retains its existing live offset ordering, so new arrivals can shift
 page boundaries during browsing; it does not freeze a ranked selection.
 Duplicate-only archive/topic batches still advance the page, so subsequent loads
 can reach older stories. Frozen ranked batches retain the no-progress guard.
-Archive and category listings accept pages 1–100 (at most 3,000 stories and an SQL
-offset of 2,970). Larger pages return 404 before data access;
+Archive and category listings accept pages 1–100 (at most 1,500 stories and an SQL
+offset of 1,485). Larger pages return 404 before data access;
 the final allowed page has no older-page link. Use dated archive URLs to reach
-older archive entries. Categories show their latest 3,000 stories; deeper category
-browsing needs cursor pagination before this limit can be raised. The feed starts
-directly below the heading, without the All stories or Browse by month controls.
+older archive entries. Categories show their latest 1,500 stories; deeper category
+browsing needs cursor pagination before this limit can be raised. The Latest feed starts
+close to the header beside the left topic menu; dated archives retain their compact month heading.
 After more than 80 rows are loaded, the browser keeps a measured 80-row window in
 the DOM and uses spacers for the rest of the feed. The active window follows scroll,
-deep return restoration, and keyboard focus near either edge; archive day headings
-remain with their visible rows. This bounds React and DOM work while preserving the
+deep return restoration, and keyboard focus near either edge. This bounds React
+and DOM work while preserving the
 feed's physical scroll height and accessible list position.
 Archive pages are rendered on request; no schema change is required. The sitemap
 includes the archive landing page and populated months. Story URLs stay unchanged.
@@ -533,11 +468,13 @@ migration. `npm run test:categories` covers category routing and navigation cont
 Stories display a compact category flair directly below their title on the
 homepage, article pages and archive. Clicking a flair opens
 `/category/<slug>`, with the topic description and all stored stories in that
-category, newest first. The homepage has no category directory or menu.
+category, newest first. The left topic menu beside Latest provides all category links on desktop.
 
-The six category pages use stable slugs from `lib/categories.ts`, paginate at 30
-stories, include pending summaries, and return 404 for unknown slugs or invalid
+The six category pages use stable slugs from `lib/categories.ts`, paginate at 15
+stories, exclude missing or blank takeaways, and return 404 for unknown slugs or invalid
 pages. They render on request and each pagination URL has its own canonical URL.
+Category breadcrumbs, empty-topic links and the API documentation back link point directly to
+`/`; empty topics invite readers to browse Latest stories.
 The sitemap includes all six topic landing pages. `lib/category-metadata.ts`
 provides stable, topic-specific search titles and descriptions explaining the
 article summaries and Hacker News discussions, independently of short navigation
@@ -545,7 +482,7 @@ labels and visible introductions. Search, Open Graph, and Twitter copy agree;
 later pages add their page number and keep self-referencing canonical URLs.
 Article takeaways remain in server-rendered HTML rather than being concatenated
 into metadata. API responses expose the
-nullable category identifier; homepage and article Markdown include category links.
+nullable category identifier; Latest and article Markdown include category links.
 
 Deploy database migration `0011_categories` before this website version. Only the
 public category field is granted to the website role; model, version, timestamp
@@ -594,7 +531,7 @@ empty alt attribute so the headline remains the accessible label. Detail images
 retain their supplied intrinsic dimensions. Feed images also keep their original
 aspect ratio: their width follows the image column and their height is automatic,
 so the complete image is visible without cropping or letterboxing. Error
-placeholders preserve the stored aspect ratio. This applies to Top, archive and
+placeholders preserve the stored aspect ratio. This applies to Latest, archive and
 category feeds. Social Open Graph images retain the existing generated template.
 
 Feed and detail images use the built-in Next image optimizer with layout-specific
@@ -631,7 +568,7 @@ its independent timestamp and coverage. It omits ranking history and retained-hi
 metrics. Markdown requests those metrics separately through `getStoryMetrics`;
 HTML and metadata share the same request-level article read.
 
-Card reads for home, archive and category listings contain only takeaway,
+Card reads for archive and category listings contain only takeaway,
 sentiment and source coverage in their summary. They omit full article/discussion
 bodies, legacy points, and analysis previews. RSS and public API lists use a
 separate export projection that retains their existing summary strings. Public
@@ -653,7 +590,7 @@ without credentials or a database server. PGlite is a test-only dependency.
 
 Database connection and query failures become sanitized availability errors.
 Frontend pages show a retry action inside the normal navigation; these responses
-opt out of caching. Home and story pages render per request so a transient
+opt out of caching. Latest and story pages render per request so a transient
 outage cannot become a cached page; the leaderboard uses its 60-second cache with hard expiry. Empty lists remain valid empty states, and unknown stories
 remain 404s. Story metadata handles outages without failing rendering or claiming
 that a temporarily unavailable story does not exist. Related stories and topic
@@ -713,11 +650,11 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 
 ## Feed card layout
 
-Top Stories, Latest and topic feeds render the same `StoryRow` content order:
+Latest and topic feeds render the same `StoryRow` content order:
 category and ranking context, title, image, excerpt, then metadata and share
 actions. The title precedes the decorative image in both visual and document
-order. Top Stories alone can label older cards as Archive; the shared fields,
-image states, pending excerpt and actions keep the same structure everywhere.
+order. Published excerpts, image states and actions keep the same structure
+everywhere; pending briefs remain available only on direct detail pages.
 
 At phone widths (640px and below), cards stack the category, title,
 full-width image, then subtitle/excerpt and footer. The image uses its original
@@ -733,7 +670,7 @@ the excerpt and footer the full width. Footer controls wrap when text is enlarge
 Feed headlines use rem units so they scale with the excerpt and metadata when
 readers enlarge text. The light appearance uses the same sizing and layout at all text scales.
 
-Home, archive and category cards omit discussion themes and the “Read the debate”
+Latest, dated archive and category cards omit discussion themes and the “Read the debate”
 link. The title opens the full story, where discussion analysis remains available.
 Card queries omit unused discussion payloads. Public exports retain their existing fields.
 

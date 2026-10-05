@@ -25,7 +25,6 @@ export async function ArchiveStoryList({
     <StoryFeed
       key={`${archiveURL(month)}:${page}`}
       listingPath={archiveURL(month)}
-      groupByDay
       initialStories={response.value.stories.map(publicFeedStory)}
       initialPagination={browsePagination(page, response.value.hasNext)}
     />

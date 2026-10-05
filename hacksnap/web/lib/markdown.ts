@@ -1,3 +1,4 @@
+import { archiveURL, monthLabel } from "./archive.ts";
 import { canonicalStoryUrl } from "./story-url";
 import type { ArticleStory, CardStory } from "./story-domain";
 import type { RankingMetrics } from "./story-metrics";
@@ -194,6 +195,47 @@ export function leaderboardMarkdown({
   lines.push(
     "Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Summaries updated hourly",
   );
+  return lines.join("\n\n") + "\n";
+}
+
+export function latestMarkdown({
+  stories,
+  page,
+  hasNext,
+  month = null,
+}: {
+  stories: CardStory[];
+  page: number;
+  hasNext: boolean;
+  month?: string | null;
+}): string {
+  const readyStories = stories.filter(hasReadySummary);
+  const lines = [
+    month ? `# ${monthLabel(month)} stories` : "# Latest stories",
+    "AI stories from Hacker News, newest first.",
+    `Page ${page}`,
+  ];
+  if (!readyStories.length)
+    lines.push("No stories yet. Stories will appear after the next update.");
+  for (const story of readyStories) {
+    const category = categoryById(story.category);
+    lines.push(
+      `## ${link(story.title, canonicalStoryUrl(story.hn_id, story.story_slug))}`,
+      `Added ${text(new Date(story.date_added).toISOString())}`,
+      `${story.points} points · ${link(`${story.comment_count} comments`, `https://news.ycombinator.com/item?id=${story.hn_id}`)}`,
+    );
+    if (category)
+      lines.push(
+        `Category: ${link(category.label, `https://hacksnap.live${categoryURL(category)}`)}`,
+      );
+    const article = storySource(story.url, null).article;
+    if (article) lines.push(link("Original article", article));
+    lines.push(text(story.summary.overall_takeaway));
+  }
+  if (page > 1)
+    lines.push(link("Newer stories", `https://hacksnap.live${archiveURL(month, page - 1)}`));
+  if (hasNext)
+    lines.push(link("Older stories", `https://hacksnap.live${archiveURL(month, page + 1)}`));
   return lines.join("\n\n") + "\n";
 }
 

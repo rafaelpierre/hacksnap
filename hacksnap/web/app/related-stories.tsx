@@ -48,7 +48,7 @@ export function RelatedStories({
           ))}
         </ul>
       )}
-      <Link className="browse-latest-link" href={category ? categoryURL(category) : "/archive"}>
+      <Link className="browse-latest-link" href={category ? categoryURL(category) : "/"}>
         {category ? `More in ${category.label}` : "Browse latest stories"}{" "}
         <ChevronRight className="inline-icon" aria-hidden="true" />
       </Link>

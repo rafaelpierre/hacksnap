@@ -19,6 +19,8 @@ import {
 import { cardRankHistorySQL, rankHistorySQL } from "../lib/rank-history.ts";
 import { latestRankChange } from "../lib/rank-history.ts";
 import { storyMetricsSQL } from "../lib/story-metrics.ts";
+import { storySlugColumnSQL } from "../lib/story-slug-projection.ts";
+import { sitemapEntries } from "../lib/sitemap.ts";
 
 const queries = [];
 const queryValues = [];
@@ -138,6 +140,156 @@ test("each loader uses its intended projection; older cached fields remain optio
     else process.env.HACKSNAP_WEB_DATABASE_URL = previousURL;
   }
 });
+
+test("browse readers filter pending briefs before 15-card limits, offsets, counts, and related stories", async () => {
+  const db = new PGlite();
+  const previousURL = process.env.HACKSNAP_WEB_DATABASE_URL;
+  process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  try {
+    await db.exec(`
+      CREATE TABLE hacker_news_threads (
+        hn_id bigint PRIMARY KEY, title text, url text, points int,
+        comment_count int, date_added timestamptz, category text,
+        image_url text, image_status text, image_width int, image_height int, image_mime_type text
+      );
+      CREATE TABLE hacksnap_summaries (
+        story_id bigint PRIMARY KEY, article_summary text, article_key_points jsonb,
+        discussion_summary text, discussion_points jsonb, sentiment int,
+        overall_takeaway text, generated_at timestamptz, model text, source_coverage jsonb,
+        discussion_analysis jsonb, discussion_analyzed_at timestamptz,
+        discussion_analysis_coverage jsonb
+      );
+      INSERT INTO hacker_news_threads (hn_id, title, date_added, category)
+        SELECT id, 'Published story', '2020-09-30T12:00:00Z', 'agents_coding'
+        FROM generate_series(1, 33) AS id;
+      INSERT INTO hacksnap_summaries (story_id, overall_takeaway)
+        SELECT id, 'Published takeaway' FROM generate_series(1, 33) AS id;
+      INSERT INTO hacker_news_threads (hn_id, title, date_added, category)
+        SELECT id, 'Pending story', '2020-10-01T00:00:00Z',
+          CASE WHEN id = 140 THEN 'research_evaluation' ELSE 'agents_coding' END
+        FROM generate_series(100, 140) AS id;
+      INSERT INTO hacksnap_summaries (story_id, overall_takeaway)
+        SELECT id, CASE id % 4 WHEN 0 THEN NULL WHEN 1 THEN '' WHEN 2 THEN ' ' ELSE E'\\n\\t\\r' END
+        FROM generate_series(110, 140) AS id;
+    `);
+    readyQuery = (statement, values) => {
+      const sql = typeof statement === "string" ? statement : statement.text;
+      if (sql.startsWith("SELECT ") && sql.includes("hacker_news_threads"))
+        return db.query(sql, typeof statement === "string" ? values : statement.values);
+    };
+    rows = [];
+    queries.length = 0;
+    for (const load of [
+      (page) => data.getArchiveStories(null, page),
+      (page) => data.getArchiveStories("2020-09", page),
+      (page) => data.getCategoryStories("agents_coding", page),
+    ]) {
+      const first = await load(1);
+      const second = await load(2);
+      const last = await load(3);
+      assert.equal(first.stories.length, 15);
+      assert.equal(first.hasNext, true);
+      assert.equal(second.stories.length, 15);
+      assert.equal(second.hasNext, true);
+      assert.equal(last.stories.length, 3);
+      assert.equal(last.hasNext, false);
+      assert.deepEqual(
+        [...first.stories, ...second.stories, ...last.stories].map((story) => String(story.hn_id)),
+        Array.from({ length: 33 }, (_, index) => String(33 - index)),
+      );
+      assert.ok([...first.stories, ...second.stories, ...last.stories].every(hasReadySummary));
+    }
+    assert.deepEqual(await data.getArchiveStories("2020-10", 1), { stories: [], hasNext: false });
+    assert.deepEqual(await data.getCategoryStories("research_evaluation", 1), {
+      stories: [],
+      hasNext: false,
+    });
+    assert.deepEqual(await data.getArchiveMonths(), [{ month: "2020-09", count: 33 }]);
+    assert.deepEqual(await data.getCategoryCounts(), { agents_coding: 33 });
+    assert.deepEqual(
+      (await data.getRelatedStories("agents_coding", "33")).map((story) => String(story.hn_id)),
+      ["32", "31", "30"],
+    );
+    assert.equal(
+      (await data.getStory("100")).summary,
+      null,
+      "direct pending story URLs remain available",
+    );
+  } finally {
+    readyQuery = undefined;
+    rows = [];
+    if (previousURL === undefined) delete process.env.HACKSNAP_WEB_DATABASE_URL;
+    else process.env.HACKSNAP_WEB_DATABASE_URL = previousURL;
+    await db.close();
+  }
+}, 30000);
+
+test("sitemap reader selects only published takeaways and retains canonical URLs and modification dates", async () => {
+  const db = new PGlite();
+  const previousURL = process.env.HACKSNAP_WEB_DATABASE_URL;
+  process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  try {
+    await db.exec(`
+      CREATE TABLE hacker_news_threads (
+        hn_id bigint PRIMARY KEY, story_slug text, date_added timestamptz
+      );
+      CREATE TABLE hacksnap_summaries (
+        story_id bigint PRIMARY KEY, overall_takeaway text, updated_at timestamptz
+      );
+      CREATE TABLE hn_thread_snapshots (hn_id bigint, observed_at timestamptz);
+      CREATE TABLE hacksnap_rank_history (hn_id bigint, observed_at timestamptz);
+      INSERT INTO hacker_news_threads (hn_id, date_added)
+        SELECT id, '2020-09-01T00:00:00Z' FROM generate_series(1, 7) AS id;
+      UPDATE hacker_news_threads SET story_slug = 'published-story-6' WHERE hn_id = 6;
+      INSERT INTO hacksnap_summaries (story_id, overall_takeaway, updated_at) VALUES
+        (2, NULL, '2020-09-02T00:00:00Z'),
+        (3, '', '2020-09-02T00:00:00Z'),
+        (4, ' ', '2020-09-02T00:00:00Z'),
+        (5, E'\\n\\t\\r ', '2020-09-02T00:00:00Z'),
+        (6, 'Published takeaway', '2020-09-02T00:00:00Z'),
+        (7, E' \\n Published takeaway. \\t ', '2020-09-02T00:00:00Z');
+      INSERT INTO hn_thread_snapshots VALUES (6, '2020-09-03T00:00:00Z');
+      INSERT INTO hacksnap_rank_history VALUES
+        (6, '2020-09-04T00:00:00Z'), (6, '9999-09-01T00:00:00Z');
+      INSERT INTO hacker_news_threads (hn_id, date_added) VALUES
+        (-1, '2020-09-01T00:00:00Z'), (9999999999999999, '2020-09-01T00:00:00Z');
+      INSERT INTO hacksnap_summaries (story_id, overall_takeaway, updated_at) VALUES
+        (-1, 'Published takeaway', '2020-09-02T00:00:00Z'),
+        (9999999999999999, 'Published takeaway', '2020-09-02T00:00:00Z');
+    `);
+    readyQuery = (sql, values) => {
+      if (sql === storySlugColumnSQL) return { rows: [{ available: true }] };
+      if (typeof sql === "string" && sql.includes("AS modified_at")) return db.query(sql, values);
+    };
+    rows = [];
+    const stories = await data.getSitemapStories();
+    assert.deepEqual(
+      stories.map((story) => String(story.hn_id)),
+      ["6", "7"],
+    );
+    assert.equal(stories[0].modified_at.toISOString(), "2020-09-04T00:00:00.000Z");
+    assert.equal(stories[1].modified_at.toISOString(), "2020-09-02T00:00:00.000Z");
+    assert.equal(stories[0].story_slug, "published-story-6");
+    assert.equal(stories[1].story_slug, null);
+    assert.deepEqual(
+      // PGlite returns small bigint IDs as numbers; pg preserves string IDs.
+      sitemapEntries(stories.map((story) => ({ ...story, hn_id: String(story.hn_id) }))).map(
+        (entry) => entry.url,
+      ),
+      [
+        "https://hacksnap.live/",
+        "https://hacksnap.live/story/published-story-6",
+        "https://hacksnap.live/story/7",
+      ],
+    );
+  } finally {
+    readyQuery = undefined;
+    rows = [];
+    if (previousURL === undefined) delete process.env.HACKSNAP_WEB_DATABASE_URL;
+    else process.env.HACKSNAP_WEB_DATABASE_URL = previousURL;
+    await db.close();
+  }
+}, 30000);
 
 test("cards omit article and analysis payloads; article reads omit retained metrics", async () => {
   process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";

@@ -2,19 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "@jest/globals";
 import {
   appendUniqueStories,
-  homePageURL,
   validFeedPage,
   validFeedSnapshot,
+  validFeedSnapshotRef,
+  packFeedSnapshot,
+  unpackFeedSnapshot,
 } from "../lib/feed-state.ts";
+import { browsePagination } from "../lib/browse-feed.ts";
 
-const pagination = {
-  cursor: "next_cursor",
-  previousCursor: null,
-  hasMore: true,
-  page: 1,
-  expiresAt: new Date(Date.now() + 60_000).toISOString(),
-  selectionLimited: false,
-};
+const pagination = browsePagination(1, true);
 
 function story(id) {
   return {
@@ -47,16 +43,13 @@ function story(id) {
   };
 }
 
-test("home continuation appends unique cards and builds ordinary frozen page links", () => {
+test("Latest continuation appends unique cards", () => {
   const first = [story(1), story(2)];
   const result = appendUniqueStories(first, [story(2), story(3)]);
   assert.deepEqual(
     result.map((item) => item.hn_id),
     ["1", "2", "3"],
   );
-  assert.equal(homePageURL(1, null), "/");
-  assert.equal(homePageURL(1, "frozen"), "/?page=1&cursor=frozen");
-  assert.equal(homePageURL(3, "frozen"), "/?page=3&cursor=frozen");
 });
 
 test("return snapshot reconstructs the loaded list before restoring its position", () => {
@@ -101,3 +94,58 @@ test("untrusted API and browser records cannot render malformed nested cards", (
     null,
   );
 });
+
+test.each(["/", "/2026/09", "/category/agents-coding"])(
+  "%s rejects pending cards and snapshots from the previous browse pagination policy",
+  (url) => {
+    const now = Date.now();
+    const browse = browsePagination(1, true);
+    const good = { ...story(1), rank: null };
+    const snapshot = {
+      version: 1,
+      url,
+      stories: [good],
+      pagination: browse,
+      scrollY: 1930,
+      focusStoryId: "1",
+      savedAt: now,
+    };
+    const ref = {
+      version: 2,
+      id: "11111111-1111-4111-8111-111111111111",
+      url,
+      scrollY: 1930,
+      focusStoryId: "1",
+      savedAt: now,
+      contentAt: now,
+      storyCount: 1,
+      pagination: browse,
+    };
+    assert.ok(validFeedSnapshot(snapshot, url, now));
+    assert.ok(validFeedSnapshotRef(ref, url, now));
+    for (const summary of [
+      null,
+      { ...good.summary, overall_takeaway: null },
+      { ...good.summary, overall_takeaway: "" },
+      { ...good.summary, overall_takeaway: " \n\t\r " },
+    ]) {
+      const pending = { ...good, summary };
+      assert.equal(validFeedPage({ stories: [pending], pagination: browse }, url), null);
+      assert.equal(validFeedSnapshot({ ...snapshot, stories: [pending] }, url, now), null);
+      assert.equal(
+        unpackFeedSnapshot(packFeedSnapshot({ ...snapshot, stories: [pending] }), url),
+        null,
+      );
+    }
+    for (const pageSize of [undefined, 30]) {
+      const previous = { ...browse, pageSize };
+      assert.equal(validFeedPage({ stories: [good], pagination: previous }, url), null);
+      assert.equal(validFeedSnapshot({ ...snapshot, pagination: previous }, url, now), null);
+      assert.equal(validFeedSnapshotRef({ ...ref, pagination: previous }, url, now), null);
+      assert.equal(
+        unpackFeedSnapshot(packFeedSnapshot({ ...snapshot, pagination: previous }), url),
+        null,
+      );
+    }
+  },
+);

@@ -4,6 +4,7 @@ import React, { act } from "react";
 import { createRequire } from "node:module";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import { BrowseStoryLink, StoryReturnLink, consumeFeedReturn } from "../app/story-navigation";
+import { browsePagination } from "../lib/browse-feed";
 import { readStoryHistory } from "../lib/story-history";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
@@ -39,7 +40,7 @@ function card(id: number) {
   };
 }
 
-for (const listingPath of ["/", "/archive?page=2", "/category/agents-coding"]) {
+for (const listingPath of ["/", "/?page=2", "/category/agents-coding"]) {
   test(`${listingPath}: Back and site return restore loaded stories without storage`, async () => {
     const dom = new JSDOM('<div id="root"></div>', { url: `https://hacksnap.live${listingPath}` });
     const values = {
@@ -69,14 +70,7 @@ for (const listingPath of ["/", "/archive?page=2", "/category/agents-coding"]) {
       version: 1,
       url: listingPath,
       stories: [card(1), card(11)],
-      pagination: {
-        cursor: listingPath === "/" ? "cursor3" : null,
-        previousCursor: listingPath === "/" ? "cursor1" : null,
-        hasMore: true,
-        page: 2,
-        expiresAt: listingPath === "/" ? new Date(Date.now() + 60_000).toISOString() : null,
-        selectionLimited: false,
-      },
+      pagination: browsePagination(2, true),
       scrollY: 880,
       focusStoryId: "11",
       savedAt: Date.now(),
@@ -96,14 +90,11 @@ for (const listingPath of ["/", "/archive?page=2", "/category/agents-coding"]) {
       });
     document.addEventListener("click", (event) => event.preventDefault());
     try {
-      if (listingPath === "/") {
-        assert.equal(consumeFeedReturn(listingPath), null, "reload starts a new selection");
-        assert.equal(
-          consumeFeedReturn(listingPath),
-          null,
-          "effect replay cannot restore the old list",
-        );
-      }
+      assert.equal(
+        consumeFeedReturn(listingPath)?.stories.length,
+        2,
+        "reload retains the listing entry",
+      );
       dom.window.history.replaceState({ hacksnapHomeFeed: snapshot }, "", listingPath);
       assert.equal(
         consumeFeedReturn(listingPath)?.stories.length,

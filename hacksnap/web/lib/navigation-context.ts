@@ -1,5 +1,5 @@
 import { categoryBySlug } from "./categories.ts";
-import { monthLabel } from "./archive.ts";
+import { archivePage, monthLabel } from "./archive.ts";
 
 export type BrowseContext = { url: string; label: string; scrollY: number; savedAt: number };
 
@@ -14,23 +14,15 @@ export function browseLabel(url: string): string | null {
   }
   if (parsed.origin !== "https://hacksnap.invalid" || parsed.hash) return null;
   const params = [...parsed.searchParams.keys()];
-  if (
-    params.some((key) => key !== "page" && key !== "cursor") ||
-    params.filter((key) => key === "page").length > 1 ||
-    params.filter((key) => key === "cursor").length > 1
-  )
+  if (params.some((key) => key !== "page") || params.filter((key) => key === "page").length > 1)
     return null;
   const page = parsed.searchParams.get("page");
-  const cursor = parsed.searchParams.get("cursor");
-  if (page !== null && (!/^[1-9][0-9]*$/.test(page) || Number(page) > 10000)) return null;
+  if (archivePage(page ?? undefined) === null) return null;
   if (parsed.pathname === "/") {
-    if (cursor !== null && (!page || !/^[A-Za-z0-9_-]{1,6000}$/.test(cursor))) return null;
-    return page && page !== "1" ? `Top stories · page ${page}` : "Top stories";
+    return page && page !== "1" ? `Latest stories · page ${page}` : "Latest stories";
   }
-  if (cursor !== null) return null;
   const pageSuffix = page && page !== "1" ? ` · page ${page}` : "";
-  if (parsed.pathname === "/archive") return `Latest stories${pageSuffix}`;
-  const archive = /^\/archive\/([1-9]\d{3})\/(0[1-9]|1[0-2])$/.exec(parsed.pathname);
+  const archive = /^\/([1-9]\d{3})\/(0[1-9]|1[0-2])$/.exec(parsed.pathname);
   if (archive) return `${monthLabel(`${archive[1]}-${archive[2]}`)} archive${pageSuffix}`;
   const match = /^\/category\/([a-z-]+)$/.exec(parsed.pathname);
   const category = match && categoryBySlug(match[1]);

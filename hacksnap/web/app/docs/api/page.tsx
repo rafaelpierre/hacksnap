@@ -11,7 +11,7 @@ export default function ApiDocs() {
   return (
     <article className="detail" style={{ overflowWrap: "anywhere" }}>
       <Link className="back-link" href="/">
-        <ChevronLeft className="inline-icon" aria-hidden="true" /> All stories
+        <ChevronLeft className="inline-icon" aria-hidden="true" /> Latest stories
       </Link>
       <h1>Hacksnap Stories API</h1>
       <p>
@@ -27,10 +27,9 @@ export default function ApiDocs() {
         <code>GET https://hacksnap.live/api/stories</code>
       </pre>
       <p>
-        Returns <code>{"{stories: [...], ingestion: string | null}"}</code>. Stories follow the
-        homepage ranking, with the same selection and a 60-second per-instance data cache. The
-        ingestion timestamp records the last successful collection. No pagination or query
-        parameters are supported.
+        Returns <code>{"{stories: [...], ingestion: string | null}"}</code>. Stories follow Hacksnap
+        ranking, with a 60-second per-instance data cache. The ingestion timestamp records the last
+        successful collection. No pagination or query parameters are supported.
       </p>
       <h2>Get a story</h2>
       <pre style={{ whiteSpace: "pre-wrap" }}>

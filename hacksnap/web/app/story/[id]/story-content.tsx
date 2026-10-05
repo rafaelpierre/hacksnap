@@ -53,7 +53,7 @@ export function StoryContent({
         <nav className="story-breadcrumbs" aria-label="Breadcrumb">
           <ol>
             <li>
-              <StoryReturnLink destination={{ href: "/", label: "Top Stories" }} />
+              <StoryReturnLink destination={{ href: "/", label: "Latest" }} />
             </li>
             {category && (
               <li>

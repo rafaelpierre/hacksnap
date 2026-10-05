@@ -2,6 +2,7 @@ import "server-only";
 import { storySlugColumnSQL, storySlugProjection } from "./story-slug-projection";
 import { browseCapabilitiesSQL } from "./browse-capabilities";
 import { DataUnavailableError } from "./data-availability";
+import { readySummarySQL } from "./ready-stories";
 import { boundedCache, pendingBudget } from "./bounded-cache";
 import {
   READY_STORY_CURSOR_TTL_MS,
@@ -281,7 +282,7 @@ async function queryReadyStorySelection(): Promise<CachedReadyStorySelection> {
         FROM hacksnap_ranked_stories r
         INNER JOIN hacker_news_threads t ON t.hn_id = r.hn_id
         INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
-        WHERE s.overall_takeaway ~ '[^[:space:]]'
+        WHERE ${readySummarySQL}
         ORDER BY r.rank
         LIMIT 401
       )
@@ -364,7 +365,7 @@ async function getReadySnapshotStories(
     return client.query<ReadySnapshotRow>(
       `SELECT ${fields}, selected.rank::text AS rank, selected.is_recent,
         ${cardRankHistoryAtSQL} AS rank_history,
-        (r.hn_id IS NOT NULL AND s.overall_takeaway ~ '[^[:space:]]') AS snapshot_ready
+        (r.hn_id IS NOT NULL AND ${readySummarySQL}) AS snapshot_ready
       FROM unnest($1::bigint[], $2::bigint[], $3::boolean[]) WITH ORDINALITY
         AS selected(hn_id, rank, is_recent, position)
       INNER JOIN hacker_news_threads t ON t.hn_id = selected.hn_id
@@ -552,7 +553,7 @@ export async function getSitemapStories(): Promise<
   { hn_id: string; story_slug: string | null; modified_at: Date }[]
 > {
   return read(async (client) => {
-    // Include current and archived stories only once a summary is available,
+    // Include current and archived stories only once a takeaway is published,
     // matching the indexing policy in storyPreviewMetadata.
     const result = await client.query<{
       hn_id: string;
@@ -569,7 +570,7 @@ export async function getSitemapStories(): Promise<
       )) AS modified_at
       FROM hacker_news_threads t
       INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
-      WHERE t.hn_id BETWEEN 1 AND 999999999999999
+      WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${readySummarySQL}
       ORDER BY t.hn_id`);
     return result.rows;
   });

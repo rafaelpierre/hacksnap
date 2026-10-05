@@ -20,9 +20,9 @@ function kind(sql) {
   if (sql === categoryCountsSQL) return "counts";
   if (sql === browseCapabilitiesSQL) return "capabilities";
   if (sql === storySlugColumnSQL) return "slug";
-  if (sql.includes("INNER JOIN hacksnap_summaries")) return "related";
+  if (sql.includes("AS takeaway")) return "related";
   if (sql.includes("WHERE t.category = $1")) return "category";
-  if (sql.includes("LEFT JOIN hacksnap_summaries")) return "archive";
+  if (sql.includes("INNER JOIN hacksnap_summaries")) return "archive";
   return "transaction";
 }
 

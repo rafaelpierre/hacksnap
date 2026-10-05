@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import type { Summary } from "./data";
 import { readyStoryImage, type StoryImageFields } from "./story-image";
 import { storyDiscussion } from "./story-presentation";
+import { hasPublishedTakeaway } from "./ready-stories";
 
 type PreviewSummary = Pick<
   Summary,
@@ -114,7 +115,7 @@ export function storyPreviewMetadata(
   return {
     title: { absolute: pageTitle },
     description,
-    robots: { index: story.summary !== null, follow: true },
+    robots: { index: hasPublishedTakeaway(story.summary?.overall_takeaway), follow: true },
     alternates: {
       canonical: url,
       types: { "application/rss+xml": "https://hacksnap.live/feed.xml" },

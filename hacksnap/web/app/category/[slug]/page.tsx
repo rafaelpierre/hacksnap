@@ -108,7 +108,7 @@ const CategoryStories = withDataFallback(async function CategoryStories({
             <h2>No stories in this topic yet.</h2>
             <p>New stories will appear here as they’re added.</p>
             <Link className="button" href="/">
-              Browse top stories <ChevronRight className="inline-icon" aria-hidden="true" />
+              Browse latest stories <ChevronRight className="inline-icon" aria-hidden="true" />
             </Link>
           </div>
         }

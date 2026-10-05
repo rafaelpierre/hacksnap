@@ -17,7 +17,8 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
   getStory,
   getRelatedStories: async () => [],
   getLeaderboard: async () => ({ stories: [], ingestion: null }),
-  getMarkdownLeaderboard: async () => ({ stories: [], ingestion: null }),
+  getArchiveMonths: async () => [],
+  getArchiveStories: async () => ({ stories: [], hasNext: false }),
   getStoryMetrics: async () => null,
 }));
 jest.unstable_mockModule("next/cache", () => ({ unstable_noStore: () => {} }));

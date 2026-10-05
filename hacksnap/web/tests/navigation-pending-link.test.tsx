@@ -47,14 +47,26 @@ test("navigation pending link stays an ordinary link until its transition is pen
 
 test("navigation keeps its real destinations and current-route semantics", () => {
   pending = false;
-  pathname = "/archive/2026/10";
+  pathname = "/2026/10";
   const header = renderToStaticMarkup(<MainNavigation />);
-  assert.match(header, /href="\/"/);
-  assert.match(header, /href="\/archive"[^>]*aria-current="location"/);
+  assert.doesNotMatch(header, /href="\/archive"|Top stories/);
+  assert.match(header, /href="\/"[^>]*aria-current="location"/);
   assert.match(header, /href="\/topics"/);
   assert.match(header, /href="\/about"/);
 
   const sidebar = renderToStaticMarkup(<TopicSidebar active="agents_coding" />);
   assert.match(sidebar, /href="\/topics"/);
   assert.match(sidebar, /href="\/category\/agents-coding"[^>]*aria-current="page"/);
+});
+
+test("Latest is the root destination and selects the homepage", () => {
+  pending = false;
+  pathname = "/";
+  const header = renderToStaticMarkup(<MainNavigation />);
+  assert.match(header, /href="\/"[^>]*aria-current="page"[^>]*>Latest/);
+  assert.doesNotMatch(header, /href="\/archive"/);
+
+  pathname = "/about";
+  const about = renderToStaticMarkup(<MainNavigation />);
+  assert.doesNotMatch(about, /href="\/"[^>]*aria-current/);
 });

@@ -1,4 +1,4 @@
-import { archiveMonth, archivePage } from "./archive";
+import { ARCHIVE_PAGE_SIZE, archiveMonth, archivePage } from "./archive";
 import { categoryBySlug } from "./categories";
 import type { FeedPagination } from "./feed-state";
 import type { getArchiveStories, getCategoryStories } from "./data";
@@ -7,6 +7,7 @@ import { publicFeedStory } from "./stories-api";
 export function browsePagination(page: number, hasMore: boolean): FeedPagination {
   return {
     page,
+    pageSize: ARCHIVE_PAGE_SIZE,
     hasMore,
     cursor: null,
     previousCursor: null,
@@ -25,12 +26,12 @@ export function browseStoriesHandler(data: {
     const page = archivePage(query.get("page") ?? undefined);
     const categoryMatch = /^\/category\/([a-z-]+)$/.exec(path ?? "");
     const category = categoryMatch ? categoryBySlug(categoryMatch[1]) : null;
-    const monthMatch = /^\/archive\/([^/]+)\/([^/]+)$/.exec(path ?? "");
+    const monthMatch = /^\/(?:archive\/)?([^/]+)\/([^/]+)$/.exec(path ?? "");
     const month = monthMatch ? archiveMonth(monthMatch.slice(1)) : null;
     if (
       !path ||
       !page ||
-      (!category && path !== "/archive" && !month) ||
+      (!category && path !== "/" && path !== "/archive" && !month) ||
       [...query.keys()].some(
         (key) => !["path", "page"].includes(key) || query.getAll(key).length !== 1,
       )

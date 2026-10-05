@@ -31,12 +31,14 @@ key indexes each story's history. RLS and revoked client grants keep writes priv
 `hacksnap_ranked_stories` ranks **all eligible stories** using the same recency,
 points and ID ordering. The worker selects up to its first 50 rows for enrichment;
 `hacksnap_current_stories` remains the top-ten view.
-The website selects the first ten stories from `hacksnap_ranked_stories` with a
+The legacy ranked APIs select the first ten stories from `hacksnap_ranked_stories` with a
 nonblank `overall_takeaway` preview, filtering before the limit. Older eligible
 stories fill any gaps using the same recent-first, points and ID ordering. This
-selection is shared by homepage HTML, Markdown and the leaderboard API. Canonical
+selection is shared by the ranked APIs. The homepage at `/` and its Markdown
+representation instead list published stories newest first in batches of 15; dated
+feeds at `/YYYY/MM` and topics use the same publication rule and batch size. Canonical
 rank values are retained for consistency with recorded rank history, so displayed
-ranks can have gaps. Fewer than ten cards appear only when fewer than ten eligible
+ranks can have gaps. Ranked APIs return fewer than ten cards only when fewer than ten eligible
 stories have previews. Pending stories remain eligible for worker enrichment.
 At the end of every worker refresh, after fetch failures are excluded, one atomic
 insert records every eligible rank with a shared timestamp, including ranks below
@@ -295,13 +297,13 @@ An explicit `sslrootcert` connection parameter overrides the bundled CA path.
 Read-only mode and the statement timeout are applied within each transaction,
 so they do not depend on persistent database sessions. Each instance keeps at
 most one pooled connection and closes idle connections after 90 seconds.
-The leaderboard uses a bounded 60-second per-instance data cache, shared by the
-homepage, Markdown and list API within each instance. Expired reads wait for fresh
+The leaderboard APIs use a bounded 60-second per-instance data cache shared
+within each instance. Latest uses the bounded browse-page cache. Expired reads wait for fresh
 data; failed reads show the existing unavailable state instead of retaining stale
 rankings. Concurrent callers share one load. Separate instances may differ within
 that one-minute window. Homepage and story HTML render per request; story data keeps
-its existing 30-minute cache. Builds do not connect to the database. The delayed-update
-notice is evaluated on each homepage request. See `web/README.md` for Cloudflare caching.
+its existing 30-minute cache. Builds do not connect to the database.
+See `web/README.md` for Cloudflare caching.
 On a cache miss, the stories and ingestion timestamp use one SQL query; including
 the read-only transaction setup and commit, this takes three database round trips.
 For Vercel, configure the function region close to the Supabase database
@@ -317,9 +319,10 @@ redeploy and check both the homepage and a story detail page against real data.
 ### Sitemap
 
 `/sitemap.xml` serves a Next.js XML sitemap with canonical `https://hacksnap.live`
-URLs for the homepage, archive pages, and `/story/[id]` pages with summaries,
-including archived stories. Pending stories are excluded and serve `noindex, follow`
-until their summary is available and the page revalidates (a 30-minute cache interval).
+URLs for Latest at `/`, dated feeds at `/YYYY/MM`, topics, and `/story/[id]` pages
+with published takeaways, including older stories. Retired archive paths are not
+advertised. Missing, NULL, empty or whitespace-only takeaways are excluded and
+serve `noindex, follow` until their takeaway is published and the page revalidates (a 30-minute cache interval).
 The sitemap reads story IDs in a server-only, read-only transaction on every request,
 so additions and deletions appear without a rebuild or cache purge. Builds do not
 require database access. `/robots.txt` advertises
@@ -338,7 +341,7 @@ All web responses also advertise the catalog in a Link header. These discovery
 resources do not need database access.
 
 `GET /api/stories` returns the current ranked stories and ingestion timestamp,
-using the homepage's 60-second per-instance data cache. `GET /api/stories/{id}` returns
+using the ranked APIs' 60-second per-instance data cache. `GET /api/stories/{id}` returns
 one story, including archived stories, using a minimal primary-key query with a
 five-minute bounded per-instance cache (one minute for missing stories). Successful
 responses also permit five minutes of shared HTTP caching; safe 404s permit one
