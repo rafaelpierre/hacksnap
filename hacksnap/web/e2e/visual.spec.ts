@@ -2,13 +2,14 @@ import { test, expect, title, storyPath } from "./browser";
 import AxeBuilder from "@axe-core/playwright";
 
 for (const width of [320, 1280])
-  for (const theme of ["light", "dark"] as const)
+  for (const systemScheme of ["light", "dark"] as const)
     for (const textScale of [1, 2]) {
-      test(`${width}px ${theme} ${textScale * 100}% text: layout and responsive image`, async ({
+      test(`${width}px ${systemScheme} OS ${textScale * 100}% text: layout and responsive image`, async ({
         page,
       }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });
-        await page.emulateMedia({ colorScheme: theme });
+        await page.emulateMedia({ colorScheme: systemScheme });
+        await page.addInitScript(() => localStorage.setItem("hacksnap-theme", "dark"));
         for (const route of [
           "/",
           "/archive",
@@ -37,7 +38,9 @@ for (const width of [320, 1280])
             ).length,
           }));
           expect(layout.content, "No horizontal overflow").toBeLessThanOrEqual(layout.viewport + 1);
-          expect(layout.scheme).toContain(theme);
+          await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+          expect(layout.scheme.split(" ").sort()).toEqual(["light", "only"]);
+          await expect(page.getByRole("button", { name: /Switch to .* mode/ })).toHaveCount(0);
           expect(parseFloat(layout.heading)).toBeGreaterThanOrEqual(textScale === 2 ? 40 : 24);
           expect(layout.hiddenImages).toBe(0);
           if (["/", "/archive", "/category/models-products", storyPath].includes(route)) {

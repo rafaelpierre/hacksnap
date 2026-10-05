@@ -1,21 +1,21 @@
-/* Shared editorial foundations. Theme colors follow the OS unless explicitly set.
+/* Shared editorial foundations. The interface uses a fixed light palette.
    Keep decorative dividers separate from the higher-contrast control boundaries. */
 :root {
-  color-scheme: light dark;
-  --bg: light-dark(#ffffff, #111314);
-  --surface: light-dark(#f0eeea, #191c1e);
-  --ink: light-dark(#222726, #fff);
-  --muted: light-dark(#616866, #9a9fa0);
-  --line: light-dark(#deded8, #2b3032);
-  --accent: light-dark(#9c481b, #efaa7b);
-  --prose: light-dark(#414946, #fff);
-  --row-hover: light-dark(#f2f1ed, #151819);
-  --selection: light-dark(#f3cfb4, #664630);
-  --selection-ink: light-dark(#222726, #fff);
+  color-scheme: only light;
+  --bg: #ffffff;
+  --surface: #f0eeea;
+  --ink: #222726;
+  --muted: #616866;
+  --line: #deded8;
+  --accent: #9c481b;
+  --prose: #414946;
+  --row-hover: #f2f1ed;
+  --selection: #f3cfb4;
+  --selection-ink: #222726;
   --chart-up: var(--positive);
-  --accent-soft: light-dark(#f4e9de, #25201b);
-  --positive: light-dark(#356c5d, #8fc5b5);
-  --control-line: light-dark(#797f7b, #737b77);
+  --accent-soft: #f4e9de;
+  --positive: #356c5d;
+  --control-line: #797f7b;
   --focus: var(--accent);
   --sans: var(--font-body), Arial, sans-serif;
   --heading: var(--font-heading), Arial, sans-serif;
@@ -48,29 +48,23 @@
   --site-header-height: 4.8125rem;
   --radius-control: 0.375rem;
 }
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-}
 [data-color="blue"] {
-  --category-color: light-dark(#326393, #9abfeb);
+  --category-color: #326393;
 }
 [data-color="amber"] {
-  --category-color: light-dark(#92501d, #efba89);
+  --category-color: #92501d;
 }
 [data-color="purple"] {
-  --category-color: light-dark(#71509a, #c3acec);
+  --category-color: #71509a;
 }
 [data-color="green"] {
-  --category-color: light-dark(#366d52, #96c9b0);
+  --category-color: #366d52;
 }
 [data-color="rose"] {
-  --category-color: light-dark(#98465c, #e6a2b1);
+  --category-color: #98465c;
 }
 [data-color="sand"] {
-  --category-color: light-dark(#71632f, #ccc39f);
+  --category-color: #71632f;
 }
 .category-dot {
   width: 6px;
@@ -676,43 +670,6 @@ body:has(#browse-content) .skip-browse {
 .rss-link:hover {
   background: var(--surface);
   color: var(--ink);
-}
-.theme-control {
-  display: inline-flex;
-  max-width: 100%;
-}
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--touch-target);
-  height: var(--touch-target);
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: var(--muted);
-}
-.theme-toggle:hover {
-  background: var(--surface);
-  color: var(--ink);
-}
-.theme-sun {
-  display: none;
-}
-:root[data-theme="dark"] .theme-sun {
-  display: block;
-}
-:root[data-theme="dark"] .theme-moon {
-  display: none;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not([data-theme="dark"]) .theme-sun {
-    display: block;
-  }
-  :root:not([data-theme="light"]):not([data-theme="dark"]) .theme-moon {
-    display: none;
-  }
 }
 .inline-icon {
   display: inline-block;

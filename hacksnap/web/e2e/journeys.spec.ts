@@ -102,7 +102,7 @@ test("keyboard source popover and share controls preserve focus and accessibilit
   await expect(share).toBeFocused();
 });
 
-test("blocked storage and clipboard retain theme, navigation and manual copy", async ({
+test("blocked storage and clipboard retain light appearance, navigation and manual copy", async ({
   page,
   context,
 }) => {
@@ -118,9 +118,12 @@ test("blocked storage and clipboard retain theme, navigation and manual copy", a
     document.execCommand = () => false;
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Switch to dark mode" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(
+    await page.locator("html").evaluate((node) => getComputedStyle(node).colorScheme),
+  ).toContain("light");
   await page.getByRole("link", { name: title, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
+  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: `Share: ${title}`, exact: true })
     .first()
@@ -225,9 +228,11 @@ test("AI user agents receive Markdown with the public URL heading", async ({ req
 });
 
 test.describe("without JavaScript", () => {
-  test.use({ javaScriptEnabled: false });
+  test.use({ javaScriptEnabled: false, colorScheme: "dark" });
   test("server content and ordinary links remain readable", async ({ page }) => {
     await page.goto("/archive");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(page.getByRole("button", { name: /Switch to .* mode/ })).toHaveCount(0);
     await page.getByRole("link", { name: title, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();

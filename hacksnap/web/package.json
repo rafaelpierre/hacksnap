@@ -8,7 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:story-ui": "npm test -- tests/story-content.test.tsx tests/story-added-time.test.tsx tests/story-navigation.test.tsx",
-    "test:theme": "npm test -- tests/theme.test.mjs tests/theme-toggle.test.tsx",
+    "test:theme": "npm test -- tests/theme.test.mjs",
     "test:analytics": "npm test -- tests/analytics.test.mjs tests/analytics-return.test.mjs tests/analytics-dom.test.mjs",
     "test:metadata": "npm test -- tests/preview-metadata.test.mjs",
     "test:share": "npm test -- tests/share-menu.test.mjs",

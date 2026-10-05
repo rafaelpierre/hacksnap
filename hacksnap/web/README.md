@@ -13,17 +13,10 @@ builds and visits do not need an external font service.
 
 ## Color theme
 
-Light appearance uses a pure white page background. Dark appearance uses white
-headlines and reading text, with muted metadata and colored accents.
-
-The Appearance select in the header offers System, Light and Dark. System is the
-default and follows OS changes immediately through CSS `color-scheme` and
-`light-dark()`, including before hydration and when JavaScript is disabled.
-Explicit choices are stored under `hacksnap-theme`; an inline head script applies
-them before paint, including on cached pages. Existing light/dark preferences
-continue to work. Invalid values fall back to System. If storage is blocked,
-switching still works for the current page session. Other tabs follow saved
-preference changes and reset to System when the preference is cleared.
+The interface always uses a light appearance with a pure white page background.
+CSS declares `color-scheme: only light`, including before hydration and when
+JavaScript is disabled. OS appearance and previously saved `hacksnap-theme`
+preferences do not affect the page. There is no appearance control or theme script.
 
 ## Shared design foundations
 
@@ -35,12 +28,12 @@ breakpoint, the sidebar is hidden and topics remain available through the header
 page/reading widths, responsive gutters and 44px (2.75rem) control target. Use
 `--ink` for headlines, `--prose` for reading, `--muted` for metadata, `--accent`
 for copper emphasis and `--positive` for restrained green details. Use `--line`
-for separators and `--control-line` for visible control boundaries. Both themes
+for separators and `--control-line` for visible control boundaries. Components
 share the type, space and layout tokens; future component work should reuse them.
 Text uses rem units and wrapping layouts to respect enlarged browser text.
 
 Run `npm run test:theme`, `npm run typecheck` and `npm run build`. Check the shell,
-feeds and story at 320px and desktop widths in both themes, including 200% text,
+feeds and story at 320px and desktop widths with light and dark OS settings, including 200% text,
 keyboard focus, OS appearance changes, saved preferences and blocked storage.
 
 ## Story URLs
@@ -728,7 +721,7 @@ text can make a row taller when needed. The footer aligns to the bottom of the
 content column. Narrow desktop cards keep the image beside the title and give
 the excerpt and footer the full width. Footer controls wrap when text is enlarged.
 Feed headlines use rem units so they scale with the excerpt and metadata when
-readers enlarge text. Light and dark themes share the same sizing and layout.
+readers enlarge text. The light appearance uses the same sizing and layout at all text scales.
 
 Home, archive and category cards omit discussion themes and the “Read the debate”
 link. The title opens the full story, where discussion analysis remains available.
