@@ -1,4 +1,3 @@
-import { availableData } from "../../../lib/data-availability";
 import { withDataFallback } from "../../with-data-fallback";
 import { ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
@@ -6,29 +5,15 @@ import { categoryMetadata } from "../../../lib/category-metadata";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { getCategoryCounts, getCategoryStories } from "../../../lib/data";
+import { getCategoryStories } from "../../../lib/data";
 import { shouldStreamBrowse } from "../../../lib/browse-streaming";
-import {
-  categoryBySlug,
-  categoryURL,
-  type Category,
-  type CategoryId,
-} from "../../../lib/categories";
+import { categoryBySlug, categoryURL, type Category } from "../../../lib/categories";
 import { archivePage } from "../../../lib/archive";
 import { StoryFeed } from "../../story-feed";
 import { browsePagination } from "../../../lib/browse-feed";
 import { publicFeedStory } from "../../../lib/stories-api";
 import { BrowseLayout } from "../../topic-sidebar";
 import { BrowseLoading } from "../../browse-loading";
-
-async function CategoryCount({ categoryId }: { categoryId: CategoryId }) {
-  const result = await availableData(getCategoryCounts);
-  return result.available ? (
-    <span>{result.value[categoryId] ?? 0}</span>
-  ) : (
-    <span className="category-count-placeholder" aria-hidden="true" />
-  );
-}
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -47,35 +32,11 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   return categoryMetadata(category, page);
 }
 
-function CategoryShell({
-  category,
-  count,
-  children,
-}: {
-  category: Category;
-  count: ReactNode;
-  children: ReactNode;
-}) {
+function CategoryShell({ category, children }: { category: Category; children: ReactNode }) {
   return (
     <BrowseLayout active={category.id}>
-      <header className="feed-header category-header" data-color={category.color}>
-        <div className="channel-path">
-          <Link href="/">hacksnap</Link> / <Link href="/topics">topics</Link> /{" "}
-          <span>{category.label}</span>
-        </div>
-        <h1>
-          <span className="category-dot" aria-hidden="true" />
-          {category.label}
-        </h1>
-        <p>{category.description}</p>
-      </header>
-      <section aria-labelledby="category-stories-heading">
-        <div className="feed-bar">
-          <h2 id="category-stories-heading">Latest stories {count}</h2>
-          <p>Newest first</p>
-        </div>
-        {children}
-      </section>
+      <h1 className="sr-only">{category.label}</h1>
+      <section aria-label={`${category.label} stories`}>{children}</section>
     </BrowseLayout>
   );
 }
@@ -90,14 +51,7 @@ const CategoryStories = withDataFallback(async function CategoryStories({
   const { stories, hasNext } = await getCategoryStories(category.id, page);
   if (page > 1 && !stories.length) notFound();
   return (
-    <CategoryShell
-      category={category}
-      count={
-        <Suspense fallback={<span className="category-count-placeholder" aria-hidden="true" />}>
-          <CategoryCount categoryId={category.id} />
-        </Suspense>
-      }
-    >
+    <CategoryShell category={category}>
       <StoryFeed
         key={`${category.slug}:${page}`}
         listingPath={categoryURL(category)}
@@ -125,10 +79,7 @@ async function CategoryPage(props: Props) {
     <Suspense
       key={`${category.slug}:${page}`}
       fallback={
-        <CategoryShell
-          category={category}
-          count={<span className="category-count-placeholder" aria-hidden="true" />}
-        >
+        <CategoryShell category={category}>
           <BrowseLoading />
         </CategoryShell>
       }
