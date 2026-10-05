@@ -14,11 +14,18 @@ export function browseLabel(url: string): string | null {
   }
   if (parsed.origin !== "https://hacksnap.invalid" || parsed.hash) return null;
   const params = [...parsed.searchParams.keys()];
-  if (params.some((key) => key !== "page") || params.filter((key) => key === "page").length > 1)
+  if (
+    params.some((key) => !["page", "category"].includes(key)) ||
+    new Set(params).size !== params.length
+  )
     return null;
   const page = parsed.searchParams.get("page");
   if (archivePage(page ?? undefined) === null) return null;
+  const slug = parsed.searchParams.get("category");
+  const selected = slug === null ? null : categoryBySlug(slug);
+  if (slug !== null && (!selected || parsed.pathname !== "/")) return null;
   if (parsed.pathname === "/") {
+    if (selected) return `${selected.label}${page && page !== "1" ? ` · page ${page}` : ""}`;
     return page && page !== "1" ? `Latest stories · page ${page}` : "Latest stories";
   }
   const pageSuffix = page && page !== "1" ? ` · page ${page}` : "";

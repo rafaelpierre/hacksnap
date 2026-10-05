@@ -15,7 +15,15 @@ for (const route of ["/", "/archive", "/category/models-products"]) {
       .getByRole("navigation", { name: "Breadcrumb" })
       .getByRole("link", { name: returnName, exact: true })
       .click();
-    await expect(page).toHaveURL((url) => url.pathname === (route === "/archive" ? "/" : route));
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname + url.search ===
+        (route === "/archive"
+          ? "/"
+          : route === "/category/models-products"
+            ? "/?category=models-products"
+            : route),
+    );
     await expect(card).toBeVisible();
     await card.click();
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
@@ -306,7 +314,7 @@ test("feature routes remain reachable by keyboard", async ({ page }) => {
   const target = await category.boundingBox();
   expect(target!.height).toBeGreaterThanOrEqual(44);
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/category\/models-products$/);
+  await expect(page).toHaveURL(/\/\?category=models-products$/);
   await expect(
     page.locator(".story-list").getByRole("link", { name: title, exact: true }),
   ).toBeVisible();
@@ -344,7 +352,7 @@ test("desktop topics stay left of the feed and close to the header", async ({ pa
   const bounds = await lastTopic.boundingBox();
   expect(bounds!.height).toBeGreaterThanOrEqual(44);
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/category\/industry-society$/);
+  await expect(page).toHaveURL(/\/\?category=industry-society$/);
 });
 
 test("a delayed story navigation keeps the feed and announces progress", async ({ page }) => {
@@ -373,7 +381,10 @@ test("a delayed story navigation keeps the feed and announces progress", async (
 test("category and API documentation home links open Latest directly", async ({ page }) => {
   await page.goto("/category/safety-privacy");
   await expect(page.getByRole("heading", { name: "No stories in this topic yet." })).toBeVisible();
-  await expect(page.locator(".channel-path, .category-header, .feed-bar")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/\?category=safety-privacy$/);
+  await expect(
+    page.getByRole("link", { name: "All stories (clear topic filter)" }),
+  ).toHaveAttribute("href", "/");
   const browse = page.getByRole("link", { name: "Browse latest stories" });
   await expect(browse).toHaveAttribute("href", "/");
   await browse.focus();
@@ -383,7 +394,7 @@ test("category and API documentation home links open Latest directly", async ({ 
     page.locator(".story-list").getByRole("link", { name: title, exact: true }),
   ).toBeVisible();
   await page.goBack();
-  await expect(page).toHaveURL(/\/category\/safety-privacy$/);
+  await expect(page).toHaveURL(/\/\?category=safety-privacy$/);
   await expect(browse).toBeVisible();
   await page.goto("/docs/api");
   const back = page.locator("main .back-link");
@@ -425,4 +436,55 @@ test("Latest owns root and dated canonicals while legacy archive URLs only redir
   expect(xml).toContain("<loc>https://hacksnap.live/</loc>");
   expect(xml).toContain("<loc>https://hacksnap.live/2026/01</loc>");
   expect(xml).not.toContain("/archive");
+});
+
+test("topic filters reuse Latest and retain selection through paging and history", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/?page=2");
+  await page
+    .getByRole("navigation", { name: "Topics", exact: true })
+    .getByRole("link", { name: "Models & Products" })
+    .click();
+  await expect(page).toHaveURL(/\/\?category=models-products$/);
+  await expect(
+    page.getByRole("heading", { name: "Latest stories — Models & Products" }),
+  ).toBeAttached();
+  const topic = page
+    .getByRole("navigation", { name: "Topics", exact: true })
+    .getByRole("link", { name: "Models & Products" });
+  await expect(topic).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "Older stories", exact: true })).toHaveAttribute(
+    "href",
+    "/?category=models-products&page=2",
+  );
+  await page.getByRole("link", { name: "All stories (clear topic filter)" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/\?category=models-products$/);
+  await expect(topic).toHaveAttribute("aria-current", "page");
+  await page.goForward();
+  await expect(page).toHaveURL(/\/$/);
+  for (const query of [
+    "category=unknown",
+    "category=",
+    "category=agents-coding&category=models-products",
+    "category=agents-coding&page=101",
+  ]) {
+    expect((await request.get(`/?${query}`)).status()).toBe(404);
+  }
+  await page.goto("/?category=models-products&page=2");
+  // Follow the story title using the existing card heading link.
+  const storyLink = page.locator(".story-list h3 a").first();
+  await storyLink.click();
+  const topicReturn = page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Models & Products", exact: true });
+  await expect(topicReturn).toHaveAttribute("href", "/?category=models-products&page=2");
+  await topicReturn.click();
+  await expect(page).toHaveURL(/category=models-products&page=2$/);
+  const legacy = await request.get("/category/models-products?page=2", { maxRedirects: 0 });
+  expect(legacy.status()).toBe(308);
+  expect(legacy.headers().location).toBe("/?category=models-products&page=2");
 });

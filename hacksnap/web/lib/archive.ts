@@ -62,3 +62,10 @@ export function archiveQuery(fields: string, month: string | null, page: number)
     values,
   };
 }
+
+export function browsePageURL(listingPath: string, page: number): string {
+  const url = new URL(listingPath, "https://hacksnap.invalid");
+  url.searchParams.delete("page");
+  if (page > 1) url.searchParams.set("page", String(page));
+  return url.pathname + url.search;
+}

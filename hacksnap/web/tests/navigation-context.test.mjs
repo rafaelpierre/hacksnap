@@ -8,7 +8,7 @@ test("browse context retains list selection and page", () => {
   assert.equal(browseLabel("/?page=1"), "Latest stories");
   assert.equal(browseLabel("/?page=3"), "Latest stories · page 3");
   assert.equal(browseLabel("/2026/09?page=2"), "September 2026 archive · page 2");
-  assert.equal(browseLabel("/category/agents-coding?page=4"), "Agents & Coding · page 4");
+  assert.equal(browseLabel("/?category=agents-coding&page=4"), "Agents & Coding · page 4");
 });
 
 test("return destination must be a recent internal browse route", () => {
@@ -40,6 +40,10 @@ test("return destination must be a recent internal browse route", () => {
     "/?page=2&cursor=unsafe!",
     "/2026/13",
     "/category/unknown",
+    "/?category=unknown",
+    "/?category=",
+    "/?category=agents-coding&category=models-products",
+    "/2026/09?category=agents-coding",
   ]) {
     assert.equal(browseLabel(url), null, url);
     assert.equal(validBrowseContext({ ...context, url }, now), null, url);

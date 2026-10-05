@@ -95,7 +95,7 @@ test("untrusted API and browser records cannot render malformed nested cards", (
   );
 });
 
-test.each(["/", "/2026/09", "/category/agents-coding"])(
+test.each(["/", "/2026/09", "/?category=agents-coding"])(
   "%s rejects pending cards and snapshots from the previous browse pagination policy",
   (url) => {
     const now = Date.now();

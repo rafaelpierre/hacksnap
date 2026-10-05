@@ -5,6 +5,7 @@ const { DataUnavailableError } = await import("../lib/data-availability.ts");
 let fail = false;
 let reads = 0;
 const archiveReads = [];
+const categoryReads = [];
 let archiveStories = [];
 jest.unstable_mockModule("../lib/data", () => ({
   getRssStories: async () => {
@@ -20,6 +21,11 @@ jest.unstable_mockModule("../lib/data", () => ({
     archiveReads.push([month, page]);
     if (fail) throw new DataUnavailableError();
     return { stories: archiveStories, hasNext: false };
+  },
+  getCategoryStories: async (category, page) => {
+    categoryReads.push([category, page]);
+    if (fail) throw new DataUnavailableError();
+    return { stories: archiveStories, hasNext: true };
   },
   getStoryMetrics: async () => null,
   getStory: async () => {
@@ -259,5 +265,35 @@ test("dated Markdown uses canonical public date URLs and rejects unknown months"
       ).status,
       404,
     );
+  }
+});
+
+test("filtered Latest Markdown reads the category and preserves filter pagination and HEAD", async () => {
+  const request = new Request("https://hacksnap.live/?category=agents-coding&page=1", {
+    headers: {
+      "x-hacksnap-markdown-page": "/",
+      "x-hacksnap-markdown-query": "?category=agents-coding&page=1",
+    },
+  });
+  const response = await markdown.GET(request);
+  assert.equal(response.status, 200);
+  assert.deepEqual(categoryReads.at(-1), ["agents_coding", 1]);
+  const body = await response.text();
+  assert.match(body, /# Latest stories — Agents & Coding/);
+  assert.match(body, /https:\/\/hacksnap.live\/\?category=agents-coding&page=2/);
+  const head = await markdown.HEAD(request);
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+  for (const query of [
+    "?category=unknown",
+    "?category=",
+    "?category=agents-coding&category=models-products",
+  ]) {
+    const invalid = await markdown.GET(
+      new Request("https://hacksnap.live/", {
+        headers: { "x-hacksnap-markdown-page": "/", "x-hacksnap-markdown-query": query },
+      }),
+    );
+    assert.equal(invalid.status, 404);
   }
 });

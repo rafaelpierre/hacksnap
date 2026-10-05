@@ -24,7 +24,7 @@ export function browseStoriesHandler(data: {
     const query = new URL(request.url).searchParams;
     const path = query.get("path");
     const page = archivePage(query.get("page") ?? undefined);
-    const categoryMatch = /^\/category\/([a-z-]+)$/.exec(path ?? "");
+    const categoryMatch = /^(?:\/category\/|\/\?category=)([a-z-]+)$/.exec(path ?? "");
     const category = categoryMatch ? categoryBySlug(categoryMatch[1]) : null;
     const monthMatch = /^\/(?:archive\/)?([^/]+)\/([^/]+)$/.exec(path ?? "");
     const month = monthMatch ? archiveMonth(monthMatch.slice(1)) : null;

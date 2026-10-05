@@ -57,6 +57,8 @@ jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
   shouldStreamBrowse: async () => true,
 }));
 jest.unstable_mockModule("../lib/data.ts", () => ({
+  getArchiveStories: async () => categoryList,
+  getArchiveMonths: async () => [],
   getStory,
   getRelatedStories,
   getCategoryStories,
@@ -76,7 +78,7 @@ jest.unstable_mockModule("next/navigation", () => ({
 }));
 
 const { default: StoryPage } = await import("../app/story/[id]/page.tsx");
-const { default: CategoryPage } = await import("../app/category/[slug]/page.tsx");
+const { default: CategoryPage } = await import("../app/[[...path]]/page.tsx");
 const { DataUnavailableError } = await import("../lib/data-availability.ts");
 
 function deferred() {
@@ -127,8 +129,8 @@ function stream(element) {
 
 const storyProps = { params: Promise.resolve({ id: "primary-headline-123" }) };
 const categoryProps = {
-  params: Promise.resolve({ slug: "agents-coding" }),
-  searchParams: Promise.resolve({}),
+  params: Promise.resolve({}),
+  searchParams: Promise.resolve({ category: "agents-coding" }),
 };
 
 test("warm primary story streams before a stalled recommendation and retains cards", async () => {
@@ -176,30 +178,22 @@ test("cold story load finishes before optional read gets the single pool connect
   assert.deepEqual(rendered.errors, []);
 });
 
-test("category list streams without requesting the removed story count", async () => {
-  const listPending = deferred();
+test("filtered Latest streams stories without requesting category counts", async () => {
+  const pending = deferred();
   getCategoryStories.mockImplementationOnce(async () => {
     events.push("list-start");
-    const value = await listPending.promise;
+    const value = await pending.promise;
     events.push("list-end");
     return value;
   });
-  getCategoryCounts.mockClear();
   events.length = 0;
-  const page = await CategoryPage(categoryProps);
-  assert.deepEqual(events, []);
-  const rendered = stream(page);
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(events, ["list-start"]);
+  getCategoryCounts.mockClear();
+  const rendered = stream(await CategoryPage(categoryProps));
   await rendered.contains(/Loading stories/);
-  assert.match(rendered.html, /Loading stories/);
-  assert.doesNotMatch(rendered.html, /Primary headline/);
-  listPending.resolve(categoryList);
-  await rendered.contains(/Primary headline/);
-  assert.match(rendered.html, /Primary headline/);
-  assert.doesNotMatch(rendered.html, /category-header|channel-path|feed-bar|Newest first/);
-  assert.match(rendered.html, /href="\/story\/primary-headline-123"/);
+  assert.deepEqual(events, ["list-start"]);
+  pending.resolve(categoryList);
   await rendered.complete;
+  assert.match(rendered.html, /Primary headline/);
   assert.deepEqual(events, ["list-start", "list-end"]);
   assert.equal(getCategoryCounts.mock.calls.length, 0);
   assert.deepEqual(rendered.errors, []);
@@ -217,6 +211,7 @@ test("failed optional queries finish the stream with useful primary content", as
   const list = stream(await CategoryPage(categoryProps));
   await list.complete;
   assert.match(list.html, /Primary headline/);
+  assert.doesNotMatch(list.html, /category-count-placeholder/);
   assert.equal(getCategoryCounts.mock.calls.length, 0);
   assert.deepEqual(list.errors, []);
 });

@@ -65,7 +65,7 @@ test("mocked story renders the reading journey and recommendations without a dat
   assert.doesNotMatch(html, /The mocked discussion brief/);
   assert.match(html, /Low skepticism/);
   assert.match(html, /href="\/story\/90000004"/);
-  assert.match(html, /href="\/category\/agents-coding"/);
+  assert.match(html, /href="\/\?category=agents-coding"/);
   assert.doesNotMatch(html, /story-metrics/);
 });
 
@@ -95,7 +95,7 @@ test("mocked story states distinguish missing comments and pending summaries", (
 test("mocked feed row preserves a story link, category and shared Share control", () => {
   const html = render(createElement(StoryRow, { story, variant: "ranked" }));
   assert.match(html, /href="\/story\/90000001"/);
-  assert.match(html, /href="\/category\/agents-coding"/);
+  assert.match(html, /href="\/\?category=agents-coding"/);
   assert.match(html, /aria-label="Share: A mocked story title"/);
 });
 
@@ -146,7 +146,7 @@ test("cards and detail use a ready canonical image while invalid states keep the
   assert.match(detail, /width="1200" height="675"/);
   assert.match(card, /alt=""/);
   assert.ok(
-    card.indexOf('href="/category/agents-coding"') < card.indexOf('class="feed-story-image"'),
+    card.indexOf('href="/?category=agents-coding"') < card.indexOf('class="feed-story-image"'),
     "the category context precedes the image in the feed row DOM",
   );
   for (const image_status of [null, "pending", "failed"] as const) {
@@ -171,7 +171,7 @@ test("compact header and recommendations preserve the new story component and tr
   assert.doesNotMatch(header, /skepticism-pill|points/);
   assert.match(header, /aria-label="Breadcrumb"/);
   assert.match(header, /href="\/">[^<]*Latest/);
-  assert.match(header, /href="\/category\/agents-coding"/);
+  assert.match(header, /href="\/\?category=agents-coding"/);
   assert.match(header, /class="story-metadata"/);
   assert.match(header, /Added <time dateTime="2026-09-26T10:00:00.000Z"/);
   assert.match(header, /Original article on example.com/);
@@ -200,7 +200,7 @@ test("legacy takeaway caveats remain visible after the compact deck", () => {
 for (const [active, expected] of [
   ["home", ["/"]],
   [undefined, []],
-  ["agents_coding", ["/category/agents-coding"]],
+  ["agents_coding", ["/?category=agents-coding"]],
 ] as const) {
   test(`topic sidebar current destination is explicit: ${active ?? "archive"}`, () => {
     const html = render(createElement(BrowseLayout, { active, children: "Feed" }));
@@ -339,7 +339,7 @@ for (const variant of ["ranked", "unranked"] as const) {
         /Discussion themes|Costs &amp; tradeoffs|long-title|Read the debate|#discussion-analysis/,
       );
       assert.match(html, /href="\/story\/90000001"/);
-      assert.match(html, /href="\/category\/agents-coding"/);
+      assert.match(html, /href="\/\?category=agents-coding"/);
       assert.match(html, /A test takeaway/);
       assert.match(html, /aria-label="Share: A mocked story title"/);
       assert.doesNotMatch(html, /Third theme|Hidden topic summary|Hidden evidence|consensus|%/);

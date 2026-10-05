@@ -40,7 +40,7 @@ function card(id: number) {
   };
 }
 
-for (const listingPath of ["/", "/?page=2", "/category/agents-coding"]) {
+for (const listingPath of ["/", "/?page=2", "/?category=agents-coding"]) {
   test(`${listingPath}: Back and site return restore loaded stories without storage`, async () => {
     const dom = new JSDOM('<div id="root"></div>', { url: `https://hacksnap.live${listingPath}` });
     const values = {

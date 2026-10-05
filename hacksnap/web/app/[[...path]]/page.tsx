@@ -2,8 +2,10 @@ import { withDataFallback } from "../with-data-fallback";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { getArchiveMonths, getArchiveStories } from "../../lib/data";
+import { getArchiveMonths, getArchiveStories, getCategoryStories } from "../../lib/data";
 import { archiveMonth, archivePage, archiveURL, monthLabel } from "../../lib/archive";
+import { categoryBySlug, categoryURL } from "../../lib/categories";
+import { categoryMetadata } from "../../lib/category-metadata";
 import { Suspense, type ReactNode } from "react";
 import { ArchiveStoryList } from "../archive-story-list";
 import { BrowseLoading } from "../browse-loading";
@@ -15,20 +17,33 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ path?: string[] }>;
-  searchParams: Promise<{ page?: string | string[]; cursor?: string | string[] }>;
+  searchParams: Promise<{
+    page?: string | string[];
+    cursor?: string | string[];
+    category?: string | string[];
+  }>;
 };
 
 async function selection({ params, searchParams }: Props) {
   const { path = [] } = await params;
   const month = path.length ? archiveMonth(path) : null;
   if (path.length && !month) notFound();
-  const page = archivePage((await searchParams).page);
+  const query = await searchParams;
+  const category = typeof query.category === "string" ? categoryBySlug(query.category) : null;
+  if (query.category !== undefined && (!category || month)) notFound();
+  const page = archivePage(query.page);
   if (page === null) notFound();
-  return { month, page };
+  return { month, page, category };
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
-  const { month, page } = await selection(props);
+  const { month, page, category } = await selection(props);
+  if (category) {
+    const metadata = categoryMetadata(category, page);
+    return (await props.searchParams).cursor !== undefined
+      ? { ...metadata, alternates: undefined, robots: { index: false, follow: true } }
+      : metadata;
+  }
   const homepage = month === null && page === 1;
   const legacyCursor = (await props.searchParams).cursor !== undefined;
   const title = homepage
@@ -60,36 +75,39 @@ async function LatestContent({ content }: { content: Promise<ReactNode> }) {
 }
 
 async function Latest(props: Props) {
-  const { month, page } = await selection(props);
+  const { month, page, category } = await selection(props);
   // Frozen ranked selections are obsolete; keep their public page destination.
-  if ((await props.searchParams).cursor !== undefined) permanentRedirect(archiveURL(month, page));
+  if ((await props.searchParams).cursor !== undefined)
+    permanentRedirect(category ? categoryURL(category, page) : archiveURL(month, page));
   if (month) {
     const months = await getArchiveMonths();
     if (!months.some((item) => item.month === month)) notFound();
   }
   // Later pages must establish existence before any loading UI flushes a 200.
   const result =
-    page > 1 || !(await shouldStreamBrowse()) ? await getArchiveStories(month, page) : undefined;
+    page > 1 || !(await shouldStreamBrowse())
+      ? category
+        ? await getCategoryStories(category.id, page)
+        : await getArchiveStories(month, page)
+      : undefined;
   if (page > 1 && result && result.stories.length === 0) notFound();
   // Start required story data before optional popularity can occupy the reader pool.
-  const pendingContent = result ? undefined : ArchiveStoryList({ month, page });
+  const pendingContent = result ? undefined : ArchiveStoryList({ month, page, category });
   const content = result ? (
-    await ArchiveStoryList({ month, page, result })
+    await ArchiveStoryList({ month, page, result, category })
   ) : (
-    <Suspense key={`${archiveURL(month)}:${page}`} fallback={<BrowseLoading />}>
+    <Suspense key={`${category ? categoryURL(category) : archiveURL(month)}:${page}`} fallback={<BrowseLoading />}>
       <LatestContent content={pendingContent!} />
     </Suspense>
   );
   return (
     <BrowseLayout
-      active={month ? undefined : "home"}
-      rightSidebar={
-        month ? undefined : (
-          <Suspense fallback={<PopularStoriesLoading />}>
-            <PopularStories />
-          </Suspense>
-        )
-      }
+      active={category?.id ?? (month ? undefined : "home")}
+      rightSidebar={month ? undefined : (
+        <Suspense fallback={<PopularStoriesLoading />}>
+          <PopularStories />
+        </Suspense>
+      )}
     >
       {month ? (
         <header className="feed-header archive-month-header">
@@ -99,7 +117,17 @@ async function Latest(props: Props) {
           <h1>{monthLabel(month)}</h1>
         </header>
       ) : (
-        <h1 className="sr-only">Latest stories</h1>
+        <h1 className="sr-only">
+          {category ? `Latest stories — ${category.label}` : "Latest stories"}
+        </h1>
+      )}
+      {category && (
+        <div className="feed-bar">
+          <p>Topic: {category.label}</p>
+          <Link className="button" href="/" aria-label="All stories (clear topic filter)">
+            All stories
+          </Link>
+        </div>
       )}
       <section aria-label="Latest stories">{content}</section>
     </BrowseLayout>

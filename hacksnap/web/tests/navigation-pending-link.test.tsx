@@ -25,18 +25,18 @@ const { TopicSidebar } = await import("../app/topic-sidebar.tsx");
 test("navigation pending link stays an ordinary link until its transition is pending", () => {
   pending = false;
   const idle = renderToStaticMarkup(
-    <NavigationPendingLink href="/category/agents-coding" pendingLabel="Loading Agents & Coding…">
+    <NavigationPendingLink href="/?category=agents-coding" pendingLabel="Loading Agents & Coding…">
       Agents &amp; Coding
     </NavigationPendingLink>,
   );
-  assert.match(idle, /^<a href="\/category\/agents-coding"[^>]*>/);
+  assert.match(idle, /^<a href="\/\?category=agents-coding"[^>]*>/);
   assert.doesNotMatch(idle, /Loading Agents/);
   assert.doesNotMatch(idle, /role="status"/);
   assert.match(idle, /aria-hidden="true"/);
 
   pending = true;
   const loading = renderToStaticMarkup(
-    <NavigationPendingLink href="/category/agents-coding" pendingLabel="Loading Agents & Coding…">
+    <NavigationPendingLink href="/?category=agents-coding" pendingLabel="Loading Agents & Coding…">
       Agents &amp; Coding
     </NavigationPendingLink>,
   );
@@ -56,7 +56,7 @@ test("navigation keeps its real destinations and current-route semantics", () =>
 
   const sidebar = renderToStaticMarkup(<TopicSidebar active="agents_coding" />);
   assert.match(sidebar, /href="\/topics"/);
-  assert.match(sidebar, /href="\/category\/agents-coding"[^>]*aria-current="page"/);
+  assert.match(sidebar, /href="\/\?category=agents-coding"[^>]*aria-current="page"/);
 });
 
 test("Latest is the root destination and selects the homepage", () => {

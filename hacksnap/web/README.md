@@ -511,20 +511,20 @@ instead. The section is server-rendered and streams after the required article
 content, using a separate optional read. It uses the existing category/date index and requires no
 migration. `npm run test:categories` covers category routing and navigation context.
 
-Stories display a compact category flair directly below their title on the
-homepage, article pages and archive. Clicking a flair opens
-`/category/<slug>`, with all stored stories in that category, newest first.
-Category pages start directly with their story list, without breadcrumbs, a visible
-topic introduction, story count or sorting bar. The selected topic remains marked
-in the sidebar; a screen-reader heading names the page. Loading states use the same
-compact layout. The left topic menu beside Latest provides all category links on desktop.
+Stories display a compact category flair on feeds and article pages. Clicking a
+flair or topic link filters Latest at `/?category=<slug>`, newest first. The same
+feed shell shows the selected topic and an All stories control to clear the filter.
+Changing topics starts at page one; pagination, automatic loading and story returns
+retain the selected category. Mobile readers can choose a topic through Topics.
 
-The six category pages use stable slugs from `lib/categories.ts`, paginate at 15
-stories, exclude missing or blank takeaways, and return 404 for unknown slugs or invalid
-pages. They render on request and each pagination URL has its own canonical URL.
-Empty-topic links and the API documentation back link point directly to
-`/`; empty topics invite readers to browse Latest stories.
-The sitemap includes all six topic landing pages. `lib/category-metadata.ts`
+The six filters use stable slugs from `lib/categories.ts`, paginate at 15 published
+stories, and return 404 for unknown, repeated or empty categories and invalid pages.
+Category filters apply only to the root Latest feed. Old `/category/<slug>` URLs
+permanently redirect, preserving the page number. Canonicals and sitemap entries
+use the filtered Latest URLs. HTML and negotiated Markdown share the category
+reader, which filters before pagination and retains its category/page cache key,
+60-second nonempty TTL, 30-second empty TTL and pending-load deduplication. Category
+counts are no longer requested by filtered feeds. `lib/category-metadata.ts`
 provides stable, topic-specific search titles and descriptions explaining the
 article summaries and Hacker News discussions, independently of short navigation
 labels and visible introductions. Search, Open Graph, and Twitter copy agree;

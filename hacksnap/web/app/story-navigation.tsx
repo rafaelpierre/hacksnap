@@ -1,5 +1,6 @@
 "use client";
 
+import { browsePageURL } from "../lib/archive";
 import { ChevronLeft } from "lucide-react";
 import { track } from "../lib/analytics";
 import Link from "next/link";
@@ -423,7 +424,7 @@ export function StoryReturnLink({
       const path = saved?.url.split("?")[0];
       const matches = archiveOnly
         ? path === "/" || /^\/[1-9]\d{3}\/(0[1-9]|1[0-2])$/.test(path ?? "")
-        : !destination || path === destination.href;
+        : !destination || (saved && browsePageURL(saved.url, 1) === destination.href);
       setContext(saved && matches ? saved : null);
     }
     updateContext();

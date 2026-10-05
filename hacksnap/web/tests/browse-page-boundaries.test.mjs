@@ -39,17 +39,14 @@ jest.unstable_mockModule("../app/story-feed.tsx", () => ({ StoryFeed: () => null
 const { default: Home, generateMetadata: homeMetadata } =
   await import("../app/[[...path]]/page.tsx");
 const { default: LegacyArchive } = await import("../app/archive/[[...date]]/page.tsx");
-const { default: CategoryPage, generateMetadata } = await import("../app/category/[slug]/page.tsx");
+const { default: CategoryPage } = await import("../app/category/[slug]/page.tsx");
 
 function home(path, query = {}) {
   return Home({ params: Promise.resolve({ path }), searchParams: Promise.resolve(query) });
 }
 
 function category(slug, page) {
-  return CategoryPage({
-    params: Promise.resolve({ slug }),
-    searchParams: Promise.resolve({ page }),
-  });
+  return home(undefined, { category: slug, page });
 }
 
 test("Latest starts its required read before optional data while category pages retain their streaming boundary", async () => {
@@ -58,11 +55,11 @@ test("Latest starts its required read before optional data while category pages 
   getArchiveStories.mockClear();
   const latest = await home(undefined);
   const topic = await category("agents-coding");
-  assert.equal(latest.props.children[1].props.children.type, Suspense);
+  assert.equal(latest.props.children.at(-1).props.children.type, Suspense);
   assert.equal(getArchiveStories.mock.calls.length, 1);
-  assert.equal(topic.type, Suspense);
+  assert.equal(topic.props.children.at(-1).props.children.type, Suspense);
   assert.equal(getReadyStoryPage.mock.calls.length, 0);
-  assert.equal(getCategoryStories.mock.calls.length, 0);
+  assert.equal(getCategoryStories.mock.calls.length, 1);
 });
 
 test("full document requests load their stories before returning a page", async () => {
@@ -136,19 +133,19 @@ test("category search metadata is distinct, paginated, and available without a s
   const descriptions = new Set();
   for (const category of CATEGORIES) {
     const props = (page) => ({
-      params: Promise.resolve({ slug: category.slug }),
-      searchParams: Promise.resolve({ page }),
+      params: Promise.resolve({}),
+      searchParams: Promise.resolve({ page, category: category.slug }),
     });
-    const first = await generateMetadata(props(undefined));
-    const second = await generateMetadata(props("2"));
+    const first = await homeMetadata(props(undefined));
+    const second = await homeMetadata(props("2"));
     titles.add(first.title);
     descriptions.add(first.description);
     assert.match(first.title, /AI/);
     assert.match(first.description, /Hacker News discussions/);
-    assert.equal(first.alternates.canonical, `/category/${category.slug}`);
+    assert.equal(first.alternates.canonical, `/?category=${category.slug}`);
     assert.equal(second.title, `${first.title} — Page 2`);
     assert.equal(second.description, `Page 2: ${first.description}`);
-    assert.equal(second.alternates.canonical, `/category/${category.slug}?page=2`);
+    assert.equal(second.alternates.canonical, `/?category=${category.slug}&page=2`);
     for (const metadata of [first, second]) {
       assert.equal(metadata.openGraph.title, `${metadata.title} | Hacksnap`);
       assert.equal(metadata.openGraph.description, metadata.description);
@@ -165,9 +162,9 @@ test("category search metadata is distinct, paginated, and available without a s
     ["agents-coding", "101"],
   ]) {
     await assert.rejects(
-      generateMetadata({
-        params: Promise.resolve({ slug }),
-        searchParams: Promise.resolve({ page }),
+      homeMetadata({
+        params: Promise.resolve({}),
+        searchParams: Promise.resolve({ page, category: slug }),
       }),
       (error) => error === missing,
     );
@@ -200,4 +197,29 @@ test("Latest pagination is canonical and indexable while obsolete cursors stay n
   }
   for (const page of ["", "101", ["1", "4"]])
     await assert.rejects(metadata({ page }), (error) => error === missing);
+});
+
+test("legacy category URLs redirect without reading stories", async () => {
+  getCategoryStories.mockClear();
+  for (const [page, target] of [
+    [undefined, "/?category=agents-coding"],
+    ["3", "/?category=agents-coding&page=3"],
+  ]) {
+    await assert.rejects(
+      CategoryPage({
+        params: Promise.resolve({ slug: "agents-coding" }),
+        searchParams: Promise.resolve({ page }),
+      }),
+      { message: `redirect:${target}` },
+    );
+  }
+  assert.equal(getCategoryStories.mock.calls.length, 0);
+  await assert.rejects(
+    home(undefined, { category: ["agents-coding", "models-products"] }),
+    (error) => error === missing,
+  );
+  await assert.rejects(
+    home(["2026", "09"], { category: "agents-coding" }),
+    (error) => error === missing,
+  );
 });
