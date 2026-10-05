@@ -2,13 +2,13 @@
    Keep decorative dividers separate from the higher-contrast control boundaries. */
 :root {
   color-scheme: light dark;
-  --bg: light-dark(#faf9f6, #111314);
+  --bg: light-dark(#ffffff, #111314);
   --surface: light-dark(#f0eeea, #191c1e);
-  --ink: light-dark(#222726, #e6e8e7);
+  --ink: light-dark(#222726, #fff);
   --muted: light-dark(#616866, #9a9fa0);
   --line: light-dark(#deded8, #2b3032);
   --accent: light-dark(#9c481b, #efaa7b);
-  --prose: light-dark(#414946, #c6cac8);
+  --prose: light-dark(#414946, #fff);
   --row-hover: light-dark(#f2f1ed, #151819);
   --selection: light-dark(#f3cfb4, #664630);
   --selection-ink: light-dark(#222726, #fff);
@@ -24,7 +24,7 @@
   --text-sm: 0.8125rem;
   --text-label: 0.875rem;
   --text-base: 1rem;
-  --text-body: 1.125rem;
+  --text-body: 1.25rem;
   --text-title: 1.25rem;
   --text-deck: 1.3125rem;
   --text-section: 1.375rem;
@@ -623,10 +623,10 @@ body:has(#browse-content) .skip-browse {
     letter-spacing: -0.8px;
   }
   .standfirst {
-    font-size: 1.1875rem;
+    font-size: var(--text-deck);
   }
   .editorial {
-    font-size: 1.0625rem;
+    font-size: 1.1875rem;
   }
   .discussion-point {
     padding-left: 15px;
