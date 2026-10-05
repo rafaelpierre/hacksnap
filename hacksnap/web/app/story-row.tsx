@@ -19,24 +19,27 @@ export function StoryRow({
   feedPosition,
   opened = false,
   leadImage = false,
+  showCategory = true,
 }: {
   story: CardStory | PublicFeedStory;
   variant?: "ranked" | "unranked";
   feedPosition?: number;
   opened?: boolean;
   leadImage?: boolean;
+  showCategory?: boolean;
 }) {
   const takeaway = story.summary?.overall_takeaway?.trim();
   const image = canonicalArticleImage(story);
+  const showArchive = variant === "ranked" && story.is_recent === false;
 
   return (
     <article className="story-row feed-story">
-      <div className="story-domain story-context">
-        {story.category && <CategoryBadge id={story.category} />}
-        {variant === "ranked" && story.is_recent === false && (
-          <span className="archive-label">Archive</span>
-        )}
-      </div>
+      {((showCategory && story.category) || showArchive) && (
+        <div className="story-domain story-context">
+          {showCategory && story.category && <CategoryBadge id={story.category} />}
+          {showArchive && <span className="archive-label">Archive</span>}
+        </div>
+      )}
       <h3 className={opened ? "story-title-opened" : undefined}>
         <BrowseStoryLink id={story.hn_id} slug={story.story_slug} feedPosition={feedPosition}>
           {story.title}

@@ -55,6 +55,7 @@ const CategoryStories = withDataFallback(async function CategoryStories({
       <StoryFeed
         key={`${category.slug}:${page}`}
         listingPath={categoryURL(category)}
+        showCategory={false}
         initialStories={stories.map(publicFeedStory)}
         initialPagination={browsePagination(page, hasNext)}
         emptyState={

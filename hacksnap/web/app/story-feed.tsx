@@ -48,12 +48,14 @@ export function StoryFeed({
   initialPagination,
   listingPath = "/",
   groupByDay = false,
+  showCategory = true,
   emptyState,
 }: {
   initialStories: PublicFeedStory[];
   initialPagination: FeedPagination;
   listingPath?: string;
   groupByDay?: boolean;
+  showCategory?: boolean;
   emptyState?: ReactNode;
 }) {
   const latest = listingPath === "/";
@@ -385,6 +387,7 @@ export function StoryFeed({
       ) : (
         <WindowedStoryList
           stories={feed.stories}
+          showCategory={showCategory}
           ranked={false}
           openedIds={openedIds}
           initialPage={startingPage}
