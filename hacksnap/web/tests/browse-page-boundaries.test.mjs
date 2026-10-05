@@ -28,7 +28,8 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
 }));
 jest.unstable_mockModule("../app/story-feed.tsx", () => ({ StoryFeed: () => null }));
 
-const { default: Home } = await import("../app/[[...path]]/page.tsx");
+const { default: Home, generateMetadata: homeMetadata } =
+  await import("../app/[[...path]]/page.tsx");
 const { default: CategoryPage, generateMetadata } = await import("../app/category/[slug]/page.tsx");
 const { ReadyStoryPageError } = await import("../lib/ready-story-pagination-errors.ts");
 
@@ -142,4 +143,31 @@ test("category search metadata is distinct, paginated, and available without a s
       (error) => error === missing,
     );
   }
+});
+
+test("homepage continuation metadata excludes temporary selections without reading stories", async () => {
+  getReadyStoryPage.mockClear();
+  const metadata = (query) =>
+    homeMetadata({ params: Promise.resolve({}), searchParams: Promise.resolve(query) });
+  for (const query of [{}, { utm_source: "google" }]) {
+    const clean = await metadata(query);
+    assert.deepEqual(clean.robots, { index: true, follow: true });
+    assert.equal(clean.alternates.canonical, "/");
+    assert.equal(clean.alternates.types["application/rss+xml"], "https://hacksnap.live/feed.xml");
+  }
+  for (const query of [
+    { page: "4", cursor: "frozen_selection" },
+    { page: "4" },
+    { page: "1" },
+    { cursor: "expired_selection" },
+    { page: "" },
+    { cursor: "" },
+    { page: ["1", "4"] },
+    { cursor: ["one", "two"] },
+  ]) {
+    const continuation = await metadata(query);
+    assert.deepEqual(continuation.robots, { index: false, follow: true });
+    assert.equal(continuation.alternates?.canonical, undefined);
+  }
+  assert.equal(getReadyStoryPage.mock.calls.length, 0);
 });
