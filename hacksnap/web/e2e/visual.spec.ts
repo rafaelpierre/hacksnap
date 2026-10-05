@@ -84,7 +84,7 @@ for (const width of [320, 1280])
             );
           // Structural assertions are stable across OS font rasterizers. Retain the
           // complete image for manual visual review; no pixel baseline is auto-updated.
-          const slug = route === "/" ? "home" : route.replaceAll("/", "-");
+          const slug = route === "/" ? "home" : route.replace(/[^a-z0-9-]/gi, "-");
           await page.screenshot({
             path: testInfo.outputPath(`${slug}.png`),
             fullPage: false,
