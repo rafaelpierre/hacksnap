@@ -14,12 +14,12 @@ import pytest
 from test_discussion_migration import load_migration
 
 
-def render(direction: str) -> str:
+def render(direction: str, filename: str = "0019_story_popularity.py") -> str:
     output = StringIO()
     context = MigrationContext.configure(
         dialect_name="postgresql", opts={"as_sql": True, "output_buffer": output}
     )
-    migration = load_migration("0019_story_popularity.py")
+    migration = load_migration(filename)
     with Operations.context(context):
         getattr(migration, direction)()
     return output.getvalue()
@@ -60,6 +60,17 @@ try {
   await db.exec(input.upgrade);
   await db.exec("INSERT INTO hacksnap_story_popularity(story_id,historical_views) VALUES(123,322)");
   await db.exec('SET ROLE hacksnap_counter');
+  // Disabled state ignores both event kinds without writing receipts or live totals.
+  assert.equal((await db.query('SELECT tracking_started_at FROM hacksnap_popularity_state')).rows[0].tracking_started_at,null);
+  await db.query(input.query,[visit,'123','view']);
+  await db.query(input.query,[visit,'123','click']);
+  assert.deepEqual((await db.query('SELECT story_views::text,story_clicks::text FROM hacksnap_story_popularity WHERE story_id=123')).rows,
+    [{story_views:'0',story_clicks:'0'}]);
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM hacksnap_popularity_events')).rows[0].n,0);
+  await assert.rejects(db.query('UPDATE hacksnap_popularity_state SET tracking_started_at=clock_timestamp() WHERE singleton'), /permission denied/);
+  await assert.rejects(db.query('INSERT INTO hacksnap_popularity_state(singleton,tracking_started_at) VALUES(true,clock_timestamp())'), /permission denied/);
+  await assert.rejects(db.query('DELETE FROM hacksnap_popularity_state'), /permission denied/);
+  await db.exec('RESET ROLE; UPDATE hacksnap_popularity_state SET tracking_started_at=clock_timestamp() WHERE singleton; SET ROLE hacksnap_counter');
   // Real simultaneous submissions are serialized by PGlite, but exercise duplicate SQL inputs.
   await Promise.all(Array.from({length:12},()=>db.query(input.query,[visit,'123','view'])));
   await db.query(input.query,[visit,'123','click']);
@@ -89,12 +100,15 @@ try {
   await db.exec('RESET ROLE; SET ROLE hacksnap_reader');
   assert.equal((await db.query('SELECT historical_views::text AS historical,story_views::text AS live FROM hacksnap_story_popularity WHERE story_id=123')).rows[0].live,'2');
   await assert.rejects(db.query('SELECT * FROM hacksnap_popularity_events'), /permission denied/);
+  await assert.rejects(db.query('SELECT * FROM hacksnap_popularity_state'), /permission denied/);
   await assert.rejects(db.query('UPDATE hacksnap_story_popularity SET story_views=5'), /permission denied/);
   await db.exec('RESET ROLE; SET ROLE anon');
   await assert.rejects(db.query('SELECT * FROM hacksnap_story_popularity'), /permission denied/);
+  await assert.rejects(db.query('SELECT * FROM hacksnap_popularity_state'), /permission denied/);
   await db.exec('RESET ROLE');
   await db.exec(input.downgrade);
   assert.equal((await db.query("SELECT to_regclass('hacksnap_story_popularity') AS table_name")).rows[0].table_name,null);
+  assert.equal((await db.query("SELECT to_regclass('hacksnap_popularity_state') AS table_name")).rows[0].table_name,null);
   assert.equal((await db.query("SELECT count(*)::int AS n FROM pg_roles WHERE rolname='hacksnap_counter'")).rows[0].n,0);
 } finally { await db.close(); }
 '''
@@ -102,6 +116,10 @@ try {
         ["node", "--input-type=module", "-e", script],
         capture_output=True,
         text=True,
-        input=json.dumps({"upgrade": render("upgrade"), "downgrade": render("downgrade"), "query": query}),
+        input=json.dumps({
+            "upgrade": render("upgrade") + render("upgrade", "0020_story_popularity_activation.py"),
+            "downgrade": render("downgrade", "0020_story_popularity_activation.py") + render("downgrade"),
+            "query": query,
+        }),
     )
     assert result.returncode == 0, result.stderr

@@ -104,6 +104,11 @@ class FakeDatabase:
         self.stories = {123: "hello-123", 456: None}
         self.popularity = {}
         self.first_view = None
+        self.has_receipts = False
+        self.tracking_started_at = None
+        self.state_exists = True
+        self.activations = 0
+        self.writer_can_login = False
         self.queries = []
         self.rollbacks = 0
         self.writes = 0
@@ -116,11 +121,13 @@ class FakeDatabase:
 
     def __enter__(self):
         self.before = deepcopy(self.popularity)
+        self.before_activation = self.tracking_started_at
         return self
 
     def __exit__(self, error, *_):
         if error:
             self.popularity = self.before
+            self.tracking_started_at = self.before_activation
             self.rollbacks += 1
 
     def cursor(self):
@@ -138,14 +145,20 @@ class FakeDatabase:
                 elif query.startswith("SELECT story_id"):
                     self.results = [database.popularity[key] for key in params[0]
                                     if key in database.popularity]
-                elif query.startswith("SELECT MIN"):
-                    self.results = [{"first_event": database.first_view}]
+                elif query.startswith("SELECT tracking_started_at"):
+                    self.results = ([{"tracking_started_at": database.tracking_started_at}]
+                                    if database.state_exists else [])
                 elif query.startswith("SELECT EXISTS"):
-                    self.results = [{"has_views": any(row["story_views"] > 0
-                                                      for row in database.popularity.values())}]
+                    self.results = [{"has_live_activity": database.has_receipts or database.first_view is not None
+                                     or any(row["story_views"] > 0 or row["story_clicks"] > 0
+                                            for row in database.popularity.values()),
+                                     "writer_can_login": database.writer_can_login}]
+                elif query.strip().startswith("UPDATE public.hacksnap_popularity_state"):
+                    database.tracking_started_at = CUTOFF
+                    database.activations += 1
 
             def fetchall(self): return self.results
-            def fetchone(self): return self.results[0]
+            def fetchone(self): return self.results[0] if self.results else None
 
             def executemany(self, query, rows):
                 # Assert the importer updates historical fields only. Production
@@ -171,8 +184,9 @@ def one_story(tmp_path, views=12):
     return importer.read_import(snapshot_file(tmp_path, f"story_id,views\n123,{views}\n"))
 
 
-def apply(snapshot, through=None):
-    return importer.apply_import("postgresql://localhost/test", snapshot, through)
+def apply(snapshot, through=None, *, activate_tracking=False):
+    return importer.apply_import("postgresql://localhost/test", snapshot, through,
+                                 activate_tracking=activate_tracking)
 
 
 def test_import_replaces_baseline_idempotently_and_uses_tls(database, tmp_path):
@@ -202,26 +216,25 @@ def test_slug_must_match_stored_slug(database, tmp_path):
     assert database.writes == 0
 
 
-def test_live_tracking_needs_cutoff_and_rejects_overlap(database, tmp_path):
+@pytest.mark.parametrize("through", [None, CUTOFF, FIRST_VIEW])
+def test_live_tracking_freezes_baseline_regardless_of_cutoff(database, tmp_path, through):
     database.first_view = FIRST_VIEW
     snapshot = one_story(tmp_path)
-    with pytest.raises(ValueError, match="specify the actual GA"):
-        apply(snapshot)
-    with pytest.raises(ValueError, match="overlaps"):
-        apply(snapshot, datetime(2026, 1, 3, tzinfo=timezone.utc))
+    with pytest.raises(ValueError, match="baseline is frozen"):
+        apply(snapshot, through)
     assert database.writes == 0
-    assert apply(snapshot, CUTOFF) == 1
 
 
-def test_preserves_live_counters_and_immutable_cutoff(database, tmp_path):
+def test_active_baseline_cannot_be_corrected_even_with_same_cutoff(database, tmp_path):
     apply(one_story(tmp_path), CUTOFF)
     database.popularity[123].update(story_views=8, story_clicks=3)
     database.first_view = FIRST_VIEW
-    assert apply(one_story(tmp_path, 20), CUTOFF) == 1
-    assert database.popularity[123]["historical_views"] == 20
+    with pytest.raises(ValueError, match="baseline is frozen"):
+        apply(one_story(tmp_path, 20), CUTOFF)
+    assert database.popularity[123]["historical_views"] == 12
     assert database.popularity[123]["story_views"] == 8
     assert database.popularity[123]["story_clicks"] == 3
-    with pytest.raises(ValueError, match="established baseline cutoff"):
+    with pytest.raises(ValueError, match="baseline is frozen"):
         apply(one_story(tmp_path, 22), datetime(2025, 12, 31, tzinfo=timezone.utc))
 
 
@@ -231,15 +244,121 @@ def test_exact_reapply_without_cutoff_remains_safe_after_activation(database, tm
     database.popularity[123]["story_views"] = 8
     database.first_view = FIRST_VIEW
     assert apply(snapshot) == 0
-    with pytest.raises(ValueError, match="specify the actual GA"):
+    with pytest.raises(ValueError, match="baseline is frozen"):
         apply(one_story(tmp_path, 15))
 
 
-def test_missing_receipts_refuse_unverifiable_cutoff(database, tmp_path):
+def test_live_counters_without_receipts_freeze_baseline(database, tmp_path):
     apply(one_story(tmp_path), CUTOFF)
     database.popularity[123]["story_views"] = 8
-    with pytest.raises(ValueError, match="without event receipts"):
+    with pytest.raises(ValueError, match="baseline is frozen"):
         apply(one_story(tmp_path, 20), CUTOFF)
+
+
+@pytest.mark.parametrize("through", [None, CUTOFF, FIRST_VIEW])
+def test_delayed_first_receipt_does_not_allow_postactivation_import(database, tmp_path, through):
+    # Browser GA view happens after activation, but first-party POST is delayed
+    # beyond the export cutoff. No receipt exists yet to reveal the overlap.
+    database.tracking_started_at = CUTOFF
+    assert database.first_view is None
+    assert not database.popularity
+    with pytest.raises(ValueError, match="baseline is frozen"):
+        apply(one_story(tmp_path), through)
+    assert database.writes == 0
+
+
+def test_new_story_baseline_is_also_frozen_after_activation(database, tmp_path):
+    apply(one_story(tmp_path), activate_tracking=True)
+    new_story = importer.read_import(snapshot_file(tmp_path, "story_id,views\n456,4\n"))
+    with pytest.raises(ValueError, match="baseline is frozen"):
+        apply(new_story, FIRST_VIEW)
+    assert 456 not in database.popularity
+
+
+def test_activation_import_and_exact_reapply_are_idempotent(database, tmp_path):
+    snapshot = one_story(tmp_path)
+    assert apply(snapshot, activate_tracking=True) == 1
+    assert database.tracking_started_at == CUTOFF
+    assert database.activations == 1
+    assert apply(snapshot, activate_tracking=True) == 0
+    assert apply(snapshot) == 0
+    assert database.activations == 1
+    assert database.writes == 1
+
+
+def test_activation_after_separate_import_still_records_marker(database, tmp_path):
+    snapshot = one_story(tmp_path)
+    apply(snapshot)
+    assert apply(snapshot, activate_tracking=True) == 0
+    assert database.activations == 1
+
+
+@pytest.mark.parametrize("legacy_activity", ["receipt", "click", "view"])
+def test_legacy_live_activity_without_marker_refuses_activation_and_changes(database, tmp_path, legacy_activity):
+    snapshot = one_story(tmp_path)
+    apply(snapshot)
+    if legacy_activity == "receipt":
+        database.has_receipts = True
+    elif legacy_activity == "click":
+        database.popularity[123]["story_clicks"] = 3
+    else:
+        database.popularity[123]["story_views"] = 2
+    with pytest.raises(ValueError, match="without a recorded activation"):
+        apply(snapshot, activate_tracking=True)
+    with pytest.raises(ValueError, match="baseline is frozen"):
+        apply(one_story(tmp_path, 20), CUTOFF)
+    assert database.tracking_started_at is None
+    assert database.popularity[123]["historical_views"] == 12
+
+
+def test_missing_activation_state_fails_closed(database, tmp_path):
+    database.state_exists = False
+    with pytest.raises(ValueError, match="activation state is missing"):
+        apply(one_story(tmp_path))
+    assert database.writes == 0
+
+
+def test_unknown_story_failure_does_not_activate(database, tmp_path):
+    snapshot = importer.read_import(snapshot_file(tmp_path, "story_id,views\n123,12\n999,4\n"))
+    with pytest.raises(ValueError, match="Unknown stored story IDs"):
+        apply(snapshot, activate_tracking=True)
+    assert database.activations == 0
+    assert database.tracking_started_at is None
+    assert database.popularity == {}
+
+
+def test_activation_requires_apply_and_never_connects_in_preview(monkeypatch):
+    monkeypatch.setattr(importer.psycopg, "connect", lambda *args, **kwargs: pytest.fail("Unexpected connection"))
+    result = CliRunner().invoke(importer.main, [str(SEED), "--activate-tracking"])
+    assert result.exit_code == 2
+    assert "--activate-tracking requires --apply" in result.output
+
+
+def test_login_provisioned_before_first_receipt_freezes_import(database, tmp_path):
+    database.writer_can_login = True
+    assert database.tracking_started_at is None
+    assert not database.has_receipts
+    with pytest.raises(ValueError, match="writer LOGIN provisioning"):
+        apply(one_story(tmp_path), CUTOFF)
+    assert database.writes == 0
+
+
+def test_login_provisioned_without_marker_refuses_retrospective_activation(database, tmp_path):
+    snapshot = one_story(tmp_path)
+    apply(snapshot)
+    database.writer_can_login = True
+    assert apply(snapshot) == 0
+    with pytest.raises(ValueError, match="inactive collection cannot be proven"):
+        apply(snapshot, activate_tracking=True)
+    assert database.activations == 0
+
+
+def test_exact_reapply_after_activation_and_login_remains_safe(database, tmp_path):
+    snapshot = one_story(tmp_path)
+    apply(snapshot, activate_tracking=True)
+    database.writer_can_login = True
+    assert apply(snapshot, activate_tracking=True) == 0
+    assert database.activations == 1
 
 
 def test_other_historical_source_is_not_overwritten(database, tmp_path):
@@ -288,6 +407,7 @@ def test_real_postgres_baseline_replacement_preserves_live_counts_and_rolls_back
     context = MigrationContext.configure(dialect_name="postgresql", opts={"as_sql": True, "output_buffer": output})
     with Operations.context(context):
         load_migration("0019_story_popularity.py").upgrade()
+        load_migration("0020_story_popularity_activation.py").upgrade()
     # Translate positional psycopg placeholders for the embedded PG driver.
     query = importer.UPSERT
     for index in range(1, 5):
@@ -314,13 +434,25 @@ try {
   assert.equal((await db.query('SELECT (historical_views::numeric + story_views::numeric)::text AS total FROM hacksnap_story_popularity')).rows[0].total,'9223372036854775815');
   await db.query(input.query, [123,20,'ga_page_views','2026-01-01T00:00:00Z']);
   await db.exec('BEGIN');
-  await db.exec(`LOCK TABLE hacksnap_popularity_events,hacksnap_story_popularity IN SHARE ROW EXCLUSIVE MODE`);
+  await db.exec(`LOCK TABLE hacksnap_popularity_state,hacksnap_popularity_events,hacksnap_story_popularity IN SHARE ROW EXCLUSIVE MODE`);
   await db.query(input.query, [123,22,'ga_page_views',null]);
+  await db.exec(input.activation);
   await assert.rejects(db.query(input.query, [999,4,'ga_page_views',null]), /foreign key/);
   await db.exec('ROLLBACK');
   assert.equal(Number((await db.query('SELECT historical_views FROM hacksnap_story_popularity')).rows[0].historical_views),20);
+  assert.equal((await db.query('SELECT tracking_started_at FROM hacksnap_popularity_state')).rows[0].tracking_started_at,null);
+  await db.exec('BEGIN');
+  await db.query(input.query, [123,24,'ga_page_views',null]);
+  await db.exec(input.activation);
+  await db.exec('COMMIT');
+  const activation = (await db.query('SELECT tracking_started_at FROM hacksnap_popularity_state')).rows[0].tracking_started_at;
+  assert.ok(activation);
+  assert.equal(Number((await db.query('SELECT historical_views FROM hacksnap_story_popularity')).rows[0].historical_views),24);
+  await db.exec(input.activation);
+  assert.deepEqual((await db.query('SELECT tracking_started_at FROM hacksnap_popularity_state')).rows[0].tracking_started_at,activation);
 } finally { await db.close(); }
 '''
     result = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True,
-                            input=json.dumps({"migration": output.getvalue(), "query": query}))
+                            input=json.dumps({"migration": output.getvalue(), "query": query,
+                                              "activation": importer.ACTIVATE_TRACKING}))
     assert result.returncode == 0, result.stderr

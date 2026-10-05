@@ -119,18 +119,25 @@ Downgrading to `0017_archive_order` is refused while v2 analysis rows exist.
 
 ## Historical story views
 
-Migration `0019_story_popularity` adds the private counters and event receipts
+Migration `0019_story_popularity` adds the private counters and event receipts;
+`0020_story_popularity_activation` adds a durable collection marker
 for the homepage's lifetime most-read list. The web reader receives aggregate
 view columns only; `hacksnap_counter` receives narrowly scoped live-event writes.
-Provision the writer LOGIN/password outside migration files. Historical imports
+Provision the writer LOGIN/password outside migration files, after historical
+import and explicit tracking activation. Historical imports
 use a separate server-only `HACKSNAP_IMPORT_DATABASE_URL` with permissions to
 validate stored stories and replace baseline counts.
 
 The [seed and import instructions](seeds/README.md) include the six supplied
 story-page rows (392 GA Views) and a local-only dry run. Imports validate every
 stored story before writing, replace baseline counts atomically, and preserve
-live views/clicks. Import before enabling web collection, and record the real
-export cutoff if available; never invent it or add overlapping GA activity.
+live views/clicks. Finalize the import and use `--apply --activate-tracking` before
+enabling web collection. Activation atomically freezes the baseline, including
+before any delayed first receipt arrives. New or changed imports after activation
+or any live activity or writer LOGIN provisioning are refused; only identical
+reapplications are permitted.
+`--through` records the real export cutoff when known, but never authorizes a
+post-activation replacement: receipt time cannot prove when a browser view occurred.
 
 ## GitHub Actions
 

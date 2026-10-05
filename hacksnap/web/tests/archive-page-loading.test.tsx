@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { jest, test } from "@jest/globals";
 import React from "react";
+import { PassThrough } from "node:stream";
 import type { Story } from "../lib/data.ts";
 
 const events: string[] = [];
@@ -29,12 +30,16 @@ function story(hn_id: string): Story {
 
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getPopularStories: async () => [],
+  getCategoryStories: async (category: string, page: number) => {
+    events.push(`stories:${category}:${page}`);
+    if (archiveFailure) throw archiveFailure;
+    return archiveResult;
+  },
   getArchiveMonths: async () => {
     events.push("months");
     if (monthsFailure) throw monthsFailure;
     return archiveMonths;
   },
-  getCategoryStories: async () => ({ stories: [], hasNext: false }),
   getArchiveStories: async (month: string | null, page: number) => {
     events.push(`stories:${month ?? "latest"}:${page}`);
     if (archiveFailure) throw archiveFailure;
@@ -80,10 +85,10 @@ const { default: ArchivePage, generateMetadata } = await import("../app/[[...pat
 const { ArchiveStoryList } = await import("../app/archive-story-list.tsx");
 const { DataUnavailableError } = await import("../lib/data-availability.ts");
 
-function props(date?: string[], page?: string) {
+function props(date?: string[], page?: string, category?: string) {
   return {
     params: Promise.resolve({ path: date }),
-    searchParams: Promise.resolve({ page }),
+    searchParams: Promise.resolve({ page, category }),
   };
 }
 
@@ -235,6 +240,66 @@ test("month-index outages use the fallback before streaming", async () => {
   assert.match(html, /temporarily unavailable/i);
   assert.deepEqual(events, ["months"]);
   monthsFailure = null;
+});
+
+test("streamed Latest, dated and filtered feed outages retain one page h1 and a subordinate error h2", async () => {
+  const { renderToPipeableStream } = await import("react-dom/server");
+  archiveFailure = new DataUnavailableError();
+  streamBrowse = true;
+  try {
+    for (const route of [
+      props(),
+      props(["2026", "09"]),
+      props(undefined, undefined, "models-products"),
+    ]) {
+      const shell = await ArchivePage(route);
+      const output = new PassThrough();
+      let html = "";
+      const errors: unknown[] = [];
+      const complete = new Promise<void>((resolve, reject) => {
+        output.on("data", (chunk) => {
+          html += chunk.toString();
+        });
+        output.on("end", resolve);
+        output.on("error", reject);
+      });
+      const { pipe } = renderToPipeableStream(shell, {
+        onShellReady: () => pipe(output),
+        onError: (error) => {
+          errors.push(error);
+        },
+      });
+      await complete;
+      assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
+      assert.match(html, /<h2>Stories are temporarily unavailable\.<\/h2>/);
+      assert.match(html, /Try again/);
+      assert.deepEqual(errors, []);
+    }
+  } finally {
+    archiveFailure = null;
+  }
+});
+
+test("full-document Latest, dated and filtered feed outages use one primary error h1", async () => {
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  archiveFailure = new DataUnavailableError();
+  streamBrowse = false;
+  try {
+    for (const route of [
+      props(),
+      props(["2026", "09"]),
+      props(undefined, undefined, "models-products"),
+    ]) {
+      const html = renderToStaticMarkup(await ArchivePage(route));
+      assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
+      assert.match(html, /<h1>Stories are temporarily unavailable\.<\/h1>/);
+      assert.doesNotMatch(html, /Latest stories|September 2026/);
+      assert.match(html, /Try again/);
+    }
+  } finally {
+    archiveFailure = null;
+    streamBrowse = true;
+  }
 });
 
 test("canonical Latest landing metadata preserves the homepage search and social branding", async () => {

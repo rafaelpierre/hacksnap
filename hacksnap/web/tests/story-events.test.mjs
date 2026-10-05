@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "@jest/globals";
-import { createStoryEventHandler, parseStoryEvent, storyEventBudget } from "../lib/story-events.ts";
+import { PGlite } from "@electric-sql/pglite";
+import {
+  createStoryEventHandler,
+  parseStoryEvent,
+  recordStoryEventSQL,
+  storyEventBudget,
+} from "../lib/story-events.ts";
 
 const event = {
   kind: "view",
@@ -14,6 +20,50 @@ function request(value = event, headers = {}) {
     body: typeof value === "string" ? value : JSON.stringify(value),
   });
 }
+
+test("HTTP collection silently ignores unactivated tracking and deduplicates after activation", async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(`CREATE TABLE hacker_news_threads(hn_id bigint PRIMARY KEY,date_added timestamptz);
+      CREATE TABLE hacksnap_popularity_state(singleton boolean PRIMARY KEY CHECK(singleton),tracking_started_at timestamptz);
+      CREATE TABLE hacksnap_popularity_events(visit_id uuid,story_id bigint,kind text,PRIMARY KEY(visit_id,story_id,kind));
+      CREATE TABLE hacksnap_story_popularity(story_id bigint PRIMARY KEY,historical_views bigint DEFAULT 0,story_views bigint DEFAULT 0,story_clicks bigint DEFAULT 0);
+      INSERT INTO hacker_news_threads VALUES(49802871,now());
+      INSERT INTO hacksnap_popularity_state VALUES(true,NULL);
+      INSERT INTO hacksnap_story_popularity(story_id,historical_views) VALUES(49802871,322);`);
+    const handler = createStoryEventHandler({
+      enabled: () => true,
+      allow: () => true,
+      record: async (value) => {
+        await db.query(recordStoryEventSQL, [value.visit_id, value.story_id, value.kind]);
+      },
+    });
+    assert.equal((await handler(request())).status, 204);
+    assert.equal(
+      (await db.query("SELECT count(*)::int AS n FROM hacksnap_popularity_events")).rows[0].n,
+      0,
+    );
+    assert.equal(
+      (await db.query("SELECT story_views::text AS n FROM hacksnap_story_popularity")).rows[0].n,
+      "0",
+    );
+    await db.exec(
+      "UPDATE hacksnap_popularity_state SET tracking_started_at=clock_timestamp() WHERE singleton",
+    );
+    assert.equal((await handler(request())).status, 204);
+    assert.equal((await handler(request())).status, 204);
+    assert.equal(
+      (await db.query("SELECT count(*)::int AS n FROM hacksnap_popularity_events")).rows[0].n,
+      1,
+    );
+    assert.equal(
+      (await db.query("SELECT story_views::text AS n FROM hacksnap_story_popularity")).rows[0].n,
+      "1",
+    );
+  } finally {
+    await db.close();
+  }
+}, 30000);
 
 test("strict story-event validation never accepts URLs, unknown kinds, extra fields or invalid IDs", () => {
   assert.deepEqual(parseStoryEvent(event), event);

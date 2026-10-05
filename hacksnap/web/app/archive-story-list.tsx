@@ -28,7 +28,7 @@ export async function ArchiveStoryList({
         ? getCategoryStories(category.id, page)
         : getArchiveStories(month, page),
   );
-  if (!response.available) return <DataUnavailable />;
+  if (!response.available) return <DataUnavailable headingLevel={2} />;
   const listingPath = category ? categoryURL(category) : archiveURL(month);
   return (
     <StoryFeed

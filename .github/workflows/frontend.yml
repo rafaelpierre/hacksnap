@@ -8,6 +8,7 @@ on:
       - "data/migrations/versions/0012_discussion_analysis.py"
       - "data/migrations/versions/0018_discussion_themes_schema.py"
       - "data/migrations/versions/0019_story_popularity.py"
+      - "data/migrations/versions/0020_story_popularity_activation.py"
       - ".github/workflows/frontend.yml"
   push:
     branches: [main]
@@ -17,6 +18,7 @@ on:
       - "data/migrations/versions/0012_discussion_analysis.py"
       - "data/migrations/versions/0018_discussion_themes_schema.py"
       - "data/migrations/versions/0019_story_popularity.py"
+      - "data/migrations/versions/0020_story_popularity_activation.py"
       - ".github/workflows/frontend.yml"
   workflow_dispatch:
   workflow_call:
