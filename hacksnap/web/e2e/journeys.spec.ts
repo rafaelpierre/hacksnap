@@ -365,10 +365,7 @@ test("a delayed story navigation keeps the feed and announces progress", async (
 test("category and API documentation home links open Latest directly", async ({ page }) => {
   await page.goto("/category/safety-privacy");
   await expect(page.getByRole("heading", { name: "No stories in this topic yet." })).toBeVisible();
-  const breadcrumb = page
-    .locator(".channel-path")
-    .getByRole("link", { name: "hacksnap", exact: true });
-  await expect(breadcrumb).toHaveAttribute("href", "/");
+  await expect(page.locator(".channel-path, .category-header, .feed-bar")).toHaveCount(0);
   const browse = page.getByRole("link", { name: "Browse latest stories" });
   await expect(browse).toHaveAttribute("href", "/");
   await browse.focus();
