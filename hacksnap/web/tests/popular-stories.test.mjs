@@ -12,6 +12,8 @@ test("the six imported GA baselines rank by views, and a new reader can promote 
       CREATE TABLE hacksnap_summaries(story_id bigint PRIMARY KEY,overall_takeaway text);
       CREATE TABLE hacksnap_story_popularity(story_id bigint PRIMARY KEY,historical_views bigint DEFAULT 0,story_views bigint DEFAULT 0,story_clicks bigint DEFAULT 0);
       CREATE TABLE hacksnap_popularity_events(visit_id uuid,story_id bigint,kind text,PRIMARY KEY(visit_id,story_id,kind));
+      CREATE TABLE hacksnap_popularity_state(singleton boolean PRIMARY KEY,tracking_started_at timestamptz);
+      INSERT INTO hacksnap_popularity_state VALUES(true,clock_timestamp());
       INSERT INTO hacker_news_threads SELECT n,'Story '||n,now() FROM generate_series(1,6) n;
       INSERT INTO hacksnap_summaries SELECT n,'Ready' FROM generate_series(1,6) n;
       INSERT INTO hacksnap_story_popularity(story_id,historical_views) VALUES (1,322),(2,20),(3,18),(4,12),(5,12),(6,8);`);

@@ -103,10 +103,11 @@ Collection is best effort and independent of Google Analytics. No JavaScript
 means ordinary links work, but these client events are not recorded.
 
 Migration `0019_story_popularity` adds separate historical/live counters and
-event receipts, with RLS and narrowly scoped grants. The website reader stays
+event receipts; `0020_story_popularity_activation` adds the activation marker.
+Both use RLS and narrowly scoped grants. The website reader stays
 SELECT-only and cannot read the receipts. The new `hacksnap_counter` role can
 write live counters and receipts; it cannot change historical counts. Provision
-its LOGIN/password separately and configure server-only
+its LOGIN/password after importing and recording activation, then configure server-only
 `HACKSNAP_POPULARITY_DATABASE_URL` with verified TLS. Never put it in a
 `NEXT_PUBLIC_*` setting or use an administrator connection for web collection.
 Leaving this setting unset disables collection without interrupting reading.
@@ -117,8 +118,14 @@ not a distributed anti-abuse limit or proof of human readership. Event receipts
 contain route UUIDs, story IDs, event kinds and receipt times, with no stored IPs
 or persistent reader identity, and are retained for duplicate detection.
 
-Apply the migration, preview and import the historical seed, then enable the
-writer connection. The supplied seed has six story pages and 392 standard GA
+Apply both migrations, preview the historical seed, then import with
+`--apply --activate-tracking` before enabling the writer connection. This records
+activation in the same transaction as the baseline; the writer accepts no events
+until that marker exists. Existing collection evidence or provisioned writer
+credentials conservatively freeze the baseline. Once activated, new or changed baselines are rejected,
+even with a supplied cutoff; an identical reimport is safe. Database receipt times
+cannot establish when the browser emitted a view. The supplied seed has six
+story pages and 392 standard GA
 Views, with an unspecified exact export cutoff. Counts therefore represent the
 supplied baseline plus observed live activity. Refresh the GA snapshot before
 activation when possible; otherwise the intervening interval is unmeasured.

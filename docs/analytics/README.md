@@ -73,11 +73,14 @@ not a historical custom `story_view` event count. The supplied date range is
 The seed retains all six stories so the current sixth can compete with the top
 five.
 
-Import the snapshot before enabling the first-party writer connection. Refresh
-the export before activation when possible: activity between the supplied
-snapshot and collection activation is unmeasured. Repeat imports replace
-historical totals, preserving first-party totals, and must never include events
-already counted by first-party collection.
+Import with `--apply --activate-tracking` before enabling the first-party writer
+connection. The baseline and activation marker are committed together; the writer
+accepts no events without that marker. After activation, only an identical
+reimport is allowed. A GA cutoff compared with database receipt time cannot prove
+that delayed events are absent from the baseline. Before activation, replacement
+imports preserve first-party totals and reject evidence of earlier collection.
+Refresh the export before activation when possible: activity between the supplied
+snapshot and collection activation is unmeasured.
 
 First-party delivery is best effort and independent of the lazy GA download.
 Client-side measurements miss JavaScript-disabled or blocked collection and

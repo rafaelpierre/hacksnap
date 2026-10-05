@@ -116,8 +116,14 @@ ON CONFLICT (story_id) DO UPDATE SET
     historical_through = EXCLUDED.historical_through
 """
 
+ACTIVATE_TRACKING = """
+UPDATE public.hacksnap_popularity_state SET tracking_started_at = clock_timestamp()
+WHERE singleton = true AND tracking_started_at IS NULL
+"""
 
-def apply_import(database_url: str, snapshot: ViewImport, through: datetime | None) -> int:
+
+def apply_import(database_url: str, snapshot: ViewImport, through: datetime | None,
+                 *, activate_tracking: bool = False) -> int:
     options = conninfo_to_dict(database_url)
     sslmode = options.get("sslmode", "require")
     hosted_supabase = options.get("host", "").endswith((".pooler.supabase.com", ".supabase.co"))
@@ -134,12 +140,18 @@ def apply_import(database_url: str, snapshot: ViewImport, through: datetime | No
     with psycopg.connect(database_url, **tls_options, connect_timeout=10,
                          row_factory=dict_row) as connection:
         with connection.cursor() as cursor:
-            # Protect the earliest-event check from a simultaneous first event.
+            # Freeze the baseline before opening collection, including before a
+            # browser's first delayed POST arrives. Receipt time is not view time.
             # Read-only website queries remain available during this brief import.
             cursor.execute("SET LOCAL lock_timeout = '5s'")
             cursor.execute("SET LOCAL statement_timeout = '30s'")
-            cursor.execute("LOCK TABLE public.hacksnap_popularity_events, "
+            cursor.execute("LOCK TABLE public.hacksnap_popularity_state, public.hacksnap_popularity_events, "
                            "public.hacksnap_story_popularity IN SHARE ROW EXCLUSIVE MODE")
+            cursor.execute("SELECT tracking_started_at FROM public.hacksnap_popularity_state WHERE singleton = true")
+            state = cursor.fetchone()
+            if state is None:
+                raise ValueError("Tracking activation state is missing; apply the current popularity migration.")
+            tracking_started_at = state["tracking_started_at"]
             cursor.execute("SELECT hn_id, story_slug FROM public.hacker_news_threads "
                            "WHERE hn_id = ANY(%s)", (list(snapshot.totals),))
             stored = {row["hn_id"]: row["story_slug"] for row in cursor.fetchall()}
@@ -161,28 +173,27 @@ def apply_import(database_url: str, snapshot: ViewImport, through: datetime | No
                 if old and (old["historical_views"], old["historical_source"], old["historical_through"]) == (views, SOURCE, through):
                     continue
                 changed.append((story_id, views, SOURCE, through))
-            if not changed:
-                return 0  # An identical reapply is safe even after tracking starts.
-            cursor.execute("SELECT MIN(received_at) AS first_event FROM "
-                           "public.hacksnap_popularity_events WHERE kind = 'view'")
-            first_event = cursor.fetchone()["first_event"]
-            cursor.execute("SELECT EXISTS (SELECT 1 FROM public.hacksnap_story_popularity "
-                           "WHERE story_views > 0) AS has_views")
-            has_views = cursor.fetchone()["has_views"]
-            if first_event is not None or has_views:
-                if through is None:
-                    raise ValueError("First-party views exist; specify the actual GA --through cutoff before changing the baseline.")
-                if first_event is None:
-                    raise ValueError("Cannot verify the cutoff: live views exist without event receipts.")
-                if through > first_event:
-                    raise ValueError("GA --through overlaps first-party tracking; it must not be later than the first recorded view.")
-                # Never move an established cutoff after tracking starts. Equal
-                # cutoffs permit final GA processing corrections, without overlap.
-                for story_id, _, _, _ in changed:
-                    old = existing.get(story_id)
-                    if old and old["historical_source"] and old["historical_through"] != through:
-                        raise ValueError(f"Story {story_id} has an established baseline cutoff; it cannot change after tracking starts.")
-            cursor.executemany(UPSERT, changed)
+            if not changed and (not activate_tracking or tracking_started_at is not None):
+                return 0  # Exact reapply preserves both counts and activation.
+            cursor.execute("SELECT EXISTS (SELECT 1 FROM public.hacksnap_popularity_events) "
+                           "OR EXISTS (SELECT 1 FROM public.hacksnap_story_popularity "
+                           "WHERE story_views > 0 OR story_clicks > 0) AS has_live_activity, "
+                           "EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hacksnap_counter' "
+                           "AND rolcanlogin) AS writer_can_login")
+            collection = cursor.fetchone()
+            has_live_activity = collection["has_live_activity"]
+            writer_can_login = collection["writer_can_login"]
+            if changed and (tracking_started_at is not None or has_live_activity or writer_can_login):
+                raise ValueError("Historical baseline is frozen after first-party activation, live activity, or writer LOGIN provisioning; "
+                                 "only an identical reapply is allowed. --through cannot prove non-overlap.")
+            if activate_tracking and tracking_started_at is None and writer_can_login:
+                raise ValueError("Writer LOGIN is already provisioned without a recorded activation; inactive collection cannot be proven.")
+            if activate_tracking and tracking_started_at is None and has_live_activity:
+                raise ValueError("Live activity exists without a recorded activation; investigate the boundary before activation.")
+            if changed:
+                cursor.executemany(UPSERT, changed)
+            if activate_tracking and tracking_started_at is None:
+                cursor.execute(ACTIVATE_TRACKING)
             return len(changed)
 
 
@@ -190,9 +201,13 @@ def apply_import(database_url: str, snapshot: ViewImport, through: datetime | No
 @click.argument("csv_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option("--apply", is_flag=True, help="Validate stored stories and atomically replace their historical baseline.")
 @click.option("--through", default=None, help="Actual GA export end timestamp, with timezone; never guess it.")
-def main(csv_path: Path, apply: bool, through: str | None) -> None:
+@click.option("--activate-tracking", is_flag=True,
+              help="With --apply, freeze the baseline and record activation before enabling the writer connection.")
+def main(csv_path: Path, apply: bool, through: str | None, activate_tracking: bool) -> None:
     """Import GA standard page Views. Default preview makes no database connection."""
     try:
+        if activate_tracking and not apply:
+            raise click.UsageError("--activate-tracking requires --apply; activation changes database state.")
         snapshot = read_import(csv_path)
         cutoff = parse_through(through)
         for story_id, views in sorted(snapshot.totals.items(), key=lambda item: (-item[1], item[0])):
@@ -205,8 +220,10 @@ def main(csv_path: Path, apply: bool, through: str | None) -> None:
         database_url = os.environ.get("HACKSNAP_IMPORT_DATABASE_URL")
         if not database_url:
             raise click.UsageError("Set HACKSNAP_IMPORT_DATABASE_URL to a dedicated server-only import connection.")
-        changed = apply_import(database_url, snapshot, cutoff)
+        changed = apply_import(database_url, snapshot, cutoff, activate_tracking=activate_tracking)
         click.echo(f"Applied {changed} baseline replacements; first-party counters preserved.")
+        if activate_tracking:
+            click.echo("Tracking activation recorded; baseline is frozen. Provision writer LOGIN credentials, then enable the server-only writer connection.")
     except (ValueError, OSError) as error:
         raise click.ClickException(str(error)) from error
     except psycopg.Error as error:

@@ -26,6 +26,8 @@ export const recordStoryEventSQL = `WITH accepted AS (
   FROM public.hacker_news_threads t
   WHERE t.hn_id = $2::bigint AND t.hn_id BETWEEN 1 AND 999999999999999
     AND t.date_added <= CURRENT_TIMESTAMP
+    AND EXISTS (SELECT 1 FROM public.hacksnap_popularity_state
+                WHERE singleton AND tracking_started_at IS NOT NULL)
   ON CONFLICT (visit_id, story_id, kind) DO NOTHING
   RETURNING story_id, kind
 )
