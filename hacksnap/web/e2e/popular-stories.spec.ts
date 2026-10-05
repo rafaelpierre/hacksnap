@@ -5,9 +5,8 @@ import path from "node:path";
 
 for (const width of [320, 1440])
   for (const textScale of [1, 2]) {
-    test(`most read at ${width}px and ${textScale * 100}% text with dark OS`, async ({ page }) => {
+    test(`most read at ${width}px and ${textScale * 100}% text`, async ({ page }) => {
       await page.setViewportSize({ width, height: 1000 });
-      await page.emulateMedia({ colorScheme: "dark" });
       await page.goto("/");
       await page.evaluate((scale) => {
         document.documentElement.style.fontSize = `${scale * 100}%`;

@@ -66,15 +66,15 @@ below applies to `web/`. Also follow the repository root `AGENTS.md`.
 
 - Reuse semantic colors, type scale, spacing, reading widths, responsive gutters,
   and control-size tokens from `web/app/globals.css`.
-- Follow the typography and theme conventions in `web/README.md`. Support System,
-  Light, and Dark appearance, including saved preferences and blocked storage.
+- Follow the typography and fixed light appearance in `web/README.md`. Keep the
+  page background white and navigation usable with blocked storage.
 - Use semantic HTML, real links for navigation, and buttons for actions. Give
   controls accessible names, preserve visible keyboard focus, and make every
   interaction usable by keyboard and touch. Do not rely on color or hover alone.
 - Maintain the shared 44px control target and readable contrast. Respect reduced
   motion. Avoid truncation or fixed dimensions that hide essential content.
 - For visible UI changes, inspect affected pages at 320px and desktop widths, in
-  both themes and at 200% text size. Check wrapping, overflow, focus order, touch
+  the fixed light appearance and at 200% text size. Check wrapping, overflow, focus order, touch
   targets, and loading/empty/error states. Capture useful screenshots for the PR.
 - Test navigation and browser back/forward behavior when changing routing,
   pagination, menus, or scroll restoration. Report any browser checks you could

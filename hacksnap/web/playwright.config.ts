@@ -13,6 +13,7 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     baseURL: `http://127.0.0.1:${process.env.BROWSER_PORT ?? "3100"}`,
+    colorScheme: "light",
     locale: "en-GB",
     timezoneId: "UTC",
     reducedMotion: "reduce",

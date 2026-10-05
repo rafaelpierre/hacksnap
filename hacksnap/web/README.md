@@ -42,8 +42,8 @@ share the type, space and layout tokens; future component work should reuse them
 Text uses rem units and wrapping layouts to respect enlarged browser text.
 
 Run `npm run test:theme`, `npm run typecheck` and `npm run build`. Check the shell,
-feeds and story at 320px and desktop widths with light and dark OS settings, including 200% text,
-keyboard focus, OS appearance changes, saved preferences and blocked storage.
+feeds and story at 320px and desktop widths in the fixed light appearance, including 200% text,
+keyboard focus and blocked storage.
 
 ## Story URLs
 
@@ -520,7 +520,8 @@ migration. `npm run test:categories` covers category routing and navigation cont
 
 Stories display a compact category flair on feeds and article pages. Clicking a
 flair or topic link filters Latest at `/?category=<slug>`, newest first. The same
-feed shell shows the selected topic and an All stories control to clear the filter.
+feed shell highlights the selected topic in the Topics navigation, where All stories
+clears the filter. Topic feeds start directly with stories, without an extra topic header.
 Changing topics starts at page one; pagination, automatic loading and story returns
 retain the selected category. Saved legacy category journeys and feed snapshots are
 normalized on read, preserving their page, loaded depth, focus and scroll during
