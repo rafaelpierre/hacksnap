@@ -278,6 +278,18 @@ Run `npm run test:history` for ranking calculations and metric formatting unit t
 
 ## Search metadata
 
+The homepage title is `Hacksnap | AI News`, including its Open Graph and Twitter
+titles. The shared layout supplies `WebSite` structured data naming the site
+`Hacksnap` at `https://hacksnap.live/` so search engines can recognize the brand.
+Other pages retain their own `<page title> | Hacksnap` titles.
+
+The favicon uses the existing copper `h/` mark on a dark background. Next.js
+serves `app/icon.svg`, a 96px `app/icon.png`, a multi-size `app/favicon.ico`, and
+a 180px `app/apple-icon.png` through its file-based metadata routes. Regenerate
+the raster copies from the SVG with `node scripts/generate-icons.mjs`.
+Google chooses its displayed title, site name, and favicon after recrawling;
+deploying these preferences does not immediately change existing search results.
+
 `/sitemap.xml` lists the homepage, archive pages, and stories with summaries. Story `lastmod`
 values use the latest stored publication, summary update, content snapshot, or ranking observation
 timestamp. They remain stable between content writes; requests do not advance them.

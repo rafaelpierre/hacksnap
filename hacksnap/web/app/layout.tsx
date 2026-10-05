@@ -31,17 +31,21 @@ const reading = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://hacksnap.live"),
-  title: { default: "Hacksnap — AI on Hacker News", template: "%s | Hacksnap" },
+  applicationName: "Hacksnap",
+  title: { default: "Hacksnap | AI News", template: "%s | Hacksnap" },
   description:
     "AI stories from Hacker News, with article briefs and highlights from the discussion.",
   openGraph: {
-    title: "Hacksnap — AI on Hacker News",
+    title: "Hacksnap | AI News",
     description:
       "AI stories from Hacker News, with article briefs and highlights from the discussion.",
     siteName: "Hacksnap",
     type: "website",
   },
   twitter: {
+    title: "Hacksnap | AI News",
+    description:
+      "AI stories from Hacker News, with article briefs and highlights from the discussion.",
     card: "summary_large_image",
     images: [{ url: "/opengraph-image", alt: "Hacksnap — AI on Hacker News" }],
   },
@@ -57,6 +61,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       suppressHydrationWarning
     >
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Hacksnap",
+              url: "https://hacksnap.live/",
+            }),
+          }}
+        />
         {/* Apply the appearance preference before paint, including on cached pages. */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
