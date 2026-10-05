@@ -36,10 +36,10 @@ test("long stories get compact previews without changing the source title or ima
     }),
   };
   const metadata = storyPreviewMetadata(story);
-  assert.ok(Array.from(metadata.title.absolute).length <= 95);
-  assert.ok(Array.from(metadata.openGraph.title).length <= 84);
-  assert.match(metadata.title.absolute, /… — Hacker News reactions \| Hacksnap$/);
-  assert.match(metadata.openGraph.title, /… — Hacker News reactions$/);
+  assert.ok(Array.from(metadata.title.absolute).length <= 71);
+  assert.ok(Array.from(metadata.openGraph.title).length <= 60);
+  assert.match(metadata.title.absolute, /… \| Hacksnap$/);
+  assert.match(metadata.openGraph.title, /…$/);
   assert.equal(metadata.twitter.title, metadata.openGraph.title);
   assert.ok(Array.from(metadata.description).length <= 155);
   assert.ok(Array.from(metadata.openGraph.description).length <= 125);
@@ -51,18 +51,16 @@ test("long stories get compact previews without changing the source title or ima
   assert.equal(metadata.alternates.canonical, "https://hacksnap.live/story/49783999");
 });
 
-test("search and social metadata position the story as reactions with its actual sample and topics", () => {
+test("search and social titles use the headline while descriptions retain the actual sample and topics", () => {
   const metadata = storyPreviewMetadata({
     hn_id: "1",
     title: "Claude Code AGENTS.md issue",
     comment_count: 240,
     summary: summary(),
   });
-  assert.equal(
-    metadata.title.absolute,
-    "Claude Code AGENTS.md issue — Hacker News reactions | Hacksnap",
-  );
-  assert.equal(metadata.openGraph.title, "Claude Code AGENTS.md issue — Hacker News reactions");
+  assert.equal(metadata.title.absolute, "Claude Code AGENTS.md issue | Hacksnap");
+  assert.equal(metadata.openGraph.title, "Claude Code AGENTS.md issue");
+  assert.equal(metadata.twitter.title, "Claude Code AGENTS.md issue");
   assert.equal(
     metadata.description,
     "Article summary and Hacker News reactions from 17 sampled comments. Topics: Anthropic's response; Feature-flag debate; Criticism",
@@ -76,7 +74,7 @@ test("search and social metadata position the story as reactions with its actual
 
 test("pending summaries describe their state and remain excluded from indexing", () => {
   const metadata = storyPreviewMetadata({ hn_id: "1", title: "Small models", summary: null });
-  assert.equal(metadata.title.absolute, "Small models — Hacker News reactions | Hacksnap");
+  assert.equal(metadata.title.absolute, "Small models | Hacksnap");
   assert.equal(
     metadata.description,
     "Article and Hacker News reaction summary pending. Follow the links to the original source and full discussion on Hacksnap.",
