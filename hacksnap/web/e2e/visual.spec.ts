@@ -26,7 +26,8 @@ for (const width of [320, 1280])
           }, textScale);
           await page.evaluate(() => document.fonts.ready);
           const latest = route === "/";
-          if (latest) await expect(page.getByRole("heading", { level: 1 })).toBeAttached();
+          const compactFeed = latest || route.startsWith("/category/");
+          if (compactFeed) await expect(page.getByRole("heading", { level: 1 })).toBeAttached();
           else await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
           if (latest) await expect(page.locator("section > .feed-bar time")).toHaveCount(0);
           const layout = await page.evaluate(() => ({
@@ -45,7 +46,7 @@ for (const width of [320, 1280])
           await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
           expect(layout.scheme.split(" ").sort()).toEqual(["light", "only"]);
           await expect(page.getByRole("button", { name: /Switch to .* mode/ })).toHaveCount(0);
-          if (!latest)
+          if (!compactFeed)
             expect(parseFloat(layout.heading)).toBeGreaterThanOrEqual(textScale === 2 ? 40 : 24);
           expect(layout.hiddenImages).toBe(0);
           if (["/", "/2026/01", "/category/models-products", storyPath].includes(route)) {
@@ -63,8 +64,8 @@ for (const width of [320, 1280])
           }
           const header = await page.getByRole("banner").boundingBox();
           const firstContent = await (
-            latest
-              ? page.locator(".story-list > li").first()
+            compactFeed
+              ? page.locator(".story-list > li, .empty").first()
               : page.getByRole("heading", { level: 1 })
           ).boundingBox();
           expect(firstContent!.y, "Content clears the sticky header").toBeGreaterThanOrEqual(

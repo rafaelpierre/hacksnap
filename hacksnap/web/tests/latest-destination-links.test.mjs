@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { jest, test } from "@jest/globals";
-import { cloneElement, createElement } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 jest.unstable_mockModule("server-only", () => ({}));
@@ -32,19 +32,16 @@ jest.unstable_mockModule("../app/topic-sidebar.tsx", () => ({
 const { default: CategoryPage } = await import("../app/category/[slug]/page.tsx");
 const { default: ApiDocs } = await import("../app/docs/api/page.tsx");
 
-test("an empty topic links its breadcrumb and browse action directly to Latest", async () => {
+test("an empty topic links its browse action directly to Latest", async () => {
   const shell = await CategoryPage({
     params: Promise.resolve({ slug: "agents-coding" }),
     searchParams: Promise.resolve({}),
   });
-  // Optional topic counts stream independently; isolate the page links from that read.
-  const html = renderToStaticMarkup(
-    cloneElement(shell, { count: createElement("span", null, "0") }),
-  );
-  assert.match(html, /href="\/">hacksnap<\/a>/);
+  const html = renderToStaticMarkup(shell);
+  assert.match(html, /<h1 class="sr-only">Agents &amp; Coding<\/h1>/);
+  assert.doesNotMatch(html, /channel-path|category-header|feed-bar|Newest first/);
   assert.match(html, /No stories in this topic yet/);
   assert.match(html, /href="\/"[^>]*>Browse latest stories/);
-  assert.match(html, /href="\/topics">topics<\/a>/);
   assert.doesNotMatch(html, /href="\/archive"|Browse top stories/);
 });
 

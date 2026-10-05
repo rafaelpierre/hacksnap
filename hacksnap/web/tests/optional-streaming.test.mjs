@@ -176,19 +176,15 @@ test("cold story load finishes before optional read gets the single pool connect
   assert.deepEqual(rendered.errors, []);
 });
 
-test("category list streams while counts stall, and the required query always starts first", async () => {
+test("category list streams without requesting the removed story count", async () => {
   const listPending = deferred();
-  const countPending = deferred();
   getCategoryStories.mockImplementationOnce(async () => {
     events.push("list-start");
     const value = await listPending.promise;
     events.push("list-end");
     return value;
   });
-  getCategoryCounts.mockImplementationOnce(async () => {
-    events.push("counts");
-    return countPending.promise;
-  });
+  getCategoryCounts.mockClear();
   events.length = 0;
   const page = await CategoryPage(categoryProps);
   assert.deepEqual(events, []);
@@ -201,12 +197,11 @@ test("category list streams while counts stall, and the required query always st
   listPending.resolve(categoryList);
   await rendered.contains(/Primary headline/);
   assert.match(rendered.html, /Primary headline/);
-  assert.match(rendered.html, /category-count-placeholder/);
+  assert.doesNotMatch(rendered.html, /category-header|channel-path|feed-bar|Newest first/);
   assert.match(rendered.html, /href="\/story\/primary-headline-123"/);
-  assert.deepEqual(events, ["list-start", "list-end", "counts"]);
-  countPending.resolve({ agents_coding: 7 });
   await rendered.complete;
-  assert.match(rendered.html, />7<\/span>/);
+  assert.deepEqual(events, ["list-start", "list-end"]);
+  assert.equal(getCategoryCounts.mock.calls.length, 0);
   assert.deepEqual(rendered.errors, []);
 });
 
@@ -218,11 +213,11 @@ test("failed optional queries finish the stream with useful primary content", as
   assert.match(article.html, /More in Agents/);
   assert.deepEqual(article.errors, []);
 
-  getCategoryCounts.mockRejectedValueOnce(new DataUnavailableError());
+  getCategoryCounts.mockClear();
   const list = stream(await CategoryPage(categoryProps));
   await list.complete;
   assert.match(list.html, /Primary headline/);
-  assert.match(list.html, /<div hidden id="S:\d+"><span class="category-count-placeholder"/);
+  assert.equal(getCategoryCounts.mock.calls.length, 0);
   assert.deepEqual(list.errors, []);
 });
 
