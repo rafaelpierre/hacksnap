@@ -96,18 +96,23 @@ async function Latest(props: Props) {
   const content = result ? (
     await ArchiveStoryList({ month, page, result, category })
   ) : (
-    <Suspense key={`${category ? categoryURL(category) : archiveURL(month)}:${page}`} fallback={<BrowseLoading />}>
+    <Suspense
+      key={`${category ? categoryURL(category) : archiveURL(month)}:${page}`}
+      fallback={<BrowseLoading />}
+    >
       <LatestContent content={pendingContent!} />
     </Suspense>
   );
   return (
     <BrowseLayout
       active={category?.id ?? (month ? undefined : "home")}
-      rightSidebar={month ? undefined : (
-        <Suspense fallback={<PopularStoriesLoading />}>
-          <PopularStories />
-        </Suspense>
-      )}
+      rightSidebar={
+        month ? undefined : (
+          <Suspense fallback={<PopularStoriesLoading />}>
+            <PopularStories />
+          </Suspense>
+        )
+      }
     >
       {month ? (
         <header className="feed-header archive-month-header">

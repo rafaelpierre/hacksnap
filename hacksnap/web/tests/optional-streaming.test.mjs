@@ -59,6 +59,7 @@ jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getArchiveStories: async () => categoryList,
   getArchiveMonths: async () => [],
+  getPopularStories: async () => [],
   getStory,
   getRelatedStories,
   getCategoryStories,

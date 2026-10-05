@@ -101,7 +101,7 @@ test("a popularity outage remains optional while the required homepage feed is a
   const { PopularStories } = await import("../app/popular-stories.tsx");
   getArchiveStories.mockResolvedValueOnce({ stories: [], hasNext: false });
   const page = await Home({ params: Promise.resolve({}), searchParams: Promise.resolve({}) });
-  const deferredFeed = page.props.children[1].props.children.props.children;
+  const deferredFeed = page.props.children.at(-1).props.children.props.children;
   const feed = await deferredFeed.type(deferredFeed.props);
   assert.ok(feed);
   assert.notEqual(feed.type, (await import("../app/data-unavailable.tsx")).DataUnavailable);

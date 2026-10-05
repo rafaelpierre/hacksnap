@@ -14,7 +14,9 @@ legacy redirects, invalid filters and the existing asset/rendering budgets.
 Rollout regression tests seed old category journeys and packed snapshots, reload
 the story, and verify both breadcrumb and generic returns restore the canonical
 filtered page, all loaded stories and the saved scroll position.
-The UI retains the site's light appearance under both OS settings.
+The UI retains the site's light appearance under both OS settings. The Latest
+most-read sidebar also appears on filtered feeds, with optional data streamed
+after the required story read starts.
 
 The existing category/page data cache and indexed query remain unchanged.
 No production latency or database-load improvement is claimed.
