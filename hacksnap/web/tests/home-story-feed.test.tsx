@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import { browsePagination } from "../lib/browse-feed";
 import { readFeedSnapshot } from "../lib/feed-snapshot-storage";
+import { StoryRow } from "../app/story-row";
 import { StoryFeed } from "../app/story-feed";
 import { ARCHIVE_PAGE_SIZE } from "../lib/archive";
 
@@ -151,6 +152,7 @@ for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
             <AppRouterContext.Provider value={router as never}>
               <StoryFeed
                 listingPath={listingPath}
+                showCategory={!listingPath.startsWith("/category/")}
                 initialStories={first}
                 initialPagination={pageState(1, true)}
               />
@@ -161,6 +163,10 @@ for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
       try {
         await render(root);
         assert.equal(document.querySelectorAll(".story-list > li").length, 10);
+        assert.equal(
+          document.querySelectorAll(".story-list .category-badge").length,
+          listingPath.startsWith("/category/") ? 0 : 10,
+        );
         assert.equal(observations, 1);
         assert.doesNotMatch(document.body.textContent!, /Load more stories/);
         assert.equal(document.querySelectorAll('a[href="#site-footer"]').length, 0);
@@ -198,6 +204,10 @@ for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
         });
         assert.equal(loadEvents.length, 0);
         assert.equal(document.querySelectorAll(".story-list > li").length, 10);
+        assert.equal(
+          document.querySelectorAll(".story-list .category-badge").length,
+          listingPath.startsWith("/category/") ? 0 : 10,
+        );
         assert.equal(document.activeElement, focusTarget);
         await act(async () => focusTarget.blur());
         assert.ok(onIntersection);
@@ -208,6 +218,10 @@ for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
           );
         });
         assert.equal(document.querySelectorAll(".story-list > li").length, 12);
+        assert.equal(
+          document.querySelectorAll(".story-list .category-badge").length,
+          listingPath.startsWith("/category/") ? 0 : 12,
+        );
         assert.equal(document.querySelector(".home-feed-spinner"), null);
         assert.match(
           document.querySelector(".home-feed-status")!.textContent!,
@@ -222,6 +236,10 @@ for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
           );
         });
         assert.equal(document.querySelectorAll(".story-list > li").length, 12);
+        assert.equal(
+          document.querySelectorAll(".story-list .category-badge").length,
+          listingPath.startsWith("/category/") ? 0 : 12,
+        );
         assert.match(document.querySelector(".home-feed-status")!.textContent!, /try again/i);
         assert.equal(document.querySelector(".home-feed-spinner"), null);
         assert.equal(
@@ -244,6 +262,10 @@ for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
         await act(async () => retry.click());
         assert.equal(calls, 4);
         assert.equal(document.querySelectorAll(".story-list > li").length, 13);
+        assert.equal(
+          document.querySelectorAll(".story-list .category-badge").length,
+          listingPath.startsWith("/category/") ? 0 : 13,
+        );
         assert.equal(document.querySelector(".home-feed-actions button"), null);
         assert.ok(onIntersection, "automatic loading resumes after the focused retry unmounts");
         await act(async () => {
@@ -266,6 +288,10 @@ for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
         const restored = createRoot(document.getElementById("root")!);
         await render(restored);
         assert.equal(document.querySelectorAll(".story-list > li").length, 13);
+        assert.equal(
+          document.querySelectorAll(".story-list .category-badge").length,
+          listingPath.startsWith("/category/") ? 0 : 13,
+        );
         await act(async () => restored.unmount());
       } finally {
         globalThis.fetch = originalFetch;
@@ -726,3 +752,21 @@ for (const listingPath of ["/", "/2026/09", "/category/agents-coding"]) {
     });
   }
 }
+
+test("category visibility defaults on in server HTML and hiding it preserves archive context", () => {
+  const render = (showCategory?: boolean, ranked = false) =>
+    renderToStaticMarkup(
+      <AppRouterContext.Provider value={{} as never}>
+        <StoryRow
+          story={{ ...story(1), is_recent: false }}
+          showCategory={showCategory}
+          variant={ranked ? "ranked" : "unranked"}
+        />
+      </AppRouterContext.Provider>,
+    );
+  assert.match(render(), /category-badge/);
+  assert.doesNotMatch(render(false), /category-badge|story-context/);
+  assert.match(render(false), /Story 1/);
+  assert.match(render(false, true), /archive-label/);
+  assert.doesNotMatch(render(false, true), /category-badge/);
+});

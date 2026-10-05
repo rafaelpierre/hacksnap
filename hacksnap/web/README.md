@@ -655,7 +655,11 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 
 Latest and topic feeds render the same `StoryRow` content order:
 category and ranking context, title, image, excerpt, then metadata and share
-actions. The title precedes the decorative image in both visual and document
+actions. Category labels default to visible through the `showCategory` option on
+`StoryFeed`, `WindowedStoryList`, and `StoryRow`. Individual category pages set it
+to `false` for both initial and subsequently loaded cards; Latest and dated archives
+keep the labels. Cards without category or ranking context omit that row.
+The title precedes the decorative image in both visual and document
 order. Published excerpts, image states and actions keep the same structure
 everywhere; pending briefs remain available only on direct detail pages.
 

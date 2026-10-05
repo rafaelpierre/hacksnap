@@ -36,6 +36,7 @@ type StoryItemProps = {
   onHeight: (id: string, height: number) => void;
   onFocus: (index: number) => void;
   opened: boolean;
+  showCategory: boolean;
 };
 
 function StoryItem({
@@ -50,6 +51,7 @@ function StoryItem({
   onHeight,
   onFocus,
   opened,
+  showCategory,
 }: StoryItemProps) {
   const ref = useRef<HTMLLIElement>(null);
 
@@ -78,6 +80,7 @@ function StoryItem({
     >
       <StoryRow
         story={story}
+        showCategory={showCategory}
         variant={ranked ? "ranked" : "unranked"}
         feedPosition={feedPosition}
         opened={opened}
@@ -142,6 +145,7 @@ export function WindowedStoryList({
   leadImagePriority,
   onStoryTitleClickCapture,
   openedIds = new Set<string>(),
+  showCategory = true,
 }: {
   stories: PublicFeedStory[];
   ranked: boolean;
@@ -151,6 +155,7 @@ export function WindowedStoryList({
   leadImagePriority: boolean;
   onStoryTitleClickCapture?: MouseEventHandler<HTMLOListElement>;
   openedIds?: ReadonlySet<string>;
+  showCategory?: boolean;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const heights = useRef(new Map<string, number>());
@@ -294,6 +299,7 @@ export function WindowedStoryList({
         listSize={group ? group.end - group.start : stories.length}
         measure={stories.length > MAX_RENDERED_STORIES}
         ranked={ranked}
+        showCategory={showCategory}
         feedPosition={ranked ? (initialPage - 1) * 10 + index + 1 : undefined}
         leadImage={leadImagePriority && index === 0 && !pinnedStoryId}
         onHeight={onStoryHeight}
