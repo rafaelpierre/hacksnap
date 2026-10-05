@@ -383,8 +383,12 @@ test("category and API documentation home links open Latest directly", async ({ 
   await page.goto("/category/safety-privacy");
   await expect(page.getByRole("heading", { name: "No stories in this topic yet." })).toBeVisible();
   await expect(page).toHaveURL(/\/\?category=safety-privacy$/);
+  await expect(page.locator(".browse-feed-content > .feed-bar")).toHaveCount(0);
+  await expect(page.getByText(/^Topic:/)).toHaveCount(0);
   await expect(
-    page.getByRole("link", { name: "All stories (clear topic filter)" }),
+    page
+      .getByRole("navigation", { name: "Topics", exact: true })
+      .getByRole("link", { name: "All stories", exact: true }),
   ).toHaveAttribute("href", "/");
   const browse = page.getByRole("link", { name: "Browse latest stories" });
   await expect(browse).toHaveAttribute("href", "/");
@@ -460,7 +464,10 @@ test("topic filters reuse Latest and retain selection through paging and history
     "href",
     "/?category=models-products&page=2",
   );
-  await page.getByRole("link", { name: "All stories (clear topic filter)" }).click();
+  await page
+    .getByRole("navigation", { name: "Topics", exact: true })
+    .getByRole("link", { name: "All stories", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/\?category=models-products$/);
@@ -606,7 +613,10 @@ test("category-only navigation and history create distinct analytics visits", as
   await page.goForward();
   await expect(page).toHaveURL(/category=agents-coding$/);
   await expect.poll(async () => (await visits()).length).toBe(5);
-  await page.getByRole("link", { name: "All stories (clear topic filter)" }).click();
+  await page
+    .getByRole("navigation", { name: "Topics", exact: true })
+    .getByRole("link", { name: "All stories", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/$/);
   await expect.poll(async () => (await visits()).length).toBe(6);
   expect(new Set(await visits()).size).toBe(6);

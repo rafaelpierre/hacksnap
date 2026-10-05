@@ -126,14 +126,6 @@ async function Latest(props: Props) {
           {category ? `Latest stories — ${category.label}` : "Latest stories"}
         </h1>
       )}
-      {category && (
-        <div className="feed-bar">
-          <p>Topic: {category.label}</p>
-          <Link className="button" href="/" aria-label="All stories (clear topic filter)">
-            All stories
-          </Link>
-        </div>
-      )}
       <section aria-label="Latest stories">{content}</section>
     </BrowseLayout>
   );
