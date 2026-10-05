@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { headers } from "next/headers";
 import type { ArticleStory, CardStory, ExportStory } from "../../lib/story-domain";
 import type { CategoryId, CategoryCounts } from "../../lib/categories";
 import type { RankingMetrics } from "../../lib/story-metrics";
@@ -153,6 +154,18 @@ export async function getLeaderboard() {
 }
 export async function getCurrentReadySelectionIds() {
   return cards.map(({ hn_id }) => hn_id);
+}
+export async function getPopularStories() {
+  const cookie = (await headers()).get("cookie") ?? "";
+  if (cookie.includes("fixture-popularity=slow"))
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+  if (cookie.includes("fixture-popularity=failed")) throw new DataUnavailableError();
+  return cards.slice(0, 5).map(({ hn_id, title, story_slug }, index) => ({
+    hn_id,
+    title,
+    story_slug,
+    views: String(322 - index * 50),
+  }));
 }
 export async function getMarkdownLeaderboard() {
   return getReadyStoryPage();

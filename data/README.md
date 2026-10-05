@@ -117,6 +117,21 @@ for theme-only schema v2. It preserves v1 rows, allows v2 rows with empty claim
 and stance arrays, and performs no backfill. Apply it before the v2 worker runs.
 Downgrading to `0017_archive_order` is refused while v2 analysis rows exist.
 
+## Historical story views
+
+Migration `0019_story_popularity` adds the private counters and event receipts
+for the homepage's lifetime most-read list. The web reader receives aggregate
+view columns only; `hacksnap_counter` receives narrowly scoped live-event writes.
+Provision the writer LOGIN/password outside migration files. Historical imports
+use a separate server-only `HACKSNAP_IMPORT_DATABASE_URL` with permissions to
+validate stored stories and replace baseline counts.
+
+The [seed and import instructions](seeds/README.md) include the six supplied
+story-page rows (392 GA Views) and a local-only dry run. Imports validate every
+stored story before writing, replace baseline counts atomically, and preserve
+live views/clicks. Import before enabling web collection, and record the real
+export cutoff if available; never invent it or add overlapping GA activity.
+
 ## GitHub Actions
 
 The [schema workflow](../.github/workflows/supabase-schema.yml) validates changes

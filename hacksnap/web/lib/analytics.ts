@@ -1,7 +1,10 @@
+import { sendStoryEvent } from "./popularity-transport";
+
 /** Versioned, content-free engagement events. GA supplies user/session/device identity. */
 export type JourneyEvent =
   | "reader_visit"
   | "story_view"
+  | "story_click"
   | "recommendation_exposure"
   | "recommendation_click"
   | "share_menu_open"
@@ -37,7 +40,7 @@ type Params = {
 type Sink = (name: JourneyEvent, params: Record<string, string | number>) => void;
 
 /** Injectable state machine lets controlled journeys exercise deduplication without GA. */
-export function createJourney(sink: Sink, makeId: () => string) {
+export function createJourney(sink: Sink, makeId: () => string, firstPartySink?: Sink) {
   let path: string | undefined;
   let visitId = "";
   let seen = new Set<string>();
@@ -60,6 +63,11 @@ export function createJourney(sink: Sink, makeId: () => string) {
     ] as const) {
       const value = params[key];
       if (value !== undefined) safe[key] = value;
+    }
+    try {
+      firstPartySink?.(name, safe);
+    } catch {
+      /* Collection failures are independent of the GA sink. */
     }
     try {
       sink(name, safe);
@@ -92,6 +100,14 @@ const journey = createJourney(
     }
   },
   () => globalThis.crypto.randomUUID(),
+  (name, params) => {
+    if ((name === "story_view" || name === "story_click") && typeof params.story_id === "string")
+      sendStoryEvent({
+        kind: name === "story_view" ? "view" : "click",
+        story_id: params.story_id,
+        visit_id: String(params.visit_id),
+      });
+  },
 );
 
 type Event = Params & { name: JourneyEvent };

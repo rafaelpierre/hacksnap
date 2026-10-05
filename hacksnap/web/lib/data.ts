@@ -33,6 +33,7 @@ import {
   type RankObservation,
 } from "./rank-history";
 import { storyMetricsSQL, type RankingMetrics } from "./story-metrics";
+import { popularityAvailableSQL, popularStoriesSQL, type PopularStory } from "./popular-stories";
 import type { ArticleStory, CardStory, ExportStory } from "./story-domain";
 import {
   CATEGORY_PAGE_SIZE,
@@ -729,6 +730,22 @@ const cachedPublicStory = boundedCache(
 export async function getPublicStory(id: string): Promise<PublicStory | null> {
   if (!validStoryId(id)) return null;
   return cachedPublicStory(id);
+}
+
+const cachedPopularStories = boundedCache(
+  async (): Promise<PopularStory[]> =>
+    read(async (client) => {
+      const { rows } = await client.query<{ available: boolean }>(popularityAvailableSQL);
+      if (rows[0]?.available !== true) return [];
+      return (await client.query<PopularStory>(popularStoriesSQL(await storySlugField(client))))
+        .rows;
+    }),
+  { ttl: () => 300_000, maxEntries: 1, maxPending: 1 },
+);
+
+export async function getPopularStories(): Promise<PopularStory[]> {
+  if (!process.env.HACKSNAP_WEB_DATABASE_URL) return [];
+  return cachedPopularStories("all-time");
 }
 
 // Cache expensive renderer reads across requests, including negotiated Markdown.

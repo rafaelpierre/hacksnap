@@ -4,11 +4,12 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getArchiveMonths, getArchiveStories } from "../../lib/data";
 import { archiveMonth, archivePage, archiveURL, monthLabel } from "../../lib/archive";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { ArchiveStoryList } from "../archive-story-list";
 import { BrowseLoading } from "../browse-loading";
 import { shouldStreamBrowse } from "../../lib/browse-streaming";
 import { BrowseLayout } from "../topic-sidebar";
+import { PopularStories, PopularStoriesLoading } from "../popular-stories";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   };
 }
 
+async function LatestContent({ content }: { content: Promise<ReactNode> }) {
+  return await content;
+}
+
 async function Latest(props: Props) {
   const { month, page } = await selection(props);
   // Frozen ranked selections are obsolete; keep their public page destination.
@@ -66,15 +71,26 @@ async function Latest(props: Props) {
   const result =
     page > 1 || !(await shouldStreamBrowse()) ? await getArchiveStories(month, page) : undefined;
   if (page > 1 && result && result.stories.length === 0) notFound();
+  // Start required story data before optional popularity can occupy the reader pool.
+  const pendingContent = result ? undefined : ArchiveStoryList({ month, page });
   const content = result ? (
     await ArchiveStoryList({ month, page, result })
   ) : (
     <Suspense key={`${archiveURL(month)}:${page}`} fallback={<BrowseLoading />}>
-      <ArchiveStoryList month={month} page={page} />
+      <LatestContent content={pendingContent!} />
     </Suspense>
   );
   return (
-    <BrowseLayout active={month ? undefined : "home"}>
+    <BrowseLayout
+      active={month ? undefined : "home"}
+      rightSidebar={
+        month ? undefined : (
+          <Suspense fallback={<PopularStoriesLoading />}>
+            <PopularStories />
+          </Suspense>
+        )
+      }
+    >
       {month ? (
         <header className="feed-header archive-month-header">
           <div className="channel-path">
@@ -85,7 +101,7 @@ async function Latest(props: Props) {
       ) : (
         <h1 className="sr-only">Latest stories</h1>
       )}
-      {content}
+      <section aria-label="Latest stories">{content}</section>
     </BrowseLayout>
   );
 }

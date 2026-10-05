@@ -29,6 +29,7 @@ jest.unstable_mockModule("next/navigation", () => ({
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getReadyStoryPage,
   getArchiveStories,
+  getPopularStories: async () => [],
   getArchiveMonths: async () => [{ month: "2026-09" }],
   getCategoryStories,
   getCategoryCounts: async () => ({}),
@@ -51,10 +52,14 @@ function category(slug, page) {
   });
 }
 
-test("valid first browse pages expose Suspense before their story read", async () => {
+test("Latest starts its required read before optional data while category pages retain their streaming boundary", async () => {
   getReadyStoryPage.mockClear();
   getCategoryStories.mockClear();
+  getArchiveStories.mockClear();
+  const latest = await home(undefined);
   const topic = await category("agents-coding");
+  assert.equal(latest.props.children[1].props.children.type, Suspense);
+  assert.equal(getArchiveStories.mock.calls.length, 1);
   assert.equal(topic.type, Suspense);
   assert.equal(getReadyStoryPage.mock.calls.length, 0);
   assert.equal(getCategoryStories.mock.calls.length, 0);
@@ -114,14 +119,14 @@ test("Latest renders directly and obsolete root cursor requests redirect to the 
   getArchiveStories.mockClear();
   const first = await home(undefined);
   assert.notEqual(first.type, undefined);
-  assert.equal(getArchiveStories.mock.calls.length, 0);
+  assert.equal(getArchiveStories.mock.calls.length, 1);
   for (const [query, destination] of [
     [{ cursor: "obsolete" }, "/"],
     [{ page: "2", cursor: "obsolete" }, "/?page=2"],
     [{ cursor: ["one", "two"] }, "/"],
   ])
     await assert.rejects(home(undefined, query), { message: `redirect:${destination}` });
-  assert.equal(getArchiveStories.mock.calls.length, 0);
+  assert.equal(getArchiveStories.mock.calls.length, 1);
 });
 
 test("category search metadata is distinct, paginated, and available without a story read", async () => {

@@ -68,15 +68,22 @@ export function TopicSidebar({ active }: { active?: CategoryId | "home" }) {
 export function BrowseLayout({
   children,
   active,
+  rightSidebar,
 }: {
   children: React.ReactNode;
   active?: CategoryId | "home";
+  rightSidebar?: React.ReactNode;
 }) {
   return (
     <div className="browse-layout">
       <TopicSidebar active={active} />
-      <div className="browse-content" id="browse-content" tabIndex={-1}>
-        {children}
+      <div
+        className={rightSidebar ? "browse-content browse-content-with-sidebar" : "browse-content"}
+        id="browse-content"
+        tabIndex={-1}
+      >
+        {rightSidebar && <div className="browse-right-sidebar">{rightSidebar}</div>}
+        {rightSidebar ? <div className="browse-feed-content">{children}</div> : children}
       </div>
     </div>
   );

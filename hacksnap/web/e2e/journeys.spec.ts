@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 for (const route of ["/", "/archive", "/category/models-products"]) {
   test(`reading journey and native history from ${route}`, async ({ page }) => {
     await page.goto(route);
-    const card = page.getByRole("link", { name: title, exact: true });
+    const card = page.locator(".story-list").getByRole("link", { name: title, exact: true });
     await expect(card).toBeVisible();
     await card.click();
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
@@ -32,7 +32,7 @@ test("same-path listing entries retain their own feed depth across Back/Forward"
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: title, exact: true }).click();
+  await page.locator(".story-list").getByRole("link", { name: title, exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   // The wordmark opens a new Latest entry through the Next router, independently of
@@ -55,7 +55,9 @@ test("same-path listing entries retain their own feed depth across Back/Forward"
   await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await page.goBack();
-  await expect(page.getByRole("link", { name: title, exact: true })).toBeInViewport();
+  await expect(
+    page.locator(".story-list").getByRole("link", { name: title, exact: true }),
+  ).toBeInViewport();
   await page.goForward();
   await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
@@ -117,7 +119,7 @@ test("blocked storage and clipboard retain light appearance, navigation and manu
   expect(
     await page.locator("html").evaluate((node) => getComputedStyle(node).colorScheme),
   ).toContain("light");
-  await page.getByRole("link", { name: title, exact: true }).click();
+  await page.locator(".story-list").getByRole("link", { name: title, exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await page
@@ -131,7 +133,9 @@ test("blocked storage and clipboard retain light appearance, navigation and manu
   );
   await page.keyboard.press("Escape");
   await page.goBack();
-  await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
+  await expect(
+    page.locator(".story-list").getByRole("link", { name: title, exact: true }),
+  ).toBeVisible();
 });
 
 test("slow and failed optional recommendations preserve the article", async ({ page }) => {
@@ -164,12 +168,12 @@ test.describe("controlled continuation failure", () => {
       else await route.fallback();
     });
     await page.goto("/");
-    await page
-      .getByRole("link", { name: "Practical AI research update 15", exact: true })
-      .scrollIntoViewIfNeeded();
+    await page.locator(".home-feed-continuation").scrollIntoViewIfNeeded();
     const retry = page.getByRole("button", { name: "Try loading again", exact: true });
     await expect(retry).toBeVisible();
-    await expect(page.getByRole("link", { name: title, exact: true })).toHaveCount(1);
+    await expect(
+      page.locator(".story-list").getByRole("link", { name: title, exact: true }),
+    ).toHaveCount(1);
     fail = false;
     await retry.click();
     await expect(
@@ -265,7 +269,7 @@ test.describe("without JavaScript", () => {
     await page.goto("/");
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     await expect(page.getByRole("button", { name: /Switch to .* mode/ })).toHaveCount(0);
-    await page.getByRole("link", { name: title, exact: true }).click();
+    await page.locator(".story-list").getByRole("link", { name: title, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "TLDR;", exact: true })).toBeVisible();
@@ -283,7 +287,9 @@ test.describe("without JavaScript", () => {
       .getByRole("navigation", { name: "Breadcrumb" })
       .getByRole("link", { name: "Latest", exact: true })
       .click();
-    await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
+    await expect(
+      page.locator(".story-list").getByRole("link", { name: title, exact: true }),
+    ).toBeVisible();
   });
 });
 
@@ -301,7 +307,9 @@ test("feature routes remain reachable by keyboard", async ({ page }) => {
   expect(target!.height).toBeGreaterThanOrEqual(44);
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/category\/models-products$/);
-  await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
+  await expect(
+    page.locator(".story-list").getByRole("link", { name: title, exact: true }),
+  ).toBeVisible();
   const about = page
     .getByRole("navigation", { name: "Main navigation" })
     .getByRole("link", { name: "About", exact: true });
@@ -349,7 +357,7 @@ test("a delayed story navigation keeps the feed and announces progress", async (
     await route.fallback();
   });
   await page.goto("/");
-  const link = page.getByRole("link", { name: title, exact: true });
+  const link = page.locator(".story-list").getByRole("link", { name: title, exact: true });
   await link.click();
   try {
     await expect(link).toHaveAttribute("aria-busy", "true");
@@ -371,7 +379,9 @@ test("category and API documentation home links open Latest directly", async ({ 
   await browse.focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
+  await expect(
+    page.locator(".story-list").getByRole("link", { name: title, exact: true }),
+  ).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/category\/safety-privacy$/);
   await expect(browse).toBeVisible();
@@ -381,7 +391,9 @@ test("category and API documentation home links open Latest directly", async ({ 
   await back.focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
+  await expect(
+    page.locator(".story-list").getByRole("link", { name: title, exact: true }),
+  ).toBeVisible();
 });
 
 test("Latest owns root and dated canonicals while legacy archive URLs only redirect", async ({

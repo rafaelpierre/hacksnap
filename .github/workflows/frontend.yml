@@ -7,6 +7,7 @@ on:
       - "hacksnap/fixtures/**"
       - "data/migrations/versions/0012_discussion_analysis.py"
       - "data/migrations/versions/0018_discussion_themes_schema.py"
+      - "data/migrations/versions/0019_story_popularity.py"
       - ".github/workflows/frontend.yml"
   push:
     branches: [main]
@@ -15,6 +16,7 @@ on:
       - "hacksnap/fixtures/**"
       - "data/migrations/versions/0012_discussion_analysis.py"
       - "data/migrations/versions/0018_discussion_themes_schema.py"
+      - "data/migrations/versions/0019_story_popularity.py"
       - ".github/workflows/frontend.yml"
   workflow_dispatch:
   workflow_call:

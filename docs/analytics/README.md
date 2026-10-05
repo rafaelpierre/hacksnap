@@ -17,6 +17,7 @@ GA supplies pseudonymous reader/session IDs and device/acquisition dimensions.
 | --- | --- | --- |
 | reader_visit | Hydrated route occurrence | none |
 | story_view | Existing story page mounts | story_id |
+| story_click | Local story link activated by primary/keyboard/modified/middle click, once per visit and target story | story_id |
 | recommendation_exposure | At least 50% of a recommendation is visible, once per visit/source/target/position | story_id, target_story_id, position (1-based) |
 | recommendation_click | Recommendation link activated by primary/keyboard/middle click, once per opportunity | same as exposure |
 | share_menu_open | Closed menu opens | story_id |
@@ -57,6 +58,31 @@ Analytics calls are best effort, queue before GA loads, and catch failures. Navi
 and copying must remain functional with blocked scripts, storage, and analytics.
 
 ## Measures and reproducible analysis
+
+Homepage “Most read” ranks eligible story pages by historical GA page views
+plus first-party story-page views. Clicks are collected separately and never
+added to the view ranking. This feature does not change the GA engagement
+denominators below.
+
+The initial supplied GA report contains six story paths, totalling 392 **Views**:
+49802871 (322), 49849985 (20), 49849820 (18), 49765348 (12), 49891290 (12),
+and 49771110 (8). Ignore the report's homepage, archive, category and preview
+rows, Active users and Event count columns. This is a `ga_page_views` baseline,
+not a historical custom `story_view` event count. The supplied date range is
+“since website deployment”; exact start and cutoff timestamps were not supplied.
+The seed retains all six stories so the current sixth can compete with the top
+five.
+
+Import the snapshot before enabling the first-party writer connection. Refresh
+the export before activation when possible: activity between the supplied
+snapshot and collection activation is unmeasured. Repeat imports replace
+historical totals, preserving first-party totals, and must never include events
+already counted by first-party collection.
+
+First-party delivery is best effort and independent of the lazy GA download.
+Client-side measurements miss JavaScript-disabled or blocked collection and
+are not unique-reader counts. See [web configuration](../../hacksnap/web/README.md)
+and the [historical import](../../data/seeds/README.md) for setup and rollout.
 
 Run [engagement.sql](engagement.sql) against completed GA4 BigQuery daily exports.
 Replace the dataset and example dates; dates in the SQL are placeholders, not recorded

@@ -12,6 +12,7 @@ const fail = async () => {
 };
 const getStory = jest.fn(fail);
 const getRelatedStories = jest.fn(fail);
+const getArchiveStories = jest.fn(fail);
 jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
   shouldStreamBrowse: async () => true,
 }));
@@ -20,12 +21,13 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
   getMarkdownLeaderboard: fail,
   getStoryMetrics: fail,
   getReadyStoryPage: fail,
+  getPopularStories: fail,
   getStory,
   getRelatedStories,
   getFeedStories: fail,
   getRssStories: fail,
   getArchiveMonths: fail,
-  getArchiveStories: fail,
+  getArchiveStories,
   getCategoryCounts: fail,
   getCategoryStories: fail,
   getSitemapStories: fail,
@@ -91,6 +93,22 @@ test("frontend pages render a recoverable outage while invalid routes remain 404
   await assert.rejects(
     Home({ params: Promise.resolve({ path: ["missing"] }) }),
     (error) => error === notFound,
+  );
+});
+
+test("a popularity outage remains optional while the required homepage feed is available", async () => {
+  const { default: Home } = await import("../app/[[...path]]/page.tsx");
+  const { PopularStories } = await import("../app/popular-stories.tsx");
+  getArchiveStories.mockResolvedValueOnce({ stories: [], hasNext: false });
+  const page = await Home({ params: Promise.resolve({}), searchParams: Promise.resolve({}) });
+  const deferredFeed = page.props.children[1].props.children.props.children;
+  const feed = await deferredFeed.type(deferredFeed.props);
+  assert.ok(feed);
+  assert.notEqual(feed.type, (await import("../app/data-unavailable.tsx")).DataUnavailable);
+  const sidebar = await PopularStories();
+  assert.equal(
+    sidebar.props.children.props.children,
+    "Most read stories are temporarily unavailable.",
   );
 });
 
