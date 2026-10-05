@@ -254,7 +254,7 @@ test("obsolete ranked cursors redirect to indexable Latest pagination", async ({
 });
 
 test.describe("without JavaScript", () => {
-  test.use({ javaScriptEnabled: false, colorScheme: "dark" });
+  test.use({ javaScriptEnabled: false });
   test("Latest starts with fifteen stories and the next page remains reachable", async ({
     page,
   }) => {

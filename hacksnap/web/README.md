@@ -42,8 +42,8 @@ share the type, space and layout tokens; future component work should reuse them
 Text uses rem units and wrapping layouts to respect enlarged browser text.
 
 Run `npm run test:theme`, `npm run typecheck` and `npm run build`. Check the shell,
-feeds and story at 320px and desktop widths with light and dark OS settings, including 200% text,
-keyboard focus, OS appearance changes, saved preferences and blocked storage.
+feeds and story at 320px and desktop widths in the fixed light appearance, including 200% text,
+keyboard focus and blocked storage.
 
 ## Story URLs
 
