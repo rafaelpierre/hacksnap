@@ -4,6 +4,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { recordVisit, track } from "../lib/analytics";
 import { markStoryOpened } from "../lib/story-history";
+import { storyIdFromSlug } from "../lib/story-url";
 
 export function ReaderVisit() {
   const path = usePathname();
@@ -12,6 +13,31 @@ export function ReaderVisit() {
   }, [path]);
   useEffect(() => {
     recordVisit();
+    function storyClick(event: MouseEvent) {
+      if (
+        (event.type === "click" && event.button !== 0) ||
+        (event.type === "auxclick" && event.button !== 1)
+      )
+        return;
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest<HTMLAnchorElement>("a[href]");
+      if (!link) return;
+      try {
+        const url = new URL(link.href, window.location.href);
+        if (url.origin !== window.location.origin) return;
+        const match = /^\/story\/([^/]+)\/?$/.exec(url.pathname);
+        const id = match ? storyIdFromSlug(match[1]) : null;
+        if (id) track("story_click", { story_id: id }, `story-click:${id}`);
+      } catch {
+        /* Malformed and unrelated links are not story activations. */
+      }
+    }
+    document.addEventListener("click", storyClick, true);
+    document.addEventListener("auxclick", storyClick, true);
+    return () => {
+      document.removeEventListener("click", storyClick, true);
+      document.removeEventListener("auxclick", storyClick, true);
+    };
   }, []);
   return null;
 }

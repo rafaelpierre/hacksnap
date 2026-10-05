@@ -28,6 +28,7 @@ function story(hn_id: string): Story {
 }
 
 jest.unstable_mockModule("../lib/data.ts", () => ({
+  getPopularStories: async () => [],
   getArchiveMonths: async () => {
     events.push("months");
     if (monthsFailure) throw monthsFailure;
@@ -53,6 +54,7 @@ jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
   shouldStreamBrowse: async () => streamBrowse,
 }));
 jest.unstable_mockModule("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({ href, children }: { href: string; children: React.ReactNode }) =>
     React.createElement("a", { href }, children),
 }));
@@ -84,17 +86,17 @@ function props(date?: string[], page?: string) {
   };
 }
 
-function archiveListElement(node: React.ReactNode): React.ReactElement | undefined {
+function deferredListElement(node: React.ReactNode): React.ReactElement | undefined {
   if (!React.isValidElement(node)) return undefined;
-  if (node.type === ArchiveStoryList) return node;
+  if ((node.props as { content?: unknown }).content instanceof Promise) return node;
   const children = (node.props as { children?: React.ReactNode }).children;
   if (Array.isArray(children)) {
     for (const child of children) {
-      const found = archiveListElement(child);
+      const found = deferredListElement(child);
       if (found) return found;
     }
   }
-  return archiveListElement(children);
+  return deferredListElement(children);
 }
 
 function storyFeedElement(
@@ -141,23 +143,25 @@ test("dated archives retain their visible month heading", async () => {
   assert.deepEqual(heading.props, { children: "September 2026" });
 });
 
-test("latest archive renders the deferred list without starting a story read", async () => {
+test("Latest starts its required story read before optional popularity and retains a streaming boundary", async () => {
   events.length = 0;
   const shell = await ArchivePage(props());
-  const list = archiveListElement(shell);
+  const list = deferredListElement(shell);
   assert.ok(list);
-  assert.deepEqual(list.props, { month: null, page: 1 });
-  assert.deepEqual(events, []);
+  const feed = await (list.props as { content: Promise<React.ReactElement> }).content;
+  assert.equal(feed.type, MockStoryFeed);
+  assert.deepEqual(events, ["stories:latest:1"]);
 });
 
 test("dated pages validate month existence before reading stories", async () => {
   events.length = 0;
   archiveResult = { stories: [], hasNext: false };
   const shell = await ArchivePage(props(["2026", "09"]));
-  const list = archiveListElement(shell);
+  const list = deferredListElement(shell);
   assert.ok(list);
-  assert.deepEqual(list.props, { month: "2026-09", page: 1 });
-  assert.deepEqual(events, ["months"]);
+  const feed = await (list.props as { content: Promise<React.ReactElement> }).content;
+  assert.equal(feed.type, MockStoryFeed);
+  assert.deepEqual(events, ["months", "stories:2026-09:1"]);
 
   events.length = 0;
   archiveMonths = [];

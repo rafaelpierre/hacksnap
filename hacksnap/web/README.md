@@ -80,6 +80,52 @@ the corresponding root or dated feed and never appear in sitemap entries or
 public navigation. These routes remain crawlable so search engines can follow
 the redirects; `robots.txt` does not block them.
 
+## Lifetime most-read stories
+
+The homepage includes a separate “Most read · All time” list of up to five
+stories. Wide screens place it to the right of the feed; narrower layouts keep
+it available as a compact block above the feed. Dated archive and topic pages
+retain their existing layout. Links use the stored canonical story slug.
+
+Ranking uses `historical_views + story_views`, with HN ID descending as the tie
+breaker, across ready story summaries including archived stories. The primary
+Latest feed retains its chronological order and pagination. Popularity is an
+optional server read with a five-minute cache; an empty list or unavailable
+database has its own message and must not replace the main feed.
+
+First-party `POST /api/story-events` requests contain only `kind` (`view` or
+`click`), `story_id`, and a random per-route `visit_id`. Story-page visits come
+from the existing valid-story mount lifecycle. Ordinary, keyboard, modified and
+middle-click story-link activations are recorded separately, once per route and
+target story. Clicks never contribute to the view total. Rerenders, effect replay
+and query-only changes do not add views; returning to a story or reloading does.
+Collection is best effort and independent of Google Analytics. No JavaScript
+means ordinary links work, but these client events are not recorded.
+
+Migration `0019_story_popularity` adds separate historical/live counters and
+event receipts, with RLS and narrowly scoped grants. The website reader stays
+SELECT-only and cannot read the receipts. The new `hacksnap_counter` role can
+write live counters and receipts; it cannot change historical counts. Provision
+its LOGIN/password separately and configure server-only
+`HACKSNAP_POPULARITY_DATABASE_URL` with verified TLS. Never put it in a
+`NEXT_PUBLIC_*` setting or use an administrator connection for web collection.
+Leaving this setting unset disables collection without interrupting reading.
+
+Requests must be same-origin JSON and at most 1 KiB. A per-instance ceiling of
+120 events per minute and eight pending writes bounds anonymous bursts. It is
+not a distributed anti-abuse limit or proof of human readership. Event receipts
+contain route UUIDs, story IDs, event kinds and receipt times, with no stored IPs
+or persistent reader identity, and are retained for duplicate detection.
+
+Apply the migration, preview and import the historical seed, then enable the
+writer connection. The supplied seed has six story pages and 392 standard GA
+Views, with an unspecified exact export cutoff. Counts therefore represent the
+supplied baseline plus observed live activity. Refresh the GA snapshot before
+activation when possible; otherwise the intervening interval is unmeasured.
+See [the importer](../../data/seeds/README.md) for safe preview and replacement
+commands. Roll back collection by removing the writer setting; preserve
+accumulated tables and counts.
+
 ## Latest continuation and return navigation
 
 `/` renders the canonical Latest feed. `/?page=N` serves subsequent pages, and
