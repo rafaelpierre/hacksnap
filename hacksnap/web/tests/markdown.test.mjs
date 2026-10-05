@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "@jest/globals";
 import {
   acceptsMarkdown,
+  isAiAgent,
   leaderboardMarkdown,
   storyMarkdown,
   markdownResponse,
@@ -130,10 +131,34 @@ test("Markdown homepage excludes pending and blank takeaways from entries and co
   assert.doesNotMatch(empty, /###|Summary pending/);
 });
 
-test("Markdown responses identify their representation and vary on Accept", async () => {
+test("AI agent detection accepts product tokens and rejects lookalikes", () => {
+  for (const token of [
+    "ChatGPT-User",
+    "OAI-SearchBot",
+    "GPTBot",
+    "Claude-User",
+    "Claude-SearchBot",
+    "ClaudeBot",
+    "PerplexityBot",
+    "Perplexity-User",
+  ]) {
+    assert.equal(isAiAgent(token), true, token);
+    assert.equal(
+      isAiAgent(`Mozilla/5.0 (compatible; ${token}/1.0; +https://example.com/bot)`),
+      true,
+    );
+    assert.equal(isAiAgent(token.toLowerCase()), true);
+    assert.equal(isAiAgent(`Fake${token}/1.0`), false);
+    assert.equal(isAiAgent(`${token}-Extra/1.0`), false);
+  }
+  for (const ua of [null, "", "Mozilla/5.0 Chrome/131.0 Safari/537.36", "Googlebot/2.1"])
+    assert.equal(isAiAgent(ua), false, String(ua));
+});
+
+test("Markdown responses identify their representation and vary on Accept and User-Agent", async () => {
   const response = markdownResponse("# Example\n");
   assert.equal(response.headers.get("content-type"), "text/markdown; charset=utf-8");
-  assert.equal(response.headers.get("vary"), "Accept");
+  assert.equal(response.headers.get("vary"), "Accept, User-Agent");
   assert.equal(await response.text(), "# Example\n");
   const unavailable = markdownResponse("# Unavailable\n", 503);
   assert.equal(unavailable.status, 503);

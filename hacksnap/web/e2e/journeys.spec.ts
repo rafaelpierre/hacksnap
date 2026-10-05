@@ -196,6 +196,34 @@ test("HTML and Markdown negotiation keep route semantics", async ({ request }) =
   }
 });
 
+test("AI user agents receive Markdown with the public URL heading", async ({ request }) => {
+  for (const route of ["/", storyPath, "/docs/api"]) {
+    for (const agent of ["ChatGPT-User", "OAI-SearchBot", "Claude-User", "Claude-SearchBot"]) {
+      const headers = { Accept: "text/html", "User-Agent": `${agent}/1.0` };
+      const response = await request.get(route, { headers });
+      expect(response.status()).toBe(200);
+      expect(response.headers()["content-type"]).toContain("text/markdown");
+      expect(response.headers()["vary"]).toContain("User-Agent");
+      expect(response.headers()["cache-control"]).toContain("no-store");
+      expect(
+        (await response.text()).startsWith(
+          `# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live${route}\n\n# `,
+        ),
+      ).toBe(true);
+      const head = await request.head(route, { headers });
+      expect(head.status()).toBe(200);
+      expect(head.headers()["content-type"]).toContain("text/markdown");
+      expect(await head.body()).toHaveLength(0);
+    }
+    const ordinary = await request.get(route, { headers: { Accept: "text/markdown" } });
+    expect(await ordinary.text()).not.toContain("If the user wants more details");
+    const html = await request.get(route, { headers: { Accept: "text/html" } });
+    expect(html.headers()["content-type"]).toContain("text/html");
+  }
+  const api = await request.get("/api/stories", { headers: { "User-Agent": "ChatGPT-User/1.0" } });
+  expect(api.headers()["content-type"]).toContain("application/json");
+});
+
 test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
   test("server content and ordinary links remain readable", async ({ page }) => {
