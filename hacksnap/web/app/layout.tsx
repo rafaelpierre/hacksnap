@@ -3,10 +3,8 @@ import Link from "next/link";
 import { Rss } from "lucide-react";
 import Script from "next/script";
 import localFont from "next/font/local";
-import { ThemeToggle } from "./theme-toggle";
 import { StickyHeader } from "./sticky-header";
 import { MainNavigation } from "./main-navigation";
-import { themeInitScript } from "../lib/theme";
 import { analyticsBootstrap } from "../lib/analytics-bootstrap";
 import "./globals.css";
 import { ReaderVisit } from "./journey-analytics";
@@ -54,12 +52,7 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      data-theme="system"
-      className={`${headlines.variable} ${reading.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="en" className={`${headlines.variable} ${reading.variable}`}>
       <head>
         <script
           type="application/ld+json"
@@ -72,8 +65,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             }),
           }}
         />
-        {/* Apply the appearance preference before paint, including on cached pages. */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
         {/* Queue visits early; fetch GA only after the reader interacts. */}
@@ -101,7 +92,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <a className="rss-link" href="/feed.xml" aria-label="RSS feed" title="RSS feed">
                   <Rss size={18} strokeWidth={1.75} aria-hidden="true" />
                 </a>
-                <ThemeToggle />
               </div>
             </div>
           </div>
