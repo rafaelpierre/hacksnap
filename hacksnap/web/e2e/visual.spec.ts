@@ -28,7 +28,7 @@ for (const width of [320, 1280])
           const latest = route === "/" || route.startsWith("/?category=");
           if (latest) await expect(page.getByRole("heading", { level: 1 })).toBeAttached();
           else await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-          if (route.startsWith("/category/")) {
+          if (route.startsWith("/?category=")) {
             await expect(page.locator(".story-list .category-badge")).toHaveCount(0);
             await expect(page.locator(".story-list .story-context")).toHaveCount(0);
           } else if (latest || route === "/2026/01") {

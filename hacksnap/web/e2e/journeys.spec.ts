@@ -581,3 +581,33 @@ for (const returnName of ["Models & Products", "Back to Models & Products · pag
     await expect.poll(() => page.evaluate(() => Math.abs(window.scrollY - 900))).toBeLessThan(4);
   });
 }
+
+test("category-only navigation and history create distinct analytics visits", async ({ page }) => {
+  const visits = () =>
+    page.evaluate(() => {
+      const layer = (window as Window & { dataLayer?: Array<ArrayLike<unknown>> }).dataLayer ?? [];
+      return layer
+        .map((row) => Array.from(row))
+        .filter((row) => row[0] === "event" && row[1] === "reader_visit")
+        .map((row) => (row[2] as { visit_id: string }).visit_id);
+    });
+  await page.goto("/");
+  await expect.poll(async () => (await visits()).length).toBe(1);
+  const topics = page.getByRole("navigation", { name: "Topics", exact: true });
+  await topics.getByRole("link", { name: "Models & Products", exact: true }).click();
+  await expect(page).toHaveURL(/category=models-products$/);
+  await expect.poll(async () => (await visits()).length).toBe(2);
+  await topics.getByRole("link", { name: "Agents & Coding", exact: true }).click();
+  await expect(page).toHaveURL(/category=agents-coding$/);
+  await expect.poll(async () => (await visits()).length).toBe(3);
+  await page.goBack();
+  await expect(page).toHaveURL(/category=models-products$/);
+  await expect.poll(async () => (await visits()).length).toBe(4);
+  await page.goForward();
+  await expect(page).toHaveURL(/category=agents-coding$/);
+  await expect.poll(async () => (await visits()).length).toBe(5);
+  await page.getByRole("link", { name: "All stories (clear topic filter)" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect.poll(async () => (await visits()).length).toBe(6);
+  expect(new Set(await visits()).size).toBe(6);
+});

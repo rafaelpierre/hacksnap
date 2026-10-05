@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "@jest/globals";
-import { createJourney, track } from "../lib/analytics.ts";
+import { analyticsRouteIdentity, createJourney, track } from "../lib/analytics.ts";
 
 function fixture() {
   const events = [];
@@ -98,6 +98,43 @@ test("browser calls queue before GA, dispatch to GA when available, and tolerate
       throw Error("blocked");
     };
     assert.doesNotThrow(() => track("share_copy_failure", { copy_kind: "post" }));
+  } finally {
+    if (previous === undefined) delete globalThis.window;
+    else globalThis.window = previous;
+  }
+});
+
+test("track uses the same query-aware route identity for actions and reader visits", () => {
+  const previous = globalThis.window;
+  const events = [];
+  try {
+    globalThis.window = {
+      location: { pathname: "/", search: "" },
+      gtag: (_command, name, params) => events.push({ name, ...params }),
+    };
+    for (const search of [
+      "",
+      "?category=agents-coding",
+      "?category=models-products",
+      "?category=models-products&page=2",
+      "?page=2&category=models-products",
+      "?category=models-products&page=2&journey=temporary",
+      "",
+    ]) {
+      window.location.search = search;
+      track("home_feed_end", { outcome: "exhausted" }, "end");
+    }
+    const visits = events.filter((event) => event.name === "reader_visit");
+    const actions = events.filter((event) => event.name === "home_feed_end");
+    assert.equal(visits.length, 5);
+    assert.equal(actions.length, 5);
+    assert.deepEqual(
+      actions.map((event) => event.visit_id),
+      visits.map((event) => event.visit_id),
+    );
+    assert.equal(new Set(visits.map((event) => event.visit_id)).size, 5);
+    assert.equal(JSON.stringify(events).includes("models-products"), false);
+    assert.equal(analyticsRouteIdentity("/story/42", "?journey=temporary"), "/story/42");
   } finally {
     if (previous === undefined) delete globalThis.window;
     else globalThis.window = previous;

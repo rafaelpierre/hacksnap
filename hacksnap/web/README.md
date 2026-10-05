@@ -837,3 +837,11 @@ CI stores screenshots, failure traces and route measurements for 14 days. See
 [`docs/performance/issue-148-browser-regressions.md`](../../docs/performance/issue-148-browser-regressions.md)
 for scenario coverage, measurement definitions, budget review and the release
 screen-reader checklist. The existing Jest and production build jobs remain gates.
+
+Category-only and paginated navigations use pathname plus sorted search parameters
+as the analytics route identity, shared by ReaderVisit and event tracking. Each
+route occurrence gets a new visit ID and reader_visit; rerenders and reordered
+query parameters deduplicate. Transient journey tokens are excluded, and query
+values are never added to engagement event fields. Filtered feeds retain the
+category-card preference from main: category labels appear on Latest and dated
+feeds and are hidden on a selected topic’s cards.

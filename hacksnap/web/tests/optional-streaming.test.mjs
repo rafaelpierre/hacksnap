@@ -74,6 +74,7 @@ jest.unstable_mockModule("next/navigation", () => ({
     throw Object.assign(new Error("redirect"), { url });
   },
   usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({}),
 }));
 

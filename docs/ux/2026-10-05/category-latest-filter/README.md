@@ -18,3 +18,7 @@ The UI retains the site's light appearance under both OS settings.
 
 The existing category/page data cache and indexed query remain unchanged.
 No production latency or database-load improvement is claimed.
+
+Filtered cards hide their category labels, matching the current topic-card
+setting. Analytics regression tests verify query-only topic navigation and
+Back/Forward each create a distinct reader visit and visit ID.

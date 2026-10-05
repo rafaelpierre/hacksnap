@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Rss } from "lucide-react";
@@ -82,7 +83,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Script id="google-analytics" strategy="beforeInteractive">
           {analyticsBootstrap}
         </Script>
-        <ReaderVisit />
+        <Suspense fallback={null}>
+          <ReaderVisit />
+        </Suspense>
         <a className="skip-link skip-main" href="#main">
           Skip to content
         </a>

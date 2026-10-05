@@ -34,6 +34,7 @@ export async function ArchiveStoryList({
     <StoryFeed
       key={`${listingPath}:${page}`}
       listingPath={listingPath}
+      showCategory={!category}
       initialStories={response.value.stories.map(publicFeedStory)}
       initialPagination={browsePagination(page, response.value.hasNext)}
       emptyState={
