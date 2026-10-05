@@ -88,8 +88,8 @@ export function storyPreviewMetadata(
     summary: PreviewSummary | null;
   },
 ): Metadata {
-  // Clip only the source headline so the reaction positioning and brand always survive.
-  const title = `${previewText(story.title, 60)} — Hacker News reactions`;
+  // Keep preview headlines compact while retaining the brand in the SEO title.
+  const title = previewText(story.title, 60);
   const pageTitle = `${title} | Hacksnap`;
   const reaction = reactionDescription(story.summary);
   const description = previewText(reaction, 155);

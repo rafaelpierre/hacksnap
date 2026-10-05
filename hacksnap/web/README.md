@@ -256,10 +256,9 @@ timestamp. They remain stable between content writes; requests do not advance th
 The homepage omits `lastmod` because its ranking can change with time without a
 database write. `changefreq` and `priority` are intentionally omitted.
 
-Story SEO titles use `<headline> — Hacker News reactions | Hacksnap`, keeping the
-original article title as the H1. Only the headline is shortened (to 60 characters),
-so the reaction label and brand are retained. Open Graph and Twitter titles also
-include the reaction label. Descriptions use the actual sampled-comment count and
+Story SEO titles use `<headline> | Hacksnap`, keeping the original article title
+as the H1. Preview headlines are shortened to 60 characters. Open Graph and
+Twitter titles use the shortened headline without an added reaction label. Descriptions use the actual sampled-comment count and
 up to three existing discussion-point titles, with 155-character search and
 125-character social targets. Discussion-only summaries do not claim article
 coverage, and zero-comment samples are identified explicitly. Each story also
