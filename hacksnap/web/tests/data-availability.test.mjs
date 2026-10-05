@@ -65,13 +65,13 @@ test("frontend pages render a recoverable outage while invalid routes remain 404
   const { DataUnavailable } = await import("../app/data-unavailable.tsx");
   for (const [path, params] of [
     ["../app/[[...path]]/page.tsx", {}],
-    ["../app/category/[slug]/page.tsx", { slug: "agents-coding" }],
+    ["../app/[[...path]]/page.tsx", { category: "agents-coding" }],
     ["../app/story/[id]/page.tsx", { id: "123" }],
   ]) {
     const { default: Page } = await import(path);
     const element = await Page({
       params: Promise.resolve(params),
-      searchParams: Promise.resolve({}),
+      searchParams: Promise.resolve(params.category ? { category: params.category } : {}),
     });
     // Initial feeds now defer the required read behind Suspense. Resolve only
     // async server children; client components must remain uninvoked here.
@@ -101,7 +101,7 @@ test("a popularity outage remains optional while the required homepage feed is a
   const { PopularStories } = await import("../app/popular-stories.tsx");
   getArchiveStories.mockResolvedValueOnce({ stories: [], hasNext: false });
   const page = await Home({ params: Promise.resolve({}), searchParams: Promise.resolve({}) });
-  const deferredFeed = page.props.children[1].props.children.props.children;
+  const deferredFeed = page.props.children.at(-1).props.children.props.children;
   const feed = await deferredFeed.type(deferredFeed.props);
   assert.ok(feed);
   assert.notEqual(feed.type, (await import("../app/data-unavailable.tsx")).DataUnavailable);

@@ -34,6 +34,7 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
     if (monthsFailure) throw monthsFailure;
     return archiveMonths;
   },
+  getCategoryStories: async () => ({ stories: [], hasNext: false }),
   getArchiveStories: async (month: string | null, page: number) => {
     events.push(`stories:${month ?? "latest"}:${page}`);
     if (archiveFailure) throw archiveFailure;

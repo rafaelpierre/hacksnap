@@ -1,4 +1,4 @@
-import { categoryBySlug } from "./categories.ts";
+import { categoryBySlug, categoryURL } from "./categories.ts";
 import { archivePage, monthLabel } from "./archive.ts";
 
 export type BrowseContext = { url: string; label: string; scrollY: number; savedAt: number };
@@ -14,11 +14,18 @@ export function browseLabel(url: string): string | null {
   }
   if (parsed.origin !== "https://hacksnap.invalid" || parsed.hash) return null;
   const params = [...parsed.searchParams.keys()];
-  if (params.some((key) => key !== "page") || params.filter((key) => key === "page").length > 1)
+  if (
+    params.some((key) => !["page", "category"].includes(key)) ||
+    new Set(params).size !== params.length
+  )
     return null;
   const page = parsed.searchParams.get("page");
   if (archivePage(page ?? undefined) === null) return null;
+  const slug = parsed.searchParams.get("category");
+  const selected = slug === null ? null : categoryBySlug(slug);
+  if (slug !== null && (!selected || parsed.pathname !== "/")) return null;
   if (parsed.pathname === "/") {
+    if (selected) return `${selected.label}${page && page !== "1" ? ` · page ${page}` : ""}`;
     return page && page !== "1" ? `Latest stories · page ${page}` : "Latest stories";
   }
   const pageSuffix = page && page !== "1" ? ` · page ${page}` : "";
@@ -27,6 +34,18 @@ export function browseLabel(url: string): string | null {
   const match = /^\/category\/([a-z-]+)$/.exec(parsed.pathname);
   const category = match && categoryBySlug(match[1]);
   return category ? `${category.label}${pageSuffix}` : null;
+}
+
+// Migrate only validated legacy category destinations; page and topic isolation
+// still apply to every stored context and feed snapshot.
+export function normalizedBrowseURL(url: string): string | null {
+  if (!url.startsWith("/") || url.startsWith("//") || !browseLabel(url)) return null;
+  const parsed = new URL(url, "https://hacksnap.invalid");
+  const match = /^\/category\/([a-z-]+)$/.exec(parsed.pathname);
+  const category = match && categoryBySlug(match[1]);
+  return category
+    ? categoryURL(category, archivePage(parsed.searchParams.get("page") ?? undefined)!)
+    : url;
 }
 
 export function validBrowseContext(value: unknown, now = Date.now()): BrowseContext | null {
@@ -53,5 +72,7 @@ export function validBrowseContext(value: unknown, now = Date.now()): BrowseCont
     context.scrollY < 0
   )
     return null;
-  return { url: context.url, label, scrollY: context.scrollY, savedAt: context.savedAt };
+  const url = normalizedBrowseURL(context.url);
+  if (!url) return null;
+  return { url, label: browseLabel(url)!, scrollY: context.scrollY, savedAt: context.savedAt };
 }

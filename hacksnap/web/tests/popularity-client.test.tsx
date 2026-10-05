@@ -63,6 +63,7 @@ test("transport sends only the public event payload and tolerates absent or fail
 
 jest.unstable_mockModule("next/navigation", () => ({
   usePathname: () => window.location.pathname,
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 
 test("reader captures canonical story activations without changing navigation or counting non-story links", async () => {

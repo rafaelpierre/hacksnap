@@ -33,7 +33,10 @@ test("all topic filters and archive months use the existing readers and public p
   for (const [path, filter] of [
     ["/", null],
     ["/2026/09", "2026-09"],
-    ...CATEGORIES.map((category) => [`/category/${category.slug}`, category.id]),
+    ...CATEGORIES.flatMap((category) => [
+      [`/category/${category.slug}`, category.id],
+      [`/?category=${category.slug}`, category.id],
+    ]),
   ]) {
     const response = await handler(request(new URLSearchParams({ path, page: "2" })));
     assert.equal(response.status, 200);
@@ -113,6 +116,10 @@ test("invalid listing requests fail before data access and failures are sanitize
     "path=/&page=2&page=3",
     "path=/&path=/category/agents-coding",
     "path=/&cursor=anything",
+    "path=" + encodeURIComponent("/?category=unknown"),
+    "path=" + encodeURIComponent("/?category=agents-coding&category=models-products"),
+    "path=" + encodeURIComponent("/2026/09?category=agents-coding"),
+    "path=" + encodeURIComponent("/?category=agents-coding&page=2"),
   ])
     assert.equal((await handler(request(query))).status, 400, query);
   assert.equal(calls, 0);

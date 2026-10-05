@@ -18,6 +18,7 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
   getRelatedStories: async () => [],
   getLeaderboard: async () => ({ stories: [], ingestion: null }),
   getArchiveMonths: async () => [],
+  getCategoryStories: async () => ({ stories: [], hasNext: false }),
   getArchiveStories: async () => ({ stories: [], hasNext: false }),
   getStoryMetrics: async () => null,
 }));
@@ -31,6 +32,7 @@ jest.unstable_mockModule("next/navigation", () => ({
     throw Object.assign(new Error("redirect"), { url });
   },
   usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({}),
 }));
 const { default: Page, generateMetadata } = await import("../app/story/[id]/page.tsx");

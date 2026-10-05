@@ -1,4 +1,5 @@
 import { test, expect, title, storyPath } from "./browser";
+import { packFeedSnapshot, validFeedPage, type FeedSnapshot } from "../lib/feed-state";
 import AxeBuilder from "@axe-core/playwright";
 
 for (const route of ["/", "/archive", "/category/models-products"]) {
@@ -15,7 +16,15 @@ for (const route of ["/", "/archive", "/category/models-products"]) {
       .getByRole("navigation", { name: "Breadcrumb" })
       .getByRole("link", { name: returnName, exact: true })
       .click();
-    await expect(page).toHaveURL((url) => url.pathname === (route === "/archive" ? "/" : route));
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname + url.search ===
+        (route === "/archive"
+          ? "/"
+          : route === "/category/models-products"
+            ? "/?category=models-products"
+            : route),
+    );
     await expect(card).toBeVisible();
     await card.click();
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
@@ -306,7 +315,7 @@ test("feature routes remain reachable by keyboard", async ({ page }) => {
   const target = await category.boundingBox();
   expect(target!.height).toBeGreaterThanOrEqual(44);
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/category\/models-products$/);
+  await expect(page).toHaveURL(/\/\?category=models-products$/);
   await expect(
     page.locator(".story-list").getByRole("link", { name: title, exact: true }),
   ).toBeVisible();
@@ -344,7 +353,7 @@ test("desktop topics stay left of the feed and close to the header", async ({ pa
   const bounds = await lastTopic.boundingBox();
   expect(bounds!.height).toBeGreaterThanOrEqual(44);
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/category\/industry-society$/);
+  await expect(page).toHaveURL(/\/\?category=industry-society$/);
 });
 
 test("a delayed story navigation keeps the feed and announces progress", async ({ page }) => {
@@ -373,7 +382,10 @@ test("a delayed story navigation keeps the feed and announces progress", async (
 test("category and API documentation home links open Latest directly", async ({ page }) => {
   await page.goto("/category/safety-privacy");
   await expect(page.getByRole("heading", { name: "No stories in this topic yet." })).toBeVisible();
-  await expect(page.locator(".channel-path, .category-header, .feed-bar")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/\?category=safety-privacy$/);
+  await expect(
+    page.getByRole("link", { name: "All stories (clear topic filter)" }),
+  ).toHaveAttribute("href", "/");
   const browse = page.getByRole("link", { name: "Browse latest stories" });
   await expect(browse).toHaveAttribute("href", "/");
   await browse.focus();
@@ -383,7 +395,7 @@ test("category and API documentation home links open Latest directly", async ({ 
     page.locator(".story-list").getByRole("link", { name: title, exact: true }),
   ).toBeVisible();
   await page.goBack();
-  await expect(page).toHaveURL(/\/category\/safety-privacy$/);
+  await expect(page).toHaveURL(/\/\?category=safety-privacy$/);
   await expect(browse).toBeVisible();
   await page.goto("/docs/api");
   const back = page.locator("main .back-link");
@@ -425,4 +437,177 @@ test("Latest owns root and dated canonicals while legacy archive URLs only redir
   expect(xml).toContain("<loc>https://hacksnap.live/</loc>");
   expect(xml).toContain("<loc>https://hacksnap.live/2026/01</loc>");
   expect(xml).not.toContain("/archive");
+});
+
+test("topic filters reuse Latest and retain selection through paging and history", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/?page=2");
+  await page
+    .getByRole("navigation", { name: "Topics", exact: true })
+    .getByRole("link", { name: "Models & Products" })
+    .click();
+  await expect(page).toHaveURL(/\/\?category=models-products$/);
+  await expect(
+    page.getByRole("heading", { name: "Latest stories — Models & Products" }),
+  ).toBeAttached();
+  const topic = page
+    .getByRole("navigation", { name: "Topics", exact: true })
+    .getByRole("link", { name: "Models & Products" });
+  await expect(topic).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "Older stories", exact: true })).toHaveAttribute(
+    "href",
+    "/?category=models-products&page=2",
+  );
+  await page.getByRole("link", { name: "All stories (clear topic filter)" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/\?category=models-products$/);
+  await expect(topic).toHaveAttribute("aria-current", "page");
+  await page.goForward();
+  await expect(page).toHaveURL(/\/$/);
+  for (const query of [
+    "category=unknown",
+    "category=",
+    "category=agents-coding&category=models-products",
+    "category=agents-coding&page=101",
+  ]) {
+    expect((await request.get(`/?${query}`)).status()).toBe(404);
+  }
+  await page.goto("/?category=models-products&page=2");
+  // Follow the story title using the existing card heading link.
+  const storyLink = page.locator(".story-list h3 a").first();
+  await storyLink.click();
+  const topicReturn = page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Models & Products", exact: true });
+  await expect(topicReturn).toHaveAttribute("href", "/?category=models-products&page=2");
+  await topicReturn.click();
+  await expect(page).toHaveURL(/category=models-products&page=2$/);
+  const legacy = await request.get("/category/models-products?page=2", { maxRedirects: 0 });
+  expect(legacy.status()).toBe(308);
+  expect(legacy.headers().location).toBe("/?category=models-products&page=2");
+});
+
+for (const returnName of ["Models & Products", "Back to Models & Products · page 2"]) {
+  test(`legacy saved category journey survives bundle reload via ${returnName}`, async ({
+    page,
+    request,
+  }) => {
+    const legacyURL = "/category/models-products?page=2";
+    const canonicalURL = "/?category=models-products&page=2";
+    const listingPath = "/?category=models-products";
+    const first = validFeedPage(
+      await (
+        await request.get(
+          `/api/browse-stories?${new URLSearchParams({ path: listingPath, page: "2" })}`,
+        )
+      ).json(),
+      listingPath,
+    )!;
+    const last = validFeedPage(
+      await (
+        await request.get(
+          `/api/browse-stories?${new URLSearchParams({ path: listingPath, page: "3" })}`,
+        )
+      ).json(),
+      listingPath,
+    )!;
+    const now = Date.now();
+    const snapshot: FeedSnapshot = {
+      version: 1,
+      url: legacyURL,
+      stories: [...first.stories, ...last.stories],
+      pagination: last.pagination,
+      scrollY: 900,
+      focusStoryId: first.stories[0].hn_id,
+      savedAt: now,
+    };
+    const ref = {
+      version: 2,
+      id: "12345678-1234-1234-1234-123456789abc",
+      url: legacyURL,
+      scrollY: snapshot.scrollY,
+      focusStoryId: snapshot.focusStoryId,
+      savedAt: now,
+      contentAt: now,
+      storyCount: snapshot.stories.length,
+      pagination: snapshot.pagination,
+    };
+    const token = "87654321-1234-1234-1234-123456789abc";
+    const context = {
+      url: legacyURL,
+      label: "Models & Products · page 2",
+      scrollY: snapshot.scrollY,
+      savedAt: now,
+    };
+    await page.addInitScript(
+      ({ ref, token, context, packed }) => {
+        if (!window.location.pathname.startsWith("/story/")) return;
+        window.name = "hacksnap-tab:rollout";
+        sessionStorage.setItem(`hacksnap:feed-snapshot:${ref.id}`, packed);
+        sessionStorage.setItem(
+          `hacksnap:journey:${token}`,
+          JSON.stringify({ tabId: window.name, context, homeFeedRef: ref }),
+        );
+        history.replaceState(
+          {
+            ...history.state,
+            hacksnapJourney: token,
+            hacksnapBrowseContext: context,
+            hacksnapHomeFeed: ref,
+          },
+          "",
+        );
+      },
+      { ref, token, context, packed: packFeedSnapshot(snapshot) },
+    );
+    await page.goto(`/story/${snapshot.focusStoryId}`);
+    await page.reload();
+    const back = page.getByRole("link", { name: returnName, exact: true });
+    await expect(back).toHaveAttribute("href", canonicalURL);
+    await back.click();
+    await expect(page).toHaveURL(/category=models-products&page=2$/);
+    await expect(page.getByRole("button", { name: "Load more" })).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.evaluate(() => ({
+          count: history.state?.hacksnapHomeFeed?.storyCount,
+          page: history.state?.hacksnapHomeFeed?.pagination?.page,
+        })),
+      )
+      .toEqual({ count: snapshot.stories.length, page: 3 });
+    await expect.poll(() => page.evaluate(() => Math.abs(window.scrollY - 900))).toBeLessThan(4);
+  });
+}
+
+test("category-only navigation and history create distinct analytics visits", async ({ page }) => {
+  const visits = () =>
+    page.evaluate(() => {
+      const layer = (window as Window & { dataLayer?: Array<ArrayLike<unknown>> }).dataLayer ?? [];
+      return layer
+        .map((row) => Array.from(row))
+        .filter((row) => row[0] === "event" && row[1] === "reader_visit")
+        .map((row) => (row[2] as { visit_id: string }).visit_id);
+    });
+  await page.goto("/");
+  await expect.poll(async () => (await visits()).length).toBe(1);
+  const topics = page.getByRole("navigation", { name: "Topics", exact: true });
+  await topics.getByRole("link", { name: "Models & Products", exact: true }).click();
+  await expect(page).toHaveURL(/category=models-products$/);
+  await expect.poll(async () => (await visits()).length).toBe(2);
+  await topics.getByRole("link", { name: "Agents & Coding", exact: true }).click();
+  await expect(page).toHaveURL(/category=agents-coding$/);
+  await expect.poll(async () => (await visits()).length).toBe(3);
+  await page.goBack();
+  await expect(page).toHaveURL(/category=models-products$/);
+  await expect.poll(async () => (await visits()).length).toBe(4);
+  await page.goForward();
+  await expect(page).toHaveURL(/category=agents-coding$/);
+  await expect.poll(async () => (await visits()).length).toBe(5);
+  await page.getByRole("link", { name: "All stories (clear topic filter)" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect.poll(async () => (await visits()).length).toBe(6);
+  expect(new Set(await visits()).size).toBe(6);
 });

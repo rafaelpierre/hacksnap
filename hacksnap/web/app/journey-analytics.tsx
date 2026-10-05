@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
-import { recordVisit, track } from "../lib/analytics";
+import { usePathname, useSearchParams } from "next/navigation";
+import { analyticsRouteIdentity, recordVisit, track } from "../lib/analytics";
 import { markStoryOpened } from "../lib/story-history";
 import { storyIdFromSlug } from "../lib/story-url";
 
 export function ReaderVisit() {
   const path = usePathname();
+  const search = useSearchParams();
+  const route = analyticsRouteIdentity(path, search.toString());
   useEffect(() => {
     track("reader_visit", {}, "visit");
-  }, [path]);
+  }, [route]);
   useEffect(() => {
     recordVisit();
     function storyClick(event: MouseEvent) {

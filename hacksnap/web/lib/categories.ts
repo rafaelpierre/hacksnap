@@ -60,8 +60,8 @@ export function categoryBySlug(slug: string): Category | undefined {
 }
 
 export function categoryURL(category: Category, page = 1): string {
-  const base = `/category/${category.slug}`;
-  return page === 1 ? base : `${base}?page=${page}`;
+  const base = `/?category=${category.slug}`;
+  return page === 1 ? base : `${base}&page=${page}`;
 }
 
 export const CATEGORY_PAGE_SIZE = ARCHIVE_PAGE_SIZE;

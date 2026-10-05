@@ -8,7 +8,7 @@ test("browse context retains list selection and page", () => {
   assert.equal(browseLabel("/?page=1"), "Latest stories");
   assert.equal(browseLabel("/?page=3"), "Latest stories · page 3");
   assert.equal(browseLabel("/2026/09?page=2"), "September 2026 archive · page 2");
-  assert.equal(browseLabel("/category/agents-coding?page=4"), "Agents & Coding · page 4");
+  assert.equal(browseLabel("/?category=agents-coding&page=4"), "Agents & Coding · page 4");
 });
 
 test("return destination must be a recent internal browse route", () => {
@@ -40,8 +40,32 @@ test("return destination must be a recent internal browse route", () => {
     "/?page=2&cursor=unsafe!",
     "/2026/13",
     "/category/unknown",
+    "/?category=unknown",
+    "/?category=",
+    "/?category=agents-coding&category=models-products",
+    "/2026/09?category=agents-coding",
   ]) {
     assert.equal(browseLabel(url), null, url);
     assert.equal(validBrowseContext({ ...context, url }, now), null, url);
   }
+});
+
+test("saved legacy category journeys migrate to filtered Latest without losing position or age", () => {
+  const now = Date.now();
+  const legacy = {
+    url: "/category/agents-coding?page=4",
+    label: "Agents & Coding · page 4",
+    scrollY: 1930,
+    savedAt: now - 60000,
+  };
+  assert.deepEqual(validBrowseContext(legacy, now), {
+    ...legacy,
+    url: "/?category=agents-coding&page=4",
+  });
+  assert.equal(validBrowseContext({ ...legacy, savedAt: now - 9 * 3600000 }, now), null);
+  assert.equal(validBrowseContext({ ...legacy, url: "/category/unknown?page=4" }, now), null);
+  assert.equal(
+    validBrowseContext({ ...legacy, url: "/category/agents-coding?page=4&page=5" }, now),
+    null,
+  );
 });

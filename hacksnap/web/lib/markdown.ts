@@ -6,7 +6,7 @@ import type { DiscussionFields } from "./discussion-analysis";
 import { hasReadySummary } from "./ready-stories.ts";
 import { storyIndicators } from "./story-indicators.ts";
 import { storyMetricsText } from "./story-metrics.ts";
-import { categoryById, categoryURL } from "./categories.ts";
+import { categoryById, categoryURL, type Category } from "./categories.ts";
 import { storyDiscussion, storySource } from "./story-presentation.ts";
 
 // Match product tokens, not generic browser strings or lookalike bot names.
@@ -203,15 +203,21 @@ export function latestMarkdown({
   page,
   hasNext,
   month = null,
+  category = null,
 }: {
   stories: CardStory[];
   page: number;
   hasNext: boolean;
   month?: string | null;
+  category?: Category | null;
 }): string {
   const readyStories = stories.filter(hasReadySummary);
   const lines = [
-    month ? `# ${monthLabel(month)} stories` : "# Latest stories",
+    category
+      ? `# Latest stories — ${category.label}`
+      : month
+        ? `# ${monthLabel(month)} stories`
+        : "# Latest stories",
     "AI stories from Hacker News, newest first.",
     `Page ${page}`,
   ];
@@ -233,9 +239,19 @@ export function latestMarkdown({
     lines.push(text(story.summary.overall_takeaway));
   }
   if (page > 1)
-    lines.push(link("Newer stories", `https://hacksnap.live${archiveURL(month, page - 1)}`));
+    lines.push(
+      link(
+        "Newer stories",
+        `https://hacksnap.live${category ? categoryURL(category, page - 1) : archiveURL(month, page - 1)}`,
+      ),
+    );
   if (hasNext)
-    lines.push(link("Older stories", `https://hacksnap.live${archiveURL(month, page + 1)}`));
+    lines.push(
+      link(
+        "Older stories",
+        `https://hacksnap.live${category ? categoryURL(category, page + 1) : archiveURL(month, page + 1)}`,
+      ),
+    );
   return lines.join("\n\n") + "\n";
 }
 

@@ -1,7 +1,14 @@
 import { storyIdFromSlug, storyPath } from "../../lib/story-url";
-import { getArchiveMonths, getArchiveStories, getStory, getStoryMetrics } from "../../lib/data";
+import {
+  getArchiveMonths,
+  getArchiveStories,
+  getCategoryStories,
+  getStory,
+  getStoryMetrics,
+} from "../../lib/data";
 import { isAiAgent, latestMarkdown, markdownResponse, storyMarkdown } from "../../lib/markdown";
 import { archiveMonth, archivePage, archiveURL } from "../../lib/archive";
+import { categoryBySlug, categoryURL } from "../../lib/categories";
 import { apiDocsMarkdown } from "../../lib/api-docs-markdown";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +43,16 @@ export async function GET(request: Request) {
         pages.push(...requestURL.searchParams.getAll("feedPage"));
       const feedPage = archivePage(pages.length > 1 ? pages : pages[0]);
       if (feedPage === null) return markdownResponse("# Not found\n", 404);
-      const canonical = archiveURL(month, feedPage);
+      const categories = query.getAll("category");
+      if (
+        !request.headers.has("x-hacksnap-markdown-page") &&
+        !request.headers.has("x-hacksnap-markdown-query")
+      )
+        categories.push(...requestURL.searchParams.getAll("category"));
+      const category = categories.length === 1 ? categoryBySlug(categories[0]) : null;
+      if (categories.length && (!category || page !== "/"))
+        return markdownResponse("# Not found\n", 404);
+      const canonical = category ? categoryURL(category, feedPage) : archiveURL(month, feedPage);
       if (page === "/archive" || legacyDated || query.has("cursor"))
         return new Response(null, {
           status: 308,
@@ -49,9 +65,11 @@ export async function GET(request: Request) {
         });
       if (month && !(await getArchiveMonths()).some((item) => item.month === month))
         return markdownResponse("# Not found\n", 404);
-      const result = await getArchiveStories(month, feedPage);
+      const result = category
+        ? await getCategoryStories(category.id, feedPage)
+        : await getArchiveStories(month, feedPage);
       if (feedPage > 1 && !result.stories.length) return markdownResponse("# Not found\n", 404);
-      return respond(latestMarkdown({ ...result, month, page: feedPage }), canonical);
+      return respond(latestMarkdown({ ...result, month, page: feedPage, category }), canonical);
     }
     if (page === "/docs/api") return respond(apiDocsMarkdown, "/docs/api");
     const match = page?.match(/^\/story\/([^/]+)$/);

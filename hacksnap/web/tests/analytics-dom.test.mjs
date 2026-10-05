@@ -20,6 +20,7 @@ const { createRoot } = await import("react-dom/client");
 
 jest.unstable_mockModule("next/navigation", () => ({
   usePathname: () => window.location.pathname,
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 const { ReaderVisit, StoryVisit, Recommendation } = await import("../app/journey-analytics.tsx");
 const { readStoryHistory } = await import("../lib/story-history.ts");
@@ -175,5 +176,48 @@ test("production components emit truthful, deduplicated events through a complet
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
+  }
+});
+
+test("ReaderVisit reacts to filter-only navigation and separates visit IDs without exposing queries", async () => {
+  const h = React.createElement;
+  const browser = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "Element",
+    "Node",
+    "HTMLElement",
+    "MouseEvent",
+  ])
+    Object.defineProperty(globalThis, key, { value: browser.window[key], configurable: true });
+  const events = [];
+  window.gtag = (_command, name, params) => events.push({ name, ...params });
+  const root = createRoot(document.getElementById("root"));
+  const render = async () =>
+    act(async () => root.render(h(React.StrictMode, null, h(ReaderVisit))));
+  try {
+    for (const url of [
+      "/",
+      "/?category=agents-coding",
+      "/?category=models-products",
+      "/?category=models-products&page=2",
+      "/?page=2&category=models-products",
+      "/?category=models-products&page=2&journey=temporary",
+      "/?category=agents-coding",
+      "/",
+    ]) {
+      window.history.pushState({}, "", url);
+      await render();
+      await render();
+    }
+    const visits = events.filter((event) => event.name === "reader_visit");
+    assert.equal(visits.length, 6);
+    assert.equal(new Set(visits.map((event) => event.visit_id)).size, 6);
+    assert.equal(JSON.stringify(events).includes("models-products"), false);
+  } finally {
+    await act(async () => root.unmount());
+    browser.window.close();
   }
 });

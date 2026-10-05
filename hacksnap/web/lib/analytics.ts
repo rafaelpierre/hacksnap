@@ -112,11 +112,21 @@ const journey = createJourney(
 
 type Event = Params & { name: JourneyEvent };
 
+// Query-only navigation is a new route occurrence. Journey handoff tokens are
+// transient; keep them out of the identity and never emit query values as fields.
+export function analyticsRouteIdentity(pathname: string, search = ""): string {
+  const query = new URLSearchParams(search);
+  query.delete("journey");
+  query.sort();
+  const state = query.toString();
+  return state ? `${pathname}?${state}` : pathname;
+}
+
 export function track(event: JourneyEvent | Event, params: Params = {}, once?: string) {
   const { name, ...fields } = typeof event === "string" ? { name: event, ...params } : event;
   if (typeof window === "undefined") return;
   try {
-    journey.route(window.location.pathname);
+    journey.route(analyticsRouteIdentity(window.location.pathname, window.location.search));
     journey.emit(name, fields, once);
   } catch {
     /* Includes unavailable browser APIs and blocked analytics. */

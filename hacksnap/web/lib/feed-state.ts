@@ -1,4 +1,4 @@
-import { browseLabel } from "./navigation-context";
+import { browseLabel, normalizedBrowseURL } from "./navigation-context";
 import { ARCHIVE_PAGE_SIZE, MAX_BROWSE_PAGE } from "./archive";
 import { categoryById } from "./categories";
 import { hasPublishedTakeaway } from "./ready-stories";
@@ -47,10 +47,12 @@ export function validFeedSnapshotRef(
 ): FeedSnapshotRef | null {
   if (!value || typeof value !== "object") return null;
   const ref = value as Partial<FeedSnapshotRef>;
+  const normalizedURL = normalizedBrowseURL(url);
+  if (!normalizedURL || typeof ref.url !== "string") return null;
   return ref.version === 2 &&
     typeof ref.id === "string" &&
     SNAPSHOT_ID.test(ref.id) &&
-    ref.url === url &&
+    normalizedBrowseURL(ref.url) === normalizedURL &&
     typeof ref.scrollY === "number" &&
     Number.isFinite(ref.scrollY) &&
     ref.scrollY >= 0 &&
@@ -68,7 +70,7 @@ export function validFeedSnapshotRef(
     !!validFeedPagination(ref.pagination) &&
     ref.savedAt <= now &&
     now - ref.savedAt <= MAX_AGE_MS
-    ? (ref as FeedSnapshotRef)
+    ? ({ ...ref, url: normalizedURL } as FeedSnapshotRef)
     : null;
 }
 
@@ -250,9 +252,11 @@ export function validFeedSnapshot(
 ): FeedSnapshot | null {
   if (!value || typeof value !== "object") return null;
   const snapshot = value as Partial<FeedSnapshot>;
+  const normalizedURL = normalizedBrowseURL(url);
+  if (!normalizedURL || typeof snapshot.url !== "string") return null;
   if (
     snapshot.version !== 1 ||
-    snapshot.url !== url ||
+    normalizedBrowseURL(snapshot.url) !== normalizedURL ||
     !Array.isArray(snapshot.stories) ||
     snapshot.stories.length > ARCHIVE_PAGE_SIZE * MAX_BROWSE_PAGE ||
     !Number.isFinite(snapshot.scrollY) ||
@@ -327,5 +331,5 @@ export function validFeedSnapshot(
     stories.push(story);
   }
   if (snapshot.focusStoryId && !ids.has(snapshot.focusStoryId)) return null;
-  return { ...snapshot, stories, pagination } as FeedSnapshot;
+  return { ...snapshot, url: normalizedURL, stories, pagination } as FeedSnapshot;
 }

@@ -55,7 +55,7 @@ test("archive return preserves route, pagination and scroll without changing bre
           <div key={key}>
             <StoryReturnLink destination={{ href: "/", label: "Latest" }} />
             <StoryReturnLink
-              destination={{ href: "/category/safety-privacy", label: "Safety & Privacy" }}
+              destination={{ href: "/?category=safety-privacy", label: "Safety & Privacy" }}
             />
             <StoryReturnLink archiveOnly />
           </div>
@@ -63,7 +63,14 @@ test("archive return preserves route, pagination and scroll without changing bre
       ),
     );
   try {
-    for (const url of ["/", "/?page=3", "/2026/09", "/2026/09?page=2"]) {
+    for (const url of [
+      "/",
+      "/?page=3",
+      "/2026/09",
+      "/2026/09?page=2",
+      "/?category=safety-privacy&page=2",
+      "/?category=agents-coding&page=2",
+    ]) {
       window.history.replaceState({ hacksnapJourney: token }, "", `/story/headline-42`);
       const context = { url, label: browseLabel(url), scrollY: 820, savedAt: Date.now() };
       sessionStorageSet(context);
@@ -71,7 +78,11 @@ test("archive return preserves route, pagination and scroll without changing bre
       const links = [...document.querySelectorAll("a")];
       assert.deepEqual(
         links.map((link) => link.getAttribute("href")),
-        [url.startsWith("/?") ? url : "/", "/category/safety-privacy", url],
+        [
+          url.startsWith("/?page=") ? url : "/",
+          url.includes("category=safety-privacy") ? url : "/?category=safety-privacy",
+          url,
+        ],
       );
       assert.match(links[2].textContent!, /Back to /);
       await act(async () => links[2].click());
@@ -102,9 +113,9 @@ test("archive return preserves route, pagination and scroll without changing bre
         "hacksnap-tab:other",
       ],
       [
-        "category",
+        "invalid-category",
         {
-          url: "/category/safety-privacy",
+          url: "/?category=unknown",
           label: "Safety & Privacy",
           scrollY: 10,
           savedAt: Date.now(),
@@ -245,7 +256,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
     assert.equal(window.history.state.hacksnapJourney, firstState.hacksnapJourney);
     assert.equal(document.querySelector("a")?.getAttribute("href"), "/?page=3");
 
-    for (const source of ["/", "/?page=3", "/category/agents-coding?page=2"]) {
+    for (const source of ["/", "/?page=3", "/?category=agents-coding&page=2"]) {
       window.history.replaceState({}, "", source);
       await render(
         <BrowseStoryLink id="42" slug="headline-42" anchor="discussion-analysis">

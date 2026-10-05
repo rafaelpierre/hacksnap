@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { browsePageURL } from "../lib/archive";
 import {
   useCallback,
   useEffect,
@@ -58,8 +59,8 @@ export function StoryFeed({
   showCategory?: boolean;
   emptyState?: ReactNode;
 }) {
-  const latest = listingPath === "/";
-  const pageURL = (page: number) => (page === 1 ? listingPath : `${listingPath}?page=${page}`);
+  const latest = listingPath.split("?")[0] === "/";
+  const pageURL = (page: number) => browsePageURL(listingPath, page);
   const [feed, setFeed] = useState<FeedState>({
     stories: initialStories,
     pagination: initialPagination,

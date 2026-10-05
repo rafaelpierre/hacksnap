@@ -19,6 +19,8 @@ jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
   shouldStreamBrowse: async () => false,
 }));
 jest.unstable_mockModule("../lib/data.ts", () => ({
+  getArchiveStories: async () => ({ stories: [], hasNext: false }),
+  getArchiveMonths: async () => [],
   getCategoryStories: async () => ({ stories: [], hasNext: false }),
   getCategoryCounts: async () => ({}),
 }));
@@ -29,17 +31,17 @@ jest.unstable_mockModule("../app/topic-sidebar.tsx", () => ({
   BrowseLayout: ({ children }) => createElement("main", null, children),
 }));
 
-const { default: CategoryPage } = await import("../app/category/[slug]/page.tsx");
+const { ArchiveStoryList } = await import("../app/archive-story-list.tsx");
+const { categoryBySlug } = await import("../lib/categories.ts");
 const { default: ApiDocs } = await import("../app/docs/api/page.tsx");
 
-test("an empty topic links its browse action directly to Latest", async () => {
-  const shell = await CategoryPage({
-    params: Promise.resolve({ slug: "agents-coding" }),
-    searchParams: Promise.resolve({}),
+test("an empty filtered feed links its browse action directly to Latest", async () => {
+  const shell = await ArchiveStoryList({
+    month: null,
+    page: 1,
+    category: categoryBySlug("agents-coding"),
   });
   const html = renderToStaticMarkup(shell);
-  assert.match(html, /<h1 class="sr-only">Agents &amp; Coding<\/h1>/);
-  assert.doesNotMatch(html, /channel-path|category-header|feed-bar|Newest first/);
   assert.match(html, /No stories in this topic yet/);
   assert.match(html, /href="\/"[^>]*>Browse latest stories/);
   assert.doesNotMatch(html, /href="\/archive"|Browse top stories/);

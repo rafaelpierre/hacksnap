@@ -13,8 +13,8 @@ for (const width of [320, 1280])
         for (const route of [
           "/",
           "/2026/01",
-          "/category/models-products",
-          "/category/safety-privacy",
+          "/?category=models-products",
+          "/?category=safety-privacy",
           "/topics",
           "/about",
           "/docs/api",
@@ -25,11 +25,10 @@ for (const width of [320, 1280])
             document.documentElement.style.fontSize = `${scale * 100}%`;
           }, textScale);
           await page.evaluate(() => document.fonts.ready);
-          const latest = route === "/";
-          const compactFeed = latest || route.startsWith("/category/");
-          if (compactFeed) await expect(page.getByRole("heading", { level: 1 })).toBeAttached();
+          const latest = route === "/" || route.startsWith("/?category=");
+          if (latest) await expect(page.getByRole("heading", { level: 1 })).toBeAttached();
           else await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-          if (route.startsWith("/category/")) {
+          if (route.startsWith("/?category=")) {
             await expect(page.locator(".story-list .category-badge")).toHaveCount(0);
             await expect(page.locator(".story-list .story-context")).toHaveCount(0);
           } else if (latest || route === "/2026/01") {
@@ -52,10 +51,10 @@ for (const width of [320, 1280])
           await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
           expect(layout.scheme.split(" ").sort()).toEqual(["light", "only"]);
           await expect(page.getByRole("button", { name: /Switch to .* mode/ })).toHaveCount(0);
-          if (!compactFeed)
+          if (!latest)
             expect(parseFloat(layout.heading)).toBeGreaterThanOrEqual(textScale === 2 ? 40 : 24);
           expect(layout.hiddenImages).toBe(0);
-          if (["/", "/2026/01", "/category/models-products", storyPath].includes(route)) {
+          if (["/", "/2026/01", "/?category=models-products", storyPath].includes(route)) {
             const image = page.locator("main img").first();
             await expect(image).toBeVisible();
             const selected = await image.evaluate((node) => ({
@@ -70,8 +69,10 @@ for (const width of [320, 1280])
           }
           const header = await page.getByRole("banner").boundingBox();
           const firstContent = await (
-            compactFeed
-              ? page.locator(".story-list > li, .empty").first()
+            latest
+              ? route === "/?category=safety-privacy"
+                ? page.locator("main .feed-bar").first()
+                : page.locator(".story-list > li").first()
               : page.getByRole("heading", { level: 1 })
           ).boundingBox();
           expect(firstContent!.y, "Content clears the sticky header").toBeGreaterThanOrEqual(
@@ -83,7 +84,7 @@ for (const width of [320, 1280])
             );
           // Structural assertions are stable across OS font rasterizers. Retain the
           // complete image for manual visual review; no pixel baseline is auto-updated.
-          const slug = route === "/" ? "home" : route.replaceAll("/", "-");
+          const slug = route === "/" ? "home" : route.replace(/[^a-z0-9-]/gi, "-");
           await page.screenshot({
             path: testInfo.outputPath(`${slug}.png`),
             fullPage: false,
