@@ -824,6 +824,9 @@ Use Node 22, `npm ci`, and `npx playwright install chromium`, then run
 and runs Chromium journeys, accessibility, responsive layout, and route asset /
 rendering budgets. For test-only edits after the build, use `npm run test:browser`.
 The suite uses port 3100; override `BROWSER_PORT` when another local app uses it.
+CI runs tests in parallel with one Playwright worker per logical CPU, including
+tests within the same file. Local runs default to four workers; use
+`npm run test:browser -- --workers=100%` to reproduce CI concurrency.
 
 Fixtures replace the server-only data module only inside ignored `.browser-app`.
 The normal application has no fixture switch, import or endpoint. The runner
