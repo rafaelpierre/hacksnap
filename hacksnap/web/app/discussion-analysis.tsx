@@ -72,55 +72,84 @@ export function DiscussionAnalysis({
   analysis,
   coverage,
   analyzedAt,
-  hnURL,
 }: {
   analysis: Analysis;
   coverage?: DiscussionAnalysisCoverage | null;
   analyzedAt?: string | null;
-  hnURL: string;
 }) {
   const date = analyzedAt ? new Date(analyzedAt) : null;
   const validDate = date && Number.isFinite(date.getTime()) ? date : null;
   return (
     <div className={`discussion-analysis ${styles.root}`}>
-      <h2 id="discussion-themes-heading" className="discussion-title">
-        <ListTree className="discussion-title-icon" aria-hidden="true" />
-        <span>Discussion themes</span>
-      </h2>
-      <div className="analysis-coverage">
-        <p>
-          {coverage
-            ? `${coverage.included_comments} ${coverage.included_comments === 1 ? "comment" : "comments"} analyzed.`
-            : "Analyzed-comment count unavailable."}{" "}
-          {validDate ? (
-            <>
-              Analyzed{" "}
-              <time dateTime={validDate.toISOString()}>
-                {new Intl.DateTimeFormat("en-GB", {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                  timeZone: "UTC",
-                }).format(validDate)}{" "}
-                UTC
-              </time>
-              .
-            </>
-          ) : (
-            "Analysis time unavailable."
-          )}
-        </p>
-        <p>
-          The sample selects active discussion branches and includes available parent comments. It
-          may omit parts of the full thread.
-          {coverage?.comments_truncated && (
-            <>
-              {" "}
-              The analysis included {coverage.included_comments} of {coverage.stored_comments}{" "}
-              usable stored comments because of the input limit.
-            </>
-          )}{" "}
-          Selected themes do not measure community opinion or how common a view is.
-        </p>
+      <div className="discussion-heading analysis-heading">
+        <h2 id="discussion-themes-heading" className="discussion-title">
+          <ListTree className="discussion-title-icon" aria-hidden="true" />
+          <span>Discussion themes</span>
+        </h2>
+        <button
+          type="button"
+          className="analysis-source-info"
+          popoverTarget="discussion-analysis-info"
+          aria-label="About this discussion analysis"
+        >
+          <Info size={16} strokeWidth={1.5} aria-hidden="true" />
+        </button>
+        <div
+          id="discussion-analysis-info"
+          className="analysis-source-popup"
+          popover="auto"
+          role="dialog"
+          aria-labelledby="discussion-analysis-info-title"
+        >
+          <div className="analysis-source-header">
+            <p id="discussion-analysis-info-title">Analysis details</p>
+            <button
+              type="button"
+              className="analysis-source-close"
+              popoverTarget="discussion-analysis-info"
+              popoverTargetAction="hide"
+              aria-label="Close analysis information"
+              autoFocus
+            >
+              <X size={16} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="analysis-coverage">
+            <p>
+              {coverage
+                ? `${coverage.included_comments} ${coverage.included_comments === 1 ? "comment" : "comments"} analyzed.`
+                : "Analyzed-comment count unavailable."}{" "}
+              {validDate ? (
+                <>
+                  Analyzed{" "}
+                  <time dateTime={validDate.toISOString()}>
+                    {new Intl.DateTimeFormat("en-GB", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: "UTC",
+                    }).format(validDate)}{" "}
+                    UTC
+                  </time>
+                  .
+                </>
+              ) : (
+                "Analysis time unavailable."
+              )}
+            </p>
+            <p>
+              The sample selects active discussion branches and includes available parent comments.
+              It may omit parts of the full thread.
+              {coverage?.comments_truncated && (
+                <>
+                  {" "}
+                  The analysis included {coverage.included_comments} of {coverage.stored_comments}{" "}
+                  usable stored comments because of the input limit.
+                </>
+              )}{" "}
+              Selected themes do not measure community opinion or how common a view is.
+            </p>
+          </div>
+        </div>
       </div>
       {analysis.status === "no_comments" ? (
         <p>No usable comments were available for this analysis, so no themes could be selected.</p>
@@ -152,9 +181,6 @@ export function DiscussionAnalysis({
           )}
         </>
       )}
-      <a className="analysis-source" href={hnURL}>
-        Read the full HN discussion <ArrowUpRight className="inline-icon" aria-hidden="true" />
-      </a>
     </div>
   );
 }
