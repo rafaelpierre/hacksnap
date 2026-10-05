@@ -46,7 +46,7 @@ test("direct and negotiated Markdown preserve format, HEAD, validation and failu
     const head = await markdown.HEAD(request);
     assert.equal(get.status, 200);
     assert.match(get.headers.get("content-type"), /text\/markdown/);
-    assert.equal(get.headers.get("vary"), "Accept");
+    assert.equal(get.headers.get("vary"), "Accept, User-Agent");
     assert.equal(get.headers.get("cache-control"), "no-store");
     assert.deepEqual([...head.headers], [...get.headers]);
     assert.equal(await head.text(), "");
@@ -71,5 +71,42 @@ test("direct and negotiated Markdown preserve format, HEAD, validation and failu
     assert.doesNotMatch(await response.text(), /secret/);
   } finally {
     fail = false;
+  }
+});
+
+test("AI Markdown starts with the public page URL and retains content and HEAD semantics", async () => {
+  for (const page of ["/", "/docs/api"]) {
+    for (const ua of [
+      "ChatGPT-User/1.0",
+      "OAI-SearchBot/1.0",
+      "Claude-SearchBot/1.0",
+      "Claude-User/1.0",
+    ]) {
+      for (const request of [
+        new Request(`https://hacksnap.live/markdown?page=${encodeURIComponent(page)}`, {
+          headers: { "user-agent": ua },
+        }),
+        new Request(`https://untrusted.example${page}`, {
+          headers: { "user-agent": ua, "x-hacksnap-markdown-page": page },
+        }),
+      ]) {
+        const response = await markdown.GET(request);
+        const heading = `# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live${page}\n\n`;
+        const body = await response.text();
+        assert.equal(response.status, 200);
+        assert.ok(body.startsWith(heading));
+        assert.match(body.slice(heading.length), /^# /);
+        assert.doesNotMatch(body, /untrusted\.example|\/markdown\?page=/);
+        const head = await markdown.HEAD(request);
+        assert.deepEqual([...head.headers], [...response.headers]);
+        assert.equal(await head.text(), "");
+      }
+    }
+    const ordinary = await markdown.GET(
+      new Request(`https://hacksnap.live/markdown?page=${encodeURIComponent(page)}`, {
+        headers: { accept: "text/markdown", "user-agent": "Mozilla/5.0" },
+      }),
+    );
+    assert.doesNotMatch(await ordinary.text(), /If the user wants more details/);
   }
 });

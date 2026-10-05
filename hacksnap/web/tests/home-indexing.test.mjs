@@ -19,7 +19,7 @@ test("homepage pagination is noindex for HTML and Markdown GET/HEAD, regardless 
           new NextRequest(`https://hacksnap.live/?${query}`, { method, headers: { accept } }),
         );
         assert.equal(response.headers.get("X-Robots-Tag"), "noindex, follow");
-        assert.equal(response.headers.get("Vary"), "Accept");
+        assert.equal(response.headers.get("Vary"), "Accept, User-Agent");
         assert.equal(response.headers.has("x-middleware-rewrite"), accept === "text/markdown");
       }
     }
@@ -38,7 +38,7 @@ test("clean homepage, tracking queries, and other routes keep their indexing beh
         new NextRequest(`https://hacksnap.live${path}`, { headers: { accept } }),
       );
       assert.equal(response.headers.get("X-Robots-Tag"), null, path);
-      assert.equal(response.headers.get("Vary"), "Accept");
+      assert.equal(response.headers.get("Vary"), "Accept, User-Agent");
     }
   }
 });

@@ -65,7 +65,7 @@ test("Markdown and HEAD preserve canonical redirects, content and missing status
       const response = await handler(request(slug));
       assert.equal(response.status, 308);
       assert.equal(response.headers.get("location"), "/story/readable-headline-123");
-      assert.equal(response.headers.get("vary"), "Accept");
+      assert.equal(response.headers.get("vary"), "Accept, User-Agent");
     }
     const response = await handler(request("readable-headline-123"));
     assert.equal(response.status, 200);
@@ -77,6 +77,33 @@ test("Markdown and HEAD preserve canonical redirects, content and missing status
     assert.equal(getStory.mock.calls.length, 0);
     getStory.mockResolvedValueOnce(null);
     assert.equal((await handler(request("missing-999"))).status, 404);
+  }
+});
+
+test("AI story responses link the saved canonical URL after redirects", async () => {
+  const requestFor = (slug) =>
+    new Request(`https://hacksnap.live/markdown?page=${encodeURIComponent(`/story/${slug}`)}`, {
+      headers: { "user-agent": "Mozilla/5.0 (compatible; ChatGPT-User/1.0)" },
+    });
+  for (const handler of [GET, HEAD]) {
+    const redirect = await handler(requestFor("123"));
+    assert.equal(redirect.status, 308);
+    assert.equal(redirect.headers.get("location"), "/story/readable-headline-123");
+    assert.equal(redirect.headers.get("vary"), "Accept, User-Agent");
+    const response = await handler(requestFor("readable-headline-123"));
+    assert.equal(response.status, 200);
+    const body = await response.text();
+    if (handler === GET) {
+      assert.ok(
+        body.startsWith(
+          "# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live/story/readable-headline-123\n\n# Readable headline",
+        ),
+      );
+    } else assert.equal(body, "");
+    getStory.mockResolvedValueOnce(null);
+    const missing = await handler(requestFor("missing-999"));
+    assert.equal(missing.status, 404);
+    assert.doesNotMatch(await missing.text(), /If the user wants more details/);
   }
 });
 

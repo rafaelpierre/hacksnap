@@ -8,6 +8,13 @@ import { storyMetricsText } from "./story-metrics.ts";
 import { categoryById, categoryURL } from "./categories.ts";
 import { storyDiscussion, storySource } from "./story-presentation.ts";
 
+// Match product tokens, not generic browser strings or lookalike bot names.
+export function isAiAgent(userAgent: string | null): boolean {
+  return /(?:^|[^a-z0-9_-])(?:ChatGPT-User|OAI-SearchBot|GPTBot|Claude-User|Claude-SearchBot|ClaudeBot|PerplexityBot|Perplexity-User)(?=\/|[^a-z0-9_-]|$)/i.test(
+    userAgent ?? "",
+  );
+}
+
 // Wildcards alone keep the browser default. An explicit Markdown preference
 // must be acceptable and at least as preferred as HTML.
 export function acceptsMarkdown(accept: string | null): boolean {
@@ -195,7 +202,7 @@ export function markdownResponse(body: string, status = 200): Response {
     status,
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
-      Vary: "Accept",
+      Vary: "Accept, User-Agent",
       // Cache data behind the handler; keep negotiated representations out of shared HTTP caches.
       "Cache-Control": "no-store",
       ...(status === 503 ? { "Retry-After": "60" } : {}),

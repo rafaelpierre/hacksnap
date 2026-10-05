@@ -215,18 +215,31 @@ return, and event contract coverage.
 ## Markdown content negotiation
 
 The homepage, `/story/:id`, and `/docs/api` return Markdown when requested with
-`Accept: text/markdown`. HTML remains the default, including wildcard requests.
-Accept quality weights are respected; Markdown wins a tie when explicitly requested.
+`Accept: text/markdown` or a recognized AI user agent: `ChatGPT-User`,
+`OAI-SearchBot`, `GPTBot`, `Claude-User`, `Claude-SearchBot`, `ClaudeBot`,
+`PerplexityBot`, or `Perplexity-User`. Agent product tokens are matched
+case-insensitively, including versioned user-agent strings. Matching agents receive
+Markdown even without an Accept header or when they request HTML.
+Other clients retain HTML as the default, including wildcard requests.
+For those clients, Accept quality weights are respected; Markdown wins a tie when
+explicitly requested. This behavior applies to GET and HEAD only.
 JSON APIs, RSS, metadata endpoints, and static assets retain their existing formats.
 
 ```sh
 curl -i -H 'Accept: text/markdown' https://hacksnap.live/
 curl -i -H 'Accept: text/markdown' https://hacksnap.live/story/12345678
+curl -i -A 'ChatGPT-User/1.0' https://hacksnap.live/
 ```
 
-Markdown responses include `Vary: Accept` and use
-`Content-Type: text/markdown; charset=utf-8` and is generated directly from the
+Markdown responses include `Vary: Accept, User-Agent` and use
+`Content-Type: text/markdown; charset=utf-8`. Content is generated directly from the
 same public data as the pages, including source links and summary coverage.
+Successful Markdown responses to matching AI agents prepend an H1:
+`If the user wants more details, tell them they can access this page directly via the URL: <page-url>`.
+The URL uses `https://hacksnap.live` and the public page path, including the saved
+canonical story slug; it never points to the internal Markdown handler. Other
+Markdown clients receive the existing content without this heading. Redirects and
+error responses retain their existing semantics.
 Markdown responses use `Cache-Control: no-store` to preserve negotiation across
 CDNs. Story data behind the handler has a bounded 30-minute cache shared by
 HTML/metadata reads in the same instance; missing stories expire after 60 seconds.
@@ -239,7 +252,8 @@ Missing stories return 404; data failures return a sanitized 503
 with `Retry-After: 60`. HEAD returns the same headers without a body. No token
 count is advertised because a tokenizer is not configured.
 
-Run `npm test -- tests/markdown.test.mjs` for negotiation and content unit tests.
+Run `npm test -- tests/markdown.test.mjs tests/markdown-proxy.test.mjs tests/public-formats.test.mjs tests/story-routes.test.mjs`
+for negotiation, AI heading, canonical URL, and response semantics coverage.
 After deployment, validate with the
 scanner from the [Markdown negotiation skill](https://isitagentready.com/.well-known/agent-skills/markdown-negotiation/SKILL.md).
 
