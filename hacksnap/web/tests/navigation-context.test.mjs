@@ -49,3 +49,23 @@ test("return destination must be a recent internal browse route", () => {
     assert.equal(validBrowseContext({ ...context, url }, now), null, url);
   }
 });
+
+test("saved legacy category journeys migrate to filtered Latest without losing position or age", () => {
+  const now = Date.now();
+  const legacy = {
+    url: "/category/agents-coding?page=4",
+    label: "Agents & Coding · page 4",
+    scrollY: 1930,
+    savedAt: now - 60000,
+  };
+  assert.deepEqual(validBrowseContext(legacy, now), {
+    ...legacy,
+    url: "/?category=agents-coding&page=4",
+  });
+  assert.equal(validBrowseContext({ ...legacy, savedAt: now - 9 * 3600000 }, now), null);
+  assert.equal(validBrowseContext({ ...legacy, url: "/category/unknown?page=4" }, now), null);
+  assert.equal(
+    validBrowseContext({ ...legacy, url: "/category/agents-coding?page=4&page=5" }, now),
+    null,
+  );
+});

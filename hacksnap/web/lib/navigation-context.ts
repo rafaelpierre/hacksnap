@@ -1,4 +1,4 @@
-import { categoryBySlug } from "./categories.ts";
+import { categoryBySlug, categoryURL } from "./categories.ts";
 import { archivePage, monthLabel } from "./archive.ts";
 
 export type BrowseContext = { url: string; label: string; scrollY: number; savedAt: number };
@@ -36,6 +36,18 @@ export function browseLabel(url: string): string | null {
   return category ? `${category.label}${pageSuffix}` : null;
 }
 
+// Migrate only validated legacy category destinations; page and topic isolation
+// still apply to every stored context and feed snapshot.
+export function normalizedBrowseURL(url: string): string | null {
+  if (!url.startsWith("/") || url.startsWith("//") || !browseLabel(url)) return null;
+  const parsed = new URL(url, "https://hacksnap.invalid");
+  const match = /^\/category\/([a-z-]+)$/.exec(parsed.pathname);
+  const category = match && categoryBySlug(match[1]);
+  return category
+    ? categoryURL(category, archivePage(parsed.searchParams.get("page") ?? undefined)!)
+    : url;
+}
+
 export function validBrowseContext(value: unknown, now = Date.now()): BrowseContext | null {
   if (!value || typeof value !== "object") return null;
   const context = value as Partial<BrowseContext>;
@@ -60,5 +72,7 @@ export function validBrowseContext(value: unknown, now = Date.now()): BrowseCont
     context.scrollY < 0
   )
     return null;
-  return { url: context.url, label, scrollY: context.scrollY, savedAt: context.savedAt };
+  const url = normalizedBrowseURL(context.url);
+  if (!url) return null;
+  return { url, label: browseLabel(url)!, scrollY: context.scrollY, savedAt: context.savedAt };
 }

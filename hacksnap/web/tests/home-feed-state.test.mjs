@@ -149,3 +149,41 @@ test.each(["/", "/2026/09", "/?category=agents-coding"])(
     }
   },
 );
+
+test("legacy category feed records normalize URLs while retaining loaded depth and strict selection matching", () => {
+  const now = Date.now();
+  const legacy = {
+    version: 1,
+    url: "/category/agents-coding?page=2",
+    stories: [story(1), story(11), story(21)],
+    pagination: browsePagination(4, true),
+    scrollY: 1930,
+    focusStoryId: "21",
+    savedAt: now,
+  };
+  const canonical = "/?category=agents-coding&page=2";
+  const expected = { ...legacy, url: canonical };
+  assert.deepEqual(validFeedSnapshot(legacy, canonical, now), expected);
+  assert.deepEqual(unpackFeedSnapshot(packFeedSnapshot(legacy), canonical), expected);
+  const ref = {
+    version: 2,
+    id: "12345678-1234-1234-1234-123456789abc",
+    url: legacy.url,
+    pagination: legacy.pagination,
+    scrollY: legacy.scrollY,
+    focusStoryId: legacy.focusStoryId,
+    savedAt: now,
+    contentAt: now,
+    storyCount: 3,
+  };
+  assert.deepEqual(validFeedSnapshotRef(ref, canonical, now), { ...ref, url: canonical });
+  for (const wrong of [
+    "/?category=agents-coding&page=3",
+    "/?category=models-products&page=2",
+    "/?page=2",
+  ]) {
+    assert.equal(validFeedSnapshot(legacy, wrong, now), null);
+    assert.equal(validFeedSnapshotRef(ref, wrong, now), null);
+  }
+  assert.equal(validFeedSnapshot({ ...legacy, savedAt: now - 9 * 3600000 }, canonical, now), null);
+});

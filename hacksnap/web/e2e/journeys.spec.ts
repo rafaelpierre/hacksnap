@@ -1,4 +1,5 @@
 import { test, expect, title, storyPath } from "./browser";
+import { packFeedSnapshot, validFeedPage, type FeedSnapshot } from "../lib/feed-state";
 import AxeBuilder from "@axe-core/playwright";
 
 for (const route of ["/", "/archive", "/category/models-products"]) {
@@ -488,3 +489,95 @@ test("topic filters reuse Latest and retain selection through paging and history
   expect(legacy.status()).toBe(308);
   expect(legacy.headers().location).toBe("/?category=models-products&page=2");
 });
+
+for (const returnName of ["Models & Products", "Back to Models & Products · page 2"]) {
+  test(`legacy saved category journey survives bundle reload via ${returnName}`, async ({
+    page,
+    request,
+  }) => {
+    const legacyURL = "/category/models-products?page=2";
+    const canonicalURL = "/?category=models-products&page=2";
+    const listingPath = "/?category=models-products";
+    const first = validFeedPage(
+      await (
+        await request.get(
+          `/api/browse-stories?${new URLSearchParams({ path: listingPath, page: "2" })}`,
+        )
+      ).json(),
+      listingPath,
+    )!;
+    const last = validFeedPage(
+      await (
+        await request.get(
+          `/api/browse-stories?${new URLSearchParams({ path: listingPath, page: "3" })}`,
+        )
+      ).json(),
+      listingPath,
+    )!;
+    const now = Date.now();
+    const snapshot: FeedSnapshot = {
+      version: 1,
+      url: legacyURL,
+      stories: [...first.stories, ...last.stories],
+      pagination: last.pagination,
+      scrollY: 900,
+      focusStoryId: first.stories[0].hn_id,
+      savedAt: now,
+    };
+    const ref = {
+      version: 2,
+      id: "12345678-1234-1234-1234-123456789abc",
+      url: legacyURL,
+      scrollY: snapshot.scrollY,
+      focusStoryId: snapshot.focusStoryId,
+      savedAt: now,
+      contentAt: now,
+      storyCount: snapshot.stories.length,
+      pagination: snapshot.pagination,
+    };
+    const token = "87654321-1234-1234-1234-123456789abc";
+    const context = {
+      url: legacyURL,
+      label: "Models & Products · page 2",
+      scrollY: snapshot.scrollY,
+      savedAt: now,
+    };
+    await page.addInitScript(
+      ({ ref, token, context, packed }) => {
+        if (!window.location.pathname.startsWith("/story/")) return;
+        window.name = "hacksnap-tab:rollout";
+        sessionStorage.setItem(`hacksnap:feed-snapshot:${ref.id}`, packed);
+        sessionStorage.setItem(
+          `hacksnap:journey:${token}`,
+          JSON.stringify({ tabId: window.name, context, homeFeedRef: ref }),
+        );
+        history.replaceState(
+          {
+            ...history.state,
+            hacksnapJourney: token,
+            hacksnapBrowseContext: context,
+            hacksnapHomeFeed: ref,
+          },
+          "",
+        );
+      },
+      { ref, token, context, packed: packFeedSnapshot(snapshot) },
+    );
+    await page.goto(`/story/${snapshot.focusStoryId}`);
+    await page.reload();
+    const back = page.getByRole("link", { name: returnName, exact: true });
+    await expect(back).toHaveAttribute("href", canonicalURL);
+    await back.click();
+    await expect(page).toHaveURL(/category=models-products&page=2$/);
+    await expect(page.getByRole("button", { name: "Load more" })).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.evaluate(() => ({
+          count: history.state?.hacksnapHomeFeed?.storyCount,
+          page: history.state?.hacksnapHomeFeed?.pagination?.page,
+        })),
+      )
+      .toEqual({ count: snapshot.stories.length, page: 3 });
+    await expect.poll(() => page.evaluate(() => Math.abs(window.scrollY - 900))).toBeLessThan(4);
+  });
+}

@@ -11,6 +11,9 @@ cover populated and empty filters at 320px and 1280px, with 100% and 200% text.
 The browser suite also checks both OS appearances, keyboard navigation, no
 horizontal overflow, WCAG A/AA accessibility, story returns, Back/Forward,
 legacy redirects, invalid filters and the existing asset/rendering budgets.
+Rollout regression tests seed old category journeys and packed snapshots, reload
+the story, and verify both breadcrumb and generic returns restore the canonical
+filtered page, all loaded stories and the saved scroll position.
 The UI retains the site's light appearance under both OS settings.
 
 The existing category/page data cache and indexed query remain unchanged.

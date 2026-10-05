@@ -515,7 +515,9 @@ Stories display a compact category flair on feeds and article pages. Clicking a
 flair or topic link filters Latest at `/?category=<slug>`, newest first. The same
 feed shell shows the selected topic and an All stories control to clear the filter.
 Changing topics starts at page one; pagination, automatic loading and story returns
-retain the selected category. Mobile readers can choose a topic through Topics.
+retain the selected category. Saved legacy category journeys and feed snapshots are
+normalized on read, preserving their page, loaded depth, focus and scroll during
+the existing eight-hour retention window. Mobile readers can choose a topic through Topics.
 
 The six filters use stable slugs from `lib/categories.ts`, paginate at 15 published
 stories, and return 404 for unknown, repeated or empty categories and invalid pages.
