@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { withDataFallback } from "../with-data-fallback";
 import { ChevronRight } from "lucide-react";
 import { NavigationPendingLink } from "../navigation-pending-link";
@@ -17,6 +18,22 @@ type Props = {
   params: Promise<{ path?: string[] }>;
   searchParams: Promise<{ page?: string | string[]; cursor?: string | string[] }>;
 };
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const { page, cursor } = await searchParams;
+  const continuation = page !== undefined || cursor !== undefined;
+  return {
+    robots: { index: !continuation, follow: true },
+    ...(continuation
+      ? {}
+      : {
+          alternates: {
+            canonical: "/",
+            types: { "application/rss+xml": "https://hacksnap.live/feed.xml" },
+          },
+        }),
+  };
+}
 
 function HomeShell({ children }: { children: ReactNode }) {
   return (

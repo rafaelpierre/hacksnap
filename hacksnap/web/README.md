@@ -65,6 +65,17 @@ before the collector to ensure newly inserted slugs are used immediately. No bac
 or production migration is performed by local checks. Rolling back ingestion keeps
 saved slugs; rolling back the migration discards them and should be avoided once published.
 
+## Homepage indexing
+
+The clean homepage `/` is indexable and declares itself canonical. Homepage URLs
+containing `page` or `cursor` are temporary feed selections and send
+`X-Robots-Tag: noindex, follow`; HTML also includes the matching robots metadata.
+The header covers HTML and negotiated Markdown GET/HEAD requests, including
+expired or invalid selections. Tracking-only queries retain homepage indexing.
+Pagination stays crawlable so search engines can read the exclusion and discover
+story links. Existing indexed selections disappear after deployment and recrawling;
+blocking them in `robots.txt` would prevent crawlers from seeing `noindex`.
+
 ## Homepage continuation and return navigation
 
 The homepage server-renders ten ready stories from the existing ranking. Near the

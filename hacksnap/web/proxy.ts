@@ -14,6 +14,13 @@ export function proxy(request: NextRequest) {
   const response = markdown
     ? NextResponse.rewrite(url, { request: { headers: requestHeaders } })
     : NextResponse.next();
+  // Temporary feed snapshots must stay out of search, including expired pages
+  // and negotiated Markdown responses that have no HTML metadata.
+  if (
+    request.nextUrl.pathname === "/" &&
+    (request.nextUrl.searchParams.has("page") || request.nextUrl.searchParams.has("cursor"))
+  )
+    response.headers.set("X-Robots-Tag", "noindex, follow");
   response.headers.append("Vary", "Accept");
   return response;
 }
