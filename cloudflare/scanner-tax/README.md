@@ -27,6 +27,10 @@ Responses use plain text, `Cache-Control: no-store, max-age=0`,
 `X-Robots-Tag: noindex, nofollow, noarchive`, and `X-Scanner-Tax: unpaid`.
 There are no delays, external requests, or payment collection for blocked probes.
 
+Miniflare uses sharp 0.35.5 through a package-level npm override to pick up the patched
+librsvg image dependency. Remove the override when Miniflare pins a patched sharp
+release itself.
+
 ## Check locally
 
 Use Node.js 22 or newer. From the repository root:
