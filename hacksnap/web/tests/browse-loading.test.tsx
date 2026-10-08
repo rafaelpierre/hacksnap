@@ -13,7 +13,7 @@ test("browse fallback announces progress once and keeps decorative cards out of 
   assert.doesNotMatch(html, /<(?:a|button|input)\b/);
 });
 
-test("loading cards keep the shared title-before-image grid order", () => {
+test("loading cards keep the shared title, excerpt, image order", () => {
   const { JSDOM } = createRequire(import.meta.url)("jsdom");
   const dom = new JSDOM(renderToStaticMarkup(<BrowseLoading />));
   try {
@@ -21,11 +21,12 @@ test("loading cards keep the shared title-before-image grid order", () => {
     assert.equal(cards.length, 3);
     for (const card of cards) {
       const children = Array.from(card.children) as Element[];
-      assert.equal(children.length, 4);
+      assert.equal(children.length, 5);
       assert.ok(children[0]?.classList.contains("story-context"));
       assert.equal(children[1]?.tagName, "H2");
-      assert.ok(children[2]?.classList.contains("feed-story-image"));
-      assert.ok(children[3]?.classList.contains("story-content"));
+      assert.equal(children[2]?.tagName, "P");
+      assert.ok(children[3]?.classList.contains("feed-story-image"));
+      assert.ok(children[4]?.classList.contains("story-content"));
       assert.equal(card.querySelector(".story-content .feed-story-title"), null);
     }
   } finally {

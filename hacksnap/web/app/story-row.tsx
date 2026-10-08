@@ -57,6 +57,13 @@ export function StoryRow({
           {story.title}
         </BrowseStoryLink>
       </h2>
+      {takeaway ? (
+        <p className="feed-excerpt">{briefExcerpt(takeaway)}</p>
+      ) : (
+        <p className="feed-excerpt feed-pending">
+          Brief pending. Check back after the next summary update.
+        </p>
+      )}
       <ArticleImage
         image={image}
         alt=""
@@ -66,13 +73,6 @@ export function StoryRow({
         sizes={lead ? LEAD_IMAGE_SIZES : FEED_IMAGE_SIZES}
       />
       <div className="story-content">
-        {takeaway ? (
-          <p className="feed-excerpt">{briefExcerpt(takeaway)}</p>
-        ) : (
-          <p className="feed-excerpt feed-pending">
-            Brief pending. Check back after the next summary update.
-          </p>
-        )}
         {lead && discussionPreview?.storyId === story.hn_id && (
           <div className="feed-discussion-preview">
             <h3>Inside the discussion</h3>

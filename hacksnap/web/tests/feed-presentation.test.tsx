@@ -143,8 +143,8 @@ test("lead card reading order and actions preserve category metadata in selected
   const markers = [
     "story-context",
     '<h2 class="feed-story-title"',
-    'class="feed-story-image"',
     "feed-excerpt",
+    'class="feed-story-image"',
     "feed-discussion-preview",
     'class="feed-story-rail"',
   ];
