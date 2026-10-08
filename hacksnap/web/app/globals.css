@@ -350,12 +350,6 @@ body:has(#browse-content) .skip-browse {
 .topic-label {
   min-width: 0;
 }
-.navigation-pending {
-  display: block;
-  margin-top: var(--space-1);
-  color: var(--muted);
-  font: var(--text-sm)/1.5 var(--sans);
-}
 
 /* Separate reading cards keep source content and actions in a single column. */
 .story-list {

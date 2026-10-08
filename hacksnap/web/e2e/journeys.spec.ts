@@ -365,7 +365,7 @@ test("desktop topics stay left of the feed and close to the header", async ({ pa
   await expect(page).toHaveURL(/\/\?category=industry-society$/);
 });
 
-test("a delayed story navigation keeps the feed and announces progress", async ({ page }) => {
+test("a delayed story navigation keeps the feed without extra status text", async ({ page }) => {
   let release: (() => void) | undefined;
   const pending = new Promise<void>((resolve) => {
     release = resolve;
@@ -379,7 +379,7 @@ test("a delayed story navigation keeps the feed and announces progress", async (
   await link.click();
   try {
     await expect(link).toHaveAttribute("aria-busy", "true");
-    await expect(page.getByRole("status").filter({ hasText: "Opening story…" })).toBeVisible();
+    await expect(page.getByText("Opening story…", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Latest stories" })).toBeAttached();
   } finally {
     release!();
