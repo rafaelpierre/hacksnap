@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Rss } from "lucide-react";
 import Script from "next/script";
@@ -38,6 +38,11 @@ const editorial = localFont({
   adjustFontFallback: "Times New Roman",
   fallback: ["Georgia", "Times New Roman", "serif"],
 });
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+  colorScheme: "light",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://hacksnap.live"),

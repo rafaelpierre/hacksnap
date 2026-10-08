@@ -170,6 +170,7 @@ time,
   font-variant-numeric: tabular-nums;
 }
 html {
+  background: var(--bg);
   scroll-padding-top: calc(var(--site-header-height) + var(--space-4));
 }
 .site-header {
@@ -288,8 +289,10 @@ footer {
 .windowed-feed-spacer {
   pointer-events: none;
 }
-.story-row:hover {
-  background: var(--row-hover);
+@media (hover: hover) and (pointer: fine) {
+  .story-row:hover {
+    background: var(--row-hover);
+  }
 }
 .story-content {
   min-width: 0;

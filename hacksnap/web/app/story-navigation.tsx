@@ -279,17 +279,31 @@ function plainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
   );
 }
 
+function openStoryDocument(href: string, token: string | null): boolean {
+  const { userAgent, platform, maxTouchPoints } = window.navigator;
+  const ios = /iPad|iPhone|iPod/.test(userAgent) || (platform === "MacIntel" && maxTouchPoints > 1);
+  if (!ios) return false;
+  // WebKit can skip pushState entries created after an async navigation outlives
+  // the tap's user activation. Start a document navigation during the tap instead.
+  const url = new URL(href, window.location.origin);
+  if (token) url.searchParams.set("journey", token);
+  window.location.assign(url.pathname + url.search + url.hash);
+  return true;
+}
+
 export function BrowseStoryLink({
   id,
   slug,
   anchor,
   feedPosition,
+  focusFeedStory = true,
   children,
 }: {
   id: string;
   slug?: string | null;
   anchor?: "discussion-analysis";
   feedPosition?: number;
+  focusFeedStory?: boolean;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -304,14 +318,20 @@ export function BrowseStoryLink({
     const store = storage();
     const url = window.location.pathname + window.location.search;
     const label = browseLabel(url);
+    const focusStoryId = focusFeedStory ? id : null;
     let homeFeedRef = label
-      ? positionFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url, window.scrollY, id)
+      ? positionFeedSnapshot(
+          window.history.state?.[HOME_HISTORY_KEY],
+          url,
+          window.scrollY,
+          focusStoryId,
+        )
       : null;
     if (!homeFeedRef && label) {
       const legacy = validFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url);
       if (legacy)
         homeFeedRef = saveFeedSnapshot(
-          { ...legacy, scrollY: window.scrollY, focusStoryId: id, savedAt: Date.now() },
+          { ...legacy, scrollY: window.scrollY, focusStoryId, savedAt: Date.now() },
           null,
         );
     }
@@ -345,6 +365,7 @@ export function BrowseStoryLink({
       }
     }
     event.preventDefault();
+    if (openStoryDocument(href, journey)) return;
     prepareJourney(href, journey, context, homeFeedRef);
     startTransition(() => router.push(href));
   }
@@ -393,6 +414,7 @@ export function NextStoryLink({
     event.preventDefault();
     const context = readJourney(journey);
     const homeFeedRef = context ? readJourneyHomeFeedRef(journey, context.url) : null;
+    if (openStoryDocument(href, journey)) return;
     prepareJourney(href, journey, context, homeFeedRef);
     startTransition(() => router.push(href));
   }

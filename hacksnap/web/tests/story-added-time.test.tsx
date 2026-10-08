@@ -11,7 +11,7 @@ test("added time hydrates from UTC into the reader timezone and updates with the
   process.env.TZ = "America/Los_Angeles";
   const dateTime = "2026-09-26T01:30:00.000Z";
   const html = renderToString(<StoryAddedTime dateTime={dateTime} />);
-  assert.match(html, /26 Sept 2026.*01:30.*UTC/);
+  assert.match(html, /2026-09-26 01:30 UTC/);
   const dom = new JSDOM(`<div id="root">${html}</div>`);
   const keys = ["window", "document", "navigator", "IS_REACT_ACT_ENVIRONMENT"] as const;
   const descriptors = keys.map((key) => Object.getOwnPropertyDescriptor(globalThis, key));

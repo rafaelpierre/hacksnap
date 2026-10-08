@@ -10,6 +10,14 @@ export default defineConfig({
   retries: 0,
   forbidOnly: Boolean(process.env.CI),
   reporter: [["list"], ["html", { open: "never" }]],
+  projects: [
+    { name: "chromium" },
+    {
+      name: "iphone-webkit",
+      testMatch: "story-browser-history.spec.ts",
+      use: { ...devices["iPhone 13"] },
+    },
+  ],
   use: {
     ...devices["Desktop Chrome"],
     baseURL: `http://127.0.0.1:${process.env.BROWSER_PORT ?? "3100"}`,
