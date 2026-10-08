@@ -39,6 +39,10 @@ test.describe("mobile browser history", () => {
       // Playwright goBack alone does not emulate every browser toolbar history policy.
       if (documentRequest) await documentRequest;
       await page.waitForURL(`${baseURL}${destination}`, { timeout: 20_000 });
+      // Only the first article load needs to outlive the tap. Do not repeat the
+      // artificial delay in prefetches or Forward while checking the same entry.
+      if (mode === "slow")
+        await context.addCookies([{ name: "fixture-story", value: "direct", url: baseURL! }]);
       await page.waitForLoadState("networkidle");
       await page.goBack();
       await expect(page).toHaveURL(`${baseURL}/`);
