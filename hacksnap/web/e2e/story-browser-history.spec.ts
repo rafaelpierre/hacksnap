@@ -1,5 +1,6 @@
 import { test, expect, title, storyPath } from "./browser";
 import { packFeedSnapshot, validFeedPage, type FeedSnapshot } from "../lib/feed-state";
+import { trackRequests } from "./request-idle";
 
 test.describe("mobile browser history", () => {
   test.setTimeout(60_000);
@@ -11,6 +12,7 @@ test.describe("mobile browser history", () => {
       baseURL,
       browserName,
     }) => {
+      const settleRequests = trackRequests(page);
       await context.addCookies([{ name: "fixture-story", value: mode, url: baseURL! }]);
       const destination = mode === "redirect" ? "/story/canonical-story-91000001" : storyPath;
       await page.route("https://previous.example/", (route) =>
@@ -26,7 +28,7 @@ test.describe("mobile browser history", () => {
       // Scrolling starts viewport prefetches. Let those settle before the tap so
       // document unload does not turn an intercepted prefetch into a WebKit error.
       await card.scrollIntoViewIfNeeded();
-      await page.waitForLoadState("networkidle");
+      await settleRequests();
       const historyLength = await page.evaluate(() => history.length);
       const documentRequest =
         browserName === "webkit"
@@ -44,33 +46,35 @@ test.describe("mobile browser history", () => {
       // artificial delay in prefetches or Forward while checking the same entry.
       if (mode === "slow")
         await context.addCookies([{ name: "fixture-story", value: "direct", url: baseURL! }]);
-      await page.waitForLoadState("networkidle");
+      await settleRequests();
       await page.goBack();
       await expect(page).toHaveURL(`${baseURL}/`);
       expect(await page.evaluate(() => history.length)).toBe(historyLength + 1);
       await expect(card).toBeVisible();
-      await page.waitForLoadState("networkidle");
+      await settleRequests();
       await page.goForward();
       await expect(page).toHaveURL(`${baseURL}${destination}`);
       await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+      await settleRequests();
     });
   }
 
   test("reading another story preserves the original paginated topic return", async ({ page }) => {
+    const settleRequests = trackRequests(page);
     await page.goto("/?category=models-products&page=2");
     const first = page.locator(".story-list h3 a").first();
     await first.scrollIntoViewIfNeeded();
-    await page.waitForLoadState("networkidle");
+    await settleRequests();
     await first.tap();
     await page.waitForURL(/\/story\/[^?]+$/);
-    await page.waitForLoadState("networkidle");
+    await settleRequests();
     const related = page.getByRole("region", { name: "Read next" }).locator("h3 a").first();
     await related.scrollIntoViewIfNeeded();
-    await page.waitForLoadState("networkidle");
+    await settleRequests();
     const nextHref = await related.getAttribute("href");
     await related.tap();
     await page.waitForURL((url) => url.pathname === nextHref && !url.search);
-    await page.waitForLoadState("networkidle");
+    await settleRequests();
     const topicReturn = page
       .getByRole("navigation", { name: "Breadcrumb" })
       .getByRole("link", { name: "Models & Products", exact: true });
@@ -78,6 +82,7 @@ test.describe("mobile browser history", () => {
     await topicReturn.tap();
     await expect(page).toHaveURL(/category=models-products&page=2$/);
     await expect(page.locator(".story-list h3 a").first()).toBeVisible();
+    await settleRequests();
   });
 
   for (const returnMode of ["browser Back", "explicit return"]) {
@@ -88,6 +93,7 @@ test.describe("mobile browser history", () => {
       baseURL,
       browserName,
     }) => {
+      const settleRequests = trackRequests(page);
       await context.addCookies([
         { name: "fixture-popularity", value: "outside-feed", url: baseURL! },
       ]);
@@ -155,7 +161,7 @@ test.describe("mobile browser history", () => {
         .first();
       await expect(sidebarLink).toHaveAttribute("href", "/story/91000036");
       expect(snapshot.stories.some(({ hn_id }) => hn_id === "91000036")).toBe(false);
-      await page.waitForLoadState("networkidle");
+      await settleRequests();
       // Keyboard activation keeps the saved reading position while opening the sidebar link.
       await sidebarLink.evaluate((link) => link.focus({ preventScroll: true }));
       const documentRequest =
@@ -169,17 +175,20 @@ test.describe("mobile browser history", () => {
       await page.keyboard.press("Enter");
       if (documentRequest) await documentRequest;
       await page.waitForURL(`${baseURL}/story/91000036`);
-      await page.waitForLoadState("networkidle");
+      await settleRequests();
       if (returnMode === "browser Back") await page.goBack();
       else {
         await page.reload();
+        await settleRequests();
         await page.getByRole("link", { name: "Back to Latest stories", exact: true }).click();
       }
       await expect(page).toHaveURL(`${baseURL}/`);
       await expectSavedFeed();
+      await settleRequests();
       // Reread persisted state in a fresh document instead of relying on a retained page.
       await page.reload();
       await expectSavedFeed();
+      await settleRequests();
     });
   }
 });
