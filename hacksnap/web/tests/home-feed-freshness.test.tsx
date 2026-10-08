@@ -103,7 +103,7 @@ test("root Latest ignores retired ranked state, loads 15 via browse API, and res
   try {
     await render();
     assert.equal(document.querySelectorAll(".story-list > li").length, 15);
-    assert.equal(document.querySelector("h3")?.textContent, "Story 100");
+    assert.equal(document.querySelector(".feed-story-title")?.textContent, "Story 100");
     assert.equal(document.querySelector(".feed-freshness-banner"), null);
     assert.equal(dom.window.localStorage.getItem(HOME_FEED_CHECKPOINT_KEY), null);
     assert.equal(dom.window.localStorage.getItem("unrelated"), "keep");

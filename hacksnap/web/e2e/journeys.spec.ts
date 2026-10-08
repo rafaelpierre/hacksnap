@@ -100,12 +100,20 @@ test("keyboard source popover and share controls preserve focus and accessibilit
   const share = page.getByRole("button", { name: `Share: ${title}`, exact: true }).first();
   await share.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("button", { name: "Copy link", exact: true })).toBeFocused();
+  const shareDialog = page.getByRole("dialog", { name: "Share this story" });
+  await expect(shareDialog).toBeVisible();
+  await expect(shareDialog.getByRole("button", { name: "Copy link", exact: true })).toBeFocused();
+  await shareDialog.getByRole("button", { name: "Close share dialog" }).focus();
+  await page.keyboard.press("Shift+Tab");
+  expect(await shareDialog.evaluate((dialog) => dialog.contains(document.activeElement))).toBe(
+    true,
+  );
   expect(
     (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
       .violations,
   ).toEqual([]);
   await page.keyboard.press("Escape");
+  await expect(shareDialog).toHaveCount(0);
   await expect(share).toBeFocused();
 });
 
@@ -150,11 +158,11 @@ test("blocked storage and clipboard retain light appearance, navigation and manu
 test("slow and failed optional recommendations preserve the article", async ({ page }) => {
   await page.goto("/story/91000002", { waitUntil: "commit" });
   await expect(page.getByRole("heading", { name: "Practical AI research update 2" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Read next" })).toHaveAttribute(
+  await expect(page.getByRole("region", { name: "Related stories" })).toHaveAttribute(
     "aria-busy",
     "true",
   );
-  await expect(page.getByRole("region", { name: "Read next" })).not.toHaveAttribute(
+  await expect(page.getByRole("region", { name: "Related stories" })).not.toHaveAttribute(
     "aria-busy",
     "true",
   );
@@ -276,12 +284,12 @@ test.describe("without JavaScript", () => {
   });
   test("server content and ordinary links remain readable", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(244, 244, 245)");
     await expect(page.getByRole("button", { name: /Switch to .* mode/ })).toHaveCount(0);
     await page.locator(".story-list").getByRole("link", { name: title, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "TLDR;", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Article brief", exact: true })).toBeVisible();
     await page.locator("summary").filter({ hasText: "Measuring useful work" }).click();
     await expect(
       page.getByText("Readers ask for repeatable measurements of realistic tasks."),
@@ -306,7 +314,7 @@ test("feature routes remain reachable by keyboard", async ({ page }) => {
   await page.goto("/");
   const topics = page
     .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Topics", exact: true });
+    .getByRole("link", { name: "Browse by topic", exact: true });
   await topics.focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/topics$/);
@@ -345,7 +353,7 @@ test("desktop topics stay left of the feed and close to the header", async ({ pa
   expect(sidebarBounds!.x + sidebarBounds!.width).toBeLessThan(storyBounds!.x);
   expect(sidebarBounds!.y).toBeGreaterThanOrEqual(headerBounds!.y + headerBounds!.height);
   expect(sidebarBounds!.y).toBeLessThanOrEqual(headerBounds!.y + headerBounds!.height + 32);
-  const topics = sidebar.getByRole("navigation", { name: "Topics", exact: true });
+  const topics = sidebar.getByRole("navigation", { name: "Main navigation", exact: true });
   const lastTopic = topics.getByRole("link", { name: "Industry & Society", exact: true });
   await lastTopic.focus();
   await expect(lastTopic).toBeFocused();
@@ -387,8 +395,8 @@ test("category and API documentation home links open Latest directly", async ({ 
   await expect(page.getByText(/^Topic:/)).toHaveCount(0);
   await expect(
     page
-      .getByRole("navigation", { name: "Topics", exact: true })
-      .getByRole("link", { name: "All stories", exact: true }),
+      .getByRole("navigation", { name: "Main navigation", exact: true })
+      .getByRole("link", { name: "Latest", exact: true }),
   ).toHaveAttribute("href", "/");
   const browse = page.getByRole("link", { name: "Browse latest stories" });
   await expect(browse).toHaveAttribute("href", "/");
@@ -449,7 +457,7 @@ test("topic filters reuse Latest and retain selection through paging and history
 }) => {
   await page.goto("/?page=2");
   await page
-    .getByRole("navigation", { name: "Topics", exact: true })
+    .getByRole("navigation", { name: "Main navigation", exact: true })
     .getByRole("link", { name: "Models & Products" })
     .click();
   await expect(page).toHaveURL(/\/\?category=models-products$/);
@@ -457,7 +465,7 @@ test("topic filters reuse Latest and retain selection through paging and history
     page.getByRole("heading", { name: "Latest stories — Models & Products" }),
   ).toBeAttached();
   const topic = page
-    .getByRole("navigation", { name: "Topics", exact: true })
+    .getByRole("navigation", { name: "Main navigation", exact: true })
     .getByRole("link", { name: "Models & Products" });
   await expect(topic).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: "Older stories", exact: true })).toHaveAttribute(
@@ -465,8 +473,8 @@ test("topic filters reuse Latest and retain selection through paging and history
     "/?category=models-products&page=2",
   );
   await page
-    .getByRole("navigation", { name: "Topics", exact: true })
-    .getByRole("link", { name: "All stories", exact: true })
+    .getByRole("navigation", { name: "Main navigation", exact: true })
+    .getByRole("link", { name: "Latest", exact: true })
     .click();
   await expect(page).toHaveURL(/\/$/);
   await page.goBack();
@@ -484,7 +492,7 @@ test("topic filters reuse Latest and retain selection through paging and history
   }
   await page.goto("/?category=models-products&page=2");
   // Follow the story title using the existing card heading link.
-  const storyLink = page.locator(".story-list h3 a").first();
+  const storyLink = page.locator(".story-list .feed-story-title a").first();
   await storyLink.click();
   const topicReturn = page
     .getByRole("navigation", { name: "Breadcrumb" })
@@ -572,7 +580,12 @@ for (const returnName of ["Models & Products", "Back to Models & Products · pag
     );
     await page.goto(`/story/${snapshot.focusStoryId}`);
     await page.reload();
-    const back = page.getByRole("link", { name: returnName, exact: true });
+    const back =
+      returnName === "Models & Products"
+        ? page
+            .getByRole("navigation", { name: "Breadcrumb" })
+            .getByRole("link", { name: returnName, exact: true })
+        : page.getByRole("link", { name: returnName, exact: true });
     await expect(back).toHaveAttribute("href", canonicalURL);
     await back.click();
     await expect(page).toHaveURL(/category=models-products&page=2$/);
@@ -600,7 +613,7 @@ test("category-only navigation and history create distinct analytics visits", as
     });
   await page.goto("/");
   await expect.poll(async () => (await visits()).length).toBe(1);
-  const topics = page.getByRole("navigation", { name: "Topics", exact: true });
+  const topics = page.getByRole("navigation", { name: "Main navigation", exact: true });
   await topics.getByRole("link", { name: "Models & Products", exact: true }).click();
   await expect(page).toHaveURL(/category=models-products$/);
   await expect.poll(async () => (await visits()).length).toBe(2);
@@ -614,10 +627,61 @@ test("category-only navigation and history create distinct analytics visits", as
   await expect(page).toHaveURL(/category=agents-coding$/);
   await expect.poll(async () => (await visits()).length).toBe(5);
   await page
-    .getByRole("navigation", { name: "Topics", exact: true })
-    .getByRole("link", { name: "All stories", exact: true })
+    .getByRole("navigation", { name: "Main navigation", exact: true })
+    .getByRole("link", { name: "Latest", exact: true })
     .click();
   await expect(page).toHaveURL(/\/$/);
   await expect.poll(async () => (await visits()).length).toBe(6);
   expect(new Set(await visits()).size).toBe(6);
+});
+
+test("mobile topics disclosure expands inline, closes on selection, and returns Escape focus", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/");
+  const menu = page.getByText("Topics & menu", { exact: true });
+  const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+  const content = page.locator("#main");
+  const initialTop = (await content.boundingBox())!.y;
+  await expect(navigation).not.toBeVisible();
+  await menu.click();
+  await expect(page.locator(".menu-button")).toHaveAttribute("aria-expanded", "true");
+  await expect(navigation).toBeVisible();
+  expect((await content.boundingBox())!.y).toBeGreaterThan(initialTop + 100);
+  const topic = navigation.getByRole("link", { name: "Models & Products", exact: true });
+  await topic.focus();
+  await page.keyboard.press("Escape");
+  await expect(navigation).not.toBeVisible();
+  await expect(page.locator(".menu-button")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await topic.click();
+  await expect(page).toHaveURL(/category=models-products$/);
+  await expect(navigation).not.toBeVisible();
+  await menu.click();
+  await expect(topic).toHaveAttribute("aria-current", "page");
+  await navigation.getByRole("link", { name: "About", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "About Hacksnap" })).toBeVisible();
+  await expect(page.getByRole("main")).toHaveCount(1);
+  await expect(navigation).not.toBeVisible();
+  await page.goBack();
+  await menu.click();
+  await expect(topic).toHaveAttribute("aria-current", "page");
+});
+
+test.describe("native mobile menu without JavaScript", () => {
+  test.use({ javaScriptEnabled: false, viewport: { width: 320, height: 800 } });
+  test("Topics and About remain reachable through the disclosure", async ({ page }) => {
+    await page.goto("/");
+    const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+    await expect(navigation).not.toBeVisible();
+    await page.locator(".menu-button").click();
+    await navigation.getByRole("link", { name: "Models & Products", exact: true }).click();
+    await expect(page).toHaveURL(/category=models-products$/);
+    await expect(navigation).not.toBeVisible();
+    await page.locator(".menu-button").click();
+    await navigation.getByRole("link", { name: "About", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "About Hacksnap" })).toBeVisible();
+    await expect(page.getByRole("main")).toHaveCount(1);
+  });
 });

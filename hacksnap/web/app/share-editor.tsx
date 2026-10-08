@@ -39,6 +39,45 @@ export function ShareEditor({
 
   return (
     <>
+      <div className="share-draft-heading">
+        <label htmlFor={draftId}>Suggested post</label>
+        <span className="share-count" data-over-limit={!xStatus.valid}>
+          {xStatus.length}/{xStatus.limit} on X
+        </span>
+      </div>
+      <textarea
+        id={draftId}
+        ref={draftField}
+        className="share-draft"
+        aria-describedby={xHintId}
+        value={post}
+        rows={5}
+        onChange={(event) => onPostChange(event.target.value)}
+      />
+      {postEdited && (
+        <button
+          type="button"
+          className="share-copy-post"
+          onClick={() => {
+            onResetPost();
+            draftField.current?.focus();
+          }}
+        >
+          Reset draft
+        </button>
+      )}
+      <p id={xHintId} className="share-destination-hint">
+        {!xStatus.valid ? "Shorten the draft to share on X. " : ""}LinkedIn shares the link; paste
+        your copied post there.
+      </p>
+      <button
+        type="button"
+        className="share-copy-post share-copy-primary"
+        onClick={() => onCopy(post, "post")}
+      >
+        <Copy size={16} aria-hidden="true" />
+        Copy suggested post
+      </button>
       <div className="share-actions">
         <button type="button" ref={firstActionRef} onClick={() => onCopy(url, "link")}>
           <Link2 size={20} aria-hidden="true" />
@@ -81,41 +120,6 @@ export function ShareEditor({
           );
         })}
       </div>
-      <div className="share-draft-heading">
-        <label htmlFor={draftId}>Suggested post</label>
-        <span className="share-count" data-over-limit={!xStatus.valid}>
-          {xStatus.length}/{xStatus.limit} on X
-        </span>
-      </div>
-      <textarea
-        id={draftId}
-        ref={draftField}
-        className="share-draft"
-        aria-describedby={xHintId}
-        value={post}
-        rows={5}
-        onChange={(event) => onPostChange(event.target.value)}
-      />
-      {postEdited && (
-        <button
-          type="button"
-          className="share-copy-post"
-          onClick={() => {
-            onResetPost();
-            draftField.current?.focus();
-          }}
-        >
-          Reset draft
-        </button>
-      )}
-      <p id={xHintId} className="share-destination-hint">
-        {!xStatus.valid ? "Shorten the draft to share on X. " : ""}LinkedIn shares the link; paste
-        your copied post there.
-      </p>
-      <button type="button" className="share-copy-post" onClick={() => onCopy(post, "post")}>
-        <Copy size={16} aria-hidden="true" />
-        Copy suggested post
-      </button>
     </>
   );
 }

@@ -1,73 +1,17 @@
-import {
-  Blocks,
-  Building2,
-  ChevronRight,
-  Code2,
-  FlaskConical,
-  Newspaper,
-  Server,
-  ShieldCheck,
-  type LucideIcon,
-} from "lucide-react";
-import { CATEGORIES, categoryURL, type CategoryId } from "../lib/categories";
-import { NavigationPendingLink } from "./navigation-pending-link";
-
-const topicIcons: Record<CategoryId, LucideIcon> = {
-  models_products: Blocks,
-  agents_coding: Code2,
-  research_evaluation: FlaskConical,
-  infrastructure_efficiency: Server,
-  safety_privacy: ShieldCheck,
-  industry_society: Building2,
-};
+import type { CategoryId } from "../lib/categories";
+import { MainNavigation } from "./main-navigation";
 
 export function TopicSidebar({ active }: { active?: CategoryId | "home" }) {
   return (
-    <aside className="topic-sidebar" aria-labelledby="topic-sidebar-heading">
-      <h2 id="topic-sidebar-heading">
-        <NavigationPendingLink href="/topics" pendingLabel="Loading topics…">
-          Explore topics
-        </NavigationPendingLink>
-      </h2>
-      <nav aria-label="Topics">
-        <ul>
-          <li>
-            <NavigationPendingLink
-              href="/"
-              aria-current={active === "home" ? "page" : undefined}
-              pendingLabel="Loading all stories…"
-            >
-              <Newspaper className="inline-icon topic-icon" aria-hidden="true" />
-              <span className="topic-label">All stories</span>
-              <ChevronRight className="inline-icon topic-chevron" aria-hidden="true" />
-            </NavigationPendingLink>
-          </li>
-          {CATEGORIES.map((category) => {
-            const Icon = topicIcons[category.id];
-            return (
-              <li key={category.id}>
-                <NavigationPendingLink
-                  href={categoryURL(category)}
-                  data-color={category.color}
-                  aria-current={active === category.id ? "page" : undefined}
-                  pendingLabel={`Loading ${category.label}…`}
-                >
-                  <Icon className="inline-icon topic-icon" aria-hidden="true" />
-                  <span className="topic-label">{category.label}</span>
-                  <ChevronRight className="inline-icon topic-chevron" aria-hidden="true" />
-                </NavigationPendingLink>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+    <aside className="topic-sidebar desktop-navigation" aria-label="Site navigation">
+      <MainNavigation active={active} />
     </aside>
   );
 }
 
+/** Route content sits inside the shared site shell; supporting content follows the feed. */
 export function BrowseLayout({
   children,
-  active,
   rightSidebar,
 }: {
   children: React.ReactNode;
@@ -76,14 +20,13 @@ export function BrowseLayout({
 }) {
   return (
     <div className="browse-layout">
-      <TopicSidebar active={active} />
       <div
         className={rightSidebar ? "browse-content browse-content-with-sidebar" : "browse-content"}
         id="browse-content"
         tabIndex={-1}
       >
+        <div className="browse-feed-content">{children}</div>
         {rightSidebar && <div className="browse-right-sidebar">{rightSidebar}</div>}
-        {rightSidebar ? <div className="browse-feed-content">{children}</div> : children}
       </div>
     </div>
   );

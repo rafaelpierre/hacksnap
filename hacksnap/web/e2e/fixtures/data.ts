@@ -105,17 +105,47 @@ const stories: ArticleStory[] = Array.from({ length: 40 }, (_, i) => ({
     },
   },
 }));
+// Opt-in browser evidence for intrinsic media proportions; default journeys remain unchanged.
+function variedImage<T extends ArticleStory>(story: T): T {
+  const index = Number(story.hn_id) - 91000001;
+  if (index < 0 || index > 4) return story;
+  if (index === 3) return { ...story, image_status: null, image_url: null };
+  const variants = [
+    { name: "wide", width: 1600, height: 900 },
+    { name: "diagram", width: 1200, height: 700 },
+    { name: "portrait", width: 800, height: 1400 },
+    { name: "missing", width: 1600, height: 900 },
+    { name: "failed", width: 1000, height: 600 },
+  ];
+  const variant = variants[index];
+  return {
+    ...story,
+    image_url: `https://fixture.public.blob.vercel-storage.com/articles/frontend-fixture-${variant.name}.webp`,
+    image_width: variant.width,
+    image_height: variant.height,
+  };
+}
 const cards = stories.map((story, index) => ({
   ...story,
   rank: String(index + 1),
   rank_history: [],
   is_recent: true,
 }));
+async function fixtureCards() {
+  const cookie = (await headers()).get("cookie") ?? "";
+  return cards.map((story, index) => {
+    const selected = cookie.includes("fixture-images=varied") ? variedImage(story) : story;
+    return index === 0 && cookie.includes("fixture-lead=no-image")
+      ? { ...selected, image_status: null, image_url: null }
+      : selected;
+  });
+}
 export async function getReadyStoryPage({
   cursor,
   page,
   pageSize,
 }: { cursor?: string; page?: number; pageSize?: number; fresh?: boolean } = {}) {
+  const selectedCards = await fixtureCards();
   const snapshot = cursor ? parseReadyStoryCursor(cursor) : null;
   const size = snapshot?.pageSize ?? assertReadyStoryPageSize(pageSize);
   const currentPage = snapshot ? snapshot.offset / size + 1 : assertReadyStoryPage(page);
@@ -134,7 +164,7 @@ export async function getReadyStoryPage({
     });
   const hasMore = offset + size < cards.length;
   return {
-    stories: cards.slice(offset, offset + size),
+    stories: selectedCards.slice(offset, offset + size),
     ingestion: new Date(),
     observed_at: timestamp,
     selectionIds: items.map(({ hn_id }) => hn_id),
@@ -196,7 +226,7 @@ export const getStory = cache(async (id: string): Promise<ArticleStory | null> =
   if (story && id === "91000001" && cookie.includes("fixture-story=redirect")) {
     return { ...story, story_slug: `canonical-story-${id}` };
   }
-  return story;
+  return story && cookie.includes("fixture-images=varied") ? variedImage(story) : story;
 });
 export async function getPublicStory(id: string): Promise<PublicStory | null> {
   return getStory(id);
@@ -213,13 +243,16 @@ export async function getCategoryCounts(): Promise<CategoryCounts> {
 export async function getCategoryStories(category: CategoryId, page: number) {
   if (category === "safety_privacy") return { stories: [], hasNext: false };
   return {
-    stories: cards.slice((page - 1) * CATEGORY_PAGE_SIZE, page * CATEGORY_PAGE_SIZE),
+    stories: (await fixtureCards()).slice(
+      (page - 1) * CATEGORY_PAGE_SIZE,
+      page * CATEGORY_PAGE_SIZE,
+    ),
     hasNext: page * CATEGORY_PAGE_SIZE < cards.length,
   };
 }
 export async function getArchiveStories(_month: string | null, page: number) {
   return {
-    stories: cards.slice((page - 1) * ARCHIVE_PAGE_SIZE, page * ARCHIVE_PAGE_SIZE),
+    stories: (await fixtureCards()).slice((page - 1) * ARCHIVE_PAGE_SIZE, page * ARCHIVE_PAGE_SIZE),
     hasNext: page * ARCHIVE_PAGE_SIZE < cards.length,
   };
 }

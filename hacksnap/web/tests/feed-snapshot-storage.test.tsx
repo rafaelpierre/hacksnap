@@ -174,3 +174,13 @@ test("denied storage keeps exact same-tab navigation without losing rendered car
     dom.window.close();
   }
 });
+
+test("logical lead identity round-trips without persisting discussion detail", () => {
+  const feed = { ...snapshot(30, 2), leadStoryId: "1" };
+  const packed = packFeedSnapshot(feed);
+  assert.equal(unpackFeedSnapshot(packed, "/")?.leadStoryId, "1");
+  assert.doesNotMatch(packed, /discussion_analysis|discussionPreview|discussion_summary/);
+  const corrupted = JSON.parse(packed);
+  corrupted[7] = "2";
+  assert.equal(unpackFeedSnapshot(JSON.stringify(corrupted), "/"), null);
+});

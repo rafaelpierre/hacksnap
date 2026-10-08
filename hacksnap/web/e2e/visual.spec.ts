@@ -18,17 +18,25 @@ for (const width of [320, 1280])
         storyPath,
       ]) {
         await page.goto(route);
-        await page.evaluate((scale) => {
-          document.documentElement.style.fontSize = `${scale * 100}%`;
+        await expect(page.locator(".menu-button")).toHaveAttribute("aria-expanded", "false");
+        // Keep the simulated user stylesheet outside Next's managed head.
+        await page.locator("body").evaluate((body, scale) => {
+          const style = document.createElement("style");
+          style.textContent = `html { font-size: ${scale * 100}% !important; }`;
+          body.appendChild(style);
         }, textScale);
+        await expect(page.locator("html")).toHaveCSS("font-size", `${16 * textScale}px`);
         await page.evaluate(() => document.fonts.ready);
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+        );
         const latest = route === "/" || route.startsWith("/?category=");
         if (latest) await expect(page.getByRole("heading", { level: 1 })).toBeAttached();
         else await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-        if (route.startsWith("/?category=")) {
-          await expect(page.locator(".story-list .category-badge")).toHaveCount(0);
-          await expect(page.locator(".story-list .story-context")).toHaveCount(0);
-        } else if (latest || route === "/2026/01") {
+        if ((latest && route !== "/?category=safety-privacy") || route === "/2026/01") {
           await expect(page.locator(".story-list .category-badge").first()).toBeVisible();
         }
         if (latest) await expect(page.locator("section > .feed-bar time")).toHaveCount(0);
@@ -36,15 +44,15 @@ for (const width of [320, 1280])
           viewport: window.innerWidth,
           content: document.documentElement.scrollWidth,
           scheme: getComputedStyle(document.documentElement).colorScheme,
-          heading: getComputedStyle(document.querySelector("h1")!).fontSize,
+          rootFont: getComputedStyle(document.documentElement).fontSize,
           hiddenImages: [...document.images].filter(
             (image) =>
               image.getBoundingClientRect().width > 0 && image.complete && image.naturalWidth === 0,
           ).length,
         }));
         expect(layout.content, "No horizontal overflow").toBeLessThanOrEqual(layout.viewport + 1);
-        await expect(page.locator("html")).toHaveCSS("background-color", "rgb(255, 255, 255)");
-        await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+        await expect(page.locator("html")).toHaveCSS("background-color", "rgb(244, 244, 245)");
+        await expect(page.locator("body")).toHaveCSS("background-color", "rgb(244, 244, 245)");
         await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
           "content",
           "#ffffff",
@@ -52,7 +60,15 @@ for (const width of [320, 1280])
         expect(layout.scheme.split(" ").sort()).toEqual(["light", "only"]);
         await expect(page.getByRole("button", { name: /Switch to .* mode/ })).toHaveCount(0);
         if (!latest)
-          expect(parseFloat(layout.heading)).toBeGreaterThanOrEqual(textScale === 2 ? 40 : 24);
+          await expect
+            .poll(
+              () =>
+                page
+                  .getByRole("heading", { level: 1 })
+                  .evaluate((node) => parseFloat(getComputedStyle(node).fontSize)),
+              { message: `${route} with root font ${layout.rootFont}` },
+            )
+            .toBeGreaterThanOrEqual(textScale === 2 ? 40 : 24);
         expect(layout.hiddenImages).toBe(0);
         if (["/", "/2026/01", "/?category=models-products", storyPath].includes(route)) {
           const image = page.locator("main img").first();
@@ -75,7 +91,7 @@ for (const width of [320, 1280])
               : page.locator(".story-list > li").first()
             : page.getByRole("heading", { level: 1 })
         ).boundingBox();
-        expect(firstContent!.y, "Content clears the sticky header").toBeGreaterThanOrEqual(
+        expect(firstContent!.y, "Content follows the normal-flow header").toBeGreaterThanOrEqual(
           header!.y + header!.height,
         );
         if (["/about", "/docs/api", storyPath].includes(route))
@@ -97,7 +113,7 @@ for (const width of [320, 1280])
       }
       const share = page.getByRole("button", { name: `Share: ${title}`, exact: true }).first();
       await share.click();
-      const panel = page.getByRole("region", { name: `Share ${title}`, exact: true });
+      const panel = page.getByRole("dialog", { name: "Share this story", exact: true });
       await expect(panel).toBeVisible();
       await expect(
         page.getByRole("textbox", { name: "Suggested post", exact: true }),
@@ -121,12 +137,9 @@ for (const touch of [false, true]) {
       await page.goto("/");
       const story = page.locator(".story-row").first();
       await story.hover();
-      await expect(story).toHaveCSS(
-        "background-color",
-        touch ? "rgba(0, 0, 0, 0)" : "rgb(242, 241, 237)",
-      );
-      await expect(page.locator("html")).toHaveCSS("background-color", "rgb(255, 255, 255)");
-      await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+      await expect(story).toHaveCSS("background-color", "rgb(255, 255, 255)");
+      await expect(page.locator("html")).toHaveCSS("background-color", "rgb(244, 244, 245)");
+      await expect(page.locator("body")).toHaveCSS("background-color", "rgb(244, 244, 245)");
     });
   });
 }

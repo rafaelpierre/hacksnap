@@ -29,6 +29,7 @@ function story(hn_id: string): Story {
 }
 
 jest.unstable_mockModule("../lib/data.ts", () => ({
+  getStory: async () => null,
   getPopularStories: async () => [],
   getCategoryStories: async (category: string, page: number) => {
     events.push(`stories:${category}:${page}`);

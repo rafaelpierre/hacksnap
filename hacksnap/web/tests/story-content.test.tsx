@@ -56,11 +56,11 @@ function render(element: ReactElement) {
 test("mocked story renders the reading journey and recommendations without a database", () => {
   const html = render(createElement(StoryContent, { story, relatedStories }));
   assert.match(html, /<h1>A mocked story title<\/h1>/);
-  assert.match(html, /id="article-heading"[^>]*>TLDR;/);
+  assert.match(html, /id="article-heading"[^>]*>Article brief/);
   assert.match(html, /The mocked article brief/);
   assert.match(
     html,
-    /id="discussion-themes-heading"[^>]*>.*?<span>Discussion themes<\/span><\/h2>/,
+    /id="discussion-themes-heading"[^>]*>.*?<span>Discussion analysis<\/span><\/h2>/,
   );
   assert.doesNotMatch(html, /The mocked discussion brief/);
   assert.match(html, /Low skepticism/);
@@ -116,7 +116,7 @@ test("ranked and unranked cards share semantic order, with Archive limited to ra
   for (const html of [ranked, unranked]) {
     assert.match(html, /<article class="story-row feed-story">/);
     const context = html.indexOf("story-context");
-    const title = html.indexOf("<h3>");
+    const title = html.indexOf('<h2 class="feed-story-title">');
     const image = html.indexOf("feed-story-image");
     const excerpt = html.indexOf("Brief pending.");
     assert.ok(context >= 0 && context < title);
@@ -168,18 +168,16 @@ test("compact header and recommendations preserve the new story component and tr
   const html = render(createElement(StoryContent, { story, relatedStories }));
   const header = html.match(/<header class="story-header">([\s\S]*?)<\/header>/)?.[1] ?? "";
   assert.ok(header.indexOf("story-breadcrumbs") < header.indexOf("<h1>"));
-  assert.doesNotMatch(header, /skepticism-pill|points/);
+  assert.doesNotMatch(header, /skepticism-pill/);
+  assert.match(header, /42 points/);
   assert.match(header, /aria-label="Breadcrumb"/);
   assert.match(header, /href="\/">[^<]*Latest/);
   assert.match(header, /href="\/\?category=agents-coding"/);
-  assert.match(header, /class="story-metadata"/);
+  assert.match(header, /class="story-kicker"/);
   assert.match(header, /Added <time dateTime="2026-09-26T10:00:00.000Z"/);
-  assert.match(header, /Original article on example.com/);
+  assert.match(html, /Original article on example.com/);
   assert.match(header, /aria-label="Share: A mocked story title"/);
-  assert.match(
-    html,
-    /id="discussion-themes-heading"[^>]*>.*?<span>Discussion themes<\/span><\/h2><span class="skepticism-pill/,
-  );
+  assert.match(html, /class="skepticism"/);
   const next = html.match(/<ul class="related-story-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
   assert.match(next, /related-topic/);
   assert.match(next, /example.org/);
@@ -193,23 +191,30 @@ test("legacy takeaway caveats remain visible after the compact deck", () => {
   const html = render(createElement(StoryContent, { story: legacy, relatedStories: [] }));
   const deck = html.match(/<p class="standfirst">([^<]*)<\/p>/)?.[1] ?? "";
   assert.ok(deck.length > 0 && deck.length <= 220);
-  const tldr = html.match(/<section class="tldr-section"[\s\S]*?<\/section>/)?.[0] ?? "";
+  const tldr =
+    html.match(
+      /<section id="article-brief" class="tldr-section detail-section"[\s\S]*?<\/section>/,
+    )?.[0] ?? "";
   assert.ok(tldr.includes(takeaway.trim()));
 });
 
-for (const [active, expected] of [
-  ["home", ["/"]],
-  [undefined, []],
-  ["agents_coding", ["/?category=agents-coding"]],
-] as const) {
-  test(`topic sidebar current destination is explicit: ${active ?? "archive"}`, () => {
-    const html = render(createElement(BrowseLayout, { active, children: "Feed" }));
-    const current = [...html.matchAll(/<a\b([^>]*)>/g)]
-      .filter(([, attributes]) => attributes.includes('aria-current="page"'))
-      .map(([, attributes]) => attributes.match(/href="([^"]+)"/)?.[1]);
-    assert.deepEqual(current, expected);
-  });
-}
+test("browse layout keeps the feed before its rail without duplicating global navigation", () => {
+  const html = render(
+    createElement(BrowseLayout, { children: "Feed content", rightSidebar: "Rail content" }),
+  );
+  assert.doesNotMatch(html, /<nav/);
+  assert.ok(html.indexOf("Feed content") < html.indexOf("Rail content"));
+});
+
+test("reader section links target focusable article and discussion sections", () => {
+  const html = render(createElement(StoryContent, { story, relatedStories }));
+  assert.match(html, /aria-label="Story sections"/);
+  for (const id of ["article-brief", "discussion-analysis"]) {
+    assert.ok(html.includes(`href="#${id}"`));
+    assert.match(html, new RegExp(`<section[^>]*id="${id}"[^>]*tabindex="-1"`));
+  }
+  assert.match(html, /id="related-stories-heading">Related stories/);
+});
 
 test("ranked card footer shows points and comments without rank movement", () => {
   const ranked = {
@@ -267,7 +272,7 @@ test("new discussion replaces old points and shows only themes at the stable anc
   };
   const html = render(createElement(StoryContent, { story: next, relatedStories: [] }));
   assert.match(html, /id="discussion-analysis"/);
-  assert.match(html, /Discussion themes/);
+  assert.match(html, /Discussion analysis/);
   assert.match(html, /3 comments analyzed/);
   assert.doesNotMatch(html, /The mocked discussion brief|Most critical|Most supportive/);
   assert.doesNotMatch(html, /Old duplicate theme|Repeated content|skepticism-pill/);
@@ -334,10 +339,7 @@ for (const variant of ["ranked", "unranked"] as const) {
         },
       };
       const html = render(createElement(StoryRow, { story: card, variant }));
-      assert.doesNotMatch(
-        html,
-        /Discussion themes|Costs &amp; tradeoffs|long-title|Read the debate|#discussion-analysis/,
-      );
+      assert.doesNotMatch(html, /Costs &amp; tradeoffs|long-title|Read the debate/);
       assert.match(html, /href="\/story\/90000001"/);
       assert.match(html, /href="\/\?category=agents-coding"/);
       assert.match(html, /A test takeaway/);
@@ -364,10 +366,7 @@ test("topics without stance evidence also stay off the cards", () => {
         },
       }),
     );
-    assert.doesNotMatch(
-      html,
-      /Discussion themes|Operating costs|Read the debate|Hidden summary|pending/i,
-    );
+    assert.doesNotMatch(html, /Operating costs|Read the debate|Hidden summary|pending/i);
   }
 });
 
@@ -390,7 +389,7 @@ test("missing, null, empty and no-comments previews add no discussion UI", () =>
         },
       }),
     );
-    assert.doesNotMatch(html, /feed-discussion|Read the debate|pending/i);
+    assert.doesNotMatch(html, /feed-discussion-preview|Read the debate|pending/i);
     assert.match(html, /A test takeaway/);
   }
 });
@@ -411,7 +410,7 @@ test("old discussion introductions are hidden for current and legacy summaries",
       html,
       /The central question is production reliability|A separate concern is latency|unsafe/,
     );
-    assert.match(html, /Discussion themes/);
+    assert.match(html, /Discussion analysis/);
   }
 });
 
@@ -431,7 +430,7 @@ test("old discussion bullets are hidden for current and legacy analysis", () => 
       html,
       /The question is production reliability|One workload was measured|unsafe/,
     );
-    assert.match(html, /Discussion themes/);
+    assert.match(html, /Discussion analysis/);
   }
 });
 
@@ -448,6 +447,6 @@ test("unavailable article retains the source CTA and discussion without an artic
   const html = render(createElement(StoryContent, { story: unavailable, relatedStories: [] }));
   assert.match(html, /The original article was unavailable to summarize/);
   assert.match(html, /href="https:\/\/example.com\/article"[^>]*>Open the original source/);
-  assert.match(html, /Discussion themes/);
+  assert.match(html, /Discussion analysis/);
   assert.doesNotMatch(html, /The mocked article brief|class="key-points"/);
 });

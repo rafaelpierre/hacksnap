@@ -18,6 +18,7 @@ export type FeedPagination = {
 
 export type FeedSnapshot = {
   version: 1;
+  leadStoryId?: string | null;
   url: string;
   stories: PublicFeedStory[];
   pagination: FeedPagination;
@@ -117,14 +118,15 @@ export function packFeedSnapshot(snapshot: FeedSnapshot): string {
     snapshot.scrollY,
     snapshot.focusStoryId,
     snapshot.savedAt,
+    ...(snapshot.leadStoryId === undefined ? [] : [snapshot.leadStoryId]),
   ]);
 }
 
 export function unpackFeedSnapshot(raw: string, url: string): FeedSnapshot | null {
   try {
     const packed: unknown = JSON.parse(raw);
-    if (!Array.isArray(packed) || packed.length !== 7 || packed[0] !== 2) return null;
-    const [, savedURL, rows, pagination, scrollY, focusStoryId, savedAt] = packed;
+    if (!Array.isArray(packed) || ![7, 8].includes(packed.length) || packed[0] !== 2) return null;
+    const [, savedURL, rows, pagination, scrollY, focusStoryId, savedAt, leadStoryId] = packed;
     if (!Array.isArray(rows)) return null;
     const stories = rows.map((value: unknown) => {
       if (!Array.isArray(value) || value.length !== 17) return null;
@@ -183,7 +185,16 @@ export function unpackFeedSnapshot(raw: string, url: string): FeedSnapshot | nul
     });
     if (stories.includes(null)) return null;
     return validFeedSnapshot(
-      { version: 1, url: savedURL, stories, pagination, scrollY, focusStoryId, savedAt },
+      {
+        version: 1,
+        url: savedURL,
+        stories,
+        pagination,
+        scrollY,
+        focusStoryId,
+        savedAt,
+        ...(leadStoryId === undefined ? {} : { leadStoryId }),
+      },
       url,
     );
   } catch {
@@ -331,5 +342,11 @@ export function validFeedSnapshot(
     stories.push(story);
   }
   if (snapshot.focusStoryId && !ids.has(snapshot.focusStoryId)) return null;
+  if (
+    snapshot.leadStoryId !== undefined &&
+    snapshot.leadStoryId !== null &&
+    (typeof snapshot.leadStoryId !== "string" || snapshot.leadStoryId !== stories[0]?.hn_id)
+  )
+    return null;
   return { ...snapshot, url: normalizedURL, stories, pagination } as FeedSnapshot;
 }

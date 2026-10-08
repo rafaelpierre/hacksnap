@@ -104,28 +104,17 @@ async function Latest(props: Props) {
       <LatestContent content={pendingContent!} />
     </Suspense>
   );
-  const popularity =
-    month || stream
-      ? undefined
-      : await Promise.all([PopularStories({ period: "last-7-days" }), PopularStories()]);
+  const popularity = stream ? undefined : await PopularStories();
   return (
     <BrowseLayout
       active={category?.id ?? (month ? undefined : "home")}
       rightSidebar={
-        month ? undefined : stream ? (
-          <>
-            <Suspense fallback={<PopularStoriesLoading period="last-7-days" />}>
-              <PopularStories period="last-7-days" />
-            </Suspense>
-            <Suspense fallback={<PopularStoriesLoading />}>
-              <PopularStories />
-            </Suspense>
-          </>
+        stream ? (
+          <Suspense fallback={<PopularStoriesLoading />}>
+            <PopularStories />
+          </Suspense>
         ) : (
-          <>
-            {popularity?.[0]}
-            {popularity?.[1]}
-          </>
+          popularity
         )
       }
     >

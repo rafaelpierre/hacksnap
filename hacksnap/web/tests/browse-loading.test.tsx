@@ -23,10 +23,10 @@ test("loading cards keep the shared title-before-image grid order", () => {
       const children = Array.from(card.children) as Element[];
       assert.equal(children.length, 4);
       assert.ok(children[0]?.classList.contains("story-context"));
-      assert.equal(children[1]?.tagName, "H3");
+      assert.equal(children[1]?.tagName, "H2");
       assert.ok(children[2]?.classList.contains("feed-story-image"));
       assert.ok(children[3]?.classList.contains("story-content"));
-      assert.equal(card.querySelector(".story-content h3"), null);
+      assert.equal(card.querySelector(".story-content .feed-story-title"), null);
     }
   } finally {
     dom.window.close();

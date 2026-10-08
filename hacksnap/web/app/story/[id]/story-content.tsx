@@ -1,4 +1,11 @@
-import { ArrowUpRight, ChevronRight, ListTree } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
+  ListTree,
+  MessageCircle,
+  Star,
+} from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById, categoryURL } from "../../../lib/categories";
@@ -66,6 +73,12 @@ export function StoryContent({
           </ol>
           <StoryReturnLink archiveOnly />
         </nav>
+        <div className="story-kicker">
+          {category && <a href={categoryURL(category)}>{category.label}</a>}
+          <span>
+            Added <StoryAddedTime dateTime={new Date(story.date_added).toISOString()} />
+          </span>
+        </div>
         <h1>{story.title}</h1>
         {deck && <p className="standfirst">{deck}</p>}
         <ArticleImage
@@ -74,34 +87,35 @@ export function StoryContent({
           className="story-article-image"
           loading="eager"
           fetchPriority="high"
-          sizes="(max-width: 720px) calc(100vw - 2rem), 43rem"
+          sizes="(min-width: 78rem) 43rem, (min-width: 60rem) calc(100vw - 21rem), calc(100vw - 4rem)"
         />
-        <div className="story-metadata">
-          <div className="story-source-date">
-            {article ? (
-              <a
-                className="story-source"
-                href={article}
-                aria-label={`Original article on ${domain(story.url)}`}
-              >
-                {domain(story.url)} <ArrowUpRight className="inline-icon" aria-hidden="true" />
-              </a>
-            ) : (
-              <a className="story-source" href={hnURL}>
-                Hacker News <ArrowUpRight className="inline-icon" aria-hidden="true" />
-              </a>
-            )}
-            <span className="story-added">
-              Added <StoryAddedTime dateTime={new Date(story.date_added).toISOString()} />
-            </span>
-          </div>
-          <StoryShare story={story} placement="story_top" />
+        <div className="story-stats">
+          <span>
+            <Star size={16} aria-hidden="true" /> {story.points} points
+          </span>
+          <a href={hnURL}>
+            <MessageCircle size={16} aria-hidden="true" /> {story.comment_count} comments
+          </a>
         </div>
+        <nav className="detail-nav" aria-label="Story sections">
+          {summary && (
+            <>
+              <a href="#article-brief">Article brief</a>
+              <a href="#discussion-analysis">Discussion analysis</a>
+            </>
+          )}
+          <StoryShare story={story} placement="story_top" />
+        </nav>
       </header>
       {summary ? (
         <div className="editorial">
-          <section className="tldr-section" aria-labelledby="article-heading">
-            <h2 id="article-heading">TLDR;</h2>
+          <section
+            id="article-brief"
+            className="tldr-section detail-section"
+            aria-labelledby="article-heading"
+            tabIndex={-1}
+          >
+            <h2 id="article-heading">Article brief</h2>
             {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
             {source.brief === "available" ? (
               <>
@@ -123,18 +137,24 @@ export function StoryContent({
                     : "This is an HN post. The discussion is summarized below."}
               </p>
             )}
-            {article && source.brief !== "available" && (
-              <p>
-                <a href={article}>
-                  Open the original source{" "}
+            <div className="story-source-actions">
+              {article && (
+                <a href={article} aria-label={`Original article on ${domain(story.url)}`}>
+                  {source.brief === "available"
+                    ? "Read original article"
+                    : "Open the original source"}
                   <ArrowUpRight className="inline-icon" aria-hidden="true" />
                 </a>
-              </p>
-            )}
+              )}
+              <a href={hnURL}>
+                Open Hacker News thread <ArrowUpRight className="inline-icon" aria-hidden="true" />
+              </a>
+            </div>
           </section>
           <section
             id="discussion-analysis"
-            className="discussion-section"
+            className="discussion-section detail-section"
+            tabIndex={-1}
             aria-labelledby="discussion-themes-heading"
           >
             {discussion.kind === "analysis" ? (
@@ -148,15 +168,17 @@ export function StoryContent({
                 <div className="discussion-heading">
                   <h2 id="discussion-themes-heading" className="discussion-title">
                     <ListTree className="discussion-title-icon" aria-hidden="true" />
-                    <span>Discussion themes</span>
+                    <span>Discussion analysis</span>
                   </h2>
-                  <SkepticismPill story={story} />
                 </div>
                 {discussion.kind === "legacy" && discussion.topics.length ? (
                   <div className="discussion-points">
                     {discussion.topics.map((point, i) => (
-                      <section className="discussion-point" key={i}>
-                        <h3>{point.title}</h3>
+                      <details className="discussion-point" key={i}>
+                        <summary>
+                          <span>{point.title}</span>
+                          <ChevronDown size={16} aria-hidden="true" />
+                        </summary>
                         <p>{point.summary}</p>
                         {point.comment_ids.length > 0 && (
                           <div className="comment-links">
@@ -173,7 +195,7 @@ export function StoryContent({
                             ))}
                           </div>
                         )}
-                      </section>
+                      </details>
                     ))}
                   </div>
                 ) : (
@@ -186,6 +208,10 @@ export function StoryContent({
                     </a>
                   </p>
                 )}
+                <div className="skepticism">
+                  <SkepticismPill story={story} />
+                  <p>Estimates describe sampled comments, not the whole community.</p>
+                </div>
               </>
             )}
           </section>

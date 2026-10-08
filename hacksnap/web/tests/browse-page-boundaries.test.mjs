@@ -21,12 +21,14 @@ jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({ shouldStreamBrow
 jest.unstable_mockModule("next/navigation", () => ({
   useRouter: () => ({ refresh: () => {} }),
   usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
   permanentRedirect: redirects,
   notFound: () => {
     throw missing;
   },
 }));
 jest.unstable_mockModule("../lib/data.ts", () => ({
+  getStory: async () => null,
   getReadyStoryPage,
   getArchiveStories,
   getPopularStories: async () => [],

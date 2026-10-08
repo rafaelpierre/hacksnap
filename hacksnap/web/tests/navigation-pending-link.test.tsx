@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 let pending = false;
 let pathname = "/";
+let search = new URLSearchParams();
 
 jest.unstable_mockModule("../app/navigation-pending-link.module.css", () => ({
   default: { announcement: "announcement", hint: "hint", link: "link" },
@@ -16,6 +17,7 @@ jest.unstable_mockModule("next/link", () => ({
 }));
 jest.unstable_mockModule("next/navigation", () => ({
   usePathname: () => pathname,
+  useSearchParams: () => search,
 }));
 
 const { NavigationPendingLink } = await import("../app/navigation-pending-link.tsx");
@@ -63,10 +65,20 @@ test("Latest is the root destination and selects the homepage", () => {
   pending = false;
   pathname = "/";
   const header = renderToStaticMarkup(<MainNavigation />);
-  assert.match(header, /href="\/"[^>]*aria-current="page"[^>]*>Latest/);
+  assert.match(header, /href="\/"[^>]*aria-current="page"[^>]*>[\s\S]*?<span>Latest<\/span>/);
   assert.doesNotMatch(header, /href="\/archive"/);
 
   pathname = "/about";
   const about = renderToStaticMarkup(<MainNavigation />);
   assert.doesNotMatch(about, /href="\/"[^>]*aria-current/);
+});
+
+test("query topic destinations select the topic and clear Latest", () => {
+  pathname = "/";
+  search = new URLSearchParams("category=agents-coding&page=2");
+  const html = renderToStaticMarkup(<MainNavigation />);
+  assert.doesNotMatch(html, /href="\/"[^>]*aria-current/);
+  assert.match(html, /href="\/\?category=agents-coding"[^>]*aria-current="page"/);
+  assert.equal((html.match(/aria-current="page"/g) ?? []).length, 1);
+  search = new URLSearchParams();
 });

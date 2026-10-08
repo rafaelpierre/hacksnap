@@ -352,7 +352,8 @@ test("deep feeds keep a bounded interactive window, retain archive day headings,
     return { ...story(index + 1), date_added: day };
   });
   try {
-    scrollY = 280 * 1500;
+    // Card estimate plus its gap, with 50 day headings above the target.
+    scrollY = (390 + 16) * 1500 + 70 * 50 + 80;
     await act(async () =>
       root.render(
         <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
@@ -377,7 +378,7 @@ test("deep feeds keep a bounded interactive window, retain archive day headings,
       assert.equal(row.getAttribute("aria-setsize"), "30");
     }
 
-    const nearEnd = rendered()[78]!.querySelector<HTMLAnchorElement>("h3 a")!;
+    const nearEnd = rendered()[78]!.querySelector<HTMLAnchorElement>(".feed-story-title a")!;
     await act(async () => nearEnd.focus());
     assert.equal(document.activeElement, nearEnd);
     assert.equal(rendered().length, 80);
@@ -754,7 +755,7 @@ for (const listingPath of ["/", "/2026/09", "/?category=agents-coding"]) {
   }
 }
 
-test("category visibility defaults on in server HTML and hiding it preserves archive context", () => {
+test("category and age metadata remain visible in selected topics and archive cards", () => {
   const render = (showCategory?: boolean, ranked = false) =>
     renderToStaticMarkup(
       <AppRouterContext.Provider value={{} as never}>
@@ -766,8 +767,10 @@ test("category visibility defaults on in server HTML and hiding it preserves arc
       </AppRouterContext.Provider>,
     );
   assert.match(render(), /category-badge/);
-  assert.doesNotMatch(render(false), /category-badge|story-context/);
+  assert.match(render(false), /category-badge/);
+  assert.match(render(false), /story-context/);
+  assert.match(render(false), /story-age/);
   assert.match(render(false), /Story 1/);
   assert.match(render(false, true), /archive-label/);
-  assert.doesNotMatch(render(false, true), /category-badge/);
+  assert.match(render(false, true), /category-badge/);
 });

@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
-import { Rss } from "lucide-react";
 import Script from "next/script";
 import localFont from "next/font/local";
-import { StickyHeader } from "./sticky-header";
-import { MainNavigation } from "./main-navigation";
+import { SiteHeader } from "./sticky-header";
+import { MobileNavigation } from "./main-navigation";
+import { TopicSidebar } from "./topic-sidebar";
 import { analyticsBootstrap } from "../lib/analytics-bootstrap";
 import "./globals.css";
 import { ReaderVisit } from "./journey-analytics";
@@ -91,13 +91,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Suspense fallback={null}>
           <ReaderVisit />
         </Suspense>
-        <a className="skip-link skip-main" href="#main">
+        <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <a className="skip-link skip-browse" href="#browse-content">
-          Skip to content
-        </a>
-        <StickyHeader>
+        <SiteHeader>
           <div className="header-inner">
             <Link className="wordmark" href="/" aria-label="Hacksnap home">
               <span className="logo" aria-hidden="true">
@@ -105,25 +102,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </span>
               hacksnap
             </Link>
-            <div className="header-nav">
-              <MainNavigation />
-              <div className="header-actions">
-                <a className="rss-link" href="/feed.xml" aria-label="RSS feed" title="RSS feed">
-                  <Rss size={18} strokeWidth={1.75} aria-hidden="true" />
-                </a>
-              </div>
-            </div>
+            <MobileNavigation />
           </div>
-        </StickyHeader>
-        <main id="main" tabIndex={-1}>
-          {children}
-        </main>
-        <footer id="site-footer" tabIndex={-1}>
-          <Link className="footer-brand" href="/">
-            hacksnap
-          </Link>
-          <p>AI stories and discussions from Hacker News.</p>
-        </footer>
+        </SiteHeader>
+        <div className="site-shell">
+          <TopicSidebar />
+          <main id="main" className="site-main" tabIndex={-1}>
+            {children}
+          </main>
+        </div>
       </body>
     </html>
   );

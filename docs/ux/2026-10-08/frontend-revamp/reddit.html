@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Hacksnap · Reddit direction</title>
+  <style>
+    @font-face { font-family: Source Sans; src: url('../../../../hacksnap/web/app/fonts/source-sans-3-latin-variable.woff2') format('woff2'); font-weight: 200 900; font-display: swap; }
+    @font-face { font-family: Bricolage; src: url('../../../../hacksnap/web/app/fonts/bricolage-grotesque-latin-variable.woff2') format('woff2'); font-weight: 200 800; font-display: swap; }
+    :root {
+      --ink: #202a30; --muted: #53646e; --line: #d7dee2; --control-line: #7b8992;
+      --paper: #fff; --slate: #f1f4f5; --slate-deep: #e6ecef; --rust: #a73712; --rust-light: #fff0e9;
+      --radius-control: .45rem; --radius-card: .75rem;
+      --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem; --space-5: 1.5rem; --space-6: 2rem;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-padding-top: 1rem; }
+    body { margin: 0; color: var(--ink); background: var(--paper); font-family: Source Sans, Arial, sans-serif; font-size: 1.0625rem; line-height: 1.45; overflow-wrap: anywhere; }
+    button, select, textarea, input { font: inherit; }
+    button, a, select, summary { -webkit-tap-highlight-color: transparent; }
+    button, select, summary { cursor: pointer; }
+    a { color: inherit; text-decoration: none; }
+    button { color: inherit; }
+    button:focus-visible, a:focus-visible, select:focus-visible, summary:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--rust); outline-offset: 3px; }
+    button:active, a:active { transform: translateY(1px); }
+    svg { width: 1.25rem; height: 1.25rem; flex: 0 0 auto; fill: currentColor; }
+    h1, h2, h3, p { margin: 0; }
+    h1, h2, h3 { line-height: 1.18; }
+    p + p { margin-top: 1rem; }
+    [hidden] { display: none !important; }
+    .skip { position: absolute; left: 1rem; top: -5rem; z-index: 20; background: #fff; padding: 1rem; border: 2px solid var(--rust); }
+    .skip:focus { top: 1rem; }
+    .prototype-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem 1rem; padding: .25rem 1rem; background: #f5f5f3; border-bottom: 1px solid var(--line); font-size: .875rem; color: var(--muted); }
+    .prototype-bar strong { color: var(--ink); font-weight: 650; }
+    .prototype-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; min-width: 0; }
+    .prototype-actions > a { min-height: 44px; display: inline-flex; align-items: center; text-decoration: underline; text-underline-offset: 3px; }
+    .qa { position: relative; }
+    .qa summary { min-height: 44px; display: flex; align-items: center; gap: .5rem; padding: .25rem .5rem; border-radius: .25rem; }
+    .qa summary::after { content: '+'; font-size: 1.1rem; }
+    .qa[open] summary::after { content: '−'; }
+    .qa-panel { position: absolute; right: 0; top: 100%; z-index: 10; width: 14rem; max-width: calc(100vw - 2rem); background: white; padding: .75rem; border: 1px solid var(--control-line); border-radius: var(--radius-control); box-shadow: 0 8px 25px #202a3020; }
+    .qa-panel p { font-size: .85rem; margin-bottom: .5rem; }
+    .qa-panel button { width: 100%; min-height: 44px; padding: .5rem .75rem; text-align: left; background: white; border: 0; border-radius: .25rem; }
+    .qa-panel button:hover, .qa-panel button[aria-pressed="true"] { background: var(--slate-deep); }
+    .topbar { border-bottom: 1px solid var(--line); }
+    .topbar-inner { max-width: 88rem; margin: auto; padding: .625rem 1rem; min-height: 74px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; }
+    .wordmark { display: inline-flex; align-items: baseline; min-height: 44px; gap: .6rem; font-family: Bricolage, Arial, sans-serif; font-size: 1.875rem; font-weight: 750; letter-spacing: -.06em; }
+    .wordmark .mark { color: var(--rust); font-size: 2.2rem; font-weight: 800; }
+    .brand-note { color: var(--muted); font-size: 1rem; margin-left: 1.4rem; border-left: 1px solid var(--line); padding-left: 1.4rem; }
+    .brand-group { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; max-width: 100%; }
+    .about-link { display: inline-flex; align-items: center; gap: .55rem; min-height: 44px; padding: .5rem .8rem; border-radius: var(--radius-control); font-weight: 600; }
+    .about-link:hover, .about-link[aria-current="page"] { background: var(--slate); }
+    .shell { max-width: 88rem; margin: auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; padding: 1rem; align-items: start; }
+    .sidebar { min-width: 0; }
+    .mobile-browse { display: flex; justify-content: space-between; align-items: center; gap: .75rem; width: 100%; min-width: 0; background: var(--slate); border: 1px solid var(--control-line); border-radius: var(--radius-control); padding: .65rem .85rem; min-height: 44px; font-weight: 650; text-align: left; }
+    .sidebar-content { display: none; padding-top: .75rem; }
+    .sidebar.is-open .sidebar-content { display: block; }
+    .nav-group { display: grid; gap: .25rem; }
+    .nav-title { color: var(--muted); font-size: .8125rem; font-weight: 700; margin: 1.4rem .7rem .6rem; }
+    .nav-link { display: flex; align-items: center; gap: .8rem; min-height: 46px; border-radius: var(--radius-control); padding: .6rem .7rem; line-height: 1.2; font-size: 1rem; }
+    .nav-link:hover { background: var(--slate); }
+    .nav-link[aria-current="page"] { background: var(--slate-deep); font-weight: 700; }
+    .nav-link[aria-current="page"] svg { color: var(--rust); }
+    .topic-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; }
+    .topic-nav .nav-link { gap: .55rem; }
+    .month-label { display: block; margin: .3rem .7rem .5rem; font-weight: 600; font-size: .95rem; }
+    .month-select { display: block; min-height: 44px; min-width: 0; max-width: 100%; width: calc(100% - 1.4rem); margin: 0 .7rem; padding: .5rem .65rem; border: 1px solid var(--control-line); border-radius: var(--radius-control); color: var(--ink); background: white; }
+    .side-bottom { margin: 1.5rem .7rem 0; padding-top: 1rem; border-top: 1px solid var(--line); font-size: .9375rem; color: var(--muted); }
+    .side-bottom a { min-height: 44px; display: inline-flex; align-items: center; text-decoration: underline; text-underline-offset: 3px; }
+    main { min-width: 0; }
+    .feed-header { padding: .15rem .2rem 1.1rem; display: flex; align-items: end; justify-content: space-between; gap: 1rem; border-bottom: 2px solid var(--ink); }
+    .feed-header h1 { font-size: 1.65rem; letter-spacing: -.025em; font-weight: 750; }
+    .feed-subtitle { color: var(--muted); margin-top: .35rem; font-size: 1rem; }
+    .chronological { color: var(--muted); font-size: .875rem; display: flex; align-items: center; gap: .4rem; white-space: nowrap; padding-bottom: .15rem; }
+    .chronological svg { width: 1rem; height: 1rem; }
+    .feed-context { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; padding: .65rem .2rem; color: var(--muted); font-size: .875rem; }
+    .context-link { color: var(--rust); display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; }
+    .story-card { padding: 1.125rem .2rem 1.25rem; border-bottom: 1px solid var(--line); }
+    .story-card.lead { margin: .4rem 0 .4rem; padding: 1.25rem 1.25rem 1rem; background: var(--slate); border: 1px solid var(--line); border-radius: var(--radius-card); }
+    .story-meta { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem .65rem; font-size: .875rem; color: var(--muted); margin-bottom: .6rem; line-height: 1.3; }
+    .topic-tag { font-weight: 700; display: inline-flex; flex-wrap: wrap; align-items: center; max-width: 100%; min-height: 44px; color: var(--ink); gap: .4rem; }
+    .topic-tag:hover { text-decoration: underline; }
+    .topic-tag svg { width: 1rem; height: 1rem; }
+    .sample-label { font-size: .8125rem; border: 1px solid #85939b; border-radius: .2rem; padding: .1rem .35rem; color: #3e515b; background: white; }
+    .story-card h2 { font-size: 1.375rem; font-weight: 700; letter-spacing: -.025em; }
+    .story-card.lead h2 { font-size: clamp(1.5rem, 2.2vw, 1.875rem); }
+    .headline-link { display: block; min-height: 44px; }
+    .headline-link:hover { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+    .takeaway { color: #3d505a; font-size: 1.0625rem; margin: .65rem 0 .6rem; }
+    .source-line { color: var(--muted); font-size: .875rem; margin-top: .35rem; }
+    .discussion-preview { margin: 1rem 0 .65rem; background: white; padding: .9rem 1rem; border-radius: .45rem; border: 1px solid var(--line); }
+    .discussion-heading { display: flex; align-items: center; gap: .5rem; color: var(--ink); font-size: .9rem; font-weight: 700; margin-bottom: .35rem; }
+    .discussion-preview p { font-size: .975rem; color: #3d505a; }
+    .story-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem; margin-top: .65rem; }
+    .action { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; padding: .5rem .75rem; min-height: 44px; min-width: 44px; max-width: 100%; background: var(--slate-deep); border: 0; border-radius: 1.5rem; font-size: .9375rem; font-weight: 650; }
+    .action:hover { background: #d6e0e5; }
+    .action.discussion-action { color: var(--rust); background: white; border: 1px solid #cdd5d9; }
+    .action.discussion-action:hover { background: var(--rust-light); }
+    .action.lean { background: transparent; color: var(--muted); font-weight: 550; }
+    .action.lean:hover { background: var(--slate-deep); }
+    .action svg { width: 1.1rem; height: 1.1rem; }
+    .snapshot { color: var(--muted); margin-top: .75rem; font-size: .8125rem; }
+    .hn-counts { color: var(--muted); margin-top: .5rem; font-size: .875rem; }
+    .load-more { width: 100%; min-height: 48px; margin-top: 1rem; color: var(--ink); background: var(--slate); border: 1px solid var(--control-line); border-radius: var(--radius-control); font-weight: 650; }
+    .load-more:hover { background: var(--slate-deep); }
+    .feed-end { color: var(--muted); padding: 1.6rem 0 .8rem; text-align: center; font-size: .9375rem; }
+    .right-rail { min-width: 0; background: var(--slate); border-radius: var(--radius-card); padding: 1.25rem; }
+    .rail-title { font-size: 1.125rem; font-weight: 750; display: flex; align-items: center; gap: .55rem; }
+    .rail-description { color: var(--muted); font-size: .875rem; margin-top: .35rem; }
+    .rank-note { color: #53646e; font-size: .8125rem; margin-top: .75rem; padding-bottom: .9rem; border-bottom: 1px solid var(--line); }
+    .rail-story { display: block; padding: 1rem 0; min-height: 44px; border-bottom: 1px solid var(--line); }
+    .rail-story:last-of-type { border-bottom: 0; }
+    .rail-story:hover .rail-headline { text-decoration: underline; }
+    .rail-topic { display: block; color: var(--muted); font-size: .8125rem; margin-bottom: .3rem; }
+    .rail-headline { display: block; font-size: 1.0625rem; line-height: 1.25; font-weight: 650; }
+    .rail-sample { display: block; color: var(--muted); font-size: .8125rem; margin-top: .45rem; }
+    .rail-footer { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+    .rail-footer p { font-size: .9375rem; color: var(--muted); }
+    .rail-footer a { min-height: 44px; display: flex; align-items: center; font-size: .9375rem; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+    .state-panel { padding: 3rem 1rem; text-align: center; }
+    .state-panel h2 { font-size: 1.4rem; margin-bottom: .6rem; }
+    .state-panel p { color: var(--muted); max-width: 27rem; margin: auto; }
+    .state-panel .action { margin-top: 1.2rem; border-radius: var(--radius-control); background: var(--ink); color: white; }
+    .loading-mark { width: 2rem; height: 2rem; border: 3px solid var(--line); border-top-color: var(--rust); border-radius: 50%; margin: 0 auto 1rem; }
+    .back-link { display: inline-flex; min-height: 44px; align-items: center; gap: .5rem; font-weight: 650; font-size: .95rem; margin-bottom: .8rem; }
+    .back-link:hover { text-decoration: underline; }
+    .story-detail h1 { font-size: clamp(1.875rem, 3.1vw, 2.625rem); font-weight: 750; letter-spacing: -.04em; line-height: 1.12; margin-top: .4rem; }
+    .detail-intro { padding-bottom: 1.75rem; border-bottom: 1px solid var(--line); }
+    .detail-intro .takeaway { font-size: 1.2rem; line-height: 1.45; margin-top: 1rem; }
+    .detail-section { padding: 1.75rem 0; border-bottom: 1px solid var(--line); scroll-margin-top: 1rem; }
+    .section-title { font-size: 1.3rem; font-weight: 750; letter-spacing: -.02em; margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
+    .detail-section > p { color: #3d505a; font-size: 1.125rem; line-height: 1.65; }
+    .theme-list { display: grid; gap: .75rem; margin-top: 1.25rem; }
+    .theme { background: var(--slate); border-radius: .5rem; padding: 1rem 1.1rem; }
+    .theme summary { display: list-item; min-height: 44px; font-size: 1.0625rem; font-weight: 700; padding: .25rem 0; }
+    .theme p { font-size: 1rem; color: #3d505a; margin-top: .4rem; }
+    .skepticism { font-size: .9375rem; margin-top: 1.2rem; padding: .75rem 1rem; color: var(--muted); border: 1px solid var(--control-line); border-radius: var(--radius-control); }
+    .related-list { display: grid; gap: .5rem; }
+    .related-story { background: var(--slate); display: block; padding: 1rem; border-radius: .5rem; min-height: 44px; }
+    .related-story:hover { background: var(--slate-deep); }
+    .related-story strong { display: block; line-height: 1.25; font-size: 1.125rem; margin-top: .25rem; }
+    .related-story small { color: var(--muted); }
+    .about-view h1 { font-size: 2rem; margin: .5rem 0 1rem; }
+    .about-view > p { color: #3d505a; font-size: 1.2rem; line-height: 1.6; }
+    .about-block { background: var(--slate); border-radius: var(--radius-card); padding: 1.5rem; margin: 1.5rem 0; }
+    .about-block h2 { font-size: 1.3rem; margin-bottom: .75rem; }
+    .about-block p { color: #3d505a; }
+    dialog { color: var(--ink); background: white; max-width: 38rem; width: calc(100% - 2rem); max-height: calc(100dvh - 2rem); padding: 1.5rem; border: 1px solid var(--control-line); border-radius: var(--radius-card); overflow: auto; box-shadow: 0 24px 70px #202a3040; }
+    dialog::backdrop { background: #15232b80; }
+    .dialog-header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+    .dialog-header h2 { font-size: 1.6rem; }
+    .close-button { min-width: 44px; min-height: 44px; padding: .5rem; background: var(--slate); border: 0; border-radius: 50%; display: grid; place-items: center; }
+    .close-button:hover { background: var(--slate-deep); }
+    .share-title { font-weight: 650; margin-top: .8rem; }
+    .field-label { display: block; margin: 1.25rem 0 .4rem; font-size: .9375rem; font-weight: 650; }
+    textarea, .copy-url { display: block; width: 100%; color: var(--ink); background: white; border: 1px solid var(--control-line); border-radius: var(--radius-control); padding: .75rem; font-size: 1rem; }
+    textarea { min-height: 10rem; resize: vertical; }
+    .copy-url { min-height: 44px; }
+    .dialog-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+    .dialog-actions .action { border-radius: var(--radius-control); }
+    .dialog-actions .primary { background: var(--rust); color: white; }
+    .dialog-actions .primary:hover { background: #8f2c0b; }
+    .copy-status { min-height: 1.5rem; margin-top: .75rem; color: var(--muted); font-size: .9375rem; }
+    .prototype-note { font-size: .8125rem; color: var(--muted); margin-top: .75rem; }
+    @media (min-width: 52rem) {
+      .shell { grid-template-columns: 13.5rem minmax(0, 1fr); column-gap: 2rem; padding-top: 1.75rem; }
+      .sidebar { position: sticky; top: 1.5rem; }
+      .mobile-browse { display: none; }
+      .sidebar-content { display: block; padding-top: 0; }
+      .topic-nav { grid-template-columns: 1fr; }
+      .topic-nav .nav-link { gap: .8rem; }
+      .right-rail { grid-column: 2; }
+      .nav-title:first-child { margin-top: .6rem; }
+    }
+    @media (min-width: 72rem) {
+      .shell { grid-template-columns: 13.5rem minmax(0, 1fr) 17.5rem; gap: 2rem; padding-left: 1.5rem; padding-right: 1.5rem; }
+      .right-rail { grid-column: auto; position: sticky; top: 1.5rem; }
+      .topbar-inner { padding-left: 1.5rem; padding-right: 1.5rem; }
+    }
+    @media (max-width: 38rem) {
+      .prototype-bar { padding: .35rem .8rem; gap: .15rem; }
+      .prototype-actions { justify-content: space-between; width: 100%; }
+      .brand-note { display: none; }
+      .topbar-inner { padding: .5rem 1rem; min-height: 64px; }
+      .wordmark { font-size: 1.45rem; gap: .3rem; }
+      .wordmark .mark { font-size: 1.65rem; }
+      .about-link { font-size: .95rem; padding: .4rem .2rem; }
+      .shell { padding: .85rem 1rem; gap: 1rem; }
+      .chronological { display: none; }
+      .feed-header h1 { font-size: 1.5rem; }
+      .story-card.lead { padding: .875rem; }
+      .story-meta { gap: .35rem .5rem; }
+      .story-card h2 { font-size: 1.25rem; }
+      .story-card.lead h2 { font-size: 1.5rem; }
+      .action { padding: .5rem .65rem; }
+      .discussion-preview { padding: .75rem; }
+      .story-actions { gap: .35rem; }
+      dialog { padding: 1rem; }
+    }
+    @media (max-width: 23rem) { .topic-nav { grid-template-columns: 1fr; } .about-link svg { display: none; } .shell { padding-left: .75rem; padding-right: .75rem; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <!-- Design read: social-news feed for AI/HN readers; ENERGY 2 / RHYTHM 2 / MOTION 1.
+       Color: rust marks the current choice and discussion entry, while slate keeps reading neutral.
+       Type: Source Sans gives compact, open headlines and readable analysis; Bricolage preserves the text wordmark.
+       Layout: persistent topics at left, chronological briefs in the center, lifetime most-read at right.
+       Spacing: 4/8/12/16/24/32 scale separates story groups while keeping metadata tight.
+       Icons: weightier semantic glyphs distinguish navigation and actions without decorative artwork.
+       Cards: only the lead story groups its existing summary and discussion teaser; other stories stay compact.
+       Appearance: fixed light editorial surfaces retain the existing product's light identity without adding a feature.
+       Motion: interaction feedback only, keeping position stable while readers scan. -->
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="prototype-bar">
+    <span><strong>Concept A · Reddit direction</strong> <span> / Interactive mock</span></span>
+    <div class="prototype-actions">
+      <a href="dev.html">Compare DEV direction</a>
+      <details class="qa" id="qa"><summary>Preview states</summary><div class="qa-panel"><p>Prototype controls only</p><button data-state="ready" aria-pressed="true">Ready</button><button data-state="loading" aria-pressed="false">Loading</button><button data-state="empty" aria-pressed="false">Empty</button><button data-state="error" aria-pressed="false">Error</button></div></details>
+    </div>
+  </div>
+  <header class="topbar"><div class="topbar-inner"><div class="brand-group"><a class="wordmark" href="#feed" aria-label="Hacksnap latest feed"><span class="mark">h/</span><span>hacksnap</span></a><span class="brand-note">AI news, with context.</span></div><a href="#about" class="about-link" id="top-about"></a></div></header>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar" aria-label="Feed navigation">
+      <button class="mobile-browse" id="browse-toggle" aria-expanded="false" aria-controls="sidebar-content"><span>Browse topics &amp; months</span><span aria-hidden="true">+</span></button>
+      <div class="sidebar-content" id="sidebar-content"></div>
+    </aside>
+    <main id="main" tabindex="-1"></main>
+    <aside class="right-rail" id="right-rail" aria-label="Most read stories"></aside>
+  </div>
+  <dialog id="share-dialog" aria-labelledby="share-heading">
+    <div class="dialog-header"><h2 id="share-heading">Share this story</h2><button class="close-button" id="close-share" aria-label="Close share dialog"></button></div>
+    <p class="share-title" id="share-title"></p>
+    <label class="field-label" for="share-post">Suggested post</label><textarea id="share-post"></textarea>
+    <label class="field-label" for="share-url">Story link</label><input id="share-url" class="copy-url" readonly>
+    <div class="dialog-actions"><button class="action primary" id="copy-post">Copy post</button><button class="action" id="copy-link">Copy link</button></div>
+    <p id="copy-status" class="copy-status" role="status" aria-live="polite"></p>
+    <p class="prototype-note">This preview shares a local mock link. Sample stories are labeled in copied posts.</p>
+  </dialog>
+  <script src="mock-data.js"></script>
+  <script>
+    'use strict';
+    const data = window.HACKSNAP_MOCK_DATA;
+    const main = document.getElementById('main');
+    const sidebar = document.getElementById('sidebar');
+    const shareDialog = document.getElementById('share-dialog');
+    let state = 'ready';
+    let topic = 'all';
+    let month = 'latest';
+    let visibleCount = 4;
+    let lastFeedHash = '#feed';
+    let previousRoute = '';
+    let focusIntent = '';
+    const feedScroll = new Map();
+    const icons = {
+      home: '<path d="M12 2 2 10v2h2v9h6v-6h4v6h6v-9h2v-2L12 2Z"/>',
+      box: '<path d="m12 2 10 5v10l-10 5-10-5V7l10-5Zm0 2.5L5.6 7.7 12 11l6.4-3.3L12 4.5ZM4 9.5v6.3l7 3.5v-6.6L4 9.5Zm9 3.2v6.6l7-3.5V9.5l-7 3.2Z"/>',
+      code: '<path d="m8 5 1.8 1.8L4.6 12l5.2 5.2L8 19l-7-7 7-7Zm8 0 7 7-7 7-1.8-1.8 5.2-5.2-5.2-5.2L16 5Zm-3.5-2 2.4.7-3.4 18-2.4-.7 3.4-18Z"/>',
+      flask: '<path d="M8 2h8v2h-1v5l6 9.2A2.4 2.4 0 0 1 19 22H5a2.4 2.4 0 0 1-2-3.8L9 9V4H8V2Zm3 8-3.8 6h9.6L13 10V4h-2v6Z"/>',
+      stack: '<path d="m12 2 10 5-10 5L2 7l10-5ZM2 11l10 5 10-5v3l-10 5-10-5v-3Zm0 7 10 5 10-5v-3l-10 5-10-5v3Z"/>',
+      shield: '<path d="m12 2 9 3v7c0 5-4.3 8.6-9 10-4.7-1.4-9-5-9-10V5l9-3Zm0 3.2v13.6c3.5-1.5 6-4 6-7V7.1l-6-1.9Z"/>',
+      globe: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1 2.1v5H4.6A8 8 0 0 1 11 4.1Zm-7 7H9l-1 4 4 2v2.8a8 8 0 0 1-8-8.8Zm10 8.6V15l-3-2 1-3h7.7A8 8 0 0 1 14 19.7ZM14 4.3a8 8 0 0 1 5.2 3.8H14V4.3Z"/>',
+      discussion: '<path d="M4 3h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9l-6 4v-4H2V5a2 2 0 0 1 2-2Zm1 5v2h14V8H5Zm0 4v2h10v-2H5Z"/>',
+      share: '<path d="M17 2h5v5h-2V5.4l-7.3 7.3-1.4-1.4L18.6 4H17V2ZM4 5h8v2H4v13h13v-8h2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/>',
+      info: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1 4h2v3h-2V6Zm0 5h2v7h-2v-7Z"/>',
+      clock: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm-1 2v7l5 3 1-1.7-4-2.5V6h-2Z"/>',
+      read: '<path d="M3 3h7a3 3 0 0 1 2 1 3 3 0 0 1 2-1h7v17h-7l-2 2-2-2H3V3Zm2 2v13h5l1 .7V6l-1-1H5Zm8 1v12.7l1-.7h5V5h-5l-1 1Z"/>',
+      back: '<path d="m10 4 1.7 1.7L6.4 11H22v2H6.4l5.3 5.3L10 20l-8-8 8-8Z"/>',
+      close: '<path d="m5 3 7 7 7-7 2 2-7 7 7 7-2 2-7-7-7 7-2-2 7-7-7-7 2-2Z"/>'
+    };
+    const topicIcons = { 'models-products': 'box', 'agents-coding': 'code', 'research-evaluation': 'flask', 'infrastructure-efficiency': 'stack', 'safety-privacy': 'shield', 'industry-society': 'globe' };
+    const icon = (name) => `<svg aria-hidden="true" viewBox="0 0 24 24">${icons[name] || icons.read}</svg>`;
+    const escape = (text) => String(text || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    const topicLabel = (id) => data.topics.find(item => item.id === id)?.label || 'Latest';
+    const dateLabel = (date) => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+    const feedHash = (selectedTopic = topic, selectedMonth = month) => selectedTopic === 'all' && selectedMonth === 'latest' ? '#feed' : `#feed?topic=${selectedTopic}&month=${selectedMonth}`;
+    const storyHash = (story, section = '') => `#story/${story.id}${section ? `/${section}` : ''}`;
+    document.getElementById('top-about').innerHTML = `${icon('info')}About`;
+    document.getElementById('close-share').innerHTML = icon('close');
+
+    function renderNavigation() {
+      const isFeed = location.hash === '' || location.hash.startsWith('#feed');
+      document.getElementById('sidebar-content').innerHTML = `<nav aria-label="Latest and topics"><div class="nav-group"><a class="nav-link" href="#feed" ${isFeed && topic === 'all' && month === 'latest' ? 'aria-current="page"' : ''}>${icon('home')}<span>Latest</span></a></div><h2 class="nav-title">Topics</h2><div class="topic-nav">${data.topics.map(item => `<a class="nav-link" href="${feedHash(item.id)}" ${isFeed && topic === item.id ? 'aria-current="page"' : ''}>${icon(topicIcons[item.id])}<span>${escape(item.label)}</span></a>`).join('')}</div></nav><h2 class="nav-title">Monthly feeds</h2><label class="month-label" for="month-select">Browse by month</label><select id="month-select" class="month-select"><option value="latest" ${month === 'latest' ? 'selected' : ''}>Latest feed</option><option value="2026-09" ${month === '2026-09' ? 'selected' : ''}>September 2026</option><option value="2026-10" ${month === '2026-10' ? 'selected' : ''}>October 2026</option></select>`;
+      document.getElementById('month-select').addEventListener('change', event => { state = 'ready'; visibleCount = 4; focusIntent = 'month'; location.hash = feedHash(topic, event.target.value); });
+      const aboutLink = document.getElementById('top-about');
+      if (location.hash === '#about') aboutLink.setAttribute('aria-current', 'page'); else aboutLink.removeAttribute('aria-current');
+    }
+
+    function renderRail() {
+      const examples = [data.stories[1], data.stories[2], data.stories[3]];
+      document.getElementById('right-rail').innerHTML = `<h2 class="rail-title">${icon('read')}Most read, all time</h2><p class="rank-note">Layout sample. Lifetime ranking data is unavailable in this mock.</p>${examples.map(story => `<a class="rail-story" href="${storyHash(story)}"><span class="rail-topic">${escape(topicLabel(story.topic))}</span><span class="rail-headline">${escape(story.title)}</span><span class="rail-sample">Sample story</span></a>`).join('')}`;
+    }
+
+    function storyCard(story, lead) {
+      return `<article class="story-card${lead ? ' lead' : ''}" aria-labelledby="title-${story.id}"><div class="story-meta"><a class="topic-tag" href="${feedHash(story.topic)}">${icon(topicIcons[story.topic])}${escape(topicLabel(story.topic))}</a><span>·</span><time datetime="${story.date}">${dateLabel(story.date)}</time>${story.sample ? '<span class="sample-label">Sample story</span>' : ''}</div><h2 id="title-${story.id}"><a class="headline-link" href="${storyHash(story)}">${escape(story.title)}</a></h2><p class="takeaway">${escape(story.takeaway)}</p>${!story.sample ? `<p class="source-line">${escape(story.source)}</p>` : ''}${lead ? `<div class="discussion-preview"><div class="discussion-heading">${icon('discussion')}Inside the discussion</div><p>${escape(story.discussion)}</p></div>` : ''}<div class="story-actions"><a class="action discussion-action" href="${storyHash(story, 'discussion')}">${icon('discussion')}Discussion analysis</a><button class="action" data-share="${story.id}">${icon('share')}Share</button>${story.hnUrl ? `<a class="action lean" href="${story.hnUrl}" target="_blank" rel="noopener noreferrer">Original on HN</a>` : ''}</div>${!story.sample ? `<p class="hn-counts">${story.points} points · ${story.comments} comments on HN</p><p class="snapshot">${escape(story.provenance)}</p>` : ''}</article>`;
+    }
+
+    function renderFeed() {
+      let title = topic === 'all' ? 'Latest' : topicLabel(topic);
+      const monthLabel = month === 'latest' ? 'Latest feed' : month === '2026-10' ? 'October 2026' : 'September 2026';
+      const stories = data.stories.filter(story => (month === 'latest' || story.date.startsWith(month)) && (topic === 'all' || story.topic === topic));
+      let body;
+      if (state === 'loading') body = `<section class="state-panel" role="status" aria-live="polite"><div class="loading-mark" aria-hidden="true"></div><h2>Loading stories</h2><p>Fetching the latest briefs and discussion analysis.</p><button class="action" data-reset-state>Show ready preview</button></section>`;
+      else if (state === 'error') body = `<section class="state-panel" role="alert"><h2>The feed could not load</h2><p>Please try again. You can still use the topic and month navigation.</p><button class="action" data-reset-state>Try again</button></section>`;
+      else if (state === 'empty' || !stories.length) body = `<section class="state-panel"><h2>No stories here yet</h2><p>${state === 'empty' ? 'This is the empty-state preview.' : `There are no ${topic === 'all' ? '' : `${escape(topicLabel(topic)).toLowerCase()} `}stories in ${monthLabel}.`} Try the September feed.</p><a class="action" href="#feed" data-reset-state>Back to Latest</a></section>`;
+      else body = `${stories.slice(0, visibleCount).map((story, index) => storyCard(story, index === 0)).join('')}${stories.length > visibleCount ? '<button class="load-more" id="load-more">Load more stories</button>' : '<p class="feed-end">You have reached the end of this feed.</p>'}`;
+      main.innerHTML = `<div class="feed-header"><div><h1 id="view-heading">${escape(title)}</h1><p class="feed-subtitle">The brief. The discussion. The bigger picture.</p></div><span class="chronological">${icon('clock')}Newest first</span></div><div class="feed-context"><span>${monthLabel}</span><span>·</span><span>Sample stories are labeled.</span>${topic !== 'all' ? '<a class="context-link" href="#feed">All topics</a>' : ''}</div><div id="feed-results">${body}</div>`;
+      document.getElementById('load-more')?.addEventListener('click', () => { const priorCount = visibleCount; visibleCount = data.stories.length; renderFeed(); bindShares(); main.querySelectorAll('.headline-link')[priorCount]?.focus(); });
+      main.querySelectorAll('[data-reset-state]').forEach(button => button.addEventListener('click', () => { state = 'ready'; updateStateButtons(); if (button.tagName === 'BUTTON' || button.getAttribute('href') === location.hash || (!location.hash && button.getAttribute('href') === '#feed')) { renderFeed(); bindShares(); } }));
+    }
+
+    function renderDetail(story) {
+      const related = data.stories.filter(item => item.id !== story.id).slice(0, 2);
+      main.innerHTML = `<article class="story-detail"><a class="back-link" href="${lastFeedHash}">${icon('back')}Back to feed</a><header class="detail-intro"><div class="story-meta"><a class="topic-tag" href="${feedHash(story.topic)}">${icon(topicIcons[story.topic])}${escape(topicLabel(story.topic))}</a><time datetime="${story.date}">${dateLabel(story.date)} 2026</time>${story.sample ? '<span class="sample-label">Sample story</span>' : ''}</div><h1 id="view-heading">${escape(story.title)}</h1><p class="takeaway">${escape(story.takeaway)}</p><div class="story-actions"><button class="action" data-share="${story.id}">${icon('share')}Share story</button>${story.hnUrl ? `<a class="action lean" href="${story.hnUrl}" target="_blank" rel="noopener noreferrer">Original on HN</a>` : ''}${story.url ? `<a class="action lean" href="${story.url}" target="_blank" rel="noopener noreferrer">Read source</a>` : ''}</div>${story.sample ? '<p class="snapshot">Illustrative content for this frontend mock.</p>' : `<p class="hn-counts">${story.points} points · ${story.comments} comments on HN</p><p class="snapshot">${escape(story.provenance)}</p>`}</header><section class="detail-section" id="brief"><h2 class="section-title">${icon('read')}Article brief</h2><p>${escape(story.brief)}</p></section><section class="detail-section" id="discussion"><h2 class="section-title">${icon('discussion')}Discussion analysis</h2><p>${escape(story.discussion)}</p>${story.themes.length ? `<div class="theme-list">${story.themes.map(theme => `<details class="theme"><summary>${escape(theme.title)}</summary><p>${escape(theme.summary)}</p></details>`).join('')}</div>` : ''}${story.skepticism ? `<div class="skepticism">${escape(story.skepticism)}</div>` : ''}</section><section class="detail-section" id="related"><h2 class="section-title">Related stories</h2><div class="related-list">${related.map(item => `<a class="related-story" href="${storyHash(item)}"><small>${escape(topicLabel(item.topic))} · ${item.sample ? 'Sample story' : '25 Sep 2026 snapshot'}</small><strong>${escape(item.title)}</strong></a>`).join('')}</div></section><a class="back-link" href="${lastFeedHash}">${icon('back')}Back to feed</a></article>`;
+    }
+
+    function renderAbout() {
+      main.innerHTML = `<article class="about-view"><a class="back-link" href="${lastFeedHash}">${icon('back')}Back to feed</a><h1 id="view-heading">About Hacksnap</h1><p>AI stories from Hacker News, with article briefs and discussion analysis in one place.</p><section class="about-block"><h2>Read the story. Understand the debate.</h2><p>Start with a brief of the source article. Then read the discussion summary, its themes, and the skepticism around the claims. Original Hacker News and source links stay close by.</p></section><section class="about-block"><h2>Find your way through the coverage</h2><p>Browse the latest stories, choose a topic, or return to a monthly feed. Related stories and lifetime most-read coverage provide other ways into the archive.</p></section><p class="prototype-note">This is an interactive design mock. One story uses an existing snapshot; the other stories are clearly labeled samples. The most-read panel demonstrates layout with sample content.</p></article>`;
+    }
+
+    function bindShares() {
+      main.querySelectorAll('[data-share]').forEach(button => button.addEventListener('click', () => openShare(button.dataset.share)));
+    }
+
+    function openShare(id) {
+      const story = data.stories.find(item => item.id === id);
+      document.getElementById('share-title').textContent = story.title;
+      const url = `${location.href.split('#')[0]}${storyHash(story)}`;
+      document.getElementById('share-url').value = url;
+      document.getElementById('share-post').value = `${story.sample ? '[Sample story]\n' : ''}${story.title}\n\n${story.takeaway}\n\n${url}`;
+      document.getElementById('copy-status').textContent = '';
+      shareDialog.showModal();
+    }
+
+    async function copyField(id, label) {
+      const field = document.getElementById(id);
+      const status = document.getElementById('copy-status');
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+        await navigator.clipboard.writeText(field.value);
+        status.textContent = `${label} copied.`;
+      } catch {
+        field.focus(); field.select();
+        status.textContent = `Clipboard access is unavailable. ${label} is selected; press Ctrl+C or ⌘C to copy it.`;
+      }
+    }
+
+    document.getElementById('copy-post').addEventListener('click', () => copyField('share-post', 'Post'));
+    document.getElementById('copy-link').addEventListener('click', () => copyField('share-url', 'Link'));
+    document.getElementById('close-share').addEventListener('click', () => shareDialog.close());
+    document.getElementById('browse-toggle').addEventListener('click', event => {
+      const open = sidebar.classList.toggle('is-open');
+      event.currentTarget.setAttribute('aria-expanded', String(open));
+      event.currentTarget.lastElementChild.textContent = open ? '−' : '+';
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && sidebar.classList.contains('is-open')) {
+        sidebar.classList.remove('is-open');
+        const button = document.getElementById('browse-toggle');
+        button.setAttribute('aria-expanded', 'false'); button.lastElementChild.textContent = '+'; button.focus();
+      }
+      if (event.key === 'Escape') document.getElementById('qa').open = false;
+    });
+    function updateStateButtons() { document.querySelectorAll('[data-state]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.state === state))); }
+    document.querySelectorAll('[data-state]').forEach(button => button.addEventListener('click', () => {
+      state = button.dataset.state; updateStateButtons(); document.getElementById('qa').open = false;
+      if (!location.hash.startsWith('#feed') && location.hash !== '') location.hash = lastFeedHash;
+      else { renderFeed(); bindShares(); }
+    }));
+    function route() {
+      const hash = location.hash || '#feed';
+      if (previousRoute.startsWith('#feed')) feedScroll.set(previousRoute, scrollY);
+      if (hash.startsWith('#feed')) {
+        const params = new URLSearchParams(hash.split('?')[1] || '');
+        topic = data.topics.some(item => item.id === params.get('topic')) ? params.get('topic') : 'all';
+        month = ['2026-09', '2026-10'].includes(params.get('month')) ? params.get('month') : 'latest';
+        if (previousRoute.startsWith('#feed') && previousRoute !== hash) visibleCount = 4;
+        lastFeedHash = hash;
+        renderFeed();
+      } else if (hash.startsWith('#story/')) {
+        const story = data.stories.find(item => item.id === hash.split('/')[1]);
+        if (story) renderDetail(story);
+        else main.innerHTML = '<section class="state-panel"><h1>Story unavailable</h1><p>This story is not included in the mock.</p><a class="action" href="#feed">Back to Latest</a></section>';
+      } else if (hash === '#about') renderAbout();
+      else if (hash === '#main') { main.focus(); return; }
+      else { location.hash = '#feed'; return; }
+      renderNavigation(); renderRail(); bindShares();
+      const priorRoute = previousRoute;
+      previousRoute = hash;
+      requestAnimationFrame(() => {
+        if (hash.startsWith('#story/') && ['brief', 'discussion', 'related'].includes(hash.split('/')[2])) document.getElementById(hash.split('/')[2])?.scrollIntoView();
+        else if (hash.startsWith('#feed') && !priorRoute.startsWith('#feed')) scrollTo(0, feedScroll.get(hash) || 0);
+        else scrollTo(0, 0);
+        if (focusIntent === 'month') document.getElementById('month-select')?.focus({ preventScroll: true });
+        else if (priorRoute) { const heading = document.getElementById('view-heading'); heading?.setAttribute('tabindex', '-1'); heading?.focus({ preventScroll: true }); }
+        focusIntent = '';
+      });
+    }
+    if (!data) main.innerHTML = '<section class="state-panel" role="alert"><h1>The preview could not load</h1><p>Keep mock-data.js beside this HTML file, then reopen the mock.</p></section>';
+    else { window.addEventListener('hashchange', route); route(); }
+  </script>
+</body>
+</html>
