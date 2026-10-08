@@ -56,7 +56,7 @@ function render(element: ReactElement) {
 test("mocked story renders the reading journey and recommendations without a database", () => {
   const html = render(createElement(StoryContent, { story, relatedStories }));
   assert.match(html, /<h1>A mocked story title<\/h1>/);
-  assert.match(html, /id="article-heading"[^>]*>Article brief/);
+  assert.doesNotMatch(html, /article-heading|<h2[^>]*>Article brief/);
   assert.match(html, /The mocked article brief/);
   assert.match(
     html,

@@ -83,10 +83,9 @@ export function StoryContent({
           <section
             id="article-brief"
             className="tldr-section detail-section"
-            aria-labelledby="article-heading"
+            aria-label="Article summary"
             tabIndex={-1}
           >
-            <h2 id="article-heading">Article brief</h2>
             {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
             {source.brief === "available" ? (
               <>
