@@ -73,6 +73,24 @@ for (const id of ["91999999", "99999999"])
 test.describe("article sidebar without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
+  for (const [route, kind] of [
+    [storyPath, "story"],
+    ["/", "archive"],
+    ["/2026/01", "archive"],
+    ["/?category=models-products", "category"],
+  ]) {
+    test(`required read precedes popularity on ${route}`, async ({ page, context, baseURL }) => {
+      await context.addCookies([{ name: "fixture-read-order", value: kind, url: baseURL! }]);
+      const response = await page.goto(route);
+      expect(response!.status()).toBe(200);
+      await expect(
+        page.getByRole("complementary", { name: "Most read" }).getByRole("link"),
+      ).toHaveCount(5);
+      await expect(page.getByRole("heading", { level: 1 })).toBeAttached();
+      expect(await response!.text()).not.toContain("Loading most read stories");
+    });
+  }
+
   for (const state of ["ready", "slow", "empty", "failed"])
     test(`document response exposes the ${state} popularity result`, async ({
       page,

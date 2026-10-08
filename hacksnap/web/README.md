@@ -109,6 +109,12 @@ phones. Its loading, empty and failure states are
 independent of the required feed or article. Weekly ranking remains available to existing
 data consumers; the DEV presentation does not show a second weekly widget.
 Links use the stored canonical story slug.
+The grid renders its route children immediately. On full-document requests, a
+sibling component waits for required route validation and data reads to finish
+before starting popularity,
+so the optional query cannot take the single database connection ahead of the
+article or feed. This coordination uses React’s per-render cache and is released
+on success, outages and routing errors.
 Full-document requests await the popularity result so links and terminal states
 work without JavaScript. Client-router requests can stream the optional sidebar
 when constructing the shell. Existing shells retain their list during navigation;
