@@ -51,7 +51,7 @@ for (const width of [320, 1440])
         expect(sidebarBounds.x).toBeGreaterThanOrEqual(articleBounds.x + articleBounds.width);
       else expect(sidebarBounds.y).toBeGreaterThanOrEqual(articleBounds.y + articleBounds.height);
       const bylineFont = await page
-        .locator(".story-kicker time")
+        .locator(".story-context summary time")
         .evaluate((node) => getComputedStyle(node).fontFamily);
       for (const text of await page.locator(".tldr-section p, .key-points li").all())
         await expect(text).toHaveCSS("font-family", bylineFont);

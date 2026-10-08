@@ -191,7 +191,7 @@ test("warm primary story streams before a stalled recommendation and retains car
   assert.match(rendered.html, /Primary headline/);
   assert.match(rendered.html, /The primary article brief/);
   assert.match(rendered.html, /href="https:\/\/news\.ycombinator\.com\/item\?id=123"/);
-  assert.match(rendered.html, /related-stories-placeholder/);
+  assert.match(rendered.html, /Loading related stories…/);
   assert.doesNotMatch(rendered.html, /Next headline/);
   assert.deepEqual(events, ["story", "related"]);
   pending.resolve(related);

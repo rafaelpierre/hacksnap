@@ -177,15 +177,21 @@ test("compact header and recommendations preserve the new story component and tr
   assert.match(header, /aria-label="Breadcrumb"/);
   assert.match(header, /href="\/">[^<]*Latest/);
   assert.match(header, /href="\/\?category=agents-coding"/);
-  assert.match(header, /class="story-kicker"/);
-  assert.match(header, /Added <time dateTime="2026-09-26T10:00:00.000Z"/);
+  assert.match(header, /class="story-context"/);
+  assert.match(header, /class="category-badge/);
+  assert.match(
+    header,
+    /<details class="story-age"><summary><time dateTime="2026-09-26T10:00:00.000Z"/,
+  );
+  assert.doesNotMatch(header, /class="back-link"/);
   assert.match(html, /Original article on example.com/);
   assert.match(header, /aria-label="Share: A mocked story title"/);
   assert.match(html, /class="skepticism"/);
   const next = html.match(/<ul class="related-story-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
   assert.match(next, /related-topic/);
   assert.match(next, /example.org/);
-  assert.doesNotMatch(next, /feed-excerpt|Added |<time /);
+  assert.match(next, /A related takeaway/);
+  assert.doesNotMatch(next, /Added |<time /);
 });
 
 test("legacy takeaway caveats remain visible after the compact deck", () => {

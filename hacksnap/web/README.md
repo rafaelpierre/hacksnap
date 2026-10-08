@@ -43,6 +43,14 @@ rail separated by 24px gaps. Decorative category icons accompany full labels and
 `../../docs/ux/2026-10-08/frontend-revamp/implementation-plan.md`.
 Latest has an accessible page heading without a visible hero or breadcrumb.
 
+Article headers reuse the feed's category and compact relative age; the exact date
+is available through the same native disclosure. The Latest/topic breadcrumbs
+preserve the reading journey without a duplicate “Back to” link. Discussion themes
+use bordered disclosure cards, with a blue open state and labelled source-comment
+actions inside the expanded text. Sharing remains in the article header, without
+a repeated control above Related stories. Related stories use compact feed-style cards
+with takeaways, full-card links and explicit loading, empty and unavailable states.
+
 `app/globals.css` owns the semantic theme colors, relative type scale, spacing,
 page/reading widths, responsive gutters and 44px (2.75rem) control target. Use
 `--ink` for headlines, `--prose` for reading, `--muted` for metadata, `--accent`
