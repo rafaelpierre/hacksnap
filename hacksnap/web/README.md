@@ -13,8 +13,8 @@ The variable WOFF2 files and their licenses live in `app/fonts`. `next/font/loca
 serves and preloads the fonts with `font-display: swap` and adjusted fallbacks;
 builds and visits do not need an external font service. Newsreader uses an adjusted
 Times New Roman fallback, with Georgia and system serifs as additional fallbacks.
-Social previews use static local Newsreader instances for headlines and excerpts,
-while retaining the existing brand and metadata fonts.
+Social previews use static local Bricolage Grotesque for headlines and the wordmark,
+and Source Sans 3 for excerpts and metadata, matching the feed typography.
 
 ## Test dependency override
 
@@ -313,7 +313,7 @@ data naming the site `Hacksnap` at `https://hacksnap.live/` so search engines ca
 recognize the brand. Later Latest pages, monthly archives and other pages retain
 their own `<page title> | Hacksnap` titles.
 
-The favicon uses the existing copper `h/` mark on a dark background. Next.js
+The favicon uses the header's square white `h/` mark on charcoal (`#24242b`). Next.js
 serves `app/icon.svg`, a 96px `app/icon.png`, a multi-size `app/favicon.ico`, and
 a 180px `app/apple-icon.png` through its file-based metadata routes. Regenerate
 the raster copies from the SVG with `node scripts/generate-icons.mjs`.
@@ -344,7 +344,11 @@ The story metadata declares that choice directly because a story-level
 `opengraph-image` file would take priority over it. The legacy story preview
 URL remains an ordinary route handler, so old links redirect to a ready asset or
 return the brand card without changing metadata. The brand card uses the bundled
-font and needs no external image/font service or model call.
+fonts and needs no external image/font service or model call. It follows the
+frontend's light gray canvas, white reading card, charcoal headings, and blue
+source/domain accents. The square mark preserves the header identity at small
+sizes; generous card padding keeps headlines readable in social feeds. The old
+grain texture is no longer loaded by the renderer.
 
 `/feed.xml` returns RSS 2.0 for the latest 50 stored stories ordered by publication
 on Hacksnap (`date_added`, then ID). Entries contain titles, canonical links,
