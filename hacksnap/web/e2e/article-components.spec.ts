@@ -16,7 +16,31 @@ for (const width of [320, 375, 768, 1280]) {
       await expect(metadata.locator("time.story-age")).toHaveText(/^(<1h|\d+h|\d+d(?: \d+h)?)$/);
       await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toHaveCount(0);
       await expect(metadata.locator("details, summary, .story-age-exact")).toHaveCount(0);
+      const rail = page.locator(".story-header .feed-story-rail");
+      await expect(page.getByRole("navigation", { name: "Story sections" })).toHaveCount(0);
+      await expect(rail.locator(".feed-stat")).toHaveCount(2);
+      await expect(rail.getByRole("link")).toHaveAttribute(
+        "href",
+        /news\.ycombinator\.com\/item\?id=/,
+      );
+      const share = rail.getByRole("button", { name: /^Share:/ });
+      await expect(share).toHaveCSS(
+        "background-color",
+        await rail
+          .locator(".feed-stat")
+          .first()
+          .evaluate((element) => getComputedStyle(element).backgroundColor),
+      );
+      await rail.scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath("article-header.png") });
+      await share.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("dialog", { name: /^Share / })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(share).toBeFocused();
+      const shareBounds = await share.boundingBox();
+      expect(shareBounds!.height).toBeGreaterThanOrEqual(44);
+      expect(shareBounds!.width).toBeGreaterThanOrEqual(44);
 
       const brief = page.locator("#article-brief");
       await expect(brief.locator("p br")).toHaveCount(1);

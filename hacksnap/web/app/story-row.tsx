@@ -1,4 +1,5 @@
-import { ArrowUp, MessageCircle } from "lucide-react";
+import { StoryRail } from "./story-rail";
+import { ShareLinks } from "./share-links";
 import type { CardStory } from "../lib/story-domain";
 import type { PublicFeedStory } from "../lib/stories-api";
 import { CategoryBadge } from "./categories";
@@ -79,26 +80,14 @@ export function StoryRow({
             <p>{discussionPreview.text}</p>
           </div>
         )}
-        <div className="feed-story-rail">
-          <span className="feed-stat" title={`${story.points.toLocaleString("en-GB")} points`}>
-            <ArrowUp size={18} aria-hidden="true" />
-            <span>
-              {story.points.toLocaleString("en-GB")}
-              <span className="sr-only"> points</span>
-            </span>
-          </span>
-          <a
-            className="feed-stat feed-comments"
-            href={`https://news.ycombinator.com/item?id=${story.hn_id}`}
-            title={`${story.comment_count.toLocaleString("en-GB")} comments`}
-          >
-            <MessageCircle size={18} aria-hidden="true" />
-            <span>
-              {story.comment_count.toLocaleString("en-GB")}
-              <span className="sr-only"> comments</span>
-            </span>
-          </a>
-        </div>
+        <StoryRail id={story.hn_id} points={story.points} commentCount={story.comment_count}>
+          <ShareLinks
+            id={story.hn_id}
+            slug={story.story_slug}
+            title={story.title}
+            takeaway={takeaway}
+          />
+        </StoryRail>
       </div>
     </article>
   );

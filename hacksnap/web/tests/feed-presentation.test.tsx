@@ -155,7 +155,8 @@ test("lead card reading order and actions preserve category metadata in selected
     [...positions].sort((a, b) => a - b),
   );
   assert.match(html, /Browse Agents/);
-  assert.doesNotMatch(html, /Read brief|Discussion analysis|Share:/);
+  assert.doesNotMatch(html, /Read brief|Discussion analysis/);
+  assert.match(html, /aria-label="Share: A feed story"/);
   assert.match(html, /<h2 class="feed-story-title">/);
   assert.match(html, /<h3>Inside the discussion<\/h3>/);
   assert.match(html, /href="\/story\/90000001"/);

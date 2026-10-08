@@ -1,6 +1,6 @@
 "use client";
 
-import { Share2, X } from "lucide-react";
+import { Forward, X } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { copyShareText, track } from "../lib/analytics";
 import { canonicalStoryUrl, copyText, shareDestinations, suggestedPost } from "../lib/share-text";
@@ -200,7 +200,7 @@ export function ShareLinks({
           setManualText(null);
         }}
       >
-        <Share2 size={16} aria-hidden="true" /> {label}
+        <Forward size={18} aria-hidden="true" /> {label}
       </button>
       {open && (
         <dialog

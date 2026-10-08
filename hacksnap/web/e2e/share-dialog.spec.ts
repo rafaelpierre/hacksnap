@@ -70,3 +70,48 @@ for (const width of [320, 1280]) {
     await expect(share).toBeFocused();
   });
 }
+
+for (const width of [320, 1280]) {
+  test(`home card shares its canonical URL and returns keyboard focus at ${width}px`, async ({
+    page,
+    context,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: (value: string) => {
+            document.documentElement.dataset.copied = value;
+            return Promise.resolve();
+          },
+        },
+      });
+    });
+    await page.goto("/");
+    const card = page.locator(".feed-story").first();
+    const path = await card.locator(".feed-story-title a").getAttribute("href");
+    const share = card.getByRole("button", { name: /^Share:/ });
+    await share.focus();
+    await page.keyboard.press("Enter");
+    const dialog = page.getByRole("dialog", { name: "Share this story", exact: true });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Copy link", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-copied",
+      `https://hacksnap.live${path}`,
+    );
+    await expect(dialog.getByRole("status")).toHaveText("Link copied to clipboard.");
+    await page.keyboard.press("Escape");
+    await expect(share).toBeFocused();
+    if (width === 320)
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "200%";
+      });
+    await card.locator(".feed-story-rail").scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+    await page.screenshot({ path: testInfo.outputPath("home-rail.png") });
+  });
+}

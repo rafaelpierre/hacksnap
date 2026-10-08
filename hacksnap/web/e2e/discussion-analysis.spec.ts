@@ -11,11 +11,7 @@ for (const width of [320, 1280])
       await page.evaluate((scale) => {
         document.documentElement.style.fontSize = `${scale * 100}%`;
       }, textScale);
-      await page
-        .getByRole("navigation", { name: "Story sections" })
-        .getByRole("link", { name: "Discussion analysis" })
-        .click();
-      await expect(page.locator("#discussion-analysis")).toBeFocused();
+      await page.locator("#discussion-analysis").scrollIntoViewIfNeeded();
       await expect(
         page.getByRole("heading", { name: "Discussion analysis", exact: true }),
       ).toBeVisible();
