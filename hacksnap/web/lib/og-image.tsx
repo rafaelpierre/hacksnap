@@ -6,15 +6,12 @@ import { briefExcerpt } from "./brief";
 export const ogImageSize = { width: 1200, height: 630 };
 
 // Bundle local, static TTFs: the OG renderer cannot use the site's variable WOFF2s.
-// Cache asset reads across requests; the fixed random grain keeps previews stable.
-let assets: Promise<[Buffer, Buffer, Buffer, Buffer, Buffer]> | undefined;
+// Cache the same brand and summary typefaces used by the frontend.
+let assets: Promise<[Buffer, Buffer]> | undefined;
 function loadAssets() {
   return (assets ??= Promise.all([
     readFile(join(process.cwd(), "app/fonts/bricolage-grotesque-og-600.ttf")),
     readFile(join(process.cwd(), "app/fonts/source-sans-3-og-400.ttf")),
-    readFile(join(process.cwd(), "lib/assets/og-grain.png")),
-    readFile(join(process.cwd(), "app/fonts/newsreader-og-600.ttf")),
-    readFile(join(process.cwd(), "app/fonts/newsreader-og-400.ttf")),
   ]).catch((error) => {
     assets = undefined;
     throw error;
@@ -27,7 +24,7 @@ export async function ogImage({
   source,
   takeaway,
 }: { title?: string; source?: string; takeaway?: string | null } = {}) {
-  const [heading, body, grain, editorialHeading, editorialBody] = await loadAssets();
+  const [heading, body] = await loadAssets();
   const cleanTitle = title.replace(/\s+/g, " ").trim() || "AI on Hacker News";
   const characters = Array.from(cleanTitle);
   const headline =
@@ -52,28 +49,12 @@ export async function ogImage({
         height: "100%",
         position: "relative",
         display: "flex",
-        background: "#111314",
-        color: "#e6e8e7",
+        padding: 32,
+        background: "#f4f4f5",
+        color: "#24242b",
         fontFamily: "Source Sans 3",
       }}
     >
-      <img
-        alt=""
-        src={`data:image/png;base64,${grain.toString("base64")}`}
-        width={1200}
-        height={630}
-        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          background: "rgba(5, 5, 5, 0.2784)",
-        }}
-      />
       <div
         style={{
           position: "relative",
@@ -81,7 +62,10 @@ export async function ogImage({
           flexDirection: "column",
           width: "100%",
           height: "100%",
-          padding: "48px 64px",
+          padding: "36px 40px",
+          background: "#ffffff",
+          border: "1px solid #dddde3",
+          borderRadius: 12,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -96,11 +80,18 @@ export async function ogImage({
               letterSpacing: -1,
             }}
           >
-            <span style={{ color: "#efaa7b", fontSize: 40 }}>h/</span>
+            <svg width="52" height="52" viewBox="0 0 96 96" aria-hidden="true">
+              <rect width="96" height="96" fill="#24242b" />
+              <path
+                fill="#ffffff"
+                transform="translate(-5 0)"
+                d="M18 22h11v22c3-4 7-6 12-6 10 0 15 6 15 17v21H45V57c0-6-2-9-7-9-5 0-9 4-9 10v18H18zm59-2h11L67 80H56z"
+              />
+            </svg>
             <span>hacksnap</span>
           </div>
-          <div style={{ display: "flex", color: "#9a9fa0", fontSize: 18, letterSpacing: 2 }}>
-            AI / HACKER NEWS
+          <div style={{ display: "flex", color: "#62626e", fontSize: 20 }}>
+            AI stories & discussions
           </div>
         </div>
         <div
@@ -110,34 +101,32 @@ export async function ogImage({
             minHeight: 0,
             flexDirection: "column",
             justifyContent: "center",
-            padding: "28px 0",
+            padding: "24px 0",
           }}
         >
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 12,
-              color: "#efaa7b",
-              fontSize: 22,
-              marginBottom: 18,
+              color: "#0000ff",
+              fontSize: 20,
+              marginBottom: 14,
             }}
           >
-            <span style={{ width: 24, height: 2, background: "#efaa7b" }} />
             <span>{source ? source.slice(0, 70) : "Your AI reading list"}</span>
           </div>
           <div
             style={{
               display: "block",
-              fontFamily: "Newsreader",
+              fontFamily: "Bricolage Grotesque",
               fontSize,
               fontWeight: 600,
               letterSpacing: -0.02 * fontSize,
               lineHeight: 1.1,
               wordBreak: "break-word",
-              lineClamp: 4,
+              lineClamp: 3,
               overflow: "hidden",
-              maxHeight: fontSize * 1.1 * 4,
+              maxHeight: fontSize * 1.1 * 3,
             }}
           >
             {headline}
@@ -147,11 +136,11 @@ export async function ogImage({
               style={{
                 display: "block",
                 flexShrink: 0,
-                fontFamily: "Newsreader",
+                fontFamily: "Source Sans 3",
                 fontSize: 26,
                 lineHeight: 1.25,
-                color: "#9a9fa0",
-                marginTop: 22,
+                color: "#474751",
+                marginTop: 16,
                 wordBreak: "break-word",
                 lineClamp: 3,
                 overflow: "hidden",
@@ -162,7 +151,7 @@ export async function ogImage({
             </div>
           ) : (
             !source && (
-              <div style={{ display: "flex", fontSize: 28, color: "#9a9fa0", marginTop: 22 }}>
+              <div style={{ display: "flex", fontSize: 28, color: "#474751", marginTop: 22 }}>
                 The articles and the arguments worth reading.
               </div>
             )
@@ -174,13 +163,13 @@ export async function ogImage({
             flexShrink: 0,
             justifyContent: "space-between",
             alignItems: "center",
-            borderTop: "1px solid #383c3d",
-            paddingTop: 22,
-            fontSize: 22,
+            borderTop: "1px solid #dddde3",
+            paddingTop: 20,
+            fontSize: 20,
           }}
         >
-          <span style={{ color: "#9a9fa0" }}>Article briefs + discussion highlights</span>
-          <span style={{ color: "#efaa7b" }}>hacksnap.live</span>
+          <span style={{ color: "#62626e" }}>Article briefs + discussion highlights</span>
+          <span style={{ color: "#0000ff" }}>hacksnap.live</span>
         </div>
       </div>
     </div>,
@@ -189,8 +178,6 @@ export async function ogImage({
       fonts: [
         { name: "Bricolage Grotesque", data: heading, weight: 600, style: "normal" },
         { name: "Source Sans 3", data: body, weight: 400, style: "normal" },
-        { name: "Newsreader", data: editorialHeading, weight: 600, style: "normal" },
-        { name: "Newsreader", data: editorialBody, weight: 400, style: "normal" },
       ],
     },
   );
