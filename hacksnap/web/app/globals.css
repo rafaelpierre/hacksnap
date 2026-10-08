@@ -1,5 +1,5 @@
-/* DEV reading system: Bricolage establishes headline hierarchy, Source Sans keeps
-   controls quiet, and Newsreader is reserved for extended reading. */
+/* DEV reading system: Bricolage establishes headline hierarchy; Source Sans
+   connects article reading with introductions, metadata and controls. */
 :root {
   color-scheme: only light;
   --bg: #f4f4f5;
@@ -685,7 +685,7 @@ body:has(#browse-content) .skip-browse {
   border-bottom: 1px solid var(--line);
 }
 .editorial {
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-optical-sizing: auto;
   font-size: var(--text-body);
   line-height: var(--leading-body);

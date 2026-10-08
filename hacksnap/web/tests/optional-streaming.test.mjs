@@ -36,6 +36,7 @@ const related = [
   { ...story, hn_id: "456", title: "Next headline", story_slug: "next-headline-456" },
 ];
 const categoryList = { stories: [story], hasNext: false };
+const getPopularStories = jest.fn(async () => []);
 const events = [];
 const getStory = jest.fn(async () => {
   events.push("story");
@@ -59,7 +60,7 @@ jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getArchiveStories: async () => categoryList,
   getArchiveMonths: async () => [],
-  getPopularStories: async () => [],
+  getPopularStories,
   getStory,
   getRelatedStories,
   getCategoryStories,
@@ -134,6 +135,29 @@ const categoryProps = {
   params: Promise.resolve({}),
   searchParams: Promise.resolve({ category: "agents-coding" }),
 };
+
+test("article and sidebar shell stream while popularity is pending", async () => {
+  const pending = deferred();
+  getPopularStories.mockImplementationOnce(() => pending.promise);
+  const rendered = stream(await StoryPage(storyProps));
+  await rendered.contains(/Loading most read stories/);
+  assert.match(rendered.html, /The primary article brief/);
+  assert.match(rendered.html, /browse-right-sidebar/);
+  pending.resolve([{ hn_id: "789", title: "Popular headline", views: "10" }]);
+  await rendered.complete;
+  assert.match(rendered.html, /Popular headline/);
+  assert.match(rendered.html, /href="\/story\/789"/);
+  assert.deepEqual(rendered.errors, []);
+});
+
+test("failed popularity keeps the article and sidebar failure message", async () => {
+  getPopularStories.mockRejectedValueOnce(new DataUnavailableError());
+  const rendered = stream(await StoryPage(storyProps));
+  await rendered.complete;
+  assert.match(rendered.html, /The primary article brief/);
+  assert.match(rendered.html, /Most read stories are temporarily unavailable/);
+  assert.deepEqual(rendered.errors, []);
+});
 
 test("warm primary story streams before a stalled recommendation and retains cards", async () => {
   const pending = deferred();

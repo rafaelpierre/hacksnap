@@ -4,8 +4,8 @@
 
 Bricolage Grotesque is used for the wordmark, feed and reader headlines, section
 headings and related stories. Source Sans 3 carries navigation, metadata, feed
-takeaways and reader introductions. Newsreader is reserved for extended article
-reading at 1.375rem with a 1.5 line height. All three fonts remain local. Feed lead
+takeaways, reader introductions and article text. Article text matches the byline
+font at 1.375rem with a 1.5 line height. All three fonts remain local. Feed lead
 headlines use weight 750 and a larger scale; ordinary headlines use weight 700.
 Monospace is reserved for code.
 
@@ -92,10 +92,10 @@ the redirects; `robots.txt` does not block them.
 
 ## Most-read stories by period
 
-Latest, dated archives, and topic feeds include a lifetime “Most read” card of up to five stories.
-It sits to the right at 78rem and below the feed at narrower widths, including
+Latest, dated archives, topic feeds and article pages include a lifetime “Most read” card of up to five stories.
+It sits to the right at 78rem and below the main content at narrower widths, including
 phones. Its loading, empty and failure states are
-independent of the required feed. Weekly ranking remains available to existing
+independent of the required feed or article. Weekly ranking remains available to existing
 data consumers; the DEV presentation does not show a second weekly widget.
 Links use the stored canonical story slug.
 Most read links preserve the loaded feed and scroll position without assigning

@@ -8,6 +8,8 @@ import { getRelatedStories, getStory } from "../../../lib/data";
 import { categoryById } from "../../../lib/categories";
 import { StoryContent } from "./story-content";
 import { RelatedStories } from "../../related-stories";
+import { BrowseLayout } from "../../topic-sidebar";
+import { PopularStories, PopularStoriesLoading } from "../../popular-stories";
 import { Suspense } from "react";
 import type { Category } from "../../../lib/categories";
 
@@ -68,22 +70,30 @@ async function StoryPage({
   }
   const category = categoryById(story.category);
   return (
-    <StoryContent
-      story={story}
-      relatedSection={
-        category ? (
-          <Suspense
-            fallback={
-              <RelatedStories category={category} stories={[]} currentId={story.hn_id} pending />
-            }
-          >
-            <StoryRecommendations category={category} currentId={story.hn_id} />
-          </Suspense>
-        ) : (
-          <RelatedStories stories={[]} currentId={story.hn_id} />
-        )
+    <BrowseLayout
+      rightSidebar={
+        <Suspense fallback={<PopularStoriesLoading />}>
+          <PopularStories />
+        </Suspense>
       }
-    />
+    >
+      <StoryContent
+        story={story}
+        relatedSection={
+          category ? (
+            <Suspense
+              fallback={
+                <RelatedStories category={category} stories={[]} currentId={story.hn_id} pending />
+              }
+            >
+              <StoryRecommendations category={category} currentId={story.hn_id} />
+            </Suspense>
+          ) : (
+            <RelatedStories stories={[]} currentId={story.hn_id} />
+          )
+        }
+      />
+    </BrowseLayout>
   );
 }
 

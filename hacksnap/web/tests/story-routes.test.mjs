@@ -15,6 +15,7 @@ const story = {
 const getStory = jest.fn(async () => story);
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getStory,
+  getPopularStories: async () => [],
   getRelatedStories: async () => [],
   getLeaderboard: async () => ({ stories: [], ingestion: null }),
   getArchiveMonths: async () => [],
@@ -48,7 +49,7 @@ test("HTML redirects legacy and stale URLs and renders the canonical story", asy
       (error) => error.url === "/story/readable-headline-123",
     );
   }
-  assert.equal((await Page(props("readable-headline-123"))).props.story, story);
+  assert.equal((await Page(props("readable-headline-123"))).props.children.props.story, story);
   assert.equal(
     (await generateMetadata(props("readable-headline-123"))).alternates.canonical,
     "https://hacksnap.live/story/readable-headline-123",
@@ -124,7 +125,7 @@ test("legacy HTML redirects retain navigation context and repeated query values"
 test("existing numeric stories render directly and reject invented canonical slugs", async () => {
   const legacy = { ...story, story_slug: null, title: "Updated old headline" };
   getStory.mockResolvedValueOnce(legacy);
-  assert.equal((await Page(props("123"))).props.story, legacy);
+  assert.equal((await Page(props("123"))).props.children.props.story, legacy);
   getStory.mockResolvedValueOnce(legacy);
   assert.equal(
     (await generateMetadata(props("123"))).alternates.canonical,
@@ -146,7 +147,10 @@ test("existing numeric stories render directly and reject invented canonical slu
 test("new stories keep their first saved slug after headline edits", async () => {
   const edited = { ...story, title: "A later title" };
   getStory.mockResolvedValueOnce(edited);
-  assert.equal((await Page(props("readable-headline-123"))).props.story.title, "A later title");
+  assert.equal(
+    (await Page(props("readable-headline-123"))).props.children.props.story.title,
+    "A later title",
+  );
   getStory.mockResolvedValueOnce(edited);
   assert.equal(
     (await generateMetadata(props("123"))).alternates.canonical,
