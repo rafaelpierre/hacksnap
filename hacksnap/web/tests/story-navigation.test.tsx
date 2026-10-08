@@ -8,6 +8,7 @@ import {
   NextStoryLink,
   ListPositionRestorer,
   StoryReturnLink,
+  StoryJourney,
   consumeFeedReturn,
   saveFeedHistory,
 } from "../app/story-navigation";
@@ -227,6 +228,10 @@ test("story URLs stay clean while each history entry retains its own journey", a
     );
     await click();
     assert.deepEqual(pushes, ["/story/headline-42"]);
+    await render(<StoryJourney />, "story-init");
+    assert.equal(document.querySelector("a"), null);
+    assert.ok(window.history.state.hacksnapJourney);
+    assert.equal(window.history.state.hacksnapHomeFeed.storyCount, 1);
     await render(<StoryReturnLink archiveOnly />, "story");
     assert.equal(window.location.search, "");
     assert.equal(document.querySelector("a")?.getAttribute("href"), "/?page=3");
