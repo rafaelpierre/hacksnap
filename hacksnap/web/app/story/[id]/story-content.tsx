@@ -1,7 +1,7 @@
-import { ArrowUpRight, ChevronDown, ChevronRight, MessageCircle, Star } from "lucide-react";
+import { ArrowUpRight, ChevronDown, MessageCircle, Star } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
 import type { RelatedStory, Story } from "../../../lib/data";
-import { categoryById, categoryURL } from "../../../lib/categories";
+import { categoryById } from "../../../lib/categories";
 import { domain } from "../../../lib/format";
 import { storyDiscussion, storySource } from "../../../lib/story-presentation";
 import { DiscussionAnalysis } from "../../discussion-analysis";
@@ -9,10 +9,10 @@ import discussionStyles from "../../discussion-analysis.module.css";
 import { SkepticismPill } from "../../skepticism-pill";
 import { ShareLinks } from "../../share-links";
 import { briefExcerpt } from "../../../lib/brief";
+import { StoryJourney } from "../../story-navigation";
 import { StoryAge } from "../../story-age";
 import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
-import { StoryReturnLink } from "../../story-navigation";
 import { ArticleImage } from "../../article-image";
 import { canonicalArticleImage } from "../../../lib/article-image";
 import type { ReactNode } from "react";
@@ -51,22 +51,8 @@ export function StoryContent({
   return (
     <article className="detail">
       <StoryVisit id={story.hn_id} />
+      <StoryJourney />
       <header className="story-header">
-        <nav className="story-breadcrumbs" aria-label="Breadcrumb">
-          <ol>
-            <li>
-              <StoryReturnLink destination={{ href: "/", label: "Latest" }} />
-            </li>
-            {category && (
-              <li>
-                <ChevronRight size={14} aria-hidden="true" />
-                <StoryReturnLink
-                  destination={{ href: categoryURL(category), label: category.label }}
-                />
-              </li>
-            )}
-          </ol>
-        </nav>
         <div className="story-context">
           {category && <CategoryBadge id={category.id} />}
           {category && (

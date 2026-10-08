@@ -436,6 +436,20 @@ function isDatedFeed(url: string | undefined): boolean {
   return /^\/[1-9]\d{3}\/(0[1-9]|1[0-2])(?:\?|$)/.test(url ?? "");
 }
 
+export function StoryJourney() {
+  const pathname = usePathname();
+  useEffect(() => {
+    function updateJourney(event?: PopStateEvent) {
+      if (event) cancelPendingJourney();
+      journeyToken();
+    }
+    updateJourney();
+    window.addEventListener("popstate", updateJourney);
+    return () => window.removeEventListener("popstate", updateJourney);
+  }, [pathname]);
+  return null;
+}
+
 export function StoryReturnLink({
   destination,
   archiveOnly = false,

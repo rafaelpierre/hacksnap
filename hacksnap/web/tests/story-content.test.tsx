@@ -171,11 +171,10 @@ test("cards and detail use a ready canonical image while invalid states keep the
 test("compact header and recommendations preserve the new story component and tracking", () => {
   const html = render(createElement(StoryContent, { story, relatedStories }));
   const header = html.match(/<header class="story-header">([\s\S]*?)<\/header>/)?.[1] ?? "";
-  assert.ok(header.indexOf("story-breadcrumbs") < header.indexOf("<h1>"));
+  assert.ok(header.indexOf("story-context") < header.indexOf("<h1>"));
   assert.doesNotMatch(header, /skepticism-pill/);
   assert.match(header, /42 points/);
-  assert.match(header, /aria-label="Breadcrumb"/);
-  assert.match(header, /href="\/">[^<]*Latest/);
+  assert.doesNotMatch(header, /story-breadcrumbs|aria-label="Breadcrumb"/);
   assert.match(header, /href="\/\?category=agents-coding"/);
   assert.match(header, /class="story-context"/);
   assert.match(header, /class="category-badge/);

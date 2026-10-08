@@ -6,7 +6,7 @@ test.describe("mobile browser history", () => {
   test.setTimeout(60_000);
   test.use({ viewport: { width: 393, height: 851 }, isMobile: true, hasTouch: true });
   for (const datedFeed of ["/2026/01", "/2026/01?page=2"]) {
-    test(`dated breadcrumb restores ${datedFeed} after a related story and reload`, async ({
+    test(`browser Back restores ${datedFeed} after a related story and reload`, async ({
       page,
     }) => {
       const settleRequests = trackRequests(page);
@@ -28,16 +28,10 @@ test.describe("mobile browser history", () => {
       await settleRequests();
       await page.reload();
       await settleRequests();
-      const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
-      const back = breadcrumb.getByRole("link", {
-        name: datedFeed.includes("?") ? "January 2026 archive · page 2" : "January 2026 archive",
-        exact: true,
-      });
-      await expect(back).toHaveAttribute("href", datedFeed);
-      await expect(breadcrumb.locator(".back-link")).toHaveCount(0);
-      await back.scrollIntoViewIfNeeded();
+      await page.goBack();
+      await page.waitForURL(/\/story\/[^?]+$/);
       await settleRequests();
-      await back.tap();
+      await page.goBack();
       await expect(page).toHaveURL((url) => url.pathname + url.search === datedFeed);
       await expect(card).toBeVisible();
       await expect
@@ -116,17 +110,16 @@ test.describe("mobile browser history", () => {
     await related.tap();
     await page.waitForURL((url) => url.pathname === nextHref && !url.search);
     await settleRequests();
-    const topicReturn = page
-      .getByRole("navigation", { name: "Breadcrumb" })
-      .getByRole("link", { name: "Models & Products", exact: true });
-    await expect(topicReturn).toHaveAttribute("href", "/?category=models-products&page=2");
-    await topicReturn.tap();
+    await page.goBack();
+    await page.waitForURL(/\/story\/[^?]+$/);
+    await settleRequests();
+    await page.goBack();
     await expect(page).toHaveURL(/category=models-products&page=2$/);
     await expect(page.locator(".story-list .feed-story-title a").first()).toBeVisible();
     await settleRequests();
   });
 
-  for (const returnMode of ["browser Back", "explicit return"]) {
+  for (const returnMode of ["browser Back", "browser Back after reload"]) {
     test(`a Most read-only story preserves feed depth and scroll after ${returnMode} and reload`, async ({
       page,
       context,
@@ -223,10 +216,7 @@ test.describe("mobile browser history", () => {
       else {
         await page.reload();
         await settleRequests();
-        await page
-          .getByRole("navigation", { name: "Breadcrumb" })
-          .getByRole("link", { name: "Latest", exact: true })
-          .click();
+        await page.goBack();
       }
       await expect(page).toHaveURL(`${baseURL}/`);
       await expectSavedFeed();

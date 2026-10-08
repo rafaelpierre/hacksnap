@@ -1,5 +1,4 @@
 import { test, expect, title, storyPath } from "./browser";
-import { packFeedSnapshot, validFeedPage, type FeedSnapshot } from "../lib/feed-state";
 import AxeBuilder from "@axe-core/playwright";
 
 for (const route of ["/", "/archive", "/category/models-products"]) {
@@ -10,11 +9,7 @@ for (const route of ["/", "/archive", "/category/models-products"]) {
     await card.click();
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
-    const returnName = route === "/" || route === "/archive" ? "Latest" : "Models & Products";
-    await page
-      .getByRole("navigation", { name: "Breadcrumb" })
-      .getByRole("link", { name: returnName, exact: true })
-      .click();
+    await page.goBack();
     await expect(page).toHaveURL(
       (url) =>
         url.pathname + url.search ===
@@ -301,10 +296,7 @@ test.describe("without JavaScript", () => {
     await source.click();
     await expect(page.getByRole("dialog", { name: "Source comments", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
-    await page
-      .getByRole("navigation", { name: "Breadcrumb" })
-      .getByRole("link", { name: "Latest", exact: true })
-      .click();
+    await page.goBack();
     await expect(
       page.locator(".story-list").getByRole("link", { name: title, exact: true }),
     ).toBeVisible();
@@ -495,110 +487,13 @@ test("topic filters reuse Latest and retain selection through paging and history
   // Follow the story title using the existing card heading link.
   const storyLink = page.locator(".story-list .feed-story-title a").first();
   await storyLink.click();
-  const topicReturn = page
-    .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("link", { name: "Models & Products", exact: true });
-  await expect(topicReturn).toHaveAttribute("href", "/?category=models-products&page=2");
-  await topicReturn.click();
+  await page.waitForURL(/\/story\/[^?]+$/);
+  await page.goBack();
   await expect(page).toHaveURL(/category=models-products&page=2$/);
   const legacy = await request.get("/category/models-products?page=2", { maxRedirects: 0 });
   expect(legacy.status()).toBe(308);
   expect(legacy.headers().location).toBe("/?category=models-products&page=2");
 });
-
-for (const returnName of ["Models & Products"]) {
-  test(`legacy saved category journey survives bundle reload via ${returnName}`, async ({
-    page,
-    request,
-  }) => {
-    const legacyURL = "/category/models-products?page=2";
-    const canonicalURL = "/?category=models-products&page=2";
-    const listingPath = "/?category=models-products";
-    const first = validFeedPage(
-      await (
-        await request.get(
-          `/api/browse-stories?${new URLSearchParams({ path: listingPath, page: "2" })}`,
-        )
-      ).json(),
-      listingPath,
-    )!;
-    const last = validFeedPage(
-      await (
-        await request.get(
-          `/api/browse-stories?${new URLSearchParams({ path: listingPath, page: "3" })}`,
-        )
-      ).json(),
-      listingPath,
-    )!;
-    const now = Date.now();
-    const snapshot: FeedSnapshot = {
-      version: 1,
-      url: legacyURL,
-      stories: [...first.stories, ...last.stories],
-      pagination: last.pagination,
-      scrollY: 900,
-      focusStoryId: first.stories[0].hn_id,
-      savedAt: now,
-    };
-    const ref = {
-      version: 2,
-      id: "12345678-1234-1234-1234-123456789abc",
-      url: legacyURL,
-      scrollY: snapshot.scrollY,
-      focusStoryId: snapshot.focusStoryId,
-      savedAt: now,
-      contentAt: now,
-      storyCount: snapshot.stories.length,
-      pagination: snapshot.pagination,
-    };
-    const token = "87654321-1234-1234-1234-123456789abc";
-    const context = {
-      url: legacyURL,
-      label: "Models & Products · page 2",
-      scrollY: snapshot.scrollY,
-      savedAt: now,
-    };
-    await page.addInitScript(
-      ({ ref, token, context, packed }) => {
-        if (!window.location.pathname.startsWith("/story/")) return;
-        window.name = "hacksnap-tab:rollout";
-        sessionStorage.setItem(`hacksnap:feed-snapshot:${ref.id}`, packed);
-        sessionStorage.setItem(
-          `hacksnap:journey:${token}`,
-          JSON.stringify({ tabId: window.name, context, homeFeedRef: ref }),
-        );
-        history.replaceState(
-          {
-            ...history.state,
-            hacksnapJourney: token,
-            hacksnapBrowseContext: context,
-            hacksnapHomeFeed: ref,
-          },
-          "",
-        );
-      },
-      { ref, token, context, packed: packFeedSnapshot(snapshot) },
-    );
-    await page.goto(`/story/${snapshot.focusStoryId}`);
-    await page.reload();
-    const back = page
-      .getByRole("navigation", { name: "Breadcrumb" })
-      .getByRole("link", { name: returnName, exact: true });
-    await expect(back).toHaveAttribute("href", canonicalURL);
-    await back.click();
-    await expect(page).toHaveURL(/category=models-products&page=2$/);
-    await expect(page.getByRole("button", { name: "Load more" })).toHaveCount(0);
-    await expect
-      .poll(() =>
-        page.evaluate(() => ({
-          count: history.state?.hacksnapHomeFeed?.storyCount,
-          page: history.state?.hacksnapHomeFeed?.pagination?.page,
-        })),
-      )
-      .toEqual({ count: snapshot.stories.length, page: 3 });
-    await expect.poll(() => page.evaluate(() => Math.abs(window.scrollY - 900))).toBeLessThan(4);
-  });
-}
 
 test("category-only navigation and history create distinct analytics visits", async ({ page }) => {
   const visits = () =>
