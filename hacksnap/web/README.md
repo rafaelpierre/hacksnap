@@ -45,7 +45,9 @@ Latest has an accessible page heading without a visible hero or breadcrumb.
 
 Article headers reuse the feed's category and compact relative age; the exact date
 is available through the same native disclosure. The Latest/topic breadcrumbs
-preserve the reading journey without a duplicate “Back to” link. Discussion themes
+preserve the reading journey without a duplicate “Back to” link. When the saved
+origin is a dated feed, the first breadcrumb shows that month and returns to its
+page and scroll position; direct visits still show Latest. Discussion themes
 use bordered disclosure cards, with a blue open state and labelled source-comment
 actions inside the expanded text. Sharing remains in the article header, without
 a repeated control above Related stories. Related stories use compact feed-style cards

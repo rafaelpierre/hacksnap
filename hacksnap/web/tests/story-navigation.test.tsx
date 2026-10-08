@@ -17,7 +17,7 @@ import type { FeedSnapshot } from "../lib/feed-state";
 import { readFeedSnapshot } from "../lib/feed-snapshot-storage";
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
-test("archive return preserves route, pagination and scroll without changing breadcrumbs", async () => {
+test("dated feed breadcrumb preserves route, pagination and scroll", async () => {
   const token = "11111111-1111-1111-1111-111111111111";
   const dom = new JSDOM('<div id="root"></div>', {
     url: `https://hacksnap.live/story/headline-42`,
@@ -80,13 +80,15 @@ test("archive return preserves route, pagination and scroll without changing bre
       assert.deepEqual(
         links.map((link) => link.getAttribute("href")),
         [
-          url.startsWith("/?page=") ? url : "/",
+          url.startsWith("/?page=") || url.startsWith("/2026/") ? url : "/",
           url.includes("category=safety-privacy") ? url : "/?category=safety-privacy",
           url,
         ],
       );
       assert.match(links[2].textContent!, /Back to /);
-      await act(async () => links[2].click());
+      if (url.startsWith("/2026/")) assert.equal(links[0].textContent!.trim(), context.label);
+      else assert.equal(links[0].textContent!.trim(), "Latest");
+      await act(async () => (url.startsWith("/2026/") ? links[0] : links[2]).click());
       assert.deepEqual(JSON.parse(window.sessionStorage.getItem("hacksnap:pending-return")!), {
         tabId: window.name,
         context,
