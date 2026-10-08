@@ -247,9 +247,6 @@ export function StoryContent({
           </p>
         </section>
       )}
-      <div className="story-end-share">
-        <StoryShare story={story} placement="story_end" />
-      </div>
       {relatedSection ?? (
         <RelatedStories
           category={category}

@@ -47,7 +47,8 @@ Article headers reuse the feed's category and compact relative age; the exact da
 is available through the same native disclosure. The Latest/topic breadcrumbs
 preserve the reading journey without a duplicate “Back to” link. Discussion themes
 use bordered disclosure cards, with a blue open state and labelled source-comment
-actions inside the expanded text. Related stories use compact feed-style cards
+actions inside the expanded text. Sharing remains in the article header, without
+a repeated control above Related stories. Related stories use compact feed-style cards
 with takeaways, full-card links and explicit loading, empty and unavailable states.
 
 `app/globals.css` owns the semantic theme colors, relative type scale, spacing,

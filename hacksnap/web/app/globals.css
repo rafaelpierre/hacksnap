@@ -926,9 +926,6 @@ body:has(#browse-content) .skip-browse {
 .story-added time {
   font: inherit;
 }
-.story-end-share {
-  margin-top: var(--space-4);
-}
 #discussion-analysis {
   scroll-margin-top: var(--space-6);
 }
