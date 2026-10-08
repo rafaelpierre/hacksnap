@@ -9,9 +9,11 @@ font at 1.375rem with a 1.5 line height. All three fonts remain local. Feed lead
 headlines use weight 750 and a larger scale; ordinary headlines use weight 700.
 Monospace is reserved for code.
 
-Article brief prose starts each sentence on a new line, using English sentence
-segmentation during HTML rendering. Stored summaries and generation prompts are
-unchanged; Markdown, RSS and API responses retain the original text.
+Article brief prose starts each sentence on a new line, using `sbd` sentence
+boundary detection during HTML rendering to handle abbreviations, initials,
+URLs and decimals. The tokenizer stays in the article renderer's server module
+graph. Stored summaries and generation prompts are unchanged; Markdown, RSS
+and API responses retain the original text.
 
 The variable WOFF2 files and their licenses live in `app/fonts`. `next/font/local`
 serves and preloads the fonts with `font-display: swap` and adjusted fallbacks;

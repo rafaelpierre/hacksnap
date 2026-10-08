@@ -10,6 +10,7 @@ import { SkepticismPill } from "../../skepticism-pill";
 import { ShareLinks } from "../../share-links";
 import { briefExcerpt } from "../../../lib/brief";
 import { StoryJourney } from "../../story-navigation";
+import { briefSentences } from "../../../lib/article-brief";
 import { StoryAge } from "../../story-age";
 import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
@@ -103,17 +104,12 @@ export function StoryContent({
             {source.brief === "available" ? (
               <>
                 <p>
-                  {Array.from(
-                    new Intl.Segmenter("en", { granularity: "sentence" }).segment(
-                      summary.article_summary ?? "",
-                    ),
-                    ({ segment, index }) => (
-                      <Fragment key={index}>
-                        {index > 0 && <br />}
-                        {segment}
-                      </Fragment>
-                    ),
-                  )}
+                  {briefSentences(summary.article_summary).map((sentence, index) => (
+                    <Fragment key={index}>
+                      {index > 0 && <br />}
+                      {sentence}
+                    </Fragment>
+                  ))}
                 </p>
                 {summary.article_key_points.length > 0 && (
                   <ul className="key-points">
