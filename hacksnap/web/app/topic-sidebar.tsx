@@ -9,25 +9,16 @@ export function TopicSidebar({ active }: { active?: CategoryId | "home" }) {
   );
 }
 
-/** Route content sits inside the shared site shell; supporting content follows the feed. */
+/** Route content sits inside the persistent navigation and popularity shell. */
 export function BrowseLayout({
   children,
-  rightSidebar,
 }: {
   children: React.ReactNode;
   active?: CategoryId | "home";
-  rightSidebar?: React.ReactNode;
 }) {
   return (
-    <div className="browse-layout">
-      <div
-        className={rightSidebar ? "browse-content browse-content-with-sidebar" : "browse-content"}
-        id="browse-content"
-        tabIndex={-1}
-      >
-        <div className="browse-feed-content">{children}</div>
-        {rightSidebar && <div className="browse-right-sidebar">{rightSidebar}</div>}
-      </div>
+    <div className="browse-layout" id="browse-content" tabIndex={-1}>
+      {children}
     </div>
   );
 }

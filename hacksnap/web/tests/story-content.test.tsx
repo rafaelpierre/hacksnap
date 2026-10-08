@@ -208,12 +208,11 @@ test("legacy takeaway caveats remain visible after the compact deck", () => {
   assert.ok(tldr.includes(takeaway.trim()));
 });
 
-test("browse layout keeps the feed before its rail without duplicating global navigation", () => {
-  const html = render(
-    createElement(BrowseLayout, { children: "Feed content", rightSidebar: "Rail content" }),
-  );
+test("browse content retains a focus target inside the shared site shell", () => {
+  const html = render(createElement(BrowseLayout, { children: "Feed content" }));
   assert.doesNotMatch(html, /<nav/);
-  assert.ok(html.indexOf("Feed content") < html.indexOf("Rail content"));
+  assert.match(html, /id="browse-content" tabindex="-1"/);
+  assert.match(html, /Feed content/);
 });
 
 test("reader section links target focusable article and discussion sections", () => {

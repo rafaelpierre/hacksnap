@@ -1,6 +1,75 @@
 import { test, expect, title, storyPath } from "./browser";
 import AxeBuilder from "@axe-core/playwright";
 
+test("fresh direct article visit and reload include the sidebar in the document", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const documents: string[] = [];
+  page.on("request", (request) => {
+    if (request.resourceType() === "document") documents.push(new URL(request.url()).pathname);
+  });
+  for (const visit of [() => page.goto(storyPath), () => page.reload()]) {
+    const response = await visit();
+    expect(response!.status()).toBe(200);
+    expect(await response!.text()).toContain('class="browse-right-sidebar"');
+    const sidebar = page.getByRole("complementary", { name: "Most read" });
+    await expect(sidebar).toBeInViewport();
+    await expect(sidebar.getByRole("link")).toHaveCount(5);
+  }
+  expect(documents).toEqual([storyPath, storyPath]);
+});
+
+test("direct canonical redirect retains the shared sidebar", async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "fixture-story", value: "redirect", url: baseURL! }]);
+  await page.goto(storyPath);
+  await expect(page).toHaveURL(/\/story\/canonical-story-91000001/);
+  await expect(
+    page.getByRole("complementary", { name: "Most read" }).getByRole("link"),
+  ).toHaveCount(5);
+});
+
+test("sidebar stays mounted when navigating away from a directly opened article", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(storyPath);
+  const sidebar = page.getByRole("complementary", { name: "Most read" });
+  await expect(sidebar.getByRole("link")).toHaveCount(5);
+  await sidebar.evaluate((node) => node.setAttribute("data-persistence-probe", "original"));
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "About", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/about$/);
+  await expect(sidebar).toHaveAttribute("data-persistence-probe", "original");
+  await expect(sidebar).toBeInViewport();
+  await sidebar.getByRole("link").first().click();
+  await expect(page).toHaveURL(new RegExp(storyPath));
+  await expect(sidebar).toHaveAttribute("data-persistence-probe", "original");
+});
+
+for (const id of ["91999999", "99999999"])
+  test(`direct unavailable or missing story ${id} keeps Most read`, async ({
+    browser,
+    baseURL,
+  }) => {
+    const context = await browser.newContext({ javaScriptEnabled: id === "99999999" });
+    try {
+      const page = await context.newPage();
+      const response = await page.goto(`${baseURL}/story/${id}`);
+      expect(response!.status()).toBe(id === "99999999" ? 404 : 200);
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(
+        id === "99999999" ? "Story not found" : "temporarily unavailable",
+      );
+      await expect(
+        page.getByRole("complementary", { name: "Most read" }).getByRole("link"),
+      ).toHaveCount(5);
+    } finally {
+      await context.close();
+    }
+  });
+
 test.describe("article sidebar without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 

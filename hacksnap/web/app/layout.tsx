@@ -6,6 +6,7 @@ import localFont from "next/font/local";
 import { SiteHeader } from "./sticky-header";
 import { MobileNavigation } from "./main-navigation";
 import { TopicSidebar } from "./topic-sidebar";
+import { SiteContent } from "./site-content";
 import { analyticsBootstrap } from "../lib/analytics-bootstrap";
 import "./globals.css";
 import { ReaderVisit } from "./journey-analytics";
@@ -108,7 +109,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="site-shell">
           <TopicSidebar />
           <main id="main" className="site-main" tabIndex={-1}>
-            {children}
+            <SiteContent>{children}</SiteContent>
           </main>
         </div>
       </body>
