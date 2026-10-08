@@ -1,23 +1,30 @@
+import type { PopularPeriod } from "../lib/popular-stories";
 import { getPopularStories } from "../lib/data";
 import { BrowseStoryLink } from "./story-navigation";
 
-function PopularStoriesShell({ children }: { children: React.ReactNode }) {
+function PopularStoriesShell({
+  children,
+  period,
+}: {
+  children: React.ReactNode;
+  period: PopularPeriod;
+}) {
+  const heading = period === "last-7-days" ? "trending-stories-heading" : "popular-stories-heading";
   return (
-    <aside className="popular-stories" aria-labelledby="popular-stories-heading">
+    <aside className="popular-stories" aria-labelledby={heading}>
       <div className="popular-stories-heading">
-        <h2 id="popular-stories-heading">Most read</h2>
-        <span>All time</span>
+        <h2 id={heading}>{period === "last-7-days" ? "Trending this week" : "Most read"}</h2>
       </div>
       {children}
     </aside>
   );
 }
 
-export function PopularStoriesLoading() {
+export function PopularStoriesLoading({ period = "all-time" }: { period?: PopularPeriod } = {}) {
   return (
-    <PopularStoriesShell>
+    <PopularStoriesShell period={period}>
       <p className="sr-only" role="status">
-        Loading most read stories…
+        {period === "last-7-days" ? "Loading trending stories…" : "Loading most read stories…"}
       </p>
       <ol aria-hidden="true">
         {Array.from({ length: 5 }, (_, index) => (
@@ -30,12 +37,12 @@ export function PopularStoriesLoading() {
   );
 }
 
-/** Popularity is optional: a failed read must never replace the main feed. */
-export async function PopularStories() {
+/** Each optional read has its own Suspense boundary and failure state. */
+export async function PopularStories({ period = "all-time" }: { period?: PopularPeriod } = {}) {
   try {
-    const stories = await getPopularStories();
+    const stories = await getPopularStories(period);
     return (
-      <PopularStoriesShell>
+      <PopularStoriesShell period={period}>
         {stories.length ? (
           <ol>
             {stories.slice(0, 5).map((story) => (
@@ -47,14 +54,22 @@ export async function PopularStories() {
             ))}
           </ol>
         ) : (
-          <p className="popular-stories-status">Most read stories will appear as readers visit.</p>
+          <p className="popular-stories-status">
+            {period === "last-7-days"
+              ? "No story reads recorded in the last 7 days."
+              : "Most read stories will appear as readers visit."}
+          </p>
         )}
       </PopularStoriesShell>
     );
   } catch {
     return (
-      <PopularStoriesShell>
-        <p className="popular-stories-status">Most read stories are temporarily unavailable.</p>
+      <PopularStoriesShell period={period}>
+        <p className="popular-stories-status">
+          {period === "last-7-days"
+            ? "Trending stories are temporarily unavailable."
+            : "Most read stories are temporarily unavailable."}
+        </p>
       </PopularStoriesShell>
     );
   }

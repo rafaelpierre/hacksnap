@@ -89,3 +89,47 @@ test("capability check handles a missing table and partially granted rollout", a
     await db.close();
   }
 }, 30000);
+
+test("weekly ranking counts reads within 168 hours across old and new stories, excluding clicks and invalid rows", async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(`BEGIN;
+      SET TIME ZONE 'America/Los_Angeles';
+      CREATE TABLE hacker_news_threads(hn_id bigint PRIMARY KEY,title text,story_slug text,date_added timestamptz);
+      CREATE TABLE hacksnap_summaries(story_id bigint PRIMARY KEY,overall_takeaway text);
+      CREATE TABLE hacksnap_popularity_events(story_id bigint,kind text,received_at timestamptz);
+      INSERT INTO hacker_news_threads SELECT n,'Story '||n,'story-'||n,
+        CASE WHEN n=8 THEN now()+interval '1 day' ELSE now()-interval '1 year' END
+        FROM generate_series(0,9) n;
+      INSERT INTO hacksnap_summaries SELECT hn_id,CASE WHEN hn_id=7 THEN ' ' ELSE 'Ready' END FROM hacker_news_threads;
+      INSERT INTO hacksnap_popularity_events SELECT n,'view',now()-interval '1 hour'
+        FROM generate_series(1,6) n,generate_series(1,3) reads;
+      INSERT INTO hacksnap_popularity_events VALUES
+        (1,'view',now()-interval '168 hours'),
+        (2,'view',now()-interval '168 hours 1 microsecond'),
+        (3,'view',now()+interval '1 microsecond');
+      INSERT INTO hacksnap_popularity_events SELECT n,'view',now()
+        FROM generate_series(7,8) n,generate_series(1,100) reads;
+      INSERT INTO hacksnap_popularity_events SELECT 9,'click',now() FROM generate_series(1,100);
+      INSERT INTO hacksnap_popularity_events SELECT 0,'view',now() FROM generate_series(1,100);`);
+    const rows = (await db.query(popularStoriesSQL(storySlugProjection(true), "last-7-days"))).rows;
+    assert.deepEqual(
+      rows.map(({ hn_id, views }) => [hn_id, views]),
+      [
+        ["1", "4"],
+        ["6", "3"],
+        ["5", "3"],
+        ["4", "3"],
+        ["3", "3"],
+      ],
+    );
+    assert.equal(rows[0].story_slug, "story-1");
+    await db.exec("DELETE FROM hacksnap_popularity_events");
+    assert.deepEqual(
+      (await db.query(popularStoriesSQL(storySlugProjection(true), "last-7-days"))).rows,
+      [],
+    );
+  } finally {
+    await db.close();
+  }
+}, 30000);

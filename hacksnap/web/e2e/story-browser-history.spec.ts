@@ -97,6 +97,8 @@ test.describe("mobile browser history", () => {
       await context.addCookies([
         { name: "fixture-popularity", value: "outside-feed", url: baseURL! },
       ]);
+      // Popularity widgets are available only on wider screens.
+      await page.setViewportSize({ width: 1440, height: 1000 });
       const pages = await Promise.all(
         [1, 2].map(async (pageNumber) =>
           validFeedPage(
