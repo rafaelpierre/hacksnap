@@ -5,6 +5,47 @@ import { trackRequests } from "./request-idle";
 test.describe("mobile browser history", () => {
   test.setTimeout(60_000);
   test.use({ viewport: { width: 393, height: 851 }, isMobile: true, hasTouch: true });
+  for (const datedFeed of ["/2026/01", "/2026/01?page=2"]) {
+    test(`dated breadcrumb restores ${datedFeed} after a related story and reload`, async ({
+      page,
+    }) => {
+      const settleRequests = trackRequests(page);
+      await page.goto(datedFeed);
+      const card = page.locator(".story-list .feed-story-title a").nth(4);
+      await card.scrollIntoViewIfNeeded();
+      await settleRequests();
+      const scrollY = await page.evaluate(() => window.scrollY);
+      expect(scrollY).toBeGreaterThan(200);
+      await card.tap();
+      await page.waitForURL(/\/story\/[^?]+$/);
+      await settleRequests();
+      const related = page.getByRole("region", { name: "Related stories" }).locator("h3 a").first();
+      await related.scrollIntoViewIfNeeded();
+      await settleRequests();
+      const nextHref = await related.getAttribute("href");
+      await related.tap();
+      await page.waitForURL((url) => url.pathname === nextHref && !url.search);
+      await settleRequests();
+      await page.reload();
+      await settleRequests();
+      const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
+      const back = breadcrumb.getByRole("link", {
+        name: datedFeed.includes("?") ? "January 2026 archive · page 2" : "January 2026 archive",
+        exact: true,
+      });
+      await expect(back).toHaveAttribute("href", datedFeed);
+      await expect(breadcrumb.locator(".back-link")).toHaveCount(0);
+      await back.scrollIntoViewIfNeeded();
+      await settleRequests();
+      await back.tap();
+      await expect(page).toHaveURL((url) => url.pathname + url.search === datedFeed);
+      await expect(card).toBeVisible();
+      await expect
+        .poll(async () => Math.abs((await page.evaluate(() => window.scrollY)) - scrollY))
+        .toBeLessThan(100);
+      await settleRequests();
+    });
+  }
   for (const mode of ["direct", "redirect", "slow"]) {
     test(`first story navigation preserves the feed after arriving from another site (${mode})`, async ({
       page,
