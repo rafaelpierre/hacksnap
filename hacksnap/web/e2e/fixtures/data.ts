@@ -181,7 +181,15 @@ export async function getRssStories(): Promise<ExportStory[]> {
 }
 export const getStory = cache(async (id: string): Promise<ArticleStory | null> => {
   if (id === "91999999") throw new DataUnavailableError();
-  return stories.find((story) => story.hn_id === id) ?? null;
+  const story = stories.find((story) => story.hn_id === id) ?? null;
+  const cookie = (await headers()).get("cookie") ?? "";
+  if (id === "91000001" && cookie.includes("fixture-story=slow"))
+    await new Promise((resolve) => setTimeout(resolve, 11_000));
+  if (story && cookie.includes("fixture-story=redirect")) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    return { ...story, story_slug: `canonical-story-${id}` };
+  }
+  return story;
 });
 export async function getPublicStory(id: string): Promise<PublicStory | null> {
   return getStory(id);

@@ -81,7 +81,7 @@ jobs:
           cache: npm
           cache-dependency-path: hacksnap/web/package-lock.json
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
       - name: Production build and deterministic browser regression suite
         run: npm run test:browser:ci
         env:

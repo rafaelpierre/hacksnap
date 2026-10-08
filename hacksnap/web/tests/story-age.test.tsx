@@ -28,7 +28,7 @@ test("server rendering preserves the exact timestamp with a stable UTC fallback"
   assert.match(html, /dateTime="2026-09-29T12:00:00.000Z"/);
   assert.match(html, /<details class="story-age"><summary>/);
   assert.doesNotMatch(html, /title=/);
-  assert.match(html, /29 Sept 2026.*12:00.*UTC/);
+  assert.match(html, /2026-09-29 12:00 UTC/);
   assert.match(html, />2026-09-29<\/time>/);
 });
 

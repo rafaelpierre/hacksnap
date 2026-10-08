@@ -1,6 +1,5 @@
 import { getPopularStories } from "../lib/data";
-import { storyPath } from "../lib/story-url";
-import { NavigationPendingLink } from "./navigation-pending-link";
+import { BrowseStoryLink } from "./story-navigation";
 
 function PopularStoriesShell({ children }: { children: React.ReactNode }) {
   return (
@@ -41,12 +40,9 @@ export async function PopularStories() {
           <ol>
             {stories.slice(0, 5).map((story) => (
               <li key={story.hn_id}>
-                <NavigationPendingLink
-                  href={storyPath(story.hn_id, story.story_slug)}
-                  pendingLabel="Loading story…"
-                >
+                <BrowseStoryLink id={story.hn_id} slug={story.story_slug}>
                   {story.title}
-                </NavigationPendingLink>
+                </BrowseStoryLink>
               </li>
             ))}
           </ol>

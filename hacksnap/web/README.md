@@ -175,6 +175,17 @@ The legacy `/api/ready-stories`, `/api/story-freshness` and leaderboard endpoint
 retain their ranked contracts for existing API clients. Their selection cursors
 and ranking do not control the Latest interface.
 
+On iPhone and iPad, article links start a normal document navigation during the
+user's tap. This avoids WebKit skipping a history entry when an asynchronous
+client navigation finishes after user activation expires. It costs a full page
+load. Feed, Most read and Read next links use the same behavior. A transient
+`journey` query token carries the saved listing context across documents and is
+removed after hydration. If browser storage is blocked, native Back remains
+available, but the explicit return link may fall back to the default feed.
+
+Initial date labels use deterministic UTC text, then switch to the reader's locale
+after hydration; Node and WebKit can produce different punctuation from `Intl`.
+
 ## Browser-local opened stories
 
 A story title changes to a slightly muted theme color after a valid story detail
@@ -837,10 +848,11 @@ clipboard completions cannot update a replacement identity or draft.
 
 ## Production browser regression suite
 
-Use Node 22, `npm ci`, and `npx playwright install chromium`, then run
+Use Node 22, `npm ci`, and `npx playwright install chromium webkit`, then run
 `npm run test:browser:ci`. This builds a credential-free production fixture copy
 and runs Chromium journeys, accessibility, responsive layout, and route asset /
-rendering budgets. For test-only edits after the build, use `npm run test:browser`.
+rendering budgets. iPhone WebKit also checks arrival from another site, article
+redirects, slow responses, and Back/Forward navigation. For test-only edits after the build, use `npm run test:browser`.
 The suite uses port 3100; override `BROWSER_PORT` when another local app uses it.
 CI runs tests in parallel with one Playwright worker per logical CPU, including
 tests within the same file. Local runs default to four workers; use
