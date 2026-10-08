@@ -18,6 +18,13 @@ Times New Roman fallback, with Georgia and system serifs as additional fallbacks
 Social previews use static local Newsreader instances for headlines and excerpts,
 while retaining the existing brand and metadata fonts.
 
+## Test dependency override
+
+`@istanbuljs/load-nyc-config` uses js-yaml 4.3.2 through a scoped npm override.
+Its YAML loader uses the compatible `load` API; this removes the old argparse /
+sprintf-js chain with an unpatched denial-of-service advisory. Keep the override
+until the upstream loader updates its js-yaml dependency.
+
 ## Color theme
 
 The interface always uses a light appearance with a pure white page background.
