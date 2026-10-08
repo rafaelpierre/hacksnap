@@ -21,6 +21,9 @@ while retaining the existing brand and metadata fonts.
 ## Color theme
 
 The interface always uses a light appearance with a pure white page background.
+Both the document root and body paint white; viewport metadata also requests white
+browser chrome. Story hover shading is limited to devices with a fine pointer and
+hover support so taps do not leave beige backgrounds.
 CSS declares `color-scheme: only light`, including before hydration and when
 JavaScript is disabled. OS appearance and previously saved `hacksnap-theme`
 preferences do not affect the page. There is no appearance control or theme script.
