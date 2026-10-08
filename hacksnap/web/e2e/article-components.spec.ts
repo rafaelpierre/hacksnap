@@ -43,7 +43,14 @@ for (const width of [320, 375, 768, 1280]) {
       expect(shareBounds!.width).toBeGreaterThanOrEqual(44);
 
       const brief = page.locator("#article-brief");
-      await expect(brief.locator("p br")).toHaveCount(1);
+      const sentences = brief.locator(".article-brief-sentence");
+      await expect(sentences).toHaveCount(2);
+      await page.evaluate(() => document.fonts.ready);
+      const spacing = await sentences.evaluateAll(([first, second]) => ({
+        gap: second.getBoundingClientRect().top - first.getBoundingClientRect().bottom,
+        lineHeight: parseFloat(getComputedStyle(first).lineHeight),
+      }));
+      expect(spacing.gap).toBeCloseTo(spacing.lineHeight, 0);
       await brief.screenshot({ path: testInfo.outputPath("article-brief.png") });
 
       const theme = page.locator(".analysis-theme-details").first();
