@@ -1,15 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Blocks,
   Building2,
   Code2,
   FlaskConical,
-  Info,
   Menu,
-  Newspaper,
   Server,
   ShieldCheck,
   type LucideIcon,
@@ -33,37 +31,12 @@ type NavigationProps = {
 
 function NavigationLinks({
   active,
-  label = "Main navigation",
+  label = "Topic navigation",
   pathname = "",
   category,
 }: NavigationProps & { pathname?: string; category?: string | null }) {
-  const latest =
-    active === "home" ||
-    (!active && !category && (pathname === "/" || /^\/\d{4}\/\d{2}$/.test(pathname)));
   return (
     <nav className="main-navigation" aria-label={label}>
-      <div className="nav-main">
-        <NavigationPendingLink
-          href="/"
-          className="nav-link"
-          aria-current={
-            latest ? (pathname === "/" || active === "home" ? "page" : "location") : undefined
-          }
-          pendingLabel="Loading latest stories…"
-        >
-          <Newspaper className="inline-icon topic-icon" aria-hidden="true" />
-          <span>Latest</span>
-        </NavigationPendingLink>
-        <NavigationPendingLink
-          href="/about"
-          className="nav-link"
-          aria-current={pathname === "/about" ? "page" : undefined}
-          pendingLabel="Loading About…"
-        >
-          <Info className="inline-icon topic-icon" aria-hidden="true" />
-          <span>About</span>
-        </NavigationPendingLink>
-      </div>
       <h2 className="nav-heading">
         <NavigationPendingLink
           href="/topics"
@@ -101,11 +74,51 @@ function RouteNavigation({ pathname, ...props }: NavigationProps & { pathname: s
   return <NavigationLinks {...props} pathname={pathname} category={category} />;
 }
 
-export function MainNavigation(props: NavigationProps) {
+export function TopicNavigation(props: NavigationProps) {
   const pathname = usePathname();
   return (
     <Suspense fallback={<NavigationLinks {...props} pathname={pathname} />}>
       <RouteNavigation {...props} pathname={pathname} />
+    </Suspense>
+  );
+}
+
+function HeaderLinks({ pathname, category }: { pathname: string; category?: string | null }) {
+  const latest = !category && (pathname === "/" || /^\/\d{4}\/\d{2}$/.test(pathname));
+  return (
+    <nav className="header-navigation" aria-label="Main navigation">
+      <NavigationPendingLink
+        href="/"
+        className="header-link"
+        aria-current={latest ? (pathname === "/" ? "page" : "location") : undefined}
+        pendingLabel="Loading latest stories…"
+      >
+        Latest
+      </NavigationPendingLink>
+      <NavigationPendingLink
+        href="/about"
+        className="header-link"
+        aria-current={pathname === "/about" ? "page" : undefined}
+        pendingLabel="Loading About…"
+      >
+        About
+      </NavigationPendingLink>
+    </nav>
+  );
+}
+
+function RouteHeaderLinks({ pathname }: { pathname: string }) {
+  const search = useSearchParams();
+  return (
+    <HeaderLinks pathname={pathname} category={pathname === "/" ? search.get("category") : null} />
+  );
+}
+
+export function MainNavigation() {
+  const pathname = usePathname();
+  return (
+    <Suspense fallback={<HeaderLinks pathname={pathname} />}>
+      <RouteHeaderLinks pathname={pathname} />
     </Suspense>
   );
 }
@@ -115,22 +128,12 @@ export function MobileNavigation() {
   const details = useRef<HTMLDetailsElement>(null);
   const summary = useRef<HTMLElement>(null);
   const [expanded, setExpanded] = useState<boolean | undefined>(undefined);
-  const pathname = usePathname();
-  const previousPathname = useRef(pathname);
-
-  function close(returnFocus = false) {
+  const close = useCallback((returnFocus = false) => {
     if (!details.current?.open) return;
     details.current.open = false;
     setExpanded(false);
     if (returnFocus) summary.current?.focus();
-  }
-
-  useEffect(() => {
-    const element = details.current;
-    if (element && previousPathname.current !== pathname) element.open = false;
-    previousPathname.current = pathname;
-    setExpanded(element?.open ?? false);
-  }, [pathname]);
+  }, []);
 
   return (
     <details
@@ -151,8 +154,11 @@ export function MobileNavigation() {
         aria-controls="mobile-navigation-panel"
       >
         <Menu className="inline-icon" aria-hidden="true" />
-        <span>Topics &amp; menu</span>
+        <span>Topics</span>
       </summary>
+      <Suspense fallback={null}>
+        <CloseMenuOnNavigation onNavigate={close} />
+      </Suspense>
       <div
         id="mobile-navigation-panel"
         className="mobile-navigation-panel"
@@ -160,8 +166,20 @@ export function MobileNavigation() {
           if ((event.target as HTMLElement).closest("a")) close(true);
         }}
       >
-        <MainNavigation label="Mobile navigation" />
+        <TopicNavigation label="Mobile topics" />
       </div>
     </details>
   );
+}
+
+function CloseMenuOnNavigation({ onNavigate }: { onNavigate: () => void }) {
+  const pathname = usePathname();
+  const search = useSearchParams();
+  const route = `${pathname}?${search.toString()}`;
+  const previousRoute = useRef(route);
+  useEffect(() => {
+    if (previousRoute.current !== route) onNavigate();
+    previousRoute.current = route;
+  }, [route, onNavigate]);
+  return null;
 }

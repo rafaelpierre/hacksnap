@@ -1,0 +1,108 @@
+import AxeBuilder from "@axe-core/playwright";
+import { test, expect } from "./browser";
+
+for (const width of [320, 768, 1440]) {
+  for (const scale of [1, 2]) {
+    test(`top bar at ${width}px and ${scale * 100}% text`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto("/");
+      await page.addStyleTag({ content: `html { font-size: ${scale * 100}% !important; }` });
+      await page.evaluate(() => document.fonts.ready);
+      const header = page.getByRole("banner");
+      const navigation = header.getByRole("navigation", { name: "Main navigation" });
+      const latest = navigation.getByRole("link", { name: "Latest", exact: true });
+      const about = navigation.getByRole("link", { name: "About", exact: true });
+      await expect(latest).toBeVisible();
+      await expect(about).toBeVisible();
+      await expect(latest).toHaveAttribute("aria-current", "page");
+      await expect(about).not.toHaveAttribute("aria-current");
+      await expect(
+        page.locator(".topic-sidebar").getByRole("link", { name: /^(Latest|About)$/ }),
+      ).toHaveCount(0);
+      const controls = [header.getByRole("link", { name: "Hacksnap home" }), latest, about];
+      const topics = header.locator("summary");
+      if (await topics.isVisible()) controls.push(topics);
+      const boxes = [];
+      for (const control of controls) {
+        const box = (await control.boundingBox())!;
+        expect(box.width).toBeGreaterThanOrEqual(44);
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+        boxes.push(box);
+      }
+      for (let i = 0; i < boxes.length; i++) {
+        for (const other of boxes.slice(i + 1)) {
+          const box = boxes[i];
+          expect(
+            box.x + box.width <= other.x ||
+              other.x + other.width <= box.x ||
+              box.y + box.height <= other.y ||
+              other.y + other.height <= box.y,
+          ).toBe(true);
+        }
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        width,
+      );
+      await page.screenshot({ path: testInfo.outputPath("header.png") });
+      await header.getByRole("link", { name: "Hacksnap home" }).focus();
+      await page.keyboard.press("Tab");
+      await expect(latest).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(about).toBeFocused();
+      await expect(about).toHaveCSS("outline-style", "solid");
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/\/about$/);
+      await expect(about).toHaveAttribute("aria-current", "page");
+      await expect(latest).not.toHaveAttribute("aria-current");
+      await page.goBack();
+      await expect(latest).toHaveAttribute("aria-current", "page");
+      await page.goForward();
+      await expect(about).toHaveAttribute("aria-current", "page");
+      await latest.click();
+      await expect(page).toHaveURL(/\/$/);
+      if (await topics.isVisible()) {
+        await topics.click();
+        const panel = page.getByRole("navigation", { name: "Mobile topics" });
+        await expect(panel).toBeVisible();
+        await expect(panel.getByRole("link", { name: /^(Latest|About)$/ })).toHaveCount(0);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+          width,
+        );
+        await page.screenshot({ path: testInfo.outputPath("topics-open.png") });
+      }
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .include(".site-header")
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+    });
+  }
+}
+
+test("Latest clears the topic and closes an open mobile disclosure", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/?category=models-products");
+  const latest = page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Latest" });
+  await expect(latest).not.toHaveAttribute("aria-current");
+  await page.locator(".menu-button").click();
+  const topics = page.getByRole("navigation", { name: "Mobile topics" });
+  await expect(topics).toBeVisible();
+  await latest.click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(topics).not.toBeVisible();
+  await expect(latest).toHaveAttribute("aria-current", "page");
+  await page.goBack();
+  await expect(latest).not.toHaveAttribute("aria-current");
+  await page.locator(".menu-button").click();
+  await expect(topics.getByRole("link", { name: "Models & Products" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+});

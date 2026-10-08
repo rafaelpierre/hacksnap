@@ -40,9 +40,13 @@ preferences do not affect the page. There is no appearance control or theme scri
 
 ## Shared design foundations
 
-All routes share a normal-flow header, desktop left navigation and Most read sidebar. Native
-“Topics & menu” disclosure expands inline below 60rem and works without JavaScript;
-Escape closes it and returns focus. The left sidebar is sticky above 60rem. At
+All routes share a normal-flow header with visible Latest and About links, desktop
+topic navigation and Most read sidebar. An underline marks the current main
+destination; topic-filtered feeds select their topic instead. Below 38rem the
+main links occupy a second header row alongside Topics, with another row when
+enlarged text needs it. Native “Topics” disclosure expands inline below 60rem and
+works without JavaScript; Escape closes it and returns focus. The topic-only left
+sidebar is sticky above 60rem. At
 78rem the 83.5rem shell has a 12.5rem navigation column and an 18rem supporting
 rail separated by 24px gaps. Decorative category icons accompany full labels and
 44px controls. The DEV mock and approved adjustments are documented in

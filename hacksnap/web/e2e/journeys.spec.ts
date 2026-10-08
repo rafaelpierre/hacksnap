@@ -306,7 +306,7 @@ test.describe("without JavaScript", () => {
 test("feature routes remain reachable by keyboard", async ({ page }) => {
   await page.goto("/");
   const topics = page
-    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("navigation", { name: "Topic navigation" })
     .getByRole("link", { name: "Browse by topic", exact: true });
   await topics.focus();
   await page.keyboard.press("Enter");
@@ -346,7 +346,7 @@ test("desktop topics stay left of the feed and close to the header", async ({ pa
   expect(sidebarBounds!.x + sidebarBounds!.width).toBeLessThan(storyBounds!.x);
   expect(sidebarBounds!.y).toBeGreaterThanOrEqual(headerBounds!.y + headerBounds!.height);
   expect(sidebarBounds!.y).toBeLessThanOrEqual(headerBounds!.y + headerBounds!.height + 32);
-  const topics = sidebar.getByRole("navigation", { name: "Main navigation", exact: true });
+  const topics = sidebar.getByRole("navigation", { name: "Topic navigation", exact: true });
   const lastTopic = topics.getByRole("link", { name: "Industry & Society", exact: true });
   await lastTopic.focus();
   await expect(lastTopic).toBeFocused();
@@ -450,7 +450,7 @@ test("topic filters reuse Latest and retain selection through paging and history
 }) => {
   await page.goto("/?page=2");
   await page
-    .getByRole("navigation", { name: "Main navigation", exact: true })
+    .getByRole("navigation", { name: "Topic navigation", exact: true })
     .getByRole("link", { name: "Models & Products" })
     .click();
   await expect(page).toHaveURL(/\/\?category=models-products$/);
@@ -458,7 +458,7 @@ test("topic filters reuse Latest and retain selection through paging and history
     page.getByRole("heading", { name: "Latest stories — Models & Products" }),
   ).toBeAttached();
   const topic = page
-    .getByRole("navigation", { name: "Main navigation", exact: true })
+    .getByRole("navigation", { name: "Topic navigation", exact: true })
     .getByRole("link", { name: "Models & Products" });
   await expect(topic).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: "Older stories", exact: true })).toHaveAttribute(
@@ -506,7 +506,7 @@ test("category-only navigation and history create distinct analytics visits", as
     });
   await page.goto("/");
   await expect.poll(async () => (await visits()).length).toBe(1);
-  const topics = page.getByRole("navigation", { name: "Main navigation", exact: true });
+  const topics = page.getByRole("navigation", { name: "Topic navigation", exact: true });
   await topics.getByRole("link", { name: "Models & Products", exact: true }).click();
   await expect(page).toHaveURL(/category=models-products$/);
   await expect.poll(async () => (await visits()).length).toBe(2);
@@ -533,8 +533,8 @@ test("mobile topics disclosure expands inline, closes on selection, and returns 
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
-  const menu = page.getByText("Topics & menu", { exact: true });
-  const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+  const menu = page.getByText("Topics", { exact: true });
+  const navigation = page.getByRole("navigation", { name: "Mobile topics" });
   const content = page.locator("#main");
   const initialTop = (await content.boundingBox())!.y;
   await expect(navigation).not.toBeVisible();
@@ -553,7 +553,10 @@ test("mobile topics disclosure expands inline, closes on selection, and returns 
   await expect(navigation).not.toBeVisible();
   await menu.click();
   await expect(topic).toHaveAttribute("aria-current", "page");
-  await navigation.getByRole("link", { name: "About", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "About", exact: true })
+    .click();
   await expect(page.getByRole("heading", { name: "About Hacksnap" })).toBeVisible();
   await expect(page.getByRole("main")).toHaveCount(1);
   await expect(navigation).not.toBeVisible();
@@ -564,17 +567,24 @@ test("mobile topics disclosure expands inline, closes on selection, and returns 
 
 test.describe("native mobile menu without JavaScript", () => {
   test.use({ javaScriptEnabled: false, viewport: { width: 320, height: 800 } });
-  test("Topics and About remain reachable through the disclosure", async ({ page }) => {
+  test("Topics disclosure and visible About link work without JavaScript", async ({ page }) => {
     await page.goto("/");
-    const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+    const navigation = page.getByRole("navigation", { name: "Mobile topics" });
     await expect(navigation).not.toBeVisible();
     await page.locator(".menu-button").click();
     await navigation.getByRole("link", { name: "Models & Products", exact: true }).click();
     await expect(page).toHaveURL(/category=models-products$/);
     await expect(navigation).not.toBeVisible();
-    await page.locator(".menu-button").click();
-    await navigation.getByRole("link", { name: "About", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("link", { name: "About", exact: true })
+      .click();
     await expect(page.getByRole("heading", { name: "About Hacksnap" })).toBeVisible();
     await expect(page.getByRole("main")).toHaveCount(1);
+    await page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("link", { name: "Latest", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/$/);
   });
 });
