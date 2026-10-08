@@ -160,7 +160,10 @@ export async function getPopularStories() {
   if (cookie.includes("fixture-popularity=slow"))
     await new Promise((resolve) => setTimeout(resolve, 2500));
   if (cookie.includes("fixture-popularity=failed")) throw new DataUnavailableError();
-  return cards.slice(0, 5).map(({ hn_id, title, story_slug }, index) => ({
+  const popular = cookie.includes("fixture-popularity=outside-feed")
+    ? cards.slice(-5)
+    : cards.slice(0, 5);
+  return popular.map(({ hn_id, title, story_slug }, index) => ({
     hn_id,
     title,
     story_slug,

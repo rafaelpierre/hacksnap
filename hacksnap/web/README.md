@@ -96,6 +96,8 @@ The homepage includes a separate “Most read · All time” list of up to five
 stories. Wide screens place it to the right of the feed; narrower layouts keep
 it available as a compact block above the feed. Dated archive and topic pages
 retain their existing layout. Links use the stored canonical story slug.
+Most read links preserve the loaded feed and scroll position without assigning
+the sidebar story as the feed focus, since it may be absent from the loaded cards.
 
 Ranking uses `historical_views + story_views`, with HN ID descending as the tie
 breaker, across ready story summaries including archived stories. The primary

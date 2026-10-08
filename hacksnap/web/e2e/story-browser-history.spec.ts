@@ -1,4 +1,5 @@
 import { test, expect, title, storyPath } from "./browser";
+import { packFeedSnapshot, validFeedPage, type FeedSnapshot } from "../lib/feed-state";
 
 test.describe("mobile browser history", () => {
   test.setTimeout(60_000);
@@ -78,4 +79,107 @@ test.describe("mobile browser history", () => {
     await expect(page).toHaveURL(/category=models-products&page=2$/);
     await expect(page.locator(".story-list h3 a").first()).toBeVisible();
   });
+
+  for (const returnMode of ["browser Back", "explicit return"]) {
+    test(`a Most read-only story preserves feed depth and scroll after ${returnMode} and reload`, async ({
+      page,
+      context,
+      request,
+      baseURL,
+      browserName,
+    }) => {
+      await context.addCookies([
+        { name: "fixture-popularity", value: "outside-feed", url: baseURL! },
+      ]);
+      const pages = await Promise.all(
+        [1, 2].map(async (pageNumber) =>
+          validFeedPage(
+            await (await request.get(`/api/browse-stories?path=/&page=${pageNumber}`)).json(),
+            "/",
+          )!,
+        ),
+      );
+      const snapshot: FeedSnapshot = {
+        version: 1,
+        url: "/",
+        stories: pages.flatMap(({ stories }) => stories),
+        pagination: pages[1].pagination,
+        scrollY: 900,
+        focusStoryId: null,
+        savedAt: Date.now(),
+      };
+      await page.addInitScript(
+        ({ snapshot, packed }) => {
+          if (location.pathname !== "/" || sessionStorage.getItem("fixture-feed-seeded")) return;
+          sessionStorage.setItem("fixture-feed-seeded", "true");
+          window.name = "hacksnap-tab:most-read";
+          const id = crypto.randomUUID();
+          sessionStorage.setItem(`hacksnap:feed-snapshot:${id}`, packed);
+          history.replaceState(
+            {
+              ...history.state,
+              hacksnapHomeFeed: {
+                version: 2,
+                id,
+                url: snapshot.url,
+                scrollY: snapshot.scrollY,
+                focusStoryId: null,
+                savedAt: snapshot.savedAt,
+                contentAt: snapshot.savedAt,
+                storyCount: snapshot.stories.length,
+                pagination: snapshot.pagination,
+              },
+            },
+            "",
+          );
+        },
+        { snapshot, packed: packFeedSnapshot(snapshot) },
+      );
+      const expectSavedFeed = async () => {
+        await expect
+          .poll(() =>
+            page.evaluate(() => ({
+              count: history.state?.hacksnapHomeFeed?.storyCount,
+              page: history.state?.hacksnapHomeFeed?.pagination?.page,
+              focus: history.state?.hacksnapHomeFeed?.focusStoryId,
+            })),
+          )
+          .toEqual({ count: 30, page: 2, focus: null });
+        await expect.poll(() => page.evaluate(() => Math.abs(scrollY - 900))).toBeLessThan(4);
+      };
+      await page.goto("/");
+      await expectSavedFeed();
+      const sidebarLink = page
+        .getByRole("complementary", { name: "Most read" })
+        .getByRole("link")
+        .first();
+      await expect(sidebarLink).toHaveAttribute("href", "/story/91000036");
+      expect(snapshot.stories.some(({ hn_id }) => hn_id === "91000036")).toBe(false);
+      await page.waitForLoadState("networkidle");
+      // Keyboard activation keeps the saved reading position while opening the sidebar link.
+      await sidebarLink.evaluate((link) => link.focus({ preventScroll: true }));
+      const documentRequest =
+        browserName === "webkit"
+          ? page.waitForRequest(
+              (request) =>
+                request.isNavigationRequest() &&
+                new URL(request.url()).pathname === "/story/91000036",
+            )
+          : null;
+      await page.keyboard.press("Enter");
+      if (documentRequest) await documentRequest;
+      await page.waitForURL(`${baseURL}/story/91000036`);
+      await page.waitForLoadState("networkidle");
+      if (returnMode === "browser Back") await page.goBack();
+      else {
+        await page.reload();
+        await page.getByRole("link", { name: "Back to Latest stories", exact: true }).click();
+      }
+      await expect(page).toHaveURL(`${baseURL}/`);
+      await expectSavedFeed();
+      // Reread persisted state in a fresh document instead of relying on a retained page.
+      await page.reload();
+      await expectSavedFeed();
+    });
+  }
 });

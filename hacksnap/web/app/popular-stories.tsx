@@ -40,7 +40,7 @@ export async function PopularStories() {
           <ol>
             {stories.slice(0, 5).map((story) => (
               <li key={story.hn_id}>
-                <BrowseStoryLink id={story.hn_id} slug={story.story_slug}>
+                <BrowseStoryLink id={story.hn_id} slug={story.story_slug} focusFeedStory={false}>
                   {story.title}
                 </BrowseStoryLink>
               </li>

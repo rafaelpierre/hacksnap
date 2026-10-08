@@ -296,12 +296,14 @@ export function BrowseStoryLink({
   slug,
   anchor,
   feedPosition,
+  focusFeedStory = true,
   children,
 }: {
   id: string;
   slug?: string | null;
   anchor?: "discussion-analysis";
   feedPosition?: number;
+  focusFeedStory?: boolean;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -316,14 +318,20 @@ export function BrowseStoryLink({
     const store = storage();
     const url = window.location.pathname + window.location.search;
     const label = browseLabel(url);
+    const focusStoryId = focusFeedStory ? id : null;
     let homeFeedRef = label
-      ? positionFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url, window.scrollY, id)
+      ? positionFeedSnapshot(
+          window.history.state?.[HOME_HISTORY_KEY],
+          url,
+          window.scrollY,
+          focusStoryId,
+        )
       : null;
     if (!homeFeedRef && label) {
       const legacy = validFeedSnapshot(window.history.state?.[HOME_HISTORY_KEY], url);
       if (legacy)
         homeFeedRef = saveFeedSnapshot(
-          { ...legacy, scrollY: window.scrollY, focusStoryId: id, savedAt: Date.now() },
+          { ...legacy, scrollY: window.scrollY, focusStoryId, savedAt: Date.now() },
           null,
         );
     }

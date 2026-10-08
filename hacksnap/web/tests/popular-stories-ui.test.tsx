@@ -13,11 +13,16 @@ jest.unstable_mockModule("../app/story-navigation", () => ({
     children,
     id,
     slug,
+    focusFeedStory,
   }: {
     children: React.ReactNode;
     id: string;
     slug?: string;
-  }) => <a href={storyPath(id, slug)}>{children}</a>,
+    focusFeedStory?: boolean;
+  }) => {
+    assert.equal(focusFeedStory, false, "Most read stories must not focus a feed card");
+    return <a href={storyPath(id, slug)}>{children}</a>;
+  },
 }));
 const { PopularStories, PopularStoriesLoading } = await import("../app/popular-stories");
 
