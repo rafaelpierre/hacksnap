@@ -432,6 +432,10 @@ export function NextStoryLink({
   );
 }
 
+function isDatedFeed(url: string | undefined): boolean {
+  return /^\/[1-9]\d{3}\/(0[1-9]|1[0-2])(?:\?|$)/.test(url ?? "");
+}
+
 export function StoryReturnLink({
   destination,
   archiveOnly = false,
@@ -445,8 +449,10 @@ export function StoryReturnLink({
       const saved = readJourney(journeyToken());
       const path = saved?.url.split("?")[0];
       const matches = archiveOnly
-        ? path === "/" || /^\/[1-9]\d{3}\/(0[1-9]|1[0-2])$/.test(path ?? "")
-        : !destination || (saved && browsePageURL(saved.url, 1) === destination.href);
+        ? path === "/" || isDatedFeed(saved?.url)
+        : !destination ||
+          (saved && browsePageURL(saved.url, 1) === destination.href) ||
+          (destination.href === "/" && isDatedFeed(saved?.url));
       setContext(saved && matches ? saved : null);
     }
     updateContext();
@@ -496,7 +502,9 @@ export function StoryReturnLink({
     >
       {!destination && <ChevronLeft className="inline-icon" aria-hidden="true" />}{" "}
       {archiveOnly && "Back to "}
-      {destination?.label ?? context?.label ?? "Latest stories"}
+      {destination?.href === "/" && isDatedFeed(context?.url)
+        ? context?.label
+        : (destination?.label ?? context?.label ?? "Latest stories")}
     </Link>
   );
 }
