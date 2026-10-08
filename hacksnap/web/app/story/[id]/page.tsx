@@ -6,6 +6,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { storyPreviewMetadata } from "../../../lib/preview-metadata";
 import { getRelatedStories, getStory } from "../../../lib/data";
 import { categoryById } from "../../../lib/categories";
+import { shouldStreamBrowse } from "../../../lib/browse-streaming";
 import { StoryContent } from "./story-content";
 import { RelatedStories } from "../../related-stories";
 import { BrowseLayout } from "../../topic-sidebar";
@@ -69,12 +70,18 @@ async function StoryPage({
     permanentRedirect(canonical + (query.size ? `?${query}` : ""));
   }
   const category = categoryById(story.category);
+  const stream = await shouldStreamBrowse();
+  const popularity = stream ? undefined : await PopularStories();
   return (
     <BrowseLayout
       rightSidebar={
-        <Suspense fallback={<PopularStoriesLoading />}>
-          <PopularStories />
-        </Suspense>
+        stream ? (
+          <Suspense fallback={<PopularStoriesLoading />}>
+            <PopularStories />
+          </Suspense>
+        ) : (
+          popularity
+        )
       }
     >
       <StoryContent

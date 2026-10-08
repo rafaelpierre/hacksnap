@@ -13,6 +13,9 @@ const story = {
   url: null,
 };
 const getStory = jest.fn(async () => story);
+jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
+  shouldStreamBrowse: async () => true,
+}));
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getStory,
   getPopularStories: async () => [],

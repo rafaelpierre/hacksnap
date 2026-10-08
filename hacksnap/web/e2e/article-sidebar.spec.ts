@@ -1,6 +1,36 @@
 import { test, expect, title, storyPath } from "./browser";
 import AxeBuilder from "@axe-core/playwright";
 
+test.describe("article sidebar without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  for (const state of ["ready", "slow", "empty", "failed"])
+    test(`document response exposes the ${state} popularity result`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      await context.addCookies([{ name: "fixture-popularity", value: state, url: baseURL! }]);
+      await page.goto(storyPath);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
+      const sidebar = page.getByRole("complementary", { name: "Most read" });
+      await expect(sidebar).toBeVisible();
+      await expect(sidebar).not.toContainText("Loading most read stories");
+      if (state === "empty" || state === "failed") {
+        await expect(sidebar).toContainText(
+          state === "empty" ? "will appear as readers visit" : "temporarily unavailable",
+        );
+      } else {
+        await expect(sidebar.getByRole("link")).toHaveCount(5);
+        const next = sidebar.getByRole("link").nth(1);
+        const href = await next.getAttribute("href");
+        await next.click();
+        await expect(page).toHaveURL(new RegExp(href!));
+        await expect(sidebar.getByRole("link")).toHaveCount(5);
+      }
+    });
+});
+
 for (const width of [320, 1440])
   for (const textScale of [1, 2]) {
     test(`article sidebar and typography at ${width}px and ${textScale * 100}% text`, async ({

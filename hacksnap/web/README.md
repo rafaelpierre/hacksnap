@@ -98,6 +98,8 @@ phones. Its loading, empty and failure states are
 independent of the required feed or article. Weekly ranking remains available to existing
 data consumers; the DEV presentation does not show a second weekly widget.
 Links use the stored canonical story slug.
+Full-document requests await the popularity result so links and terminal states
+work without JavaScript. Client-router requests stream the optional sidebar.
 Most read links preserve the loaded feed and scroll position without assigning
 the sidebar story as the feed focus, since it may be absent from the loaded cards.
 
