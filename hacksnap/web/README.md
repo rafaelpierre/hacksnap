@@ -853,6 +853,9 @@ Use Node 22, `npm ci`, and `npx playwright install chromium webkit`, then run
 and runs Chromium journeys, accessibility, responsive layout, and route asset /
 rendering budgets. iPhone WebKit also checks arrival from another site, article
 redirects, slow responses, and Back/Forward navigation. For test-only edits after the build, use `npm run test:browser`.
+CI runs Chromium on Linux and iPhone WebKit on macOS to exercise Apple's WebKit
+port. Linux WebKit can report canceled prefetches as access-control errors during
+document navigation; the macOS job keeps the strict browser-error checks enabled.
 The suite uses port 3100; override `BROWSER_PORT` when another local app uses it.
 CI runs tests in parallel with one Playwright worker per logical CPU, including
 tests within the same file. Local runs default to four workers; use

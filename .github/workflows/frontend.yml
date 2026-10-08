@@ -81,9 +81,9 @@ jobs:
           cache: npm
           cache-dependency-path: hacksnap/web/package-lock.json
       - run: npm ci
-      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright install --with-deps chromium
       - name: Production build and deterministic browser regression suite
-        run: npm run test:browser:ci
+        run: npm run browser:build && npm run test:browser -- --project=chromium
         env:
           NEXT_TELEMETRY_DISABLED: "1"
       - name: Browser screenshots, traces and route measurements
@@ -91,6 +91,39 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-browser-results
+          path: |
+            hacksnap/web/playwright-report/
+            hacksnap/web/test-results/
+          retention-days: 14
+
+  iphone-browser:
+    name: Frontend / iPhone WebKit
+    # Exercise Apple's WebKit port; Linux WebKit has different networking behavior.
+    runs-on: macos-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: hacksnap/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: hacksnap/web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install webkit
+      - name: Production build and iPhone history regressions
+        run: npm run browser:build && npm run test:browser -- --project=iphone-webkit
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: iPhone screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-iphone-browser-results
           path: |
             hacksnap/web/playwright-report/
             hacksnap/web/test-results/
