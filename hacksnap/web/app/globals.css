@@ -563,26 +563,6 @@ body:has(#browse-content) .skip-browse {
 .detail-nav a:hover {
   background: var(--accent-soft);
 }
-.story-age > summary {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: var(--touch-target);
-  min-height: var(--touch-target);
-  width: fit-content;
-  cursor: pointer;
-  list-style: none;
-}
-.story-age > summary::-webkit-details-marker {
-  display: none;
-}
-.story-age[open] > summary > svg {
-  transform: rotate(180deg);
-}
-.story-age-exact {
-  margin: 0;
-  padding-bottom: var(--space-2);
-}
 
 /* Supporting ranking is subordinate to the feed and follows it on small screens. */
 .popular-stories {

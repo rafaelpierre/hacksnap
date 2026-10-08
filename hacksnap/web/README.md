@@ -43,8 +43,8 @@ rail separated by 24px gaps. Decorative category icons accompany full labels and
 `../../docs/ux/2026-10-08/frontend-revamp/implementation-plan.md`.
 Latest has an accessible page heading without a visible hero or breadcrumb.
 
-Article headers reuse the feed's category and compact relative age; the exact date
-is available through the same native disclosure. The Latest/topic breadcrumbs
+Article headers reuse the feed's category and compact relative age as plain text.
+The Latest/topic breadcrumbs
 preserve the reading journey without a duplicate “Back to” link. When the saved
 origin is a dated feed, the first breadcrumb shows that month and returns to its
 page and scroll position; direct visits still show Latest. Discussion themes
@@ -210,8 +210,9 @@ listing record; the former root-only ranked checkpoint no longer applies.
 
 The header scrolls with the document. Desktop topic navigation sits to the left
 of the feed and remains sticky with a small offset from the viewport top.
-Cards show compact time since first added; its native disclosure reveals the exact
-timestamp and remains usable without JavaScript. Stories become opened only after
+Cards show compact time since first added as plain text. The time element retains
+the exact timestamp and accessible label, with a UTC date fallback before JavaScript
+loads. Stories become opened only after
 visiting their detail page, never merely by loading or scrolling the feed.
 
 The legacy `/api/ready-stories`, `/api/story-freshness` and leaderboard endpoints

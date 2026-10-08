@@ -13,11 +13,9 @@ for (const width of [320, 375, 768, 1280]) {
       }, textSize);
       const metadata = page.locator(".story-header .story-context");
       await expect(metadata.locator(".category-badge")).toHaveText("Models & Products");
-      await expect(metadata.locator("summary time")).toHaveText(/^(<1h|\d+h|\d+d(?: \d+h)?)$/);
+      await expect(metadata.locator("time.story-age")).toHaveText(/^(<1h|\d+h|\d+d(?: \d+h)?)$/);
       await expect(page.locator(".story-breadcrumbs .back-link")).toHaveCount(0);
-      await metadata.locator("summary").click();
-      await expect(metadata.locator(".story-age-exact")).toBeVisible();
-      await metadata.locator("summary").click();
+      await expect(metadata.locator("details, summary, .story-age-exact")).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath("article-header.png") });
 
       const theme = page.locator(".analysis-theme-details").first();

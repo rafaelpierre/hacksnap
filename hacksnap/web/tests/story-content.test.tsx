@@ -179,10 +179,7 @@ test("compact header and recommendations preserve the new story component and tr
   assert.match(header, /href="\/\?category=agents-coding"/);
   assert.match(header, /class="story-context"/);
   assert.match(header, /class="category-badge/);
-  assert.match(
-    header,
-    /<details class="story-age"><summary><time dateTime="2026-09-26T10:00:00.000Z"/,
-  );
+  assert.match(header, /<time class="story-age" dateTime="2026-09-26T10:00:00.000Z"/);
   assert.doesNotMatch(header, /class="back-link"/);
   assert.match(html, /Original article on example.com/);
   assert.match(header, /aria-label="Share: A mocked story title"/);

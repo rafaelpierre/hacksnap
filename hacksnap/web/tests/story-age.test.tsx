@@ -26,9 +26,9 @@ test("story age uses compact elapsed days and hours at the hour and day boundari
 test("server rendering preserves the exact timestamp with a stable UTC fallback", () => {
   const html = renderToString(<StoryAge dateTime="2026-09-29T12:00:00.000Z" />);
   assert.match(html, /dateTime="2026-09-29T12:00:00.000Z"/);
-  assert.match(html, /<details class="story-age"><summary>/);
-  assert.doesNotMatch(html, /title=/);
-  assert.match(html, /2026-09-29 12:00 UTC/);
+  assert.match(html, /<time class="story-age"/);
+  assert.doesNotMatch(html, /<details|<summary|<svg|title=/);
+  assert.match(html, /aria-label="Story added Tue, 29 Sep 2026 12:00:00 GMT"/);
   assert.match(html, />2026-09-29<\/time>/);
 });
 
@@ -59,20 +59,7 @@ test("compact story age hydrates without mismatch and updates with the story", a
     });
     assert.equal(document.querySelector("time")?.textContent, expected(dateTime));
     assert.equal(document.querySelector("time")?.dateTime, dateTime);
-    const disclosure = document.querySelector("details")!;
-    const summary = disclosure.querySelector("summary")!;
-    summary.focus();
-    assert.equal(document.activeElement, summary);
-    assert.equal(disclosure.open, false);
-    await act(async () => summary.click());
-    assert.equal(disclosure.open, true);
-    assert.equal(
-      disclosure.querySelector(".story-age-exact time")?.getAttribute("datetime"),
-      dateTime,
-    );
-    assert.match(disclosure.querySelector(".story-age-exact")!.textContent!, /2026/);
-    await act(async () => summary.click());
-    assert.equal(disclosure.open, false);
+    assert.equal(document.querySelector("details, summary"), null);
 
     const next = "2026-12-01T10:00:00.000Z";
     await act(async () => root!.render(<StoryAge dateTime={next} />));
