@@ -7,10 +7,10 @@ function SkeletonCard() {
         <div className="story-domain story-context">
           <span className={`${styles.bone} ${styles.topic}`} />
         </div>
-        <h3 className={styles.title}>
+        <h2 className={`feed-story-title ${styles.title}`}>
           <span className={`${styles.bone} ${styles.titleFirst}`} />
           <span className={`${styles.bone} ${styles.titleSecond}`} />
-        </h3>
+        </h2>
         <div className="feed-story-image">
           <span className={`${styles.bone} ${styles.image}`} />
         </div>

@@ -23,7 +23,10 @@ import { consumeFeedReturn, saveFeedHistory } from "./story-navigation";
 import { WindowedStoryList } from "./windowed-story-list";
 import { emptyStoryHistory, readStoryHistory, subscribeStoryHistory } from "../lib/story-history";
 
+import type { LeadDiscussionPreview } from "../lib/feed-presentation";
+
 type FeedState = {
+  leadStoryId: string | null;
   stories: PublicFeedStory[];
   pagination: FeedPagination;
   phase: "idle" | "loading" | "failed";
@@ -51,6 +54,8 @@ export function StoryFeed({
   groupByDay = false,
   showCategory = true,
   emptyState,
+  leadStoryId = initialStories[0]?.hn_id ?? null,
+  discussionPreview,
 }: {
   initialStories: PublicFeedStory[];
   initialPagination: FeedPagination;
@@ -58,10 +63,13 @@ export function StoryFeed({
   groupByDay?: boolean;
   showCategory?: boolean;
   emptyState?: ReactNode;
+  leadStoryId?: string | null;
+  discussionPreview?: LeadDiscussionPreview | null;
 }) {
   const latest = listingPath.split("?")[0] === "/";
   const pageURL = (page: number) => browsePageURL(listingPath, page);
   const [feed, setFeed] = useState<FeedState>({
+    leadStoryId,
     stories: initialStories,
     pagination: initialPagination,
     phase: "idle",
@@ -108,6 +116,7 @@ export function StoryFeed({
       version: 1,
       url: currentURL(),
       stories: current.stories,
+      leadStoryId: current.leadStoryId,
       pagination: current.pagination,
       scrollY: window.scrollY,
       focusStoryId: null,
@@ -151,6 +160,7 @@ export function StoryFeed({
       positionSettled.current = false;
       setPositionPending(true);
       const next = {
+        leadStoryId: snapshot.leadStoryId ?? snapshot.stories[0]?.hn_id ?? null,
         stories: snapshot.stories,
         pagination: snapshot.pagination,
         phase: "idle" as const,
@@ -210,7 +220,7 @@ export function StoryFeed({
       window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
       if (!focused && target.focusStoryId) {
         const link = document.querySelector<HTMLAnchorElement>(
-          `[data-home-story-id="${target.focusStoryId}"] h3 a`,
+          `[data-home-story-id="${target.focusStoryId}"] .feed-story-title a`,
         );
         if (link) {
           link.focus({ preventScroll: true });
@@ -325,6 +335,7 @@ export function StoryFeed({
         const added = stories.length - current.stories.length;
         const next = {
           stories,
+          leadStoryId: current.leadStoryId,
           pagination: page.pagination,
           phase: "idle" as const,
           announcement: added
@@ -388,6 +399,8 @@ export function StoryFeed({
       ) : (
         <WindowedStoryList
           stories={feed.stories}
+          leadStoryId={feed.leadStoryId}
+          discussionPreview={discussionPreview}
           showCategory={showCategory}
           ranked={false}
           openedIds={openedIds}
