@@ -120,7 +120,9 @@ test("theme sources use an independent popup with a named trigger and close butt
     const panel = theme.querySelector(".analysis-source-popup")!;
     const close = panel.querySelector("button")!;
     assert.equal(description.hasAttribute("open"), false);
-    assert.equal(description.querySelector("a, button"), null);
+    assert.equal(description.querySelector("summary a, summary button"), null);
+    assert.ok(description.querySelector(".analysis-theme-body")!.contains(trigger));
+    assert.match(trigger.textContent!, /Source comments \(\d+\)/);
     assert.equal(
       trigger.getAttribute("aria-label"),
       `Source comments for ${analysis.topics[index].title}`,

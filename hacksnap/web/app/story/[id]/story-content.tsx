@@ -1,21 +1,16 @@
-import {
-  ArrowUpRight,
-  ChevronDown,
-  ChevronRight,
-  ListTree,
-  MessageCircle,
-  Star,
-} from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronRight, MessageCircle, Star } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById, categoryURL } from "../../../lib/categories";
 import { domain } from "../../../lib/format";
 import { storyDiscussion, storySource } from "../../../lib/story-presentation";
 import { DiscussionAnalysis } from "../../discussion-analysis";
+import discussionStyles from "../../discussion-analysis.module.css";
 import { SkepticismPill } from "../../skepticism-pill";
 import { ShareLinks } from "../../share-links";
 import { briefExcerpt } from "../../../lib/brief";
-import { StoryAddedTime } from "../../story-added-time";
+import { StoryAge } from "../../story-age";
+import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
 import { StoryReturnLink } from "../../story-navigation";
 import { ArticleImage } from "../../article-image";
@@ -71,13 +66,15 @@ export function StoryContent({
               </li>
             )}
           </ol>
-          <StoryReturnLink archiveOnly />
         </nav>
-        <div className="story-kicker">
-          {category && <a href={categoryURL(category)}>{category.label}</a>}
-          <span>
-            Added <StoryAddedTime dateTime={new Date(story.date_added).toISOString()} />
-          </span>
+        <div className="story-context">
+          {category && <CategoryBadge id={category.id} />}
+          {category && (
+            <span className="meta-divider" aria-hidden="true">
+              ·
+            </span>
+          )}
+          <StoryAge dateTime={new Date(story.date_added).toISOString()} />
         </div>
         <h1>{story.title}</h1>
         {deck && <p className="standfirst">{deck}</p>}
@@ -167,36 +164,41 @@ export function StoryContent({
               <>
                 <div className="discussion-heading">
                   <h2 id="discussion-themes-heading" className="discussion-title">
-                    <ListTree className="discussion-title-icon" aria-hidden="true" />
                     <span>Discussion analysis</span>
                   </h2>
                 </div>
                 {discussion.kind === "legacy" && discussion.topics.length ? (
-                  <div className="discussion-points">
-                    {discussion.topics.map((point, i) => (
-                      <details className="discussion-point" key={i}>
-                        <summary>
-                          <span>{point.title}</span>
-                          <ChevronDown size={16} aria-hidden="true" />
-                        </summary>
-                        <p>{point.summary}</p>
-                        {point.comment_ids.length > 0 && (
-                          <div className="comment-links">
-                            <span>Source comments</span>
-                            {point.comment_ids.map((comment, index) => (
-                              <a
-                                key={comment}
-                                href={`https://news.ycombinator.com/item?id=${comment}`}
-                                aria-label={`Source comment ${comment} for ${point.title}`}
-                              >
-                                [{index + 1}]{" "}
-                                <ArrowUpRight className="inline-icon" aria-hidden="true" />
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </details>
-                    ))}
+                  <div className={discussionStyles.root}>
+                    <div className="analysis-themes">
+                      {discussion.topics.map((point, i) => (
+                        <div className="analysis-theme" key={i}>
+                          <details className="analysis-theme-details">
+                            <summary>
+                              <span>{point.title}</span>
+                              <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
+                            </summary>
+                            <div className="analysis-theme-body">
+                              <p>{point.summary}</p>
+                              {point.comment_ids.length > 0 && (
+                                <div className="comment-links">
+                                  <span>Source comments</span>
+                                  {point.comment_ids.map((comment, index) => (
+                                    <a
+                                      key={comment}
+                                      href={`https://news.ycombinator.com/item?id=${comment}`}
+                                      aria-label={`Source comment ${comment} for ${point.title}`}
+                                    >
+                                      [{index + 1}]{" "}
+                                      <ArrowUpRight className="inline-icon" aria-hidden="true" />
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </details>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <p className="muted">

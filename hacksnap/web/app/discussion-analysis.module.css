@@ -13,17 +13,17 @@
   font-family: inherit;
 }
 .root :global(.analysis-themes) {
-  container: discussion-themes / inline-size;
+  display: grid;
+  gap: var(--space-3);
   margin-block: var(--space-6);
   font-family: var(--sans);
 }
 .root :global(.analysis-theme) {
   anchor-scope: --analysis-source-trigger;
   position: relative;
-  border-top: 1px solid var(--line);
-}
-.root :global(.analysis-theme):last-child {
-  border-bottom: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
 }
 .root :global(.analysis-theme-details) > summary {
   display: flex;
@@ -33,12 +33,22 @@
   list-style: none;
   cursor: pointer;
   min-height: var(--touch-target);
-  padding: var(--space-3) calc(var(--touch-target) + var(--space-2)) var(--space-3) var(--space-2);
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
   font-family: var(--heading);
   font-size: 1.15rem;
   line-height: 1.3;
   font-weight: 650;
   color: var(--ink);
+}
+.root :global(.analysis-theme-details) > summary:hover {
+  background: var(--row-hover);
+  color: var(--accent);
+}
+.root :global(.analysis-theme-details)[open] > summary {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
 }
 .root :global(.analysis-theme-details) > summary > span {
   min-width: 0;
@@ -63,9 +73,9 @@
   }
 }
 .root :global(.analysis-theme-body) {
-  padding: 0 var(--space-2) var(--space-6);
+  padding: var(--space-5);
   color: var(--prose);
-  font: 400 1.0625rem/1.5 var(--sans);
+  font: 400 var(--text-base)/1.5 var(--sans);
 }
 .root :global(.analysis-source-info),
 .root :global(.analysis-source-close) {
@@ -85,10 +95,19 @@
 .root :global(.analysis-source-info) {
   anchor-name: --analysis-source-trigger;
 }
-.root :global(.analysis-theme) > :global(.analysis-source-info) {
-  position: absolute;
-  top: var(--space-1);
-  right: 0;
+.root :global(.analysis-source-action) {
+  width: auto;
+  height: auto;
+  min-height: var(--touch-target);
+  max-width: 100%;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  color: var(--accent);
+  font: 600 var(--text-sm)/1.4 var(--sans);
+}
+.root :global(.analysis-source-action) svg {
+  flex-shrink: 0;
 }
 .root :global(.analysis-source-info):hover,
 .root :global(.analysis-source-close):hover {
@@ -112,43 +131,6 @@
   box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
 }
 @supports (anchor-scope: --analysis-source-trigger) {
-  .root :global(.analysis-theme) {
-    anchor-scope: --analysis-source-trigger, --analysis-theme-title;
-  }
-  .root :global(.analysis-theme-details) > summary {
-    gap: calc(var(--touch-target) + var(--space-4));
-    padding-inline: var(--space-2);
-  }
-  .root :global(.analysis-theme-details) > summary > span {
-    anchor-name: --analysis-theme-title;
-  }
-  .root :global(.analysis-theme) > :global(.analysis-source-info) {
-    position-anchor: --analysis-theme-title;
-    top: anchor(center);
-    left: anchor(right);
-    right: auto;
-    transform: translateY(-50%);
-  }
-  @container discussion-themes (max-width: 16rem) {
-    .root :global(.analysis-theme-details) > summary {
-      position: relative;
-      display: block;
-      padding-bottom: calc(var(--touch-target) + var(--space-3));
-    }
-    .root :global(.analysis-theme-details) > summary > span {
-      display: block;
-    }
-    .root :global(.analysis-theme-chevron) {
-      position: absolute;
-      right: var(--space-2);
-      bottom: calc(var(--space-2) + var(--touch-target) / 2 - 0.5rem);
-    }
-    .root :global(.analysis-theme) > :global(.analysis-source-info) {
-      top: calc(anchor(bottom) + var(--space-1));
-      left: anchor(left);
-      transform: none;
-    }
-  }
   .root :global(.analysis-source-popup) {
     position-anchor: --analysis-source-trigger;
     inset: auto;
@@ -200,17 +182,6 @@
   flex-shrink: 0;
 }
 .root :global(.discussion-title) {
-  flex: 1 1 14rem;
-  flex-wrap: wrap;
-}
-.root :global(.discussion-title) {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.root :global(.discussion-title-icon) {
-  width: 1em;
-  height: 1em;
-  flex-shrink: 0;
-  color: var(--muted);
+  flex: 1 1 0;
+  min-width: min(100%, 8.75rem);
 }

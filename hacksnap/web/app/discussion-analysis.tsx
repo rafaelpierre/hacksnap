@@ -1,5 +1,5 @@
 import styles from "./discussion-analysis.module.css";
-import { ArrowUpRight, ChevronDown, Info, ListTree, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Info, X } from "lucide-react";
 import type {
   DiscussionAnalysis as Analysis,
   DiscussionAnalysisCoverage,
@@ -30,11 +30,12 @@ function SourceComments({
     <>
       <button
         type="button"
-        className="analysis-source-info"
+        className="analysis-source-info analysis-source-action"
         popoverTarget={id}
         aria-label={`Source comments for ${context}`}
       >
         <Info size={16} strokeWidth={1.5} aria-hidden="true" />
+        <span>Source comments ({commentIds.length})</span>
       </button>
       <div
         id={id}
@@ -83,7 +84,6 @@ export function DiscussionAnalysis({
     <div className={`discussion-analysis ${styles.root}`}>
       <div className="discussion-heading analysis-heading">
         <h2 id="discussion-themes-heading" className="discussion-title">
-          <ListTree className="discussion-title-icon" aria-hidden="true" />
           <span>Discussion analysis</span>
         </h2>
         <button
@@ -166,13 +166,13 @@ export function DiscussionAnalysis({
                     </summary>
                     <div className="analysis-theme-body">
                       <p>{topic.summary}</p>
+                      <SourceComments
+                        id={`theme-sources-${topic.key}-${topicIndex}`}
+                        context={topic.title}
+                        commentIds={topic.comment_ids}
+                      />
                     </div>
                   </details>
-                  <SourceComments
-                    id={`theme-sources-${topic.key}-${topicIndex}`}
-                    context={topic.title}
-                    commentIds={topic.comment_ids}
-                  />
                 </div>
               ))}
             </div>

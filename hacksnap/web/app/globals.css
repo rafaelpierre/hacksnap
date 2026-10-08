@@ -671,15 +671,6 @@ body:has(#browse-content) .skip-browse {
   color: var(--prose);
   margin-top: var(--space-6);
 }
-.story-kicker {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--muted);
-  font-size: var(--text-label);
-  margin-bottom: var(--space-3);
-}
 .story-article-image {
   margin: var(--space-6) 0;
   border-radius: var(--radius-control);
@@ -793,33 +784,73 @@ body:has(#browse-content) .skip-browse {
   padding-top: var(--space-6);
   border-top: 1px solid var(--line);
 }
-.related-stories-placeholder {
-  min-height: 15rem;
+.related-stories-state {
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--muted);
+  font: var(--text-base)/1.5 var(--sans);
 }
 .related-story-list {
+  display: grid;
+  gap: var(--space-4);
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 0 0 var(--space-4);
 }
 .related-story-list li {
-  padding: var(--space-4) 0;
-  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+/* Each recommendation is one reading destination, with the same surface as a feed card. */
+.related-story-list article {
+  position: relative;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.related-story-list article:hover {
+  background: var(--row-hover);
+}
+.related-story-list article:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.related-story-list article:is(:hover, :focus-within) h3 {
+  color: var(--accent);
 }
 .related-story-list h3 {
-  font: 650 1.2rem/1.3 var(--heading);
+  font: 700 var(--text-title)/1.16 var(--heading);
+  letter-spacing: -0.025em;
+  margin: var(--space-2) 0 var(--space-3);
 }
 .related-story-list h3 a {
   display: block;
-  min-height: var(--touch-target);
   text-decoration: none;
+}
+.related-story-list h3 a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-card);
+}
+.related-story-list h3 a:focus-visible {
+  outline: none; /* The complete card receives the focus ring above. */
 }
 .related-topic,
 .related-story-meta {
   font: var(--text-sm)/1.4 var(--sans);
   color: var(--muted);
 }
+.related-topic {
+  color: var(--accent);
+  font-weight: 650;
+}
 .related-stories .feed-excerpt {
-  font-size: 1rem;
+  font: var(--text-base)/1.5 var(--sans);
+  color: var(--prose);
+  margin: 0 0 var(--space-4);
 }
 .story-breadcrumbs {
   display: flex;
@@ -896,9 +927,7 @@ body:has(#browse-content) .skip-browse {
   font: inherit;
 }
 .story-end-share {
-  margin-top: var(--space-8);
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--line);
+  margin-top: var(--space-4);
 }
 #discussion-analysis {
   scroll-margin-top: var(--space-6);

@@ -28,6 +28,7 @@ async function StoryRecommendations({
     <RelatedStories
       category={category}
       stories={result.available ? result.value : []}
+      unavailable={!result.available}
       currentId={currentId}
     />
   );

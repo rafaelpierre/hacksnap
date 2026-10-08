@@ -6,17 +6,20 @@ import type { RelatedStory } from "../lib/data";
 
 import { domain } from "../lib/format";
 import { NextStoryLink } from "./story-navigation";
+import { briefExcerpt } from "../lib/brief";
 
 export function RelatedStories({
   category,
   stories,
   currentId,
   pending = false,
+  unavailable = false,
 }: {
   category?: Category;
   stories: RelatedStory[];
   currentId: string;
   pending?: boolean;
+  unavailable?: boolean;
 }) {
   const next = stories.filter((story) => story.hn_id !== currentId).slice(0, 2);
   return (
@@ -26,8 +29,17 @@ export function RelatedStories({
       aria-busy={pending || undefined}
     >
       <h2 id="related-stories-heading">Related stories</h2>
-      {pending && <div className="related-stories-placeholder" aria-hidden="true" />}
-      {next.length > 0 && (
+      {pending ? (
+        <p className="related-stories-state" role="status">
+          Loading related stories…
+        </p>
+      ) : unavailable ? (
+        <p className="related-stories-state" role="status">
+          Related stories are temporarily unavailable. Browse the topic for more stories.
+        </p>
+      ) : next.length === 0 ? (
+        <p className="related-stories-state">No related stories yet.</p>
+      ) : (
         <ul className="related-story-list">
           {next.map((story, index) => (
             <li key={story.hn_id}>
@@ -39,9 +51,10 @@ export function RelatedStories({
                       {story.title}
                     </NextStoryLink>
                   </h3>
-                  <span className="related-story-meta">
-                    {domain(story.url)} <ChevronRight className="inline-icon" aria-hidden="true" />
-                  </span>
+                  {story.takeaway?.trim() && (
+                    <p className="feed-excerpt">{briefExcerpt(story.takeaway)}</p>
+                  )}
+                  <span className="related-story-meta">{domain(story.url)}</span>
                 </article>
               </Recommendation>
             </li>

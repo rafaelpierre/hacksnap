@@ -58,6 +58,10 @@ for (const width of [320, 1280])
       await trigger.click();
       await page.mouse.click(1, bounds!.y + 10);
       await expect(popup).not.toBeVisible();
+      await page
+        .locator(".analysis-theme-details > summary")
+        .filter({ hasText: "Measuring useful work" })
+        .click();
       await page.getByRole("button", { name: "Source comments for Measuring useful work" }).click();
       await expect(
         page.getByRole("dialog", { name: "Source comments", exact: true }),

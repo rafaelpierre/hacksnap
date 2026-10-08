@@ -10,8 +10,7 @@ for (const route of ["/", "/archive", "/category/models-products"]) {
     await card.click();
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
-    const returnName =
-      route === "/" || route === "/archive" ? "Back to Latest stories" : "Models & Products";
+    const returnName = route === "/" || route === "/archive" ? "Latest" : "Models & Products";
     await page
       .getByRole("navigation", { name: "Breadcrumb" })
       .getByRole("link", { name: returnName, exact: true })
@@ -162,6 +161,7 @@ test("slow and failed optional recommendations preserve the article", async ({ p
     "aria-busy",
     "true",
   );
+  await expect(page.getByText("Loading related stories…", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Related stories" })).not.toHaveAttribute(
     "aria-busy",
     "true",
@@ -169,6 +169,7 @@ test("slow and failed optional recommendations preserve the article", async ({ p
   await page.goto("/story/91000003");
   await expect(page.getByRole("heading", { name: "Practical AI research update 3" })).toBeVisible();
   await expect(page.getByRole("link", { name: "More in Models & Products" })).toBeVisible();
+  await expect(page.getByText(/Related stories are temporarily unavailable/)).toBeVisible();
 });
 
 test.describe("controlled continuation failure", () => {
@@ -505,7 +506,7 @@ test("topic filters reuse Latest and retain selection through paging and history
   expect(legacy.headers().location).toBe("/?category=models-products&page=2");
 });
 
-for (const returnName of ["Models & Products", "Back to Models & Products · page 2"]) {
+for (const returnName of ["Models & Products"]) {
   test(`legacy saved category journey survives bundle reload via ${returnName}`, async ({
     page,
     request,
@@ -580,12 +581,9 @@ for (const returnName of ["Models & Products", "Back to Models & Products · pag
     );
     await page.goto(`/story/${snapshot.focusStoryId}`);
     await page.reload();
-    const back =
-      returnName === "Models & Products"
-        ? page
-            .getByRole("navigation", { name: "Breadcrumb" })
-            .getByRole("link", { name: returnName, exact: true })
-        : page.getByRole("link", { name: returnName, exact: true });
+    const back = page
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByRole("link", { name: returnName, exact: true });
     await expect(back).toHaveAttribute("href", canonicalURL);
     await back.click();
     await expect(page).toHaveURL(/category=models-products&page=2$/);

@@ -182,7 +182,10 @@ test.describe("mobile browser history", () => {
       else {
         await page.reload();
         await settleRequests();
-        await page.getByRole("link", { name: "Back to Latest stories", exact: true }).click();
+        await page
+          .getByRole("navigation", { name: "Breadcrumb" })
+          .getByRole("link", { name: "Latest", exact: true })
+          .click();
       }
       await expect(page).toHaveURL(`${baseURL}/`);
       await expectSavedFeed();
