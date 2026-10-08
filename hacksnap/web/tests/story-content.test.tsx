@@ -92,11 +92,15 @@ test("mocked story states distinguish missing comments and pending summaries", (
   assert.doesNotMatch(pendingHTML, /The mocked article brief/);
 });
 
-test("mocked feed row preserves a story link, category and shared Share control", () => {
+test("feed rail keeps accessible counts and the HN link without duplicate story actions", () => {
   const html = render(createElement(StoryRow, { story, variant: "ranked" }));
   assert.match(html, /href="\/story\/90000001"/);
   assert.match(html, /href="\/\?category=agents-coding"/);
-  assert.match(html, /aria-label="Share: A mocked story title"/);
+  assert.match(html, /class="feed-story-rail"/);
+  assert.match(html, /class="sr-only"> points/);
+  assert.match(html, /class="sr-only"> comments/);
+  assert.match(html, /href="https:\/\/news.ycombinator.com\/item\?id=90000001"/);
+  assert.doesNotMatch(html, /Read brief|Discussion analysis|Share:|feed-story-actions/);
 });
 
 test("ranked and unranked cards share semantic order, with Archive limited to ranked stories", () => {
@@ -123,7 +127,7 @@ test("ranked and unranked cards share semantic order, with Archive limited to ra
     assert.ok(title >= 0 && title < image);
     assert.ok(image >= 0 && image < excerpt);
     assert.match(html, /Brief pending\. Check back after the next summary update\./);
-    assert.match(html, /aria-label="Share: A mocked story title"/);
+    assert.match(html, /class="feed-story-rail"/);
     assert.match(html, /12 comments/);
   }
   assert.match(ranked, /class="archive-label">Archive/);
@@ -226,7 +230,7 @@ test("ranked card footer shows points and comments without rank movement", () =>
     ],
   };
   const html = render(createElement(StoryRow, { story: ranked, variant: "ranked" }));
-  assert.match(html, /lucide-star/);
+  assert.match(html, /lucide-arrow-up/);
   assert.match(html.replace(/<[^>]*>/g, ""), /12 comments/);
   assert.doesNotMatch(html, /rank-movement|Climbed|Dropped|lucide-chevrons/);
 });
@@ -343,7 +347,7 @@ for (const variant of ["ranked", "unranked"] as const) {
       assert.match(html, /href="\/story\/90000001"/);
       assert.match(html, /href="\/\?category=agents-coding"/);
       assert.match(html, /A test takeaway/);
-      assert.match(html, /aria-label="Share: A mocked story title"/);
+      assert.match(html, /class="feed-story-rail"/);
       assert.doesNotMatch(html, /Third theme|Hidden topic summary|Hidden evidence|consensus|%/);
     });
   }

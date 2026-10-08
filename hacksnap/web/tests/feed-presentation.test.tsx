@@ -146,8 +146,7 @@ test("lead card reading order and actions preserve category metadata in selected
     'class="feed-story-image"',
     "feed-excerpt",
     "feed-discussion-preview",
-    'class="story-meta"',
-    "feed-story-actions",
+    'class="feed-story-rail"',
   ];
   const positions = markers.map((marker) => html.indexOf(marker));
   assert.ok(positions.every((position) => position >= 0));
@@ -156,10 +155,10 @@ test("lead card reading order and actions preserve category metadata in selected
     [...positions].sort((a, b) => a - b),
   );
   assert.match(html, /Browse Agents/);
-  assert.match(html, /Read brief/);
+  assert.doesNotMatch(html, /Read brief|Discussion analysis|Share:/);
   assert.match(html, /<h2 class="feed-story-title">/);
   assert.match(html, /<h3>Inside the discussion<\/h3>/);
-  assert.match(html, /href="\/story\/90000001#discussion-analysis"/);
+  assert.match(html, /href="\/story\/90000001"/);
   assert.doesNotMatch(html, /Older discussion summary|third topic/);
   assert.doesNotMatch(
     JSON.stringify(publicFeedStory(story)),

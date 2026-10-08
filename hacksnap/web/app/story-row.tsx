@@ -1,10 +1,9 @@
-import { MessageCircle, Star } from "lucide-react";
+import { ArrowUp, MessageCircle } from "lucide-react";
 import type { CardStory } from "../lib/story-domain";
 import type { PublicFeedStory } from "../lib/stories-api";
 import { CategoryBadge } from "./categories";
 import { briefExcerpt } from "../lib/brief";
 import type { LeadDiscussionPreview } from "../lib/feed-presentation";
-import { ShareLinks } from "./share-links";
 import { BrowseStoryLink } from "./story-navigation";
 import { StoryAge } from "./story-age";
 import { ArticleImage } from "./article-image";
@@ -80,48 +79,25 @@ export function StoryRow({
             <p>{discussionPreview.text}</p>
           </div>
         )}
-        <div className="story-meta">
-          <span className="points" title={`${story.points.toLocaleString("en-GB")} points`}>
-            <Star size={14} aria-hidden="true" />
+        <div className="feed-story-rail">
+          <span className="feed-stat" title={`${story.points.toLocaleString("en-GB")} points`}>
+            <ArrowUp size={18} aria-hidden="true" />
             <span>
               {story.points.toLocaleString("en-GB")}
-              <span> points</span>
+              <span className="sr-only"> points</span>
             </span>
           </span>
           <a
+            className="feed-stat feed-comments"
             href={`https://news.ycombinator.com/item?id=${story.hn_id}`}
             title={`${story.comment_count.toLocaleString("en-GB")} comments`}
           >
-            <MessageCircle size={14} aria-hidden="true" />
+            <MessageCircle size={18} aria-hidden="true" />
             <span>
               {story.comment_count.toLocaleString("en-GB")}
-              <span> comments</span>
+              <span className="sr-only"> comments</span>
             </span>
           </a>
-        </div>
-        <div className="feed-story-actions">
-          <span className={lead ? "feed-read-brief feed-read-brief-primary" : "feed-read-brief"}>
-            <BrowseStoryLink id={story.hn_id} slug={story.story_slug} feedPosition={feedPosition}>
-              Read brief
-            </BrowseStoryLink>
-          </span>
-          <span className="feed-discussion-link">
-            <BrowseStoryLink
-              id={story.hn_id}
-              slug={story.story_slug}
-              feedPosition={feedPosition}
-              anchor="discussion-analysis"
-            >
-              <MessageCircle size={16} aria-hidden="true" />
-              Discussion analysis
-            </BrowseStoryLink>
-          </span>
-          <ShareLinks
-            slug={story.story_slug}
-            id={story.hn_id}
-            title={story.title}
-            takeaway={takeaway}
-          />
         </div>
       </div>
     </article>

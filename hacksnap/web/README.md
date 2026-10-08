@@ -758,8 +758,12 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 ## Feed card layout
 
 Latest, dated and topic feeds share this order: category and compact age, headline,
-full-width inset image, takeaway, optional lead discussion preview, points/comments,
-then Read brief, Discussion analysis and Share. Categories stay visible even in
+full-width inset image, takeaway, optional lead discussion preview, then a compact
+rail with an up-arrow points count and a comment-count link to Hacker News.
+The counts use neutral pills, with blue hover/focus feedback on the comment link,
+screen-reader labels and a 44px touch target. The points count is informational.
+The headline opens the brief; duplicate brief, analysis and Share actions are
+omitted from cards. Categories stay visible even in
 filtered feeds. Missing images omit the media container; failed requests reserve
 the source aspect ratio. All images retain intrinsic proportions without cropping.
 
@@ -774,8 +778,8 @@ failure omits the preview and leaves the listing usable.
 The first eligible initial image receives eager/high priority; subsequent images
 remain lazy. Responsive image sizes reflect actual shell and card padding. Cards
 are measured for virtualization, with intrinsic image ratios used for estimates.
-Share opens a native modal with focus containment, Escape, editable drafts and
-manual-copy recovery. Ordinary brief/discussion links preserve feed context.
+On the story page, Share opens a native modal with focus containment, Escape,
+editable drafts and manual-copy recovery. Headline links preserve feed context.
 
 ## Public read limits
 
