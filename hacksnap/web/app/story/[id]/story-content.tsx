@@ -17,7 +17,7 @@ import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
 import { ArticleImage } from "../../article-image";
 import { canonicalArticleImage } from "../../../lib/article-image";
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 function StoryShare({ story, placement }: { story: Story; placement: "story_top" | "story_end" }) {
   return (
@@ -92,10 +92,9 @@ export function StoryContent({
               <>
                 <p>
                   {briefSentences(summary.article_summary).map((sentence, index) => (
-                    <Fragment key={index}>
-                      {index > 0 && <br />}
+                    <span className="article-brief-sentence" key={index}>
                       {sentence}
-                    </Fragment>
+                    </span>
                   ))}
                 </p>
                 {summary.article_key_points.length > 0 && (

@@ -9,7 +9,8 @@ font at 1.375rem with a 1.5 line height. All three fonts remain local. Feed lead
 headlines use weight 750 and a larger scale; ordinary headlines use weight 700.
 Monospace is reserved for code.
 
-Article brief prose starts each sentence on a new line, using `sbd` sentence
+Article brief prose separates sentences with one empty line of CSS spacing
+(`margin-top: 1lh`), while wrapped lines keep the normal line height. It uses `sbd` sentence
 boundary detection during HTML rendering to handle abbreviations, initials,
 URLs and decimals. The tokenizer stays in the article renderer's server module
 graph. Stored summaries and generation prompts are unchanged; Markdown, RSS
