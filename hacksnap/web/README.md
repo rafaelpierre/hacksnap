@@ -594,6 +594,12 @@ configuration also uses SWC to compile the allowlisted ESM dependencies in
 jsdom's encoding, CSS, and HTML parser dependency chain to CommonJS. Application
 code and test modules continue to run as ESM.
 
+The scoped `@istanbuljs/load-nyc-config` override uses `js-yaml` 4 to remove the
+unpatched `sprintf-js` dependency pulled in by `js-yaml` 3. Its YAML `load` API
+remains compatible with the coverage loader. Remove the override when the
+upstream loader no longer requires `js-yaml` 3. Dependency audits include both
+runtime and development packages.
+
 ## Canonical article images
 
 Migration `0015_article_images` adds nullable image fields to
