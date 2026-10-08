@@ -43,7 +43,12 @@ for (const width of [320, 1280])
           ).length,
         }));
         expect(layout.content, "No horizontal overflow").toBeLessThanOrEqual(layout.viewport + 1);
+        await expect(page.locator("html")).toHaveCSS("background-color", "rgb(255, 255, 255)");
         await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+        await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
+          "content",
+          "#ffffff",
+        );
         expect(layout.scheme.split(" ").sort()).toEqual(["light", "only"]);
         await expect(page.getByRole("button", { name: /Switch to .* mode/ })).toHaveCount(0);
         if (!latest)
@@ -106,3 +111,22 @@ for (const width of [320, 1280])
       });
     });
   }
+
+for (const touch of [false, true]) {
+  test.describe(touch ? "touch background" : "mouse background", () => {
+    test.use({ hasTouch: touch });
+
+    test("story hover respects the primary input device", async ({ page }) => {
+      await page.setViewportSize({ width: touch ? 320 : 1280, height: 900 });
+      await page.goto("/");
+      const story = page.locator(".story-row").first();
+      await story.hover();
+      await expect(story).toHaveCSS(
+        "background-color",
+        touch ? "rgba(0, 0, 0, 0)" : "rgb(242, 241, 237)",
+      );
+      await expect(page.locator("html")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+      await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    });
+  });
+}
