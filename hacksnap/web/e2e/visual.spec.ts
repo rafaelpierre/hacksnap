@@ -83,6 +83,18 @@ for (const width of [320, 1280])
             width === 320 ? 640 : 1080,
           );
         }
+        if (["/", "/2026/01", "/?category=models-products"].includes(route)) {
+          const card = page.locator(".feed-story").first();
+          const headline = await card.locator(".feed-story-title").boundingBox();
+          const excerpt = await card.locator(".feed-excerpt").boundingBox();
+          const image = await card.locator(".feed-story-image").boundingBox();
+          expect(excerpt!.y, "Subtitle follows the headline").toBeGreaterThanOrEqual(
+            headline!.y + headline!.height,
+          );
+          expect(image!.y, "Image follows the subtitle").toBeGreaterThanOrEqual(
+            excerpt!.y + excerpt!.height,
+          );
+        }
         const header = await page.getByRole("banner").boundingBox();
         const firstContent = await (
           latest

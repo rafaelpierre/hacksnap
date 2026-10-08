@@ -11,14 +11,14 @@ function SkeletonCard() {
           <span className={`${styles.bone} ${styles.titleFirst}`} />
           <span className={`${styles.bone} ${styles.titleSecond}`} />
         </h2>
+        <p className={styles.excerpt}>
+          <span className={`${styles.bone} ${styles.excerptFirst}`} />
+          <span className={`${styles.bone} ${styles.excerptSecond}`} />
+        </p>
         <div className="feed-story-image">
           <span className={`${styles.bone} ${styles.image}`} />
         </div>
         <div className="story-content">
-          <p className={styles.excerpt}>
-            <span className={`${styles.bone} ${styles.excerptFirst}`} />
-            <span className={`${styles.bone} ${styles.excerptSecond}`} />
-          </p>
           <div className="feed-story-footer">
             <span className={`${styles.bone} ${styles.meta}`} />
             <span className={`${styles.bone} ${styles.actions}`} />

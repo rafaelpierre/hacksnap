@@ -124,8 +124,8 @@ test("ranked and unranked cards share semantic order, with Archive limited to ra
     const image = html.indexOf("feed-story-image");
     const excerpt = html.indexOf("Brief pending.");
     assert.ok(context >= 0 && context < title);
-    assert.ok(title >= 0 && title < image);
-    assert.ok(image >= 0 && image < excerpt);
+    assert.ok(title >= 0 && title < excerpt);
+    assert.ok(excerpt >= 0 && excerpt < image);
     assert.match(html, /Brief pending\. Check back after the next summary update\./);
     assert.match(html, /class="feed-story-rail"/);
     assert.match(html, /12 comments/);

@@ -764,7 +764,7 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 ## Feed card layout
 
 Latest, dated and topic feeds share this order: category and compact age, headline,
-full-width inset image, takeaway, optional lead discussion preview, then a compact
+takeaway, full-width inset image, optional lead discussion preview, then a compact
 rail with an up-arrow points count and a comment-count link to Hacker News.
 The counts use neutral pills, with blue hover/focus feedback on the comment link,
 screen-reader labels and a 44px touch target. The points count is informational.
