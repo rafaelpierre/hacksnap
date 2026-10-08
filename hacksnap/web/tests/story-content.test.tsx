@@ -92,7 +92,7 @@ test("mocked story states distinguish missing comments and pending summaries", (
   assert.doesNotMatch(pendingHTML, /The mocked article brief/);
 });
 
-test("feed rail keeps accessible counts and the HN link without duplicate story actions", () => {
+test("feed rail keeps accessible counts, the HN link and sharing", () => {
   const html = render(createElement(StoryRow, { story, variant: "ranked" }));
   assert.match(html, /href="\/story\/90000001"/);
   assert.match(html, /href="\/\?category=agents-coding"/);
@@ -100,7 +100,9 @@ test("feed rail keeps accessible counts and the HN link without duplicate story 
   assert.match(html, /class="sr-only"> points/);
   assert.match(html, /class="sr-only"> comments/);
   assert.match(html, /href="https:\/\/news.ycombinator.com\/item\?id=90000001"/);
-  assert.doesNotMatch(html, /Read brief|Discussion analysis|Share:|feed-story-actions/);
+  assert.doesNotMatch(html, /Read brief|Discussion analysis|feed-story-actions/);
+  assert.match(html, /aria-label="Share: A mocked story title"/);
+  assert.match(html, /lucide-forward/);
 });
 
 test("ranked and unranked cards share semantic order, with Archive limited to ranked stories", () => {
@@ -211,11 +213,15 @@ test("browse content retains a focus target inside the shared site shell", () =>
   assert.match(html, /Feed content/);
 });
 
-test("reader section links target focusable article and discussion sections", () => {
+test("reader rail replaces section navigation while keeping section anchors", () => {
   const html = render(createElement(StoryContent, { story, relatedStories }));
-  assert.match(html, /aria-label="Story sections"/);
+  assert.doesNotMatch(html, /aria-label="Story sections"|story-stats|detail-nav/);
+  assert.match(html, /class="feed-story-rail"/);
+  assert.match(html, /title="42 points"/);
+  assert.match(html, /title="12 comments"/);
+  assert.match(html, /lucide-forward/);
   for (const id of ["article-brief", "discussion-analysis"]) {
-    assert.ok(html.includes(`href="#${id}"`));
+    assert.ok(!html.includes(`href="#${id}"`));
     assert.match(html, new RegExp(`<section[^>]*id="${id}"[^>]*tabindex="-1"`));
   }
   assert.match(html, /id="related-stories-heading">Related stories/);

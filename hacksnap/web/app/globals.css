@@ -483,8 +483,7 @@ body:has(#browse-content) .skip-browse {
   color: var(--ink);
   margin-bottom: 0.35rem;
 }
-.story-meta,
-.story-stats {
+.story-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -494,16 +493,13 @@ body:has(#browse-content) .skip-browse {
   margin-top: var(--space-4);
 }
 .story-meta a,
-.story-meta .points,
-.story-stats a,
-.story-stats span {
+.story-meta .points {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   text-decoration: none;
 }
-.story-meta a,
-.story-stats a {
+.story-meta a {
   min-height: var(--touch-target);
 }
 .story-meta a:hover {
@@ -519,7 +515,8 @@ body:has(#browse-content) .skip-browse {
   gap: var(--space-2);
   margin-top: var(--space-6);
 }
-.feed-stat {
+.feed-stat,
+.feed-story-rail .share-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -540,22 +537,8 @@ body:has(#browse-content) .skip-browse {
   background: var(--accent-soft);
   color: var(--accent);
 }
-.detail-nav a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: 0.5rem 0.8rem;
-  min-height: var(--touch-target);
-  border-radius: var(--radius-control);
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.35;
-  text-decoration: none;
-  color: var(--accent);
-}
-.detail-nav a:hover {
-  background: var(--accent-soft);
+.feed-story-rail .share-menu {
+  margin-left: 0;
 }
 
 /* Supporting ranking is subordinate to the feed and follows it on small screens. */
@@ -649,15 +632,6 @@ body:has(#browse-content) .skip-browse {
   margin: var(--space-6) 0;
   border-radius: var(--radius-control);
   overflow: hidden;
-}
-.detail-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-4) 0;
-  margin-top: var(--space-6);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
 }
 .editorial {
   font-family: var(--sans);

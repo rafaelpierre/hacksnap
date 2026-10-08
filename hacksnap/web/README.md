@@ -48,8 +48,11 @@ The category links to its feed; Latest is available in the main navigation.
 Article headers omit the redundant breadcrumb row. Browser Back preserves the
 reading journey. Discussion themes
 use bordered disclosure cards, with a blue open state and labelled source-comment
-actions inside the expanded text. Sharing remains in the article header, without
-a repeated control above Related stories. Related stories use compact feed-style cards
+actions inside the expanded text. Article headers and home cards share the same
+points, comments and curved-arrow Share rail. The Share control opens the sharing
+dialog. The article and discussion section anchors remain available for direct
+links. Sharing remains in the article header, without a repeated control above
+Related stories. Related stories use compact feed-style cards
 with takeaways, full-card links and explicit loading, empty and unavailable states.
 
 `app/globals.css` owns the semantic theme colors, relative type scale, spacing,

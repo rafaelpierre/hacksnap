@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronDown, MessageCircle, Star } from "lucide-react";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById } from "../../../lib/categories";
@@ -7,6 +7,7 @@ import { storyDiscussion, storySource } from "../../../lib/story-presentation";
 import { DiscussionAnalysis } from "../../discussion-analysis";
 import discussionStyles from "../../discussion-analysis.module.css";
 import { SkepticismPill } from "../../skepticism-pill";
+import { StoryRail } from "../../story-rail";
 import { ShareLinks } from "../../share-links";
 import { briefExcerpt } from "../../../lib/brief";
 import { StoryJourney } from "../../story-navigation";
@@ -72,23 +73,9 @@ export function StoryContent({
           fetchPriority="high"
           sizes="(min-width: 78rem) 43rem, (min-width: 60rem) calc(100vw - 21rem), calc(100vw - 4rem)"
         />
-        <div className="story-stats">
-          <span>
-            <Star size={16} aria-hidden="true" /> {story.points} points
-          </span>
-          <a href={hnURL}>
-            <MessageCircle size={16} aria-hidden="true" /> {story.comment_count} comments
-          </a>
-        </div>
-        <nav className="detail-nav" aria-label="Story sections">
-          {summary && (
-            <>
-              <a href="#article-brief">Article brief</a>
-              <a href="#discussion-analysis">Discussion analysis</a>
-            </>
-          )}
+        <StoryRail id={story.hn_id} points={story.points} commentCount={story.comment_count}>
           <StoryShare story={story} placement="story_top" />
-        </nav>
+        </StoryRail>
       </header>
       {summary ? (
         <div className="editorial">
