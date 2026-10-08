@@ -34,7 +34,7 @@ preferences do not affect the page. There is no appearance control or theme scri
 
 ## Shared design foundations
 
-All routes share a normal-flow header and desktop left navigation. Native
+All routes share a normal-flow header, desktop left navigation and Most read sidebar. Native
 “Topics & menu” disclosure expands inline below 60rem and works without JavaScript;
 Escape closes it and returns focus. The left sidebar is sticky above 60rem. At
 78rem the 83.5rem shell has a 12.5rem navigation column and an 18rem supporting
@@ -92,14 +92,26 @@ the redirects; `robots.txt` does not block them.
 
 ## Most-read stories by period
 
-Latest, dated archives, topic feeds and article pages include a lifetime “Most read” card of up to five stories.
+The root site layout owns the lifetime “Most read” card of up to five stories.
+It renders on the initial request to every HTML page, including direct article
+URLs, supporting pages and data-outage states. It remains mounted
+across client navigation; it does not depend on entering through a feed.
 It sits to the right at 78rem and below the main content at narrower widths, including
 phones. Its loading, empty and failure states are
 independent of the required feed or article. Weekly ranking remains available to existing
 data consumers; the DEV presentation does not show a second weekly widget.
 Links use the stored canonical story slug.
 Full-document requests await the popularity result so links and terminal states
-work without JavaScript. Client-router requests stream the optional sidebar.
+work without JavaScript. Client-router requests can stream the optional sidebar
+when constructing the shell. Existing shells retain their list during navigation;
+a full reload fetches it again through the existing five-minute data cache.
+Shared HTML pages now render per request, including About and not-found pages,
+so their sidebar is not frozen into a build-time empty or failed state. API, image
+and other route-handler responses do not render this layout.
+Missing-story responses retain their 404 status and show the shared shell after
+Next resolves the not-found boundary. Next currently returns an empty error
+document for these responses without JavaScript; this does not affect valid
+article URLs or handled data-outage responses.
 Most read links preserve the loaded feed and scroll position without assigning
 the sidebar story as the feed focus, since it may be absent from the loaded cards.
 

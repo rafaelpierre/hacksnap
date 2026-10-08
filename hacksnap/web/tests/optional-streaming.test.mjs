@@ -80,6 +80,7 @@ jest.unstable_mockModule("next/navigation", () => ({
 }));
 
 const { default: StoryPage } = await import("../app/story/[id]/page.tsx");
+const { SiteContent } = await import("../app/site-content.tsx");
 const { default: CategoryPage } = await import("../app/[[...path]]/page.tsx");
 const { DataUnavailableError } = await import("../lib/data-availability.ts");
 
@@ -138,7 +139,7 @@ const categoryProps = {
 test("article and sidebar shell stream while popularity is pending", async () => {
   const pending = deferred();
   getPopularStories.mockImplementationOnce(() => pending.promise);
-  const rendered = stream(await StoryPage(storyProps));
+  const rendered = stream(await SiteContent({ children: await StoryPage(storyProps) }));
   await rendered.contains(/Loading most read stories/);
   assert.match(rendered.html, /The primary article brief/);
   assert.match(rendered.html, /browse-right-sidebar/);
@@ -151,7 +152,7 @@ test("article and sidebar shell stream while popularity is pending", async () =>
 
 test("failed popularity keeps the article and sidebar failure message", async () => {
   getPopularStories.mockRejectedValueOnce(new DataUnavailableError());
-  const rendered = stream(await StoryPage(storyProps));
+  const rendered = stream(await SiteContent({ children: await StoryPage(storyProps) }));
   await rendered.complete;
   assert.match(rendered.html, /The primary article brief/);
   assert.match(rendered.html, /Most read stories are temporarily unavailable/);
@@ -163,7 +164,7 @@ test("document requests await popularity and include its result in the initial s
   const pending = deferred();
   getPopularStories.mockImplementationOnce(() => pending.promise);
   let completed = false;
-  const pagePromise = StoryPage(storyProps).then((page) => {
+  const pagePromise = SiteContent({ children: await StoryPage(storyProps) }).then((page) => {
     completed = true;
     return page;
   });

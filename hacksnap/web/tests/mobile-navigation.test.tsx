@@ -32,12 +32,10 @@ test("mobile navigation renders a native disclosure and ordinary links before hy
   assert.match(html, /href="\/\?category=agents-coding"/);
 });
 
-test("BrowseLayout keeps feed before the rail without duplicating the shared navigation", () => {
-  const html = renderToStaticMarkup(
-    <BrowseLayout rightSidebar={<aside>Most read</aside>}>Feed</BrowseLayout>,
-  );
-  assert.ok(html.indexOf("Feed") < html.indexOf("Most read"));
-  assert.doesNotMatch(html, /<main|<nav|topic-sidebar/);
+test("route content does not duplicate the shared navigation or sidebar", () => {
+  const html = renderToStaticMarkup(<BrowseLayout>Feed</BrowseLayout>);
+  assert.match(html, /Feed/);
+  assert.doesNotMatch(html, /<main|<nav|<aside|topic-sidebar|browse-right-sidebar/);
 });
 
 test("mobile disclosure closes on Escape, selection, and browser route changes", async () => {

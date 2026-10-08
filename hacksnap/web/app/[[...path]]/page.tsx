@@ -11,7 +11,6 @@ import { ArchiveStoryList } from "../archive-story-list";
 import { BrowseLoading } from "../browse-loading";
 import { shouldStreamBrowse } from "../../lib/browse-streaming";
 import { BrowseLayout } from "../topic-sidebar";
-import { PopularStories, PopularStoriesLoading } from "../popular-stories";
 
 export const dynamic = "force-dynamic";
 
@@ -104,20 +103,8 @@ async function Latest(props: Props) {
       <LatestContent content={pendingContent!} />
     </Suspense>
   );
-  const popularity = stream ? undefined : await PopularStories();
   return (
-    <BrowseLayout
-      active={category?.id ?? (month ? undefined : "home")}
-      rightSidebar={
-        stream ? (
-          <Suspense fallback={<PopularStoriesLoading />}>
-            <PopularStories />
-          </Suspense>
-        ) : (
-          popularity
-        )
-      }
-    >
+    <BrowseLayout active={category?.id ?? (month ? undefined : "home")}>
       {month ? (
         <header className="feed-header archive-month-header">
           <div className="channel-path">
