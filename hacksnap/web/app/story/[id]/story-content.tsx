@@ -15,7 +15,7 @@ import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
 import { ArticleImage } from "../../article-image";
 import { canonicalArticleImage } from "../../../lib/article-image";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 function StoryShare({ story, placement }: { story: Story; placement: "story_top" | "story_end" }) {
   return (
@@ -102,7 +102,19 @@ export function StoryContent({
             {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
             {source.brief === "available" ? (
               <>
-                <p>{summary.article_summary}</p>
+                <p>
+                  {Array.from(
+                    new Intl.Segmenter("en", { granularity: "sentence" }).segment(
+                      summary.article_summary ?? "",
+                    ),
+                    ({ segment, index }) => (
+                      <Fragment key={index}>
+                        {index > 0 && <br />}
+                        {segment}
+                      </Fragment>
+                    ),
+                  )}
+                </p>
                 {summary.article_key_points.length > 0 && (
                   <ul className="key-points">
                     {summary.article_key_points.map((point, i) => (
