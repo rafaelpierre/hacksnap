@@ -155,14 +155,19 @@ export async function getLeaderboard() {
 export async function getCurrentReadySelectionIds() {
   return cards.map(({ hn_id }) => hn_id);
 }
-export async function getPopularStories() {
+export async function getPopularStories(period: "last-7-days" | "all-time" = "all-time") {
   const cookie = (await headers()).get("cookie") ?? "";
   if (cookie.includes("fixture-popularity=slow"))
     await new Promise((resolve) => setTimeout(resolve, 2500));
   if (cookie.includes("fixture-popularity=failed")) throw new DataUnavailableError();
+  if (cookie.includes("fixture-popularity=weekly-failed") && period === "last-7-days")
+    throw new DataUnavailableError();
+  if (cookie.includes("fixture-popularity=empty")) return [];
   const popular = cookie.includes("fixture-popularity=outside-feed")
     ? cards.slice(-5)
-    : cards.slice(0, 5);
+    : period === "last-7-days"
+      ? cards.slice(5, 10)
+      : cards.slice(0, 5);
   return popular.map(({ hn_id, title, story_slug }, index) => ({
     hn_id,
     title,

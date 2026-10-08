@@ -90,20 +90,36 @@ the corresponding root or dated feed and never appear in sitemap entries or
 public navigation. These routes remain crawlable so search engines can follow
 the redirects; `robots.txt` does not block them.
 
-## Lifetime most-read stories
+## Most-read stories by period
 
-The homepage includes a separate “Most read · All time” list of up to five
-stories. Wide screens place it to the right of the feed; narrower layouts keep
-it available as a compact block above the feed. Dated archive and topic pages
-retain their existing layout. Links use the stored canonical story slug.
+The homepage includes two stacked widgets, “Trending this week” above “Most read”,
+each listing up to five stories. Desktop places them to the right of the feed;
+intermediate layouts place them above it. Both widgets are hidden at viewport
+widths of 50rem or less, matching the Topics sidebar breakpoint so phones keep
+Latest at the top. Dated archive and topic pages retain their existing layout.
+Links use the stored canonical story slug.
 Most read links preserve the loaded feed and scroll position without assigning
 the sidebar story as the feed focus, since it may be absent from the loaded cards.
 
-Ranking uses `historical_views + story_views`, with HN ID descending as the tie
-breaker, across ready story summaries including archived stories. The primary
+The seven-day ranking counts deduplicated first-party `view` events received in
+the last 168 hours, including reads of archived stories. It excludes clicks,
+future events, and historical GA totals, which have no per-read timestamps.
+Apply migration `0021_weekly_story_popularity` for the partial timestamp index
+and scoped reader grants. It retains RLS and keeps visit identifiers private.
+Before migration, Trending shows unavailable while Most read remains usable.
+Both lists are server rendered with ordinary canonical article links, including
+when JavaScript is disabled. Full document requests await both optional reads
+in parallel after required feed data; client navigation streams each widget
+independently. Each has its own empty, loading and unavailable states.
+The interface omits the lifetime label;
+“Most read” still ranks across all time. “Trending this week” means most reads
+over the rolling seven-day period, rather than a rate-of-growth calculation.
+
+All-time ranking uses `historical_views + story_views`, with HN ID descending as
+the tie breaker, across ready story summaries including archived stories. The primary
 Latest feed retains its chronological order and pagination. Popularity is an
-optional server read with a five-minute cache; an empty list or unavailable
-database has its own message and must not replace the main feed.
+optional server read with separate five-minute caches for each period; an empty
+list or unavailable database has its own message and must not replace the main feed.
 
 First-party `POST /api/story-events` requests contain only `kind` (`view` or
 `click`), `story_id`, and a random per-route `visit_id`. Story-page visits come

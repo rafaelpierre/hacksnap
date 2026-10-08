@@ -84,8 +84,9 @@ async function Latest(props: Props) {
     if (!months.some((item) => item.month === month)) notFound();
   }
   // Later pages must establish existence before any loading UI flushes a 200.
+  const stream = await shouldStreamBrowse();
   const result =
-    page > 1 || !(await shouldStreamBrowse())
+    page > 1 || !stream
       ? category
         ? await getCategoryStories(category.id, page)
         : await getArchiveStories(month, page)
@@ -103,14 +104,28 @@ async function Latest(props: Props) {
       <LatestContent content={pendingContent!} />
     </Suspense>
   );
+  const popularity =
+    month || stream
+      ? undefined
+      : await Promise.all([PopularStories({ period: "last-7-days" }), PopularStories()]);
   return (
     <BrowseLayout
       active={category?.id ?? (month ? undefined : "home")}
       rightSidebar={
-        month ? undefined : (
-          <Suspense fallback={<PopularStoriesLoading />}>
-            <PopularStories />
-          </Suspense>
+        month ? undefined : stream ? (
+          <>
+            <Suspense fallback={<PopularStoriesLoading period="last-7-days" />}>
+              <PopularStories period="last-7-days" />
+            </Suspense>
+            <Suspense fallback={<PopularStoriesLoading />}>
+              <PopularStories />
+            </Suspense>
+          </>
+        ) : (
+          <>
+            {popularity?.[0]}
+            {popularity?.[1]}
+          </>
         )
       }
     >

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterAll, beforeEach, jest, test } from "@jest/globals";
-import { popularityAvailableSQL } from "../lib/popular-stories.ts";
+import { popularityAvailableSQL, weeklyPopularityAvailableSQL } from "../lib/popular-stories.ts";
 import { storySlugColumnSQL } from "../lib/story-slug-projection.ts";
 
 let clock = Date.now();
@@ -13,7 +13,8 @@ const client = {
   async query(sql) {
     queries.push(sql);
     if (failure && sql !== "ROLLBACK") throw failure;
-    if (sql === popularityAvailableSQL) return { rows: [{ available }] };
+    if (sql === popularityAvailableSQL || sql === weeklyPopularityAvailableSQL)
+      return { rows: [{ available }] };
     if (sql === storySlugColumnSQL) return { rows: [{ available: false }] };
     return { rows: [story] };
   },
@@ -36,6 +37,25 @@ beforeEach(() => {
   failure = undefined;
   queries.length = 0;
   process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+});
+
+test("weekly and lifetime loads have independent cache keys and rollout checks", async () => {
+  await Promise.all([getPopularStories("last-7-days"), getPopularStories("all-time")]);
+  assert.equal(queries.includes(weeklyPopularityAvailableSQL), true);
+  assert.equal(queries.includes(popularityAvailableSQL), true);
+  assert.equal(queries.filter((sql) => sql.includes("JOIN public.hacker_news_threads")).length, 2);
+  queries.length = 0;
+  await Promise.all([getPopularStories("last-7-days"), getPopularStories("all-time")]);
+  assert.equal(queries.length, 0);
+  clock += 300_001;
+  available = false;
+  const log = jest.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await assert.rejects(getPopularStories("last-7-days"), /temporarily unavailable/);
+    assert.deepEqual(await getPopularStories("all-time"), []);
+  } finally {
+    log.mockRestore();
+  }
 });
 afterAll(() => {
   now.mockRestore();
