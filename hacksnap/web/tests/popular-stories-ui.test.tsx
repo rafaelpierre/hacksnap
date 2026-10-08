@@ -2,15 +2,27 @@ import assert from "node:assert/strict";
 import { jest, test } from "@jest/globals";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { storyPath } from "../lib/story-url";
 
 const getPopularStories = jest.fn<
   () => Promise<Array<{ hn_id: string; title: string; story_slug?: string; views: string }>>
 >(async () => []);
 jest.unstable_mockModule("../lib/data", () => ({ getPopularStories }));
-jest.unstable_mockModule("../app/navigation-pending-link", () => ({
-  NavigationPendingLink: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+jest.unstable_mockModule("../app/story-navigation", () => ({
+  BrowseStoryLink: ({
+    children,
+    id,
+    slug,
+    focusFeedStory,
+  }: {
+    children: React.ReactNode;
+    id: string;
+    slug?: string;
+    focusFeedStory?: boolean;
+  }) => {
+    assert.equal(focusFeedStory, false, "Most read stories must not focus a feed card");
+    return <a href={storyPath(id, slug)}>{children}</a>;
+  },
 }));
 const { PopularStories, PopularStoriesLoading } = await import("../app/popular-stories");
 

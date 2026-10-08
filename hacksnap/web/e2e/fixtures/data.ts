@@ -160,7 +160,10 @@ export async function getPopularStories() {
   if (cookie.includes("fixture-popularity=slow"))
     await new Promise((resolve) => setTimeout(resolve, 2500));
   if (cookie.includes("fixture-popularity=failed")) throw new DataUnavailableError();
-  return cards.slice(0, 5).map(({ hn_id, title, story_slug }, index) => ({
+  const popular = cookie.includes("fixture-popularity=outside-feed")
+    ? cards.slice(-5)
+    : cards.slice(0, 5);
+  return popular.map(({ hn_id, title, story_slug }, index) => ({
     hn_id,
     title,
     story_slug,
@@ -181,7 +184,14 @@ export async function getRssStories(): Promise<ExportStory[]> {
 }
 export const getStory = cache(async (id: string): Promise<ArticleStory | null> => {
   if (id === "91999999") throw new DataUnavailableError();
-  return stories.find((story) => story.hn_id === id) ?? null;
+  const story = stories.find((story) => story.hn_id === id) ?? null;
+  const cookie = (await headers()).get("cookie") ?? "";
+  if (id === "91000001" && cookie.includes("fixture-story=slow"))
+    await new Promise((resolve) => setTimeout(resolve, 11_000));
+  if (story && id === "91000001" && cookie.includes("fixture-story=redirect")) {
+    return { ...story, story_slug: `canonical-story-${id}` };
+  }
+  return story;
 });
 export async function getPublicStory(id: string): Promise<PublicStory | null> {
   return getStory(id);

@@ -46,6 +46,11 @@ Tests verify blocking without an origin request, encoded paths, ordinary site
 paths, POST forwarding, HEAD responses, redirects, and safe reflected text.
 `check` bundles the Worker with Wrangler without uploading or changing routes.
 
+The `sharp` override pins the patched 0.35.5 release while
+Wrangler's bundled Miniflare still requests 0.35.4. Remove the override once
+Miniflare requires a patched version. `npm audit --package-lock-only --include=dev
+--audit-level=low` checks the complete locked toolchain.
+
 To preview the invoice:
 
 ```sh

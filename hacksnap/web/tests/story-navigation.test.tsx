@@ -14,6 +14,7 @@ import {
 import { browseLabel } from "../lib/navigation-context";
 import { ARCHIVE_PAGE_SIZE } from "../lib/archive";
 import type { FeedSnapshot } from "../lib/feed-state";
+import { readFeedSnapshot } from "../lib/feed-snapshot-storage";
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
 test("archive return preserves route, pagination and scroll without changing breadcrumbs", async () => {
@@ -350,6 +351,120 @@ test("story URLs stay clean while each history entry retains its own journey", a
     });
   }
 });
+
+for (const historyFormat of ["reference", "legacy"] as const) {
+  test(`Most read-only story preserves the ${historyFormat} feed snapshot and explicit return`, async () => {
+    const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
+    const values = {
+      self: dom.window,
+      window: dom.window,
+      document: dom.window.document,
+      navigator: dom.window.navigator,
+      IS_REACT_ACT_ENVIRONMENT: true,
+    };
+    const previous = Object.keys(values).map((key) =>
+      Object.getOwnPropertyDescriptor(globalThis, key),
+    );
+    Object.entries(values).forEach(([key, value]) =>
+      Object.defineProperty(globalThis, key, { value, configurable: true }),
+    );
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 880 });
+    window.name = `hacksnap-tab:most-read-${historyFormat}`;
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(document.getElementById("root")!);
+    const pushes: string[] = [];
+    const departingFeeds: Array<FeedSnapshot | null> = [];
+    const router = {
+      push: (href: string) => {
+        pushes.push(href);
+        departingFeeds.push(readFeedSnapshot(window.history.state?.hacksnapHomeFeed, "/"));
+        window.history.pushState({}, "", href);
+      },
+      prefetch: async () => {},
+    };
+    document.addEventListener("click", (event) => event.preventDefault());
+    const render = (content: React.ReactNode, key: string) =>
+      act(async () => {
+        root.render(
+          <AppRouterContext.Provider value={router as never}>
+            <div key={key}>{content}</div>
+          </AppRouterContext.Provider>,
+        );
+      });
+    const click = () => act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
+    try {
+      const savedFeed: FeedSnapshot = {
+        version: 1,
+        url: "/",
+        stories: Array.from({ length: 30 }, (_, index) => ({
+          hn_id: String(index + 1),
+          story_slug: `story-${index + 1}`,
+          title: `Story ${index + 1}`,
+          category: null,
+          url: `https://example.com/${index + 1}`,
+          points: 100,
+          comment_count: 20,
+          date_added: "2026-09-29T12:00:00.000Z",
+          rank: null,
+          is_recent: false,
+          rank_history: [],
+          image_url: null,
+          image_status: null,
+          image_width: null,
+          image_height: null,
+          image_mime_type: null,
+          summary: { overall_takeaway: "Saved brief", sentiment: null, source_coverage: null },
+        })),
+        pagination: {
+          cursor: null,
+          previousCursor: null,
+          hasMore: true,
+          page: 2,
+          pageSize: ARCHIVE_PAGE_SIZE,
+          expiresAt: null,
+          selectionLimited: false,
+        },
+        scrollY: 320,
+        focusStoryId: "30",
+        savedAt: Date.now(),
+      };
+      if (historyFormat === "reference") saveFeedHistory(savedFeed);
+      else window.history.replaceState({ hacksnapHomeFeed: savedFeed }, "");
+      await render(
+        <BrowseStoryLink id="99" slug="archived-story-99" focusFeedStory={false}>
+          Most read archived story
+        </BrowseStoryLink>,
+        "sidebar",
+      );
+      await click();
+      assert.deepEqual(pushes, ["/story/archived-story-99"]);
+      const positioned = departingFeeds[0];
+      assert.ok(positioned, "a sidebar-only story must leave the feed snapshot valid");
+      assert.deepEqual(positioned.stories, savedFeed.stories);
+      assert.deepEqual(positioned.pagination, savedFeed.pagination);
+      assert.equal(positioned.scrollY, 880);
+      assert.equal(positioned.focusStoryId, null);
+
+      await render(<StoryReturnLink archiveOnly />, "story");
+      assert.equal(document.querySelector("a")?.getAttribute("href"), "/");
+      await click();
+      window.history.replaceState({}, "", "/");
+      const returned = consumeFeedReturn("/");
+      assert.ok(returned, "the explicit return must restore the saved feed depth");
+      assert.deepEqual(returned.stories, savedFeed.stories);
+      assert.deepEqual(returned.pagination, savedFeed.pagination);
+      assert.equal(returned.scrollY, 880);
+      assert.equal(returned.focusStoryId, null);
+    } finally {
+      await act(async () => root.unmount());
+      dom.window.close();
+      Object.keys(values).forEach((key, i) => {
+        if (previous[i]) Object.defineProperty(globalThis, key, previous[i]!);
+        else Reflect.deleteProperty(globalThis, key);
+      });
+    }
+  });
+}
 
 test("readable storage with failing writes and cleanup still restores the list in this tab", async () => {
   const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/?page=3" });

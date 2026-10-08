@@ -96,6 +96,8 @@ The homepage includes a separate “Most read · All time” list of up to five
 stories. Wide screens place it to the right of the feed; narrower layouts keep
 it available as a compact block above the feed. Dated archive and topic pages
 retain their existing layout. Links use the stored canonical story slug.
+Most read links preserve the loaded feed and scroll position without assigning
+the sidebar story as the feed focus, since it may be absent from the loaded cards.
 
 Ranking uses `historical_views + story_views`, with HN ID descending as the tie
 breaker, across ready story summaries including archived stories. The primary
@@ -174,6 +176,17 @@ visiting their detail page, never merely by loading or scrolling the feed.
 The legacy `/api/ready-stories`, `/api/story-freshness` and leaderboard endpoints
 retain their ranked contracts for existing API clients. Their selection cursors
 and ranking do not control the Latest interface.
+
+On iPhone and iPad, article links start a normal document navigation during the
+user's tap. This avoids WebKit skipping a history entry when an asynchronous
+client navigation finishes after user activation expires. It costs a full page
+load. Feed, Most read and Read next links use the same behavior. A transient
+`journey` query token carries the saved listing context across documents and is
+removed after hydration. If browser storage is blocked, native Back remains
+available, but the explicit return link may fall back to the default feed.
+
+Initial date labels use deterministic UTC text, then switch to the reader's locale
+after hydration; Node and WebKit can produce different punctuation from `Intl`.
 
 ## Browser-local opened stories
 
@@ -583,6 +596,12 @@ configuration also uses SWC to compile the allowlisted ESM dependencies in
 jsdom's encoding, CSS, and HTML parser dependency chain to CommonJS. Application
 code and test modules continue to run as ESM.
 
+The scoped `@istanbuljs/load-nyc-config` override uses `js-yaml` 4 to remove the
+unpatched `sprintf-js` dependency pulled in by `js-yaml` 3. Its YAML `load` API
+remains compatible with the coverage loader. Remove the override when the
+upstream loader no longer requires `js-yaml` 3. Dependency audits include both
+runtime and development packages.
+
 ## Canonical article images
 
 Migration `0015_article_images` adds nullable image fields to
@@ -837,10 +856,14 @@ clipboard completions cannot update a replacement identity or draft.
 
 ## Production browser regression suite
 
-Use Node 22, `npm ci`, and `npx playwright install chromium`, then run
+Use Node 22, `npm ci`, and `npx playwright install chromium webkit`, then run
 `npm run test:browser:ci`. This builds a credential-free production fixture copy
 and runs Chromium journeys, accessibility, responsive layout, and route asset /
-rendering budgets. For test-only edits after the build, use `npm run test:browser`.
+rendering budgets. iPhone WebKit also checks arrival from another site, article
+redirects, slow responses, and Back/Forward navigation. For test-only edits after the build, use `npm run test:browser`.
+CI runs Chromium on Linux and iPhone WebKit on macOS to exercise Apple's WebKit
+port. Linux WebKit can report canceled prefetches as access-control errors during
+document navigation; the macOS job keeps the strict browser-error checks enabled.
 The suite uses port 3100; override `BROWSER_PORT` when another local app uses it.
 CI runs tests in parallel with one Playwright worker per logical CPU, including
 tests within the same file. Local runs default to four workers; use
