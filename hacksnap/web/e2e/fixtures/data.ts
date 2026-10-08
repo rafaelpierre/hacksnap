@@ -185,8 +185,18 @@ export async function getLeaderboard() {
 export async function getCurrentReadySelectionIds() {
   return cards.map(({ hn_id }) => hn_id);
 }
+// Per-render state makes the browser tests fail if popularity wins the pool.
+const requiredRead = cache(() => ({ complete: false }));
+async function primaryReadFixture(kind: string) {
+  if (((await headers()).get("cookie") ?? "").includes(`fixture-read-order=${kind}`)) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    requiredRead().complete = true;
+  }
+}
 export async function getPopularStories(period: "last-7-days" | "all-time" = "all-time") {
   const cookie = (await headers()).get("cookie") ?? "";
+  if (cookie.includes("fixture-read-order=") && !requiredRead().complete)
+    throw new Error("Popularity ran before the required route read completed");
   if (cookie.includes("fixture-popularity=slow"))
     await new Promise((resolve) => setTimeout(resolve, 2500));
   if (cookie.includes("fixture-popularity=failed")) throw new DataUnavailableError();
@@ -218,6 +228,7 @@ export async function getRssStories(): Promise<ExportStory[]> {
   return stories;
 }
 export const getStory = cache(async (id: string): Promise<ArticleStory | null> => {
+  await primaryReadFixture("story");
   if (id === "91999999") throw new DataUnavailableError();
   const story = stories.find((story) => story.hn_id === id) ?? null;
   const cookie = (await headers()).get("cookie") ?? "";
@@ -241,6 +252,7 @@ export async function getCategoryCounts(): Promise<CategoryCounts> {
   return { models_products: stories.length };
 }
 export async function getCategoryStories(category: CategoryId, page: number) {
+  await primaryReadFixture("category");
   if (category === "safety_privacy") return { stories: [], hasNext: false };
   return {
     stories: (await fixtureCards()).slice(
@@ -251,6 +263,7 @@ export async function getCategoryStories(category: CategoryId, page: number) {
   };
 }
 export async function getArchiveStories(_month: string | null, page: number) {
+  await primaryReadFixture("archive");
   return {
     stories: (await fixtureCards()).slice((page - 1) * ARCHIVE_PAGE_SIZE, page * ARCHIVE_PAGE_SIZE),
     hasNext: page * ARCHIVE_PAGE_SIZE < cards.length,

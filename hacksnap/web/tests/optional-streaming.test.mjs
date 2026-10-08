@@ -1,9 +1,20 @@
 import assert from "node:assert/strict";
 import { PassThrough } from "node:stream";
 import { jest, test } from "@jest/globals";
-import { createElement } from "react";
+import * as React from "react";
 import { renderToPipeableStream } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
+const { createElement } = React;
+
+// react-dom/server does not provide the RSC request cache. Model one render
+// here; the production browser regressions exercise actual request isolation.
+jest.unstable_mockModule("react", () => ({
+  ...React,
+  cache: (factory) => {
+    let value;
+    return () => (value ??= factory());
+  },
+}));
 
 const story = {
   hn_id: "123",
@@ -159,24 +170,64 @@ test("failed popularity keeps the article and sidebar failure message", async ()
   assert.deepEqual(rendered.errors, []);
 });
 
-test("document requests await popularity and include its result in the initial sidebar", async () => {
-  shouldStreamBrowse.mockResolvedValueOnce(false);
+test.each([
+  ["article", StoryPage, storyProps, "story"],
+  ["feed", CategoryPage, categoryProps, "list"],
+])("document %s read runs while popularity is pending", async (_name, Page, props, primary) => {
+  shouldStreamBrowse.mockResolvedValue(false);
   const pending = deferred();
-  getPopularStories.mockImplementationOnce(() => pending.promise);
-  let completed = false;
-  const pagePromise = SiteContent({ children: await StoryPage(storyProps) }).then((page) => {
-    completed = true;
-    return page;
+  getPopularStories.mockImplementationOnce(() => {
+    events.push("popularity");
+    return pending.promise;
   });
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(completed, false);
-  pending.resolve([{ hn_id: "789", title: "Popular headline", views: "10" }]);
-  const rendered = stream(await pagePromise);
-  await rendered.complete;
+  events.length = 0;
+  // Pass the unevaluated route, just as the root layout receives it from Next.
+  const rendered = stream(createElement(SiteContent, null, createElement(Page, props)));
+  try {
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.ok(events.includes(primary), "primary read must not wait for popularity");
+    assert.ok(events.indexOf(primary) < events.indexOf("popularity"), JSON.stringify(events));
+    assert.doesNotMatch(rendered.html, /Loading most read stories/);
+  } finally {
+    pending.resolve([{ hn_id: "789", title: "Popular headline", views: "10" }]);
+    await rendered.complete;
+    shouldStreamBrowse.mockResolvedValue(true);
+  }
+  assert.match(rendered.html, /Primary headline/);
   assert.match(rendered.html, /Popular headline/);
   assert.doesNotMatch(rendered.html, /Loading most read stories/);
   assert.deepEqual(rendered.errors, []);
 });
+
+test.each([
+  ["article", StoryPage, storyProps, getStory, story],
+  ["feed", CategoryPage, categoryProps, getCategoryStories, categoryList],
+])(
+  "document %s completes a cold primary read before popularity starts",
+  async (_name, Page, props, read, value) => {
+    shouldStreamBrowse.mockResolvedValue(false);
+    const primary = deferred();
+    const started = deferred();
+    read.mockImplementationOnce(async () => {
+      started.resolve();
+      return primary.promise;
+    });
+    getPopularStories.mockClear();
+    const rendered = stream(createElement(SiteContent, null, createElement(Page, props)));
+    try {
+      await started.promise;
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(getPopularStories.mock.calls.length, 0);
+    } finally {
+      primary.resolve(value);
+      await rendered.complete;
+      shouldStreamBrowse.mockResolvedValue(true);
+    }
+    assert.equal(getPopularStories.mock.calls.length, 1);
+    assert.match(rendered.html, /Primary headline/);
+    assert.deepEqual(rendered.errors, []);
+  },
+);
 
 test("warm primary story streams before a stalled recommendation and retains cards", async () => {
   const pending = deferred();
