@@ -370,28 +370,21 @@ export function BrowseStoryLink({
     startTransition(() => router.push(href));
   }
   return (
-    <>
-      <Link
-        href={href}
-        onClick={open}
-        onAuxClick={(event) => {
-          if (event.button === 1 && feedPosition && feedPosition > 10)
-            track("home_story_open", {
-              story_id: id,
-              position: feedPosition,
-              placement: "home_feed",
-            });
-        }}
-        aria-busy={pending || undefined}
-      >
-        {children}
-      </Link>
-      {pending && (
-        <span className="navigation-pending" role="status">
-          Opening story…
-        </span>
-      )}
-    </>
+    <Link
+      href={href}
+      onClick={open}
+      onAuxClick={(event) => {
+        if (event.button === 1 && feedPosition && feedPosition > 10)
+          track("home_story_open", {
+            story_id: id,
+            position: feedPosition,
+            placement: "home_feed",
+          });
+      }}
+      aria-busy={pending || undefined}
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -419,16 +412,9 @@ export function NextStoryLink({
     startTransition(() => router.push(href));
   }
   return (
-    <>
-      <Link href={href} onClick={open} aria-busy={pending || undefined}>
-        {children}
-      </Link>
-      {pending && (
-        <span className="navigation-pending" role="status">
-          Opening story…
-        </span>
-      )}
-    </>
+    <Link href={href} onClick={open} aria-busy={pending || undefined}>
+      {children}
+    </Link>
   );
 }
 

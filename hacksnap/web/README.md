@@ -395,6 +395,9 @@ Run `npm test -- tests/rss.test.mjs` and `npm run build` from this directory.
 
 ## Browse navigation loading
 
+Story links retain their `aria-busy` state during client navigation without
+adding visible status text beneath the link.
+
 Latest and topic links show a small pending indicator during a
 client-side navigation. The links retain their ordinary destinations and native
 modified-click behavior. For client navigation, once the server has validated an initial feed request,
