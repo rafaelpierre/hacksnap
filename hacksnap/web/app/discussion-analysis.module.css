@@ -2,6 +2,7 @@
 .root :global(.analysis-heading) {
   anchor-scope: --analysis-source-trigger;
   justify-content: flex-start;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 .root :global(.analysis-coverage) {
@@ -14,6 +15,7 @@
 .root :global(.analysis-themes) {
   container: discussion-themes / inline-size;
   margin-block: var(--space-6);
+  font-family: var(--sans);
 }
 .root :global(.analysis-theme) {
   anchor-scope: --analysis-source-trigger;
@@ -32,7 +34,10 @@
   cursor: pointer;
   min-height: var(--touch-target);
   padding: var(--space-3) calc(var(--touch-target) + var(--space-2)) var(--space-3) var(--space-2);
-  font-weight: 600;
+  font-family: var(--heading);
+  font-size: 1.15rem;
+  line-height: 1.3;
+  font-weight: 650;
   color: var(--ink);
 }
 .root :global(.analysis-theme-details) > summary > span {
@@ -58,7 +63,9 @@
   }
 }
 .root :global(.analysis-theme-body) {
-  padding: var(--space-3) var(--space-2);
+  padding: 0 var(--space-2) var(--space-6);
+  color: var(--prose);
+  font: 400 1.0625rem/1.5 var(--sans);
 }
 .root :global(.analysis-source-info),
 .root :global(.analysis-source-close) {
@@ -86,7 +93,7 @@
 .root :global(.analysis-source-info):hover,
 .root :global(.analysis-source-close):hover {
   color: var(--accent);
-  background: var(--surface);
+  background: var(--accent-soft);
 }
 .root :global(.analysis-source-popup) {
   --source-popup-width: min(20rem, calc(100vw - 2rem));
@@ -98,7 +105,8 @@
   overflow: auto;
   padding: var(--space-3);
   color: var(--ink);
-  background: var(--bg);
+  background: var(--surface);
+  font-family: var(--sans);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
@@ -155,12 +163,14 @@
 }
 .root :global(.analysis-source-header) {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
   margin-bottom: var(--space-2);
 }
 .root :global(.analysis-source-header) > p {
+  flex: 1 1 8rem;
   min-width: 0;
   overflow-wrap: anywhere;
   margin: 0;
@@ -184,11 +194,13 @@
   min-height: var(--touch-target);
   font-size: var(--text-label);
   text-decoration: underline;
+  color: var(--accent);
 }
 .root :global(.analysis-source) svg {
   flex-shrink: 0;
 }
 .root :global(.discussion-title) {
+  flex: 1 1 14rem;
   flex-wrap: wrap;
 }
 .root :global(.discussion-title) {

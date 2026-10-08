@@ -21,11 +21,11 @@ export function RelatedStories({
   const next = stories.filter((story) => story.hn_id !== currentId).slice(0, 2);
   return (
     <section
-      className={`related-stories${pending ? " related-stories-pending" : ""}`}
+      className={`related-stories detail-section${pending ? " related-stories-pending" : ""}`}
       aria-labelledby="related-stories-heading"
       aria-busy={pending || undefined}
     >
-      <h2 id="related-stories-heading">Read next</h2>
+      <h2 id="related-stories-heading">Related stories</h2>
       {pending && <div className="related-stories-placeholder" aria-hidden="true" />}
       {next.length > 0 && (
         <ul className="related-story-list">

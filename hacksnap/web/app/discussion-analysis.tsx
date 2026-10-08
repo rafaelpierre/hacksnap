@@ -84,7 +84,7 @@ export function DiscussionAnalysis({
       <div className="discussion-heading analysis-heading">
         <h2 id="discussion-themes-heading" className="discussion-title">
           <ListTree className="discussion-title-icon" aria-hidden="true" />
-          <span>Discussion themes</span>
+          <span>Discussion analysis</span>
         </h2>
         <button
           type="button"

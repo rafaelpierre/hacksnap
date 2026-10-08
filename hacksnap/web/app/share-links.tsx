@@ -34,6 +34,7 @@ export function ShareLinks({
   const [Editor, setEditor] = useState<ShareEditorComponent | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const firstAction = useRef<HTMLButtonElement>(null);
   const manualField = useRef<HTMLTextAreaElement>(null);
@@ -70,7 +71,18 @@ export function ShareLinks({
   }, [id, slug, title, takeaway, post, postEdited]);
 
   useEffect(() => {
-    if (open) firstAction.current?.focus();
+    if (!open) return;
+    const panel = dialog.current;
+    if (!panel) return;
+    if (typeof panel.showModal === "function") panel.showModal();
+    else panel.setAttribute("open", "");
+    firstAction.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      if (typeof panel.close === "function" && panel.open) panel.close();
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -85,15 +97,6 @@ export function ShareLinks({
     );
     (matchingAction ?? firstAction.current)?.focus();
   }, [Editor, open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const dismiss = (event: PointerEvent) => {
-      if (event.target instanceof Node && !root.current?.contains(event.target)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", dismiss);
-    return () => document.removeEventListener("pointerdown", dismiss);
-  }, [open]);
 
   useEffect(() => {
     if (manualText !== null) {
@@ -135,6 +138,7 @@ export function ShareLinks({
   }
 
   function close(returnFocus: boolean) {
+    if (typeof dialog.current?.close === "function") dialog.current.close();
     setOpen(false);
     if (returnFocus) trigger.current?.focus();
   }
@@ -177,23 +181,12 @@ export function ShareLinks({
   }
 
   return (
-    <div
-      className="share-menu"
-      ref={root}
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && open) {
-          event.stopPropagation();
-          close(true);
-        }
-      }}
-      onBlur={(event) => {
-        if (open && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-      }}
-    >
+    <div className="share-menu" ref={root}>
       <button
         type="button"
         className="share-trigger"
         ref={trigger}
+        aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={`${label}: ${title}`}
@@ -210,18 +203,64 @@ export function ShareLinks({
         <Share2 size={16} aria-hidden="true" /> {label}
       </button>
       {open && (
-        <section className="share-panel" id={panelId} aria-label={`Share ${title}`}>
+        <dialog
+          className="share-panel"
+          id={panelId}
+          ref={dialog}
+          aria-labelledby={`${panelId}-heading`}
+          aria-describedby={`${panelId}-story`}
+          onCancel={(event) => {
+            event.preventDefault();
+            close(true);
+          }}
+          onClick={(event) => {
+            if (event.target !== event.currentTarget) return;
+            const bounds = event.currentTarget.getBoundingClientRect();
+            if (
+              event.clientX < bounds.left ||
+              event.clientX > bounds.right ||
+              event.clientY < bounds.top ||
+              event.clientY > bounds.bottom
+            )
+              close(true);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              close(true);
+            } else if (event.key === "Tab") {
+              const controls = [
+                ...event.currentTarget.querySelectorAll<HTMLElement>(
+                  'button:not([disabled]), a[href], textarea:not([disabled]), input:not([disabled]), [tabindex="0"]',
+                ),
+              ];
+              const first = controls[0];
+              const last = controls[controls.length - 1];
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last?.focus();
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first?.focus();
+              }
+            }
+          }}
+        >
           <div className="share-panel-heading">
-            <strong>Share story</strong>
+            <h2 id={`${panelId}-heading`}>Share this story</h2>
             <button
               type="button"
               className="share-close"
               onClick={() => close(true)}
-              aria-label="Close share menu"
+              aria-label="Close share dialog"
             >
               <X size={18} aria-hidden="true" />
             </button>
           </div>
+          <p className="share-story-title" id={`${panelId}-story`}>
+            {title}
+          </p>
           {Editor ? (
             <Editor
               title={title}
@@ -299,7 +338,7 @@ export function ShareLinks({
               onFocus={(event) => event.currentTarget.select()}
             />
           )}
-        </section>
+        </dialog>
       )}
     </div>
   );
