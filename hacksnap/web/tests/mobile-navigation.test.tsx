@@ -60,6 +60,7 @@ test("mobile disclosure closes on Escape, selection, and browser route changes",
     await act(async () => root.render(<MobileNavigation />));
     const details = document.querySelector("details")!;
     const summary = document.querySelector("summary")!;
+    assert.equal(summary.getAttribute("aria-expanded"), "false");
     const link = document.querySelector<HTMLAnchorElement>('a[href="/topics"]')!;
     const open = async () => {
       await act(async () => {

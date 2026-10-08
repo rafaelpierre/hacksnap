@@ -35,14 +35,14 @@ Validation used Node 22.23.3:
 
 - `npm ci`: success, zero reported vulnerabilities.
 - `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm run build`: pass.
-- `npm run test:ci`: 74 suites, 414 tests passed; the two affected suites (7 tests) also passed after the final navigation logic change.
-- `BROWSER_PORT=3118 npm run test:browser -- top-bar-navigation.spec.ts journeys.spec.ts article-sidebar.spec.ts --project=chromium`: 49 passed on the final build.
+- `npm run test:ci`: 74 suites, 414 tests passed on the final logic.
+- `BROWSER_PORT=3118 npm run test:browser -- --project=chromium`: all 112 tests passed on the final build, including initial disclosure accessibility state after hydration.
 - `git diff --check`: pass.
 
 The initial no-JavaScript run exposed a duplicated disclosure from a Suspense
 fallback. Keeping the native disclosure outside that boundary fixed it. An
 existing share-dialog focus test failed once on a subsequent parallel run and
-passed without changes in the final 49-test run. Browser validation here covers
+passed without changes in the final 112-test run. Browser validation here covers
 Chromium; Safari and Firefox were not run locally.
 
 Click-through evidence: Latest opens `/` and clears topic filtering; About opens
@@ -74,7 +74,7 @@ claiming a new audit of every existing product feature. All results below are PA
 | R-32 keyboard | Tab order, focus outline, Enter navigation and Escape focus return verified. |
 | R-33 source edits | Components and CSS edited directly with patches; no source-rewriting helper introduced. |
 | R-34 themes | Approved fixed light palette retained; no new appearance state. |
-| R-35 execution | Production build, recorded click-through and final 49 browser tests pass. |
+| R-35 execution | Production build, recorded click-through and all 112 Chromium browser tests pass. |
 | R-36 claims | No security, performance or customer claims added to the UI. |
 | R-37 direction | Existing approved revamp direction and explicit design read documented above. |
 | R-38 content | Existing real destinations and labels reused; captured fixture content labelled. |

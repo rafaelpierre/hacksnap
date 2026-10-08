@@ -128,6 +128,9 @@ export function MobileNavigation() {
   const details = useRef<HTMLDetailsElement>(null);
   const summary = useRef<HTMLElement>(null);
   const [expanded, setExpanded] = useState<boolean | undefined>(undefined);
+  useEffect(() => {
+    setExpanded(details.current?.open ?? false);
+  }, []);
   const close = useCallback((returnFocus = false) => {
     if (!details.current?.open) return;
     details.current.open = false;
