@@ -18,7 +18,7 @@ export default async function TopicsPage() {
   const result = await availableData(getCategoryCounts);
   const counts = result.available ? result.value : null;
   return (
-    <>
+    <section className="supporting-page">
       <header className="feed-header">
         <h1>Browse topics</h1>
         <p>Browse AI stories and Hacker News discussions by subject.</p>
@@ -28,7 +28,6 @@ export default async function TopicsPage() {
           <li key={category.id}>
             <NavigationPendingLink
               href={categoryURL(category)}
-              data-color={category.color}
               pendingLabel={`Loading ${category.label}…`}
             >
               <strong>
@@ -45,6 +44,6 @@ export default async function TopicsPage() {
           </li>
         ))}
       </ul>
-    </>
+    </section>
   );
 }

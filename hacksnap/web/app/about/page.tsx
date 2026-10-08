@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <article className={styles.page}>
+    <article className={`detail ${styles.page}`}>
       <p className="channel-path">
         hacksnap / <span>about</span>
       </p>
@@ -82,6 +82,13 @@ export default function AboutPage() {
           qualitative AI estimate from at most ten selected comments, separate from the broader
           sample used for the discussion brief. It is not a numeric score or a claim of consensus.
           When no usable comments are available, Hacksnap shows that instead of guessing.
+        </p>
+      </section>
+      <section aria-labelledby="read-elsewhere-heading">
+        <h2 id="read-elsewhere-heading">Read elsewhere</h2>
+        <p>
+          Follow the <a href="/feed.xml">RSS feed</a> or use the{" "}
+          <Link href="/docs/api">Stories API</Link>.
         </p>
       </section>
       <p>

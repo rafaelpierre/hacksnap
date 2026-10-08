@@ -7,7 +7,6 @@ export function CategoryBadge({ id }: { id: CategoryId | null | undefined }) {
   return (
     <NavigationPendingLink
       className="category-badge"
-      data-color={category.color}
       href={categoryURL(category)}
       aria-label={`Browse ${category.label}`}
       pendingLabel={`Loading ${category.label}…`}

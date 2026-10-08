@@ -66,8 +66,9 @@ below applies to `web/`. Also follow the repository root `AGENTS.md`.
 
 - Reuse semantic colors, type scale, spacing, reading widths, responsive gutters,
   and control-size tokens from `web/app/globals.css`.
-- Follow the typography and fixed light appearance in `web/README.md`. Keep the
-  page background white and navigation usable with blocked storage.
+- Follow the typography and fixed light appearance in `web/README.md`: #F4F4F5
+  canvas, white reading surfaces, #0000FF actions, Bricolage headlines, Source Sans
+  UI and Newsreader long-form reading. Keep navigation usable with blocked storage.
 - Use semantic HTML, real links for navigation, and buttons for actions. Give
   controls accessible names, preserve visible keyboard focus, and make every
   interaction usable by keyboard and touch. Do not rely on color or hover alone.
