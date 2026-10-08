@@ -23,8 +23,6 @@ export function StoryAddedTime({ dateTime }: { dateTime: string }) {
   const label =
     local?.dateTime === dateTime
       ? local.label
-      : new Intl.DateTimeFormat("en-GB", { ...options, timeZone: "UTC" }).format(
-          new Date(dateTime),
-        );
+      : `${new Date(dateTime).toISOString().slice(0, 16).replace("T", " ")} UTC`;
   return <time dateTime={dateTime}>{label}</time>;
 }

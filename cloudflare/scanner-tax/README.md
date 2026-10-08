@@ -27,6 +27,10 @@ Responses use plain text, `Cache-Control: no-store, max-age=0`,
 `X-Robots-Tag: noindex, nofollow, noarchive`, and `X-Scanner-Tax: unpaid`.
 There are no delays, external requests, or payment collection for blocked probes.
 
+Miniflare uses sharp 0.35.5 through a package-level npm override to pick up the patched
+librsvg image dependency. Remove the override when Miniflare pins a patched sharp
+release itself.
+
 ## Check locally
 
 Use Node.js 22 or newer. From the repository root:
@@ -41,6 +45,11 @@ npm run check
 Tests verify blocking without an origin request, encoded paths, ordinary site
 paths, POST forwarding, HEAD responses, redirects, and safe reflected text.
 `check` bundles the Worker with Wrangler without uploading or changing routes.
+
+The `sharp` override pins the patched 0.35.5 release while
+Wrangler's bundled Miniflare still requests 0.35.4. Remove the override once
+Miniflare requires a patched version. `npm audit --package-lock-only --include=dev
+--audit-level=low` checks the complete locked toolchain.
 
 To preview the invoice:
 
