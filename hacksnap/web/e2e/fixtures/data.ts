@@ -185,8 +185,7 @@ export const getStory = cache(async (id: string): Promise<ArticleStory | null> =
   const cookie = (await headers()).get("cookie") ?? "";
   if (id === "91000001" && cookie.includes("fixture-story=slow"))
     await new Promise((resolve) => setTimeout(resolve, 11_000));
-  if (story && cookie.includes("fixture-story=redirect")) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  if (story && id === "91000001" && cookie.includes("fixture-story=redirect")) {
     return { ...story, story_slug: `canonical-story-${id}` };
   }
   return story;
