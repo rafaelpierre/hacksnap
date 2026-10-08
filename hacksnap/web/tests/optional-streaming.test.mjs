@@ -36,6 +36,7 @@ const related = [
   { ...story, hn_id: "456", title: "Next headline", story_slug: "next-headline-456" },
 ];
 const categoryList = { stories: [story], hasNext: false };
+const getPopularStories = jest.fn(async () => []);
 const events = [];
 const getStory = jest.fn(async () => {
   events.push("story");
@@ -53,13 +54,12 @@ const getCategoryCounts = jest.fn(async () => {
   events.push("counts");
   return { agents_coding: 1 };
 });
-jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
-  shouldStreamBrowse: async () => true,
-}));
+const shouldStreamBrowse = jest.fn(async () => true);
+jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({ shouldStreamBrowse }));
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getArchiveStories: async () => categoryList,
   getArchiveMonths: async () => [],
-  getPopularStories: async () => [],
+  getPopularStories,
   getStory,
   getRelatedStories,
   getCategoryStories,
@@ -134,6 +134,48 @@ const categoryProps = {
   params: Promise.resolve({}),
   searchParams: Promise.resolve({ category: "agents-coding" }),
 };
+
+test("article and sidebar shell stream while popularity is pending", async () => {
+  const pending = deferred();
+  getPopularStories.mockImplementationOnce(() => pending.promise);
+  const rendered = stream(await StoryPage(storyProps));
+  await rendered.contains(/Loading most read stories/);
+  assert.match(rendered.html, /The primary article brief/);
+  assert.match(rendered.html, /browse-right-sidebar/);
+  pending.resolve([{ hn_id: "789", title: "Popular headline", views: "10" }]);
+  await rendered.complete;
+  assert.match(rendered.html, /Popular headline/);
+  assert.match(rendered.html, /href="\/story\/789"/);
+  assert.deepEqual(rendered.errors, []);
+});
+
+test("failed popularity keeps the article and sidebar failure message", async () => {
+  getPopularStories.mockRejectedValueOnce(new DataUnavailableError());
+  const rendered = stream(await StoryPage(storyProps));
+  await rendered.complete;
+  assert.match(rendered.html, /The primary article brief/);
+  assert.match(rendered.html, /Most read stories are temporarily unavailable/);
+  assert.deepEqual(rendered.errors, []);
+});
+
+test("document requests await popularity and include its result in the initial sidebar", async () => {
+  shouldStreamBrowse.mockResolvedValueOnce(false);
+  const pending = deferred();
+  getPopularStories.mockImplementationOnce(() => pending.promise);
+  let completed = false;
+  const pagePromise = StoryPage(storyProps).then((page) => {
+    completed = true;
+    return page;
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(completed, false);
+  pending.resolve([{ hn_id: "789", title: "Popular headline", views: "10" }]);
+  const rendered = stream(await pagePromise);
+  await rendered.complete;
+  assert.match(rendered.html, /Popular headline/);
+  assert.doesNotMatch(rendered.html, /Loading most read stories/);
+  assert.deepEqual(rendered.errors, []);
+});
 
 test("warm primary story streams before a stalled recommendation and retains cards", async () => {
   const pending = deferred();

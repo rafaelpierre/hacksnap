@@ -123,9 +123,9 @@ test("story metadata distinguishes an outage from a missing story; related failu
   getStory.mockResolvedValueOnce({ hn_id: "123", title: "Headline", category: "agents_coding" });
   getRelatedStories.mockClear();
   const element = await Page({ params: Promise.resolve({ id: "123" }) });
-  assert.equal(element.props.relatedSection.type, Suspense);
+  assert.equal(element.props.children.props.relatedSection.type, Suspense);
   assert.equal(getRelatedStories.mock.calls.length, 0);
-  assert.equal(element.props.story.hn_id, "123");
+  assert.equal(element.props.children.props.story.hn_id, "123");
 });
 
 test("topics and sitemap remain available without database data", async () => {
