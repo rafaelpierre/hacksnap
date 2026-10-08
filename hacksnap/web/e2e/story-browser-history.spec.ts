@@ -22,6 +22,9 @@ test.describe("mobile browser history", () => {
       await page.getByRole("link", { name: "Visit Hacksnap" }).tap();
       const card = page.locator(".story-list").getByRole("link", { name: title, exact: true });
       await expect(card).toBeVisible();
+      // Scrolling starts viewport prefetches. Let those settle before the tap so
+      // document unload does not turn an intercepted prefetch into a WebKit error.
+      await card.scrollIntoViewIfNeeded();
       await page.waitForLoadState("networkidle");
       const historyLength = await page.evaluate(() => history.length);
       const documentRequest =
@@ -50,11 +53,15 @@ test.describe("mobile browser history", () => {
 
   test("reading another story preserves the original paginated topic return", async ({ page }) => {
     await page.goto("/?category=models-products&page=2");
+    const first = page.locator(".story-list h3 a").first();
+    await first.scrollIntoViewIfNeeded();
     await page.waitForLoadState("networkidle");
-    await page.locator(".story-list h3 a").first().tap();
+    await first.tap();
     await page.waitForURL(/\/story\/[^?]+$/);
     await page.waitForLoadState("networkidle");
     const related = page.getByRole("region", { name: "Read next" }).locator("h3 a").first();
+    await related.scrollIntoViewIfNeeded();
+    await page.waitForLoadState("networkidle");
     const nextHref = await related.getAttribute("href");
     await related.tap();
     await page.waitForURL((url) => url.pathname === nextHref && !url.search);
