@@ -10,12 +10,13 @@ import { SkepticismPill } from "../../skepticism-pill";
 import { ShareLinks } from "../../share-links";
 import { briefExcerpt } from "../../../lib/brief";
 import { StoryJourney } from "../../story-navigation";
+import { briefSentences } from "../../../lib/article-brief";
 import { StoryAge } from "../../story-age";
 import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
 import { ArticleImage } from "../../article-image";
 import { canonicalArticleImage } from "../../../lib/article-image";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 function StoryShare({ story, placement }: { story: Story; placement: "story_top" | "story_end" }) {
   return (
@@ -102,7 +103,14 @@ export function StoryContent({
             {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
             {source.brief === "available" ? (
               <>
-                <p>{summary.article_summary}</p>
+                <p>
+                  {briefSentences(summary.article_summary).map((sentence, index) => (
+                    <Fragment key={index}>
+                      {index > 0 && <br />}
+                      {sentence}
+                    </Fragment>
+                  ))}
+                </p>
                 {summary.article_key_points.length > 0 && (
                   <ul className="key-points">
                     {summary.article_key_points.map((point, i) => (

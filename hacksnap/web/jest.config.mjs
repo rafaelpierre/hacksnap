@@ -6,9 +6,9 @@ export default {
     "^next/image$": "<rootDir>/tests/next-image-mock.cjs",
     "\\.module\\.css$": "<rootDir>/tests/style-module-mock.cjs",
   },
-  // jsdom requires ESM dependencies; Jest on Node 22 needs them compiled to CJS.
+  // jsdom and sbd require ESM dependencies; Jest on Node 22 needs them compiled to CJS.
   transformIgnorePatterns: [
-    "/node_modules/(?!(@exodus/bytes|@asamuzakjp/[^/]+|@csstools/[^/]+|@bramus/specificity|css-tree|parse5|entities)/)",
+    "/node_modules/(?!(@exodus/bytes|@asamuzakjp/[^/]+|@csstools/[^/]+|@bramus/specificity|css-tree|parse5|entities|htmlparser2|domhandler|domutils|domelementtype|dom-serializer)/)",
   ],
   transform: {
     "/node_modules/.+\\.m?js$": [

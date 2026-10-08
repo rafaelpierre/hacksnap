@@ -69,6 +69,21 @@ test("mocked story renders the reading journey and recommendations without a dat
   assert.doesNotMatch(html, /story-metrics/);
 });
 
+test("article brief breaks between sentences while preserving punctuation and escaping text", () => {
+  const article_summary =
+    'Dr. Smith says version 3.5 costs $2.50 per run. Does it help? Yes! <script>alert("unsafe")</script>';
+  const html = render(
+    createElement(StoryContent, {
+      story: { ...story, summary: { ...story.summary!, article_summary } },
+    }),
+  );
+  assert.match(
+    html,
+    /<p>Dr\. Smith says version 3\.5 costs \$2\.50 per run\. <br\/>Does it help\? <br\/>Yes! <br\/>&lt;script&gt;/,
+  );
+  assert.doesNotMatch(html, /<script>alert/);
+});
+
 test("mocked story states distinguish missing comments and pending summaries", () => {
   const noComments: Story = {
     ...story,

@@ -18,6 +18,10 @@ for (const width of [320, 375, 768, 1280]) {
       await expect(metadata.locator("details, summary, .story-age-exact")).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath("article-header.png") });
 
+      const brief = page.locator("#article-brief");
+      await expect(brief.locator("p br")).toHaveCount(1);
+      await brief.screenshot({ path: testInfo.outputPath("article-brief.png") });
+
       const theme = page.locator(".analysis-theme-details").first();
       const summary = theme.locator("summary");
       await expect(theme.getByRole("button", { name: /Source comments for/ })).not.toBeVisible();
