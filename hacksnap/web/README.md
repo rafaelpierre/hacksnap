@@ -2,14 +2,12 @@
 
 ## Typography
 
-Newsreader is used for story headlines, card excerpts, article and discussion
-copy, and related-story headlines. Headlines use weight 600; reading text uses
-weight 400. Both upright and italic variable fonts use automatic optical sizing,
-with looser headline tracking suited to a serif. Article copy is 20px on desktop
-and 19px on phones, with a 1.7 line height. The introductory text is 20px on
-desktop and 18px on phones. Bricolage Grotesque remains the wordmark and general
-page-heading font; Source Sans 3 remains the navigation, label and metadata font.
-Monospace is reserved for code and compact numeric details.
+Bricolage Grotesque is used for the wordmark, feed and reader headlines, section
+headings and related stories. Source Sans 3 carries navigation, metadata, feed
+takeaways and reader introductions. Newsreader is reserved for extended article
+reading at 1.375rem with a 1.5 line height. All three fonts remain local. Feed lead
+headlines use weight 750 and a larger scale; ordinary headlines use weight 700.
+Monospace is reserved for code.
 
 The variable WOFF2 files and their licenses live in `app/fonts`. `next/font/local`
 serves and preloads the fonts with `font-display: swap` and adjusted fallbacks;
@@ -27,26 +25,28 @@ until the upstream loader updates its js-yaml dependency.
 
 ## Color theme
 
-The interface always uses a light appearance with a pure white page background.
-Both the document root and body paint white; viewport metadata also requests white
-browser chrome. Story hover shading is limited to devices with a fine pointer and
-hover support so taps do not leave beige backgrounds.
+The interface uses a fixed light appearance: #F4F4F5 canvas, white header and
+reading cards, and exact #0000FF actions. Filled blue actions use white labels,
+with darker blue hover and separate focus rings. Browser chrome remains white.
 CSS declares `color-scheme: only light`, including before hydration and when
 JavaScript is disabled. OS appearance and previously saved `hacksnap-theme`
 preferences do not affect the page. There is no appearance control or theme script.
 
 ## Shared design foundations
 
-Latest, dated archive and category feeds retain vertical topic navigation on the
-left at desktop widths, aligned beside the feed close to the sticky header.
-Decorative Lucide icons accompany full labels and 44px controls. Below 50rem the
-sidebar is hidden and Topics remains accessible from the main header.
+All routes share a normal-flow header and desktop left navigation. Native
+“Topics & menu” disclosure expands inline below 60rem and works without JavaScript;
+Escape closes it and returns focus. The left sidebar is sticky above 60rem. At
+78rem the 83.5rem shell has a 12.5rem navigation column and an 18rem supporting
+rail separated by 24px gaps. Decorative category icons accompany full labels and
+44px controls. The DEV mock and approved adjustments are documented in
+`../../docs/ux/2026-10-08/frontend-revamp/implementation-plan.md`.
 Latest has an accessible page heading without a visible hero or breadcrumb.
 
 `app/globals.css` owns the semantic theme colors, relative type scale, spacing,
 page/reading widths, responsive gutters and 44px (2.75rem) control target. Use
 `--ink` for headlines, `--prose` for reading, `--muted` for metadata, `--accent`
-for copper emphasis and `--positive` for restrained green details. Use `--line`
+for blue actions and selection. Use `--line`
 for separators and `--control-line` for visible control boundaries. Components
 share the type, space and layout tokens; future component work should reuse them.
 Text uses rem units and wrapping layouts to respect enlarged browser text.
@@ -92,11 +92,11 @@ the redirects; `robots.txt` does not block them.
 
 ## Most-read stories by period
 
-The homepage includes two stacked widgets, “Trending this week” above “Most read”,
-each listing up to five stories. Desktop places them to the right of the feed;
-intermediate layouts place them above it. Both widgets are hidden at viewport
-widths of 50rem or less, matching the Topics sidebar breakpoint so phones keep
-Latest at the top. Dated archive and topic pages retain their existing layout.
+Latest, dated archives, and topic feeds include a lifetime “Most read” card of up to five stories.
+It sits to the right at 78rem and below the feed at narrower widths, including
+phones. Its loading, empty and failure states are
+independent of the required feed. Weekly ranking remains available to existing
+data consumers; the DEV presentation does not show a second weekly widget.
 Links use the stored canonical story slug.
 Most read links preserve the loaded feed and scroll position without assigning
 the sidebar story as the feed focus, since it may be absent from the loaded cards.
@@ -106,14 +106,14 @@ the last 168 hours, including reads of archived stories. It excludes clicks,
 future events, and historical GA totals, which have no per-read timestamps.
 Apply migration `0021_weekly_story_popularity` for the partial timestamp index
 and scoped reader grants. It retains RLS and keeps visit identifiers private.
-Before migration, Trending shows unavailable while Most read remains usable.
-Both lists are server rendered with ordinary canonical article links, including
-when JavaScript is disabled. Full document requests await both optional reads
-in parallel after required feed data; client navigation streams each widget
-independently. Each has its own empty, loading and unavailable states.
-The interface omits the lifetime label;
-“Most read” still ranks across all time. “Trending this week” means most reads
-over the rolling seven-day period, rather than a rate-of-growth calculation.
+Before migration, the weekly reader reports unavailable while the all-time reader
+remains usable. The current interface only renders the all-time result, with
+ordinary canonical article links that work without JavaScript. Full document
+requests await the optional popularity read after required feed data; client
+navigation streams its loading, empty, and unavailable states independently.
+The interface omits the lifetime label; “Most read” ranks across all time.
+The retained weekly reader counts reads over a rolling seven-day period rather
+than calculating a rate of growth.
 
 All-time ranking uses `historical_views + story_views`, with HN ID descending as
 the tie breaker, across ready story summaries including archived stories. The primary
@@ -184,7 +184,8 @@ expiry. Older snapshots without the current page-size marker are rejected so pag
 stories cannot reappear from a saved feed. Reloading Latest restores a valid
 listing record; the former root-only ranked checkpoint no longer applies.
 
-The header remains visible while scrolling. Desktop topic navigation sits to the left of the feed, close to the header.
+The header scrolls with the document. Desktop topic navigation sits to the left
+of the feed and remains sticky with a small offset from the viewport top.
 Cards show compact time since first added; its native disclosure reveals the exact
 timestamp and remains usable without JavaScript. Stories become opened only after
 visiting their detail page, never merely by loading or scrolling the feed.
@@ -196,7 +197,7 @@ and ranking do not control the Latest interface.
 On iPhone and iPad, article links start a normal document navigation during the
 user's tap. This avoids WebKit skipping a history entry when an asynchronous
 client navigation finishes after user activation expires. It costs a full page
-load. Feed, Most read and Read next links use the same behavior. A transient
+load. Feed, Most read and Related stories links use the same behavior. A transient
 `journey` query token carries the saved listing context across documents and is
 removed after hydration. If browser storage is blocked, native Back remains
 available, but the explicit return link may fall back to the default feed.
@@ -287,7 +288,7 @@ scanner from the [Markdown negotiation skill](https://isitagentready.com/.well-k
 
 ## Persistent story metrics
 
-Story HTML shows a compact skepticism pill beside the legacy discussion heading.
+Story HTML shows an evidence-qualified skepticism block for legacy discussions.
 Pages with newer discussion analysis show its own coverage instead. Negotiated
 Markdown retains the **Skept-o-meter & Hotness** text metrics, including the
 skepticism category, sample counts, peak observed **Hacksnap** rank, and estimated
@@ -454,7 +455,7 @@ unavailable response rather than returning stale rankings. Separate instances ca
 differ within that one-minute window. This applies to the legacy ranked APIs; it also refreshes ranking changes caused by the 24-hour recency cutoff.
 Story data uses the bounded per-instance cache documented below. Story HTML waits
 for the required story and canonical URL check, then streams the article while
-the optional "Read next" query resolves. Category HTML waits for its required
+the optional "Related stories" query resolves. Category HTML waits for its required
 story list and page check, then streams the optional count. This ordering matters
 because each instance has one pooled database connection: optional reads begin
 only after required reads finish. A failed optional read keeps the article or list
@@ -547,11 +548,11 @@ Run `npm run test:archive` for route validation, month boundaries and pagination
 
 ## Category flairs
 
-Story pages show up to three **More in [category]** next reads after the discussion,
+Story pages show up to two **Related stories** after the discussion,
 at the end of the article. They exclude
 the current story, pending briefs, future-dated stories and invalid public IDs,
 and sort by date added descending, then story ID descending. Each shows its
-headline, takeaway and date added, followed by a link to browse the category.
+category, headline and source domain, followed by a link to browse the category.
 Stories with no qualifying next reads or no category link to the latest archive
 instead. The section is server-rendered and streams after the required article
 content, using a separate optional read. It uses the existing category/date index and requires no
@@ -559,12 +560,12 @@ migration. `npm run test:categories` covers category routing and navigation cont
 
 Stories display a compact category flair on feeds and article pages. Clicking a
 flair or topic link filters Latest at `/?category=<slug>`, newest first. The same
-feed shell highlights the selected topic in the Topics navigation, where All stories
+feed shell highlights the selected topic in the shared navigation, where Latest
 clears the filter. Topic feeds start directly with stories, without an extra topic header.
 Changing topics starts at page one; pagination, automatic loading and story returns
 retain the selected category. Saved legacy category journeys and feed snapshots are
 normalized on read, preserving their page, loaded depth, focus and scroll during
-the existing eight-hour retention window. Mobile readers can choose a topic through Topics.
+the existing eight-hour retention window. Mobile readers can choose a topic through the native “Topics & menu” disclosure.
 
 The six filters use stable slugs from `lib/categories.ts`, paginate at 15 published
 stories, and return 404 for unknown, repeated or empty categories and invalid pages.
@@ -633,7 +634,7 @@ the image wrapper. Browser load errors keep a branded placeholder in the reserve
 frame while preserving the card or story content. Until source descriptions are stored, the supplementary images use an
 empty alt attribute so the headline remains the accessible label. Detail images
 retain their supplied intrinsic dimensions. Feed images also keep their original
-aspect ratio: their width follows the image column and their height is automatic,
+aspect ratio: they span the card's padded content width and their height is automatic,
 so the complete image is visible without cropping or letterboxing. Error
 placeholders preserve the stored aspect ratio. This applies to Latest, archive and
 category feeds. Social Open Graph images retain the existing generated template.
@@ -642,12 +643,12 @@ Feed and detail images use the built-in Next image optimizer with layout-specifi
 `sizes`, eight candidate widths from 128 to 1600 px, and one quality (75). The
 optimizer accepts only HTTPS `*.public.blob.vercel-storage.com/articles/**` URLs
 without a query string or redirects, after the ready-image contract above has
-validated the URL and dimensions. The first card image uses eager/high priority
-in server HTML because it was the LCP element in the fixed browser fixture. This
-lets the browser discover and prioritize it before hydration; a deep restored
-feed may fetch that one image before the client restores its scroll position. If
-that card has no ready image, later cards stay lazy. Restored feed visits stay
-lazy after scroll positioning settles. The detail hero uses eager/high priority. This
+validated the URL and dimensions. The first eligible image in the initial listing
+uses eager/high priority in server HTML. If the lead story has no ready image,
+the next image-bearing initial story receives priority. The browser can discover
+that image before hydration; a deep restored feed may fetch it before the client
+restores its scroll position. Subsequent and appended images remain lazy.
+Restored feed visits stay lazy after scroll positioning settles. The detail hero uses eager/high priority. This
 strategy generates variants on demand and caches them per source/width/quality,
 so cold requests cost an origin fetch and image conversion; it needs no schema or
 image-ingestion pipeline change. The source remains a bounded WebP. See the
@@ -722,8 +723,10 @@ these details are hidden until clicked and come from discussion fields,
 independently of the article summary. The section omits the full HN discussion
 footer link; theme source-comment links remain available.
 
-New themes replace legacy discussion points. Story HTML and Markdown show a single
-**Discussion themes** section without the older introduction or stance cards. The
+New themes replace legacy discussion points. Story HTML labels the section
+**Discussion analysis**, with **Article brief** as the separate article section.
+Markdown retains **Discussion themes**. Both omit the older introduction and
+stance cards. The
 stored summary string, RSS and public API contract remain unchanged. Historical
 claim and stance arrays stay available through the API; new analysis leaves them
 empty. Null or absent analysis uses legacy cited points without promising a backfill.
@@ -754,33 +757,25 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 
 ## Feed card layout
 
-Latest and topic feeds render the same `StoryRow` content order:
-category and ranking context, title, image, excerpt, then metadata and share
-actions. Category labels default to visible through the `showCategory` option on
-`StoryFeed`, `WindowedStoryList`, and `StoryRow`. Individual category pages set it
-to `false` for both initial and subsequently loaded cards; Latest and dated archives
-keep the labels. Cards without category or ranking context omit that row.
-The title precedes the decorative image in both visual and document
-order. Published excerpts, image states and actions keep the same structure
-everywhere; pending briefs remain available only on direct detail pages.
+Latest, dated and topic feeds share this order: category and compact age, headline,
+full-width inset image, takeaway, optional lead discussion preview, points/comments,
+then Read brief, Discussion analysis and Share. Categories stay visible even in
+filtered feeds. Missing images omit the media container; failed requests reserve
+the source aspect ratio. All images retain intrinsic proportions without cropping.
 
-At phone widths (640px and below), cards stack the category, title,
-full-width image, then subtitle/excerpt and footer. The image uses its original
-proportions, including while loading or showing its error fallback. Cards without
-an image go directly from title to excerpt without an empty image row.
+The first logical story receives lead typography, identified by ID through append,
+virtualization and session restoration. At most one optional detail read supplies
+a bounded preview from that story's available current discussion topics. Legacy
+summary text never substitutes for current analysis. No full discussion payload
+enters public cards or feed snapshots. A preview is shown only for its matching
+lead ID. The optional detail read has a 500ms presentation deadline; timeout or
+failure omits the preview and leaves the listing usable.
 
-Above 640px, the category occupies a full-width row above the image and
-content. The image column uses 30% of the available width, capped at 18rem, giving
-landscape previews more room. Image height follows its original proportions;
-text can make a row taller when needed. The footer aligns to the bottom of the
-content column. Narrow desktop cards keep the image beside the title and give
-the excerpt and footer the full width. Footer controls wrap when text is enlarged.
-Feed headlines use rem units so they scale with the excerpt and metadata when
-readers enlarge text. The light appearance uses the same sizing and layout at all text scales.
-
-Latest, dated archive and category cards omit discussion themes and the “Read the debate”
-link. The title opens the full story, where discussion analysis remains available.
-Card queries omit unused discussion payloads. Public exports retain their existing fields.
+The first eligible initial image receives eager/high priority; subsequent images
+remain lazy. Responsive image sizes reflect actual shell and card padding. Cards
+are measured for virtualization, with intrinsic image ratios used for estimates.
+Share opens a native modal with focus containment, Escape, editable drafts and
+manual-copy recovery. Ordinary brief/discussion links preserve feed context.
 
 ## Public read limits
 
@@ -902,6 +897,5 @@ Category-only and paginated navigations use pathname plus sorted search paramete
 as the analytics route identity, shared by ReaderVisit and event tracking. Each
 route occurrence gets a new visit ID and reader_visit; rerenders and reordered
 query parameters deduplicate. Transient journey tokens are excluded, and query
-values are never added to engagement event fields. Filtered feeds retain the
-category-card preference from main: category labels appear on Latest and dated
-feeds and are hidden on a selected topic’s cards.
+values are never added to engagement event fields. Category labels appear on all
+feed cards, including selected topic feeds.

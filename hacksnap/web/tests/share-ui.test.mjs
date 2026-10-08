@@ -22,7 +22,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const { createRoot } = await import("react-dom/client");
 const { ShareLinks } = await import("../app/share-links.tsx");
 
-test("deferred share editor preserves edited Unicode drafts and keyboard, outside, and clipboard behavior", async () => {
+test("deferred share editor preserves edited Unicode drafts and modal focus, Escape, and clipboard behavior", async () => {
   const root = createRoot(document.getElementById("root"));
   const events = [];
   window.gtag = (_command, name, params) => events.push({ name, ...params });
@@ -48,6 +48,18 @@ test("deferred share editor preserves edited Unicode drafts and keyboard, outsid
     await act(async () => trigger().focus());
     await click(trigger());
     assert.equal(trigger().getAttribute("aria-expanded"), "true");
+    assert.equal(trigger().getAttribute("aria-haspopup"), "dialog");
+    const dialog = document.querySelector("dialog.share-panel");
+    assert.ok(dialog.hasAttribute("open"));
+    assert.equal(
+      document.getElementById(dialog.getAttribute("aria-labelledby")).textContent,
+      "Share this story",
+    );
+    assert.equal(
+      document.getElementById(dialog.getAttribute("aria-describedby")).textContent,
+      "A story",
+    );
+    assert.equal(document.body.style.overflow, "hidden");
     assert.equal(document.activeElement, button("Copy link"));
     const draft = document.querySelector(".share-draft");
     assert.ok(draft);
@@ -81,13 +93,30 @@ test("deferred share editor preserves edited Unicode drafts and keyboard, outsid
     window.open = (...args) => opened.push(args);
     await click(document.querySelector('button[aria-label="LinkedIn (opens in a new tab)"]'));
     assert.equal(new URL(opened[0][0]).searchParams.get("url"), "https://hacksnap.live/story/123");
-    await act(async () => document.getElementById("outside").focus());
-    assert.equal(document.querySelector(".share-panel"), null);
+    const closeButton = document.querySelector(".share-close");
+    const lastControl = document.querySelector(".share-manual");
+    await act(async () => lastControl.focus());
     await act(async () =>
-      document.getElementById("outside").dispatchEvent(new Event("pointerdown", { bubbles: true })),
+      lastControl.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }),
+      ),
     );
+    assert.equal(document.activeElement, closeButton);
+    await act(async () =>
+      closeButton.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Tab",
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    assert.equal(document.activeElement, lastControl);
+    await click(closeButton);
     assert.equal(document.querySelector(".share-panel"), null);
-    assert.equal(document.activeElement, document.getElementById("outside"));
+    assert.equal(document.activeElement, trigger());
+    assert.equal(document.body.style.overflow, "");
     assert.deepEqual(
       events.filter((event) => event.name === "share_menu_open").map((event) => event.placement),
       ["feed", "feed"],

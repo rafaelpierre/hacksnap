@@ -8,6 +8,7 @@ for (const width of [320, 393, 768, 820, 1440])
     test(`popularity widgets at ${width}px and ${textScale * 100}% text`, async ({ page }) => {
       await page.setViewportSize({ width, height: 1000 });
       await page.goto("/");
+      await expect(page.locator(".menu-button")).toHaveAttribute("aria-expanded", "false");
       await page.evaluate((scale) => {
         document.documentElement.style.fontSize = `${scale * 100}%`;
       }, textScale);
@@ -18,36 +19,27 @@ for (const width of [320, 393, 768, 820, 1440])
         includeHidden: true,
       });
       const feed = page.getByRole("region", { name: "Latest stories" });
-      if (width <= 800) {
-        await expect(mostRead).toBeHidden();
-        await expect(trending).toBeHidden();
-        await expect(page.getByRole("complementary", { name: "Most read" })).toHaveCount(0);
-        await expect(feed.locator("h3").first()).toBeVisible();
-      } else {
+      {
         await expect(mostRead).toBeVisible();
-        await expect(trending).toBeVisible();
+        await expect(trending).toHaveCount(0);
         await expect(mostRead.getByRole("link")).toHaveCount(5);
-        await expect(trending.getByRole("link")).toHaveCount(5);
         await expect(mostRead.getByRole("link").first()).toHaveText(title);
         await expect(mostRead.getByRole("link").first()).toHaveAttribute("href", "/story/91000001");
-        await expect(trending.getByRole("link").first()).toHaveAttribute("href", "/story/91000006");
-        const trendingBounds = (await trending.boundingBox())!;
         const mostReadBounds = (await mostRead.boundingBox())!;
         const feedBounds = (await feed.boundingBox())!;
-        expect(mostReadBounds.y).toBeGreaterThanOrEqual(trendingBounds.y + trendingBounds.height);
         if (width === 1440 && textScale === 1)
-          expect(trendingBounds.x).toBeGreaterThan(feedBounds.x + feedBounds.width - 1);
-        else expect(mostReadBounds.y + mostReadBounds.height).toBeLessThanOrEqual(feedBounds.y);
+          expect(mostReadBounds.x).toBeGreaterThan(feedBounds.x + feedBounds.width - 1);
+        else expect(mostReadBounds.y).toBeGreaterThanOrEqual(feedBounds.y + feedBounds.height);
         await expect(page.locator(".browse-right-sidebar")).not.toContainText("All time");
         await expect(page.getByRole("tablist")).toHaveCount(0);
-        for (const widget of [trending, mostRead]) {
+        for (const widget of [mostRead]) {
           for (const link of await widget.getByRole("link").all())
             expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
           await widget.getByRole("link").first().focus();
           await expect(widget.getByRole("link").first()).toBeFocused();
         }
       }
-      await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+      await expect(page.locator("body")).toHaveCSS("background-color", "rgb(244, 244, 245)");
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
         width + 1,
       );
@@ -55,18 +47,18 @@ for (const width of [320, 393, 768, 820, 1440])
         (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
           .violations,
       ).toEqual([]);
-      const output = path.resolve("../../docs/ux/2026-10-08/popularity-widgets");
+      const output = path.resolve("../../docs/ux/2026-10-08/frontend-revamp/implementation");
       await mkdir(output, { recursive: true });
       await page.screenshot({
         path: path.join(output, `home-${width}-${textScale * 100}.png`),
         animations: "disabled",
       });
       await page.goto("/2026/01");
-      await expect(page.locator(".popular-stories")).toHaveCount(0);
+      await expect(page.locator(".popular-stories")).toHaveCount(1);
     });
   }
 
-test("weekly outage preserves Most read and each widget has a distinct empty message", async ({
+test("unused weekly outage preserves Most read and empty lifetime ranking is explicit", async ({
   page,
   context,
   baseURL,
@@ -75,15 +67,14 @@ test("weekly outage preserves Most read and each widget has a distinct empty mes
   await page.goto("/");
   const trending = page.getByRole("complementary", { name: "Trending this week" });
   const mostRead = page.getByRole("complementary", { name: "Most read" });
-  await expect(trending).toContainText("temporarily unavailable");
+  await expect(trending).toHaveCount(0);
   await expect(mostRead.getByRole("link")).toHaveCount(5);
   await context.addCookies([{ name: "fixture-popularity", value: "empty", url: baseURL! }]);
   await page.reload();
-  await expect(trending).toContainText("No story reads recorded in the last 7 days.");
   await expect(mostRead).toContainText("will appear as readers visit");
 });
 
-test("slow hidden popularity leaves the phone feed available without layout shift", async ({
+test("slow popularity below the phone feed leaves stories available without layout shift", async ({
   page,
   context,
   baseURL,
@@ -103,8 +94,8 @@ test("slow hidden popularity leaves the phone feed available without layout shif
   await expect(
     page.locator(".story-list").getByRole("link", { name: title, exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".browse-right-sidebar")).toBeHidden();
-  await expect(page.locator(".popular-stories ol li")).toHaveCount(10);
+  await expect(page.locator(".browse-right-sidebar")).toBeVisible();
+  await expect(page.locator(".popular-stories ol li")).toHaveCount(5);
   expect(
     await page.evaluate(
       () => (window as unknown as Window & { popularityCLS: number }).popularityCLS,
@@ -112,7 +103,7 @@ test("slow hidden popularity leaves the phone feed available without layout shif
   ).toBeLessThanOrEqual(0.1);
 });
 
-test("both server-rendered lists remain usable without JavaScript", async ({
+test("server-rendered Most read remains usable without JavaScript", async ({
   browser,
   baseURL,
 }) => {
@@ -123,14 +114,10 @@ test("both server-rendered lists remain usable without JavaScript", async ({
   try {
     const page = await context.newPage();
     await page.goto(baseURL!);
-    for (const name of ["Trending this week", "Most read"])
+    for (const name of ["Most read"])
       await expect(page.getByRole("complementary", { name }).getByRole("link")).toHaveCount(5);
-    await page
-      .getByRole("complementary", { name: "Trending this week" })
-      .getByRole("link")
-      .first()
-      .click();
-    await expect(page).toHaveURL(/\/story\/91000006/);
+    await page.getByRole("complementary", { name: "Most read" }).getByRole("link").first().click();
+    await expect(page).toHaveURL(/\/story\/91000001/);
   } finally {
     await context.close();
   }
@@ -143,7 +130,7 @@ test("a failed popularity read leaves the homepage feed available", async ({
 }) => {
   await context.addCookies([{ name: "fixture-popularity", value: "failed", url: baseURL! }]);
   await page.goto("/");
-  for (const name of ["Trending this week", "Most read"])
+  for (const name of ["Most read"])
     await expect(page.getByRole("complementary", { name })).toContainText(
       "temporarily unavailable",
     );

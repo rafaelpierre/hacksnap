@@ -1,0 +1,1055 @@
+{
+  "method": "Chromium, direct file:// URLs; no web server",
+  "date": "2026-10-08",
+  "layouts": [
+    {
+      "concept": "reddit",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 68,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit",
+      "width": 375,
+      "textSize": "100%",
+      "viewport": 375,
+      "documentWidth": 375,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 68,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit",
+      "width": 414,
+      "textSize": "100%",
+      "viewport": 414,
+      "documentWidth": 414,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 68,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit",
+      "width": 768,
+      "textSize": "100%",
+      "viewport": 768,
+      "documentWidth": 768,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 70,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit",
+      "width": 1024,
+      "textSize": "100%",
+      "viewport": 1024,
+      "documentWidth": 1024,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 79,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 79,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 68,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit",
+      "width": 768,
+      "textSize": "200%",
+      "viewport": 768,
+      "documentWidth": 768,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 70,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit",
+      "width": 1440,
+      "textSize": "200%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 79,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:story-detail",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 45,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:story-detail",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 45,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:story-detail",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 55,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:discussion",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 45,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:discussion",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 45,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:discussion",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 55,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:share-dialog",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 55,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:share-dialog",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 55,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:share-dialog",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 65,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:loading",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 33,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:loading",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 33,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:loading",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 44,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:empty",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 33,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:empty",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 33,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:empty",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 44,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:error",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 33,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:error",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 33,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:error",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 44,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:ready",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 84,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:ready",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 84,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "reddit:ready",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 95,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 49,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev",
+      "width": 375,
+      "textSize": "100%",
+      "viewport": 375,
+      "documentWidth": 375,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 49,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev",
+      "width": 414,
+      "textSize": "100%",
+      "viewport": 414,
+      "documentWidth": 414,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 49,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev",
+      "width": 768,
+      "textSize": "100%",
+      "viewport": 768,
+      "documentWidth": 768,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 50,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev",
+      "width": 1024,
+      "textSize": "100%",
+      "viewport": 1024,
+      "documentWidth": 1024,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 58,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 58,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 49,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev",
+      "width": 768,
+      "textSize": "200%",
+      "viewport": 768,
+      "documentWidth": 768,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 50,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev",
+      "width": 1440,
+      "textSize": "200%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 57,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:story-detail",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 43,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:story-detail",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 43,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:story-detail",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 52,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:discussion",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 43,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:discussion",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 43,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:discussion",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 52,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:share-dialog",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 52,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:share-dialog",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 52,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:share-dialog",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 61,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:loading",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 23,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:loading",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 23,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:loading",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 32,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:empty",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 24,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:empty",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 24,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:empty",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 33,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:error",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 24,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:error",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 24,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:error",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 33,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:ready",
+      "width": 320,
+      "textSize": "100%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 49,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:ready",
+      "width": 320,
+      "textSize": "200%",
+      "viewport": 320,
+      "documentWidth": 320,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 49,
+      "contrastFailures": [],
+      "overflowElements": []
+    },
+    {
+      "concept": "dev:ready",
+      "width": 1440,
+      "textSize": "100%",
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "shortControls": [],
+      "clippedText": [],
+      "checkedTextPairs": 58,
+      "contrastFailures": [],
+      "overflowElements": []
+    }
+  ],
+  "interactions": [
+    {
+      "concept": "reddit",
+      "action": "Topic navigation: Models & Products -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Topic navigation: Agents & Coding -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Topic navigation: Research & Evaluation -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Topic navigation: Infrastructure & Efficiency -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Topic navigation: Safety & Privacy -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Topic navigation: Industry & Society -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Latest navigation -> chronological feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "October month -> empty feed; September -> populated feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Load more -> all six preview stories and end-of-feed feedback",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Story headline: Revealing the details of how OpenAI agents hacked Hugging Face -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Story headline: Coding agents still need a human at the merge button -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Story headline: The case for a smaller model running on your own machine -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Story headline: When a benchmark becomes the thing being optimized -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Story headline: Inference costs are a systems problem, too -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Story headline: Who gets to decide how AI changes the work? -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Discussion analysis -> existing discussion section",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Original source and HN links -> verified captured story destinations",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Related story -> next existing story view",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Discussion themes -> keyboard-operable existing accordion",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Skip link on a story -> current content; preserves the story view",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Share -> editable existing suggested post; Escape -> returns focus",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Copy post and copy link -> clipboard-unavailable manual fallback",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Copy post and copy link -> mocked clipboard success feedback",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Most read -> existing story; browser Back -> feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "About navigation -> existing product explanation; wordmark -> Latest",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Preview QA: loading -> corresponding data state",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Preview QA: empty -> corresponding data state",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Preview QA: error -> corresponding data state",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Error retry -> populated feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Preview QA: ready -> corresponding data state",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Mobile topics menu -> opens, topic selection works, Escape closes",
+      "status": "PASS"
+    },
+    {
+      "concept": "reddit",
+      "action": "Keyboard focus -> visible outline; skip link -> main content",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Topic navigation: Models & Products -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Topic navigation: Agents & Coding -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Topic navigation: Research & Evaluation -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Topic navigation: Infrastructure & Efficiency -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Topic navigation: Safety & Privacy -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Topic navigation: Industry & Society -> matching feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Latest navigation -> chronological feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Feed revisions -> Lucide topics, compact ages, removed heading/month/snapshot/takeaway labels",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Load more -> all six preview stories and end-of-feed feedback",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Story headline: Revealing the details of how OpenAI agents hacked Hugging Face -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Story headline: Coding agents still need a human at the merge button -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Story headline: The case for a smaller model running on your own machine -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Story headline: When a benchmark becomes the thing being optimized -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Story headline: Inference costs are a systems problem, too -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Story headline: Who gets to decide how AI changes the work? -> article brief; Back -> preserved feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Discussion analysis -> existing discussion section",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Original source and HN links -> verified captured story destinations",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Related story -> next existing story view",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Discussion themes -> keyboard-operable existing accordion",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Skip link on a story -> current content; preserves the story view",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Story section navigation -> brief and discussion anchors",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Share -> editable existing suggested post; Escape -> returns focus",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Copy post and copy link -> clipboard-unavailable manual fallback",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Copy post and copy link -> mocked clipboard success feedback",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Most read -> existing story; browser Back -> feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "About navigation -> existing product explanation; wordmark -> Latest",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Preview QA: loading -> corresponding data state",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Preview QA: empty -> corresponding data state",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Preview QA: error -> corresponding data state",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Error retry -> populated feed",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Preview QA: ready -> corresponding data state",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Mobile topics menu -> opens, topic selection works, Escape closes",
+      "status": "PASS"
+    },
+    {
+      "concept": "dev",
+      "action": "Keyboard focus -> visible outline; skip link -> main content",
+      "status": "PASS"
+    }
+  ],
+  "consoleErrors": [],
+  "status": "PASS"
+}

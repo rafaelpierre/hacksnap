@@ -62,13 +62,13 @@ test.describe("mobile browser history", () => {
   test("reading another story preserves the original paginated topic return", async ({ page }) => {
     const settleRequests = trackRequests(page);
     await page.goto("/?category=models-products&page=2");
-    const first = page.locator(".story-list h3 a").first();
+    const first = page.locator(".story-list .feed-story-title a").first();
     await first.scrollIntoViewIfNeeded();
     await settleRequests();
     await first.tap();
     await page.waitForURL(/\/story\/[^?]+$/);
     await settleRequests();
-    const related = page.getByRole("region", { name: "Read next" }).locator("h3 a").first();
+    const related = page.getByRole("region", { name: "Related stories" }).locator("h3 a").first();
     await related.scrollIntoViewIfNeeded();
     await settleRequests();
     const nextHref = await related.getAttribute("href");
@@ -81,7 +81,7 @@ test.describe("mobile browser history", () => {
     await expect(topicReturn).toHaveAttribute("href", "/?category=models-products&page=2");
     await topicReturn.tap();
     await expect(page).toHaveURL(/category=models-products&page=2$/);
-    await expect(page.locator(".story-list h3 a").first()).toBeVisible();
+    await expect(page.locator(".story-list .feed-story-title a").first()).toBeVisible();
     await settleRequests();
   });
 
@@ -97,7 +97,7 @@ test.describe("mobile browser history", () => {
       await context.addCookies([
         { name: "fixture-popularity", value: "outside-feed", url: baseURL! },
       ]);
-      // Popularity widgets are available only on wider screens.
+      // Keep the rail in view beside the restored feed while exercising the link.
       await page.setViewportSize({ width: 1440, height: 1000 });
       const pages = await Promise.all(
         [1, 2].map(async (pageNumber) =>

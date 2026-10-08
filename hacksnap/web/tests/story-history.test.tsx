@@ -209,10 +209,17 @@ test("only a successful opening changes a feed title; exposure has no visual mar
         </AppRouterContext.Provider>,
       ),
     );
-    assert.equal(document.querySelector('[data-home-story-id="101"] h3')?.className, "");
     assert.equal(
-      document.querySelector('[data-home-story-id="102"] h3')?.className,
-      "story-title-opened",
+      document
+        .querySelector('[data-home-story-id="101"] .feed-story-title')
+        ?.classList.contains("story-title-opened"),
+      false,
+    );
+    assert.equal(
+      document
+        .querySelector('[data-home-story-id="102"] .feed-story-title')
+        ?.classList.contains("story-title-opened"),
+      true,
     );
     assert.doesNotMatch(document.body.textContent!, /Seen|Opened|Hide seen|Clear viewing history/);
     assert.equal(readStoryHistory().entries["101"], undefined);

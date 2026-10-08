@@ -1,0 +1,582 @@
+[
+  {
+    "route": "/story/91000001",
+    "browser": "153.0.8010.12",
+    "measurements": {
+      "jsBytes": 530103,
+      "cssBytes": 35144,
+      "imageBytes": 2696,
+      "jsGzipBytes": 161581,
+      "cssGzipBytes": 7883,
+      "lcpMs": 36,
+      "cls": 0
+    },
+    "budget": {
+      "jsBytes": 590000,
+      "cssBytes": 46000,
+      "imageBytes": 3500,
+      "jsGzipBytes": 180000,
+      "cssGzipBytes": 10000,
+      "lcpMs": 3500,
+      "cls": 0.1
+    },
+    "documentBytes": 73565,
+    "assets": [
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/16iaa2x3a9hkt.css",
+        {
+          "kind": "css",
+          "bytes": 11267,
+          "gzip": 2565
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/0uol5_fh4dcmv.css",
+        {
+          "kind": "css",
+          "bytes": 23308,
+          "gzip": 5050
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/0jvhpaew_uadu.js",
+        {
+          "kind": "js",
+          "bytes": 6557,
+          "gzip": 2350
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/image?url=https%3A%2F%2Ffixture.public.blob.vercel-storage.com%2Farticles%2Fbrowser.webp&w=750&q=75",
+        {
+          "kind": "image",
+          "bytes": 2696,
+          "gzip": 2537
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/turbopack-19sdtcor0-kja.js",
+        {
+          "kind": "js",
+          "bytes": 10946,
+          "gzip": 4299
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2vtzioz8doxz5.js",
+        {
+          "kind": "js",
+          "bytes": 7178,
+          "gzip": 2667
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2mmpezlrfmbu5.js",
+        {
+          "kind": "js",
+          "bytes": 34718,
+          "gzip": 8680
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3oxqu1a40li0v.js",
+        {
+          "kind": "js",
+          "bytes": 957,
+          "gzip": 595
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3fntmmi971322.js",
+        {
+          "kind": "js",
+          "bytes": 14377,
+          "gzip": 3653
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/20jpnksry8qaa.js",
+        {
+          "kind": "js",
+          "bytes": 25952,
+          "gzip": 10002
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/1kjd5puyjxi-m.js",
+        {
+          "kind": "js",
+          "bytes": 603,
+          "gzip": 410
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3krsvdld7apvp.js",
+        {
+          "kind": "js",
+          "bytes": 160170,
+          "gzip": 43797
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3h_4z6nl619vx.js",
+        {
+          "kind": "js",
+          "bytes": 40682,
+          "gzip": 13948
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2lm6ee1ot3_cu.js",
+        {
+          "kind": "js",
+          "bytes": 227963,
+          "gzip": 71180
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/000vezdzxbkon.css",
+        {
+          "kind": "css",
+          "bytes": 569,
+          "gzip": 268
+        }
+      ]
+    ]
+  },
+  {
+    "route": "/category/models-products",
+    "browser": "153.0.8010.12",
+    "measurements": {
+      "jsBytes": 550715,
+      "cssBytes": 35144,
+      "imageBytes": 2192,
+      "jsGzipBytes": 168648,
+      "cssGzipBytes": 7883,
+      "lcpMs": 64,
+      "cls": 4.8027038574218755e-06
+    },
+    "budget": {
+      "jsBytes": 610000,
+      "cssBytes": 46000,
+      "imageBytes": 3500,
+      "jsGzipBytes": 180000,
+      "cssGzipBytes": 10000,
+      "lcpMs": 3500,
+      "cls": 0.1
+    },
+    "documentBytes": 136727,
+    "assets": [
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/16iaa2x3a9hkt.css",
+        {
+          "kind": "css",
+          "bytes": 11267,
+          "gzip": 2565
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/0uol5_fh4dcmv.css",
+        {
+          "kind": "css",
+          "bytes": 23308,
+          "gzip": 5050
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/image?url=https%3A%2F%2Ffixture.public.blob.vercel-storage.com%2Farticles%2Fbrowser.webp&w=640&q=75",
+        {
+          "kind": "image",
+          "bytes": 2192,
+          "gzip": 2110
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/0jvhpaew_uadu.js",
+        {
+          "kind": "js",
+          "bytes": 6557,
+          "gzip": 2350
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/turbopack-19sdtcor0-kja.js",
+        {
+          "kind": "js",
+          "bytes": 10946,
+          "gzip": 4299
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2vtzioz8doxz5.js",
+        {
+          "kind": "js",
+          "bytes": 7178,
+          "gzip": 2667
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2mmpezlrfmbu5.js",
+        {
+          "kind": "js",
+          "bytes": 34718,
+          "gzip": 8680
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/20jpnksry8qaa.js",
+        {
+          "kind": "js",
+          "bytes": 25952,
+          "gzip": 10002
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3krsvdld7apvp.js",
+        {
+          "kind": "js",
+          "bytes": 160170,
+          "gzip": 43797
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/35oj2rb4m91-j.js",
+        {
+          "kind": "js",
+          "bytes": 21569,
+          "gzip": 7662
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3fntmmi971322.js",
+        {
+          "kind": "js",
+          "bytes": 14377,
+          "gzip": 3653
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/1kjd5puyjxi-m.js",
+        {
+          "kind": "js",
+          "bytes": 603,
+          "gzip": 410
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3h_4z6nl619vx.js",
+        {
+          "kind": "js",
+          "bytes": 40682,
+          "gzip": 13948
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2lm6ee1ot3_cu.js",
+        {
+          "kind": "js",
+          "bytes": 227963,
+          "gzip": 71180
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/000vezdzxbkon.css",
+        {
+          "kind": "css",
+          "bytes": 569,
+          "gzip": 268
+        }
+      ]
+    ]
+  },
+  {
+    "route": "/2026/01",
+    "browser": "153.0.8010.12",
+    "measurements": {
+      "jsBytes": 550715,
+      "cssBytes": 35144,
+      "imageBytes": 2192,
+      "jsGzipBytes": 168648,
+      "cssGzipBytes": 7883,
+      "lcpMs": 64,
+      "cls": 4.8027038574218755e-06
+    },
+    "budget": {
+      "jsBytes": 610000,
+      "cssBytes": 46000,
+      "imageBytes": 3500,
+      "jsGzipBytes": 180000,
+      "cssGzipBytes": 10000,
+      "lcpMs": 3500,
+      "cls": 0.1
+    },
+    "documentBytes": 136491,
+    "assets": [
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/16iaa2x3a9hkt.css",
+        {
+          "kind": "css",
+          "bytes": 11267,
+          "gzip": 2565
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/0uol5_fh4dcmv.css",
+        {
+          "kind": "css",
+          "bytes": 23308,
+          "gzip": 5050
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/image?url=https%3A%2F%2Ffixture.public.blob.vercel-storage.com%2Farticles%2Fbrowser.webp&w=640&q=75",
+        {
+          "kind": "image",
+          "bytes": 2192,
+          "gzip": 2110
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/0jvhpaew_uadu.js",
+        {
+          "kind": "js",
+          "bytes": 6557,
+          "gzip": 2350
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2mmpezlrfmbu5.js",
+        {
+          "kind": "js",
+          "bytes": 34718,
+          "gzip": 8680
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2vtzioz8doxz5.js",
+        {
+          "kind": "js",
+          "bytes": 7178,
+          "gzip": 2667
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/turbopack-19sdtcor0-kja.js",
+        {
+          "kind": "js",
+          "bytes": 10946,
+          "gzip": 4299
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/35oj2rb4m91-j.js",
+        {
+          "kind": "js",
+          "bytes": 21569,
+          "gzip": 7662
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/20jpnksry8qaa.js",
+        {
+          "kind": "js",
+          "bytes": 25952,
+          "gzip": 10002
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3fntmmi971322.js",
+        {
+          "kind": "js",
+          "bytes": 14377,
+          "gzip": 3653
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/1kjd5puyjxi-m.js",
+        {
+          "kind": "js",
+          "bytes": 603,
+          "gzip": 410
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3h_4z6nl619vx.js",
+        {
+          "kind": "js",
+          "bytes": 40682,
+          "gzip": 13948
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3krsvdld7apvp.js",
+        {
+          "kind": "js",
+          "bytes": 160170,
+          "gzip": 43797
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2lm6ee1ot3_cu.js",
+        {
+          "kind": "js",
+          "bytes": 227963,
+          "gzip": 71180
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/000vezdzxbkon.css",
+        {
+          "kind": "css",
+          "bytes": 569,
+          "gzip": 268
+        }
+      ]
+    ]
+  },
+  {
+    "route": "/",
+    "browser": "153.0.8010.12",
+    "measurements": {
+      "jsBytes": 550715,
+      "cssBytes": 35144,
+      "imageBytes": 2192,
+      "jsGzipBytes": 168648,
+      "cssGzipBytes": 7883,
+      "lcpMs": 48,
+      "cls": 4.8027038574218755e-06
+    },
+    "budget": {
+      "jsBytes": 610000,
+      "cssBytes": 46000,
+      "imageBytes": 3500,
+      "jsGzipBytes": 180000,
+      "cssGzipBytes": 10000,
+      "lcpMs": 3500,
+      "cls": 0.1
+    },
+    "documentBytes": 135984,
+    "assets": [
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/16iaa2x3a9hkt.css",
+        {
+          "kind": "css",
+          "bytes": 11267,
+          "gzip": 2565
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/0jvhpaew_uadu.js",
+        {
+          "kind": "js",
+          "bytes": 6557,
+          "gzip": 2350
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/0uol5_fh4dcmv.css",
+        {
+          "kind": "css",
+          "bytes": 23308,
+          "gzip": 5050
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2mmpezlrfmbu5.js",
+        {
+          "kind": "js",
+          "bytes": 34718,
+          "gzip": 8680
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/image?url=https%3A%2F%2Ffixture.public.blob.vercel-storage.com%2Farticles%2Fbrowser.webp&w=640&q=75",
+        {
+          "kind": "image",
+          "bytes": 2192,
+          "gzip": 2110
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2vtzioz8doxz5.js",
+        {
+          "kind": "js",
+          "bytes": 7178,
+          "gzip": 2667
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/turbopack-19sdtcor0-kja.js",
+        {
+          "kind": "js",
+          "bytes": 10946,
+          "gzip": 4299
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/20jpnksry8qaa.js",
+        {
+          "kind": "js",
+          "bytes": 25952,
+          "gzip": 10002
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/35oj2rb4m91-j.js",
+        {
+          "kind": "js",
+          "bytes": 21569,
+          "gzip": 7662
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3krsvdld7apvp.js",
+        {
+          "kind": "js",
+          "bytes": 160170,
+          "gzip": 43797
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/1kjd5puyjxi-m.js",
+        {
+          "kind": "js",
+          "bytes": 603,
+          "gzip": 410
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3fntmmi971322.js",
+        {
+          "kind": "js",
+          "bytes": 14377,
+          "gzip": 3653
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/2lm6ee1ot3_cu.js",
+        {
+          "kind": "js",
+          "bytes": 227963,
+          "gzip": 71180
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/3h_4z6nl619vx.js",
+        {
+          "kind": "js",
+          "bytes": 40682,
+          "gzip": 13948
+        }
+      ],
+      [
+        "http://127.0.0.1:3100/_next/static/chunks/000vezdzxbkon.css",
+        {
+          "kind": "css",
+          "bytes": 569,
+          "gzip": 268
+        }
+      ]
+    ]
+  }
+]

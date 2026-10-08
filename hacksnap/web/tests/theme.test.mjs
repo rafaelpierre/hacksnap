@@ -36,33 +36,14 @@ test("control boundaries and focus accents meet non-text contrast", () => {
   }
 });
 
-test("category labels keep normal-text contrast including hover", () => {
-  const pairs = [...css.matchAll(/\[data-color="(\w+)"\]\s*\{\s*--category-color: (#[0-9a-f]+);/g)];
-  const tints = [
-    ...css.matchAll(/color-mix\(in srgb, var\(--category-color\) (\d+)%, var\(--bg\)\)/g),
-  ].map((match) => Number(match[1]) / 100);
-  assert.equal(pairs.length, 6);
-  assert.equal(tints.length, 2);
-  for (const [, category, foreground] of pairs) {
-    const rgb = (hex) =>
-      hex
-        .slice(1)
-        .match(/../g)
-        .map((c) => parseInt(c, 16));
-    const fg = rgb(foreground),
-      bg = rgb(colors["--bg"]);
-    for (const tint of tints) {
-      const mixed =
-        "#" +
-        bg
-          .map((c, i) =>
-            Math.round(c * (1 - tint) + fg[i] * tint)
-              .toString(16)
-              .padStart(2, "0"),
-          )
-          .join("");
-      const ratio = contrast(foreground, mixed);
-      assert.ok(ratio >= 4.5, `${category} at ${tint}: ${ratio.toFixed(2)}:1`);
-    }
+test("DEV canvas and exact blue preserve readable action and selection states", () => {
+  assert.equal(colors["--accent"], "#0000ff");
+  assert.equal(colors["--bg"], "#f4f4f5");
+  assert.equal(colors["--surface"], "#ffffff");
+  for (const fill of ["--accent", "--accent-hover"]) {
+    assert.ok(contrast(colors["--surface"], colors[fill]) >= 4.5);
   }
+  assert.ok(contrast(colors["--accent"], colors["--accent-soft"]) >= 4.5);
+  assert.ok(contrast(colors["--selection-ink"], colors["--selection"]) >= 4.5);
+  assert.match(css, /color-scheme: only light/);
 });

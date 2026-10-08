@@ -4,7 +4,7 @@
     "/": {
       "jsBytes": 610000,
       "cssBytes": 46000,
-      "imageBytes": 1500,
+      "imageBytes": 3500,
       "jsGzipBytes": 180000,
       "cssGzipBytes": 10000,
       "lcpMs": 3500,
@@ -13,7 +13,7 @@
     "/2026/01": {
       "jsBytes": 610000,
       "cssBytes": 46000,
-      "imageBytes": 1500,
+      "imageBytes": 3500,
       "jsGzipBytes": 180000,
       "cssGzipBytes": 10000,
       "lcpMs": 3500,
@@ -22,7 +22,7 @@
     "/category/models-products": {
       "jsBytes": 610000,
       "cssBytes": 46000,
-      "imageBytes": 1500,
+      "imageBytes": 3500,
       "jsGzipBytes": 180000,
       "cssGzipBytes": 10000,
       "lcpMs": 3500,

@@ -41,7 +41,7 @@ for (const { id, expected: analysis } of fixtures) {
     const document = render(analysis);
     const text = document.body.textContent!;
     assert.doesNotMatch(text, /pending|consensus|Low skepticism/i);
-    assert.equal(document.querySelector("h2")?.textContent, "Discussion themes");
+    assert.equal(document.querySelector("h2")?.textContent, "Discussion analysis");
     assert.equal(document.querySelectorAll(".analysis-group, .analysis-highlights").length, 0);
     for (const topic of analysis.topics) {
       const detail = [...document.querySelectorAll("details")].find(

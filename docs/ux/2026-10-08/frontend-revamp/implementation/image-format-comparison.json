@@ -1,0 +1,41 @@
+{
+  "nextQualityMapping": "round(quality * 50 / 80), effort 3",
+  "results": [
+    {
+      "width": 384,
+      "webp75Bytes": 1326,
+      "avif75Bytes": 1574,
+      "nextAvifQuality75FromWebpBytes": 1149
+    },
+    {
+      "width": 640,
+      "webp75Bytes": 2192,
+      "avif75Bytes": 2229,
+      "nextAvifQuality75FromWebpBytes": 1735
+    },
+    {
+      "width": 750,
+      "webp75Bytes": 2696,
+      "avif75Bytes": 2741,
+      "nextAvifQuality75FromWebpBytes": 1936
+    },
+    {
+      "width": 1080,
+      "webp75Bytes": 3998,
+      "avif75Bytes": 3267,
+      "nextAvifQuality75FromWebpBytes": 2679
+    },
+    {
+      "width": 1600,
+      "webp75Bytes": 6674,
+      "avif75Bytes": 4302,
+      "nextAvifQuality75FromWebpBytes": 4174
+    }
+  ],
+  "evidenceType": "Local synthetic fixture encoding comparison; not production images or browser rendering measurements.",
+  "fixture": "Unchanged 1600x900 SVG from hacksnap/web/scripts/browser-app.mjs; resized with installed Sharp.",
+  "measuredOn": "2026-10-08",
+  "feedBudgetBytesAtExperiment": 1500,
+  "approvedFeedBudgetBytes": 3500,
+  "decision": "Keep WebP at quality 75. Same-quality AVIF is larger at feed widths 640 and 750; Next-like AVIF from a 1600px WebP source does not meet the former 1500-byte cap at 640. User approved 3500-byte feed cap for full-width images."
+}
