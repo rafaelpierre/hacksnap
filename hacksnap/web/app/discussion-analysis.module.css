@@ -19,6 +19,7 @@
   font-family: var(--sans);
 }
 .root :global(.analysis-theme) {
+  scroll-margin-top: var(--space-6);
   anchor-scope: --analysis-source-trigger;
   position: relative;
   border: 1px solid var(--line);

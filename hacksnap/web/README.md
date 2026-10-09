@@ -825,6 +825,14 @@ outside data reads still reach the normal error boundary.
 
 ## Story discussion analysis
 
+Topic fragments (`#discussion-topic-{key}-{zero-based-index}`) automatically open
+the matching disclosure and scroll it into view after hydration. This also works
+when the hash changes, including browser Back/Forward. Other open topics stay open;
+readers can still collapse the target manually. Unknown or malformed fragments
+leave disclosures unchanged. Without JavaScript, the fragment locates the topic
+and its native disclosure can be opened manually. Topic keys and positions belong
+to the current analysis; refreshed analysis can change these destinations.
+
 New-format story pages expose `#discussion-analysis` for feed links. They use the
 public analysis contract to show expandable, cited discussion themes.
 Each theme places its info icon beside the title and reserves the far-right chevron
