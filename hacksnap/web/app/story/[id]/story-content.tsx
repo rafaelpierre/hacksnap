@@ -11,7 +11,7 @@ import { StoryRail } from "../../story-rail";
 import { ShareLinks } from "../../share-links";
 import { briefExcerpt } from "../../../lib/brief";
 import { StoryJourney } from "../../story-navigation";
-import { briefSentences } from "../../../lib/article-brief";
+import { briefOpening, briefSentences } from "../../../lib/article-brief";
 import { StoryAge } from "../../story-age";
 import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
@@ -45,6 +45,7 @@ export function StoryContent({
   const fullTakeaway = summary?.overall_takeaway?.trim().replace(/\s+/g, " ");
   const source = storySource(story.url, summary);
   const article = source.article;
+  const opening = briefOpening(summary?.article_summary);
   const discussion = storyDiscussion(summary);
   const hnURL = `https://news.ycombinator.com/item?id=${story.hn_id}`;
   const category = categoryById(story.category);
@@ -92,7 +93,14 @@ export function StoryContent({
                 <p>
                   {briefSentences(summary.article_summary).map((sentence, index) => (
                     <span className="article-brief-sentence" key={index}>
-                      {sentence}
+                      {index === 0 && article && opening ? (
+                        <>
+                          <a href={article}>{opening}</a>
+                          {sentence.slice(opening.length)}
+                        </>
+                      ) : (
+                        sentence
+                      )}
                     </span>
                   ))}
                 </p>

@@ -1,6 +1,27 @@
 import { test, expect, storyPath } from "./browser";
 import AxeBuilder from "@axe-core/playwright";
 
+test.describe("article source without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("the opening excerpt is a working server-rendered source link", async ({ page }) => {
+    await page.route("https://example.com/research", (route) =>
+      route.fulfill({ contentType: "text/html", body: "<h1>Original source fixture</h1>" }),
+    );
+    await page.goto(storyPath);
+    const link = page.locator(".article-brief-sentence").first().getByRole("link");
+    await expect(link).toHaveText(
+      "Researchers compared small models on a repeatable set of development tasks",
+    );
+    await link.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL("https://example.com/research");
+    await expect(page.getByRole("heading")).toHaveText("Original source fixture");
+    await page.goBack();
+    await expect(link).toBeVisible();
+  });
+});
+
 for (const width of [320, 375, 768, 1280]) {
   for (const textSize of [100, 200]) {
     test(`article components follow the reading system at ${width}px with ${textSize}% text`, async ({
@@ -45,6 +66,15 @@ for (const width of [320, 375, 768, 1280]) {
       const brief = page.locator("#article-brief");
       const sentences = brief.locator(".article-brief-sentence");
       await expect(sentences).toHaveCount(2);
+      const sourceLink = sentences.first().getByRole("link");
+      await expect(sourceLink).toHaveText(
+        "Researchers compared small models on a repeatable set of development tasks",
+      );
+      await expect(sourceLink).toHaveAttribute("href", "https://example.com/research");
+      await expect(sentences.nth(1).getByRole("link")).toHaveCount(0);
+      await sourceLink.focus();
+      await expect(sourceLink).toBeFocused();
+      await expect(sourceLink).toHaveCSS("outline-style", "solid");
       await page.evaluate(() => document.fonts.ready);
       const spacing = await sentences.evaluateAll(([first, second]) => ({
         gap: second.getBoundingClientRect().top - first.getBoundingClientRect().bottom,

@@ -16,6 +16,13 @@ URLs and decimals. The tokenizer stays in the article renderer's server module
 graph. Stored summaries and generation prompts are unchanged; Markdown, RSS
 and API responses retain the original text.
 
+The first article-summary excerpt links to the validated original source in the
+server-rendered HTML. The excerpt stops before the first punctuation mark (including
+commas, colons, question marks and semicolons), keeping the punctuation outside the
+link. Apostrophes and hyphens within words remain part of the excerpt. Without
+punctuation, the first paragraph is linked; a punctuation-led excerpt or missing
+valid article URL stays plain text. Sentence spacing and public exports are unchanged.
+
 Article key points appear under “The bits that matter”, a compact H2 between
 the article summary and its bullet list. The heading is omitted when there are
 no key points.
