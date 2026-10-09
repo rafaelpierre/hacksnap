@@ -2,7 +2,6 @@ import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById } from "../../../lib/categories";
-import { domain } from "../../../lib/format";
 import { storyDiscussion, storySource } from "../../../lib/story-presentation";
 import { DiscussionAnalysis } from "../../discussion-analysis";
 import discussionStyles from "../../discussion-analysis.module.css";
@@ -110,25 +109,12 @@ export function StoryContent({
             ) : (
               <p className="muted">
                 {source.brief === "unavailable"
-                  ? "The original article was unavailable to summarize. You can still read the source and the discussion."
+                  ? "The original article was unavailable to summarize."
                   : source.kind === "article"
-                    ? "No article brief is available. You can read the original source and the discussion."
+                    ? "No article brief is available."
                     : "This is an HN post. The discussion is summarized below."}
               </p>
             )}
-            <div className="story-source-actions">
-              {article && (
-                <a href={article} aria-label={`Original article on ${domain(story.url)}`}>
-                  {source.brief === "available"
-                    ? "Read original article"
-                    : "Open the original source"}
-                  <ArrowUpRight className="inline-icon" aria-hidden="true" />
-                </a>
-              )}
-              <a href={hnURL}>
-                Open Hacker News thread <ArrowUpRight className="inline-icon" aria-hidden="true" />
-              </a>
-            </div>
           </section>
           <section
             id="discussion-analysis"

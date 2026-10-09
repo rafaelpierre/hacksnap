@@ -797,6 +797,8 @@ footer link; theme source-comment links remain available.
 
 New themes replace legacy discussion points. Story HTML labels the section
 **Discussion analysis**. The article summary appears without a visible section heading.
+Summarized story pages omit the original-article and Hacker News action row below
+the brief. The header comment link and cited discussion comments remain available.
 Markdown retains **Discussion themes**. Both omit the older introduction and
 stance cards. The
 stored summary string and RSS remain unchanged. Historical
