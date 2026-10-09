@@ -131,13 +131,16 @@ the same component, with separate rankings and accessible headings.
 Links use the stored canonical story slug.
 The grid renders its route children immediately. On full-document requests, a
 sibling component waits for required route validation and data reads to finish
-before starting popularity,
-so the optional query cannot take the single database connection ahead of the
-article or feed. This coordination uses React’s per-render cache and is released
-on success, outages and routing errors. Most read finishes its read before
-Trending starts, so a cold weekly aggregate cannot queue the lifetime read behind
-it on the single reader connection. Trending still runs if the lifetime read fails.
+before starting sidebar reads. This coordination uses React’s per-render cache
+and is released on success, outages and routing errors. Within a render, Most
+read finishes before Trending starts; Trending still runs if the lifetime read fails.
 Streaming requests can display the lifetime result while Trending is pending.
+Trending uses a separate, lazily created pool capped at one connection per instance,
+so it cannot occupy the primary pool across concurrent requests. Its existing
+five-minute cache coalesces concurrent weekly requests into one aggregate. Both
+pools use the same reader credentials, verified TLS, read-only transactions,
+10-second acquisition/statement timeouts and 90-second idle timeout. The maximum
+reader connection budget is two per instance, one primary and one Trending.
 Full-document requests await the popularity result so links and terminal states
 work without JavaScript. Client-router requests can stream the optional sidebar
 when constructing the shell. Existing shells retain their list during navigation;
@@ -516,7 +519,7 @@ Story data uses the bounded per-instance cache documented below. Story HTML wait
 for the required story and canonical URL check, then streams the article while
 the optional "Related stories" query resolves. Category HTML waits for its required
 story list and page check, then streams the optional count. This ordering matters
-because each instance has one pooled database connection: optional reads begin
+because these reads share one primary pool connection per instance: optional reads begin
 only after required reads finish. A failed optional read keeps the article or list
 and renders its local fallback. The first HTML stream remains useful without
 JavaScript; recommendation cards still use the existing exposure tracking when

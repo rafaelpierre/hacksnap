@@ -296,7 +296,10 @@ and expires on 26 April 2031. Replace it if Supabase rotates its CA.
 An explicit `sslrootcert` connection parameter overrides the bundled CA path.
 Read-only mode and the statement timeout are applied within each transaction,
 so they do not depend on persistent database sessions. Each instance keeps at
-most one pooled connection and closes idle connections after 90 seconds.
+most one primary reader connection plus one lazily created Trending connection;
+idle connections close after 90 seconds. The weekly aggregate uses the separate
+pool so it cannot block required page reads from concurrent requests. Both pools
+retain the same reader credentials, TLS verification and transaction safeguards.
 The leaderboard APIs use a bounded 60-second per-instance data cache shared
 within each instance. Latest uses the bounded browse-page cache. Expired reads wait for fresh
 data; failed reads show the existing unavailable state instead of retaining stale
