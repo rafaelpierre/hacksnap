@@ -52,9 +52,18 @@ for (const width of [320, 768, 1440]) {
       await page.addStyleTag({ content: `html { font-size: ${scale * 100}% !important; }` });
       await page.evaluate(() => document.fonts.ready);
       const header = page.getByRole("banner");
-      const navigation = header.getByRole("navigation", { name: "Main navigation" });
-      const latest = navigation.getByRole("link", { name: "Latest", exact: true });
-      const about = navigation.getByRole("link", { name: "About", exact: true });
+      const topics = header.locator("summary");
+      const mobile = await topics.isVisible();
+      const navigation = header.locator(mobile ? ".mobile-main-navigation" : ".header-navigation");
+      const latest = navigation.locator('a[href="/"]');
+      const about = navigation.locator('a[href="/about"]');
+      if (mobile) {
+        await expect(header.locator(".header-navigation")).toBeHidden();
+        await expect(latest).toBeHidden();
+        await expect(about).toBeHidden();
+        await page.screenshot({ path: testInfo.outputPath("menu-closed.png") });
+        await topics.click();
+      }
       await expect(latest).toBeVisible();
       await expect(about).toBeVisible();
       await expect(latest).toHaveAttribute("aria-current", "page");
@@ -63,7 +72,6 @@ for (const width of [320, 768, 1440]) {
         page.locator(".topic-sidebar").getByRole("link", { name: /^(Latest|About)$/ }),
       ).toHaveCount(0);
       const controls = [header.getByRole("link", { name: "Hacksnap home" }), latest, about];
-      const topics = header.locator("summary");
       if (await topics.isVisible()) controls.push(topics);
       const boxes = [];
       for (const control of controls) {
@@ -91,6 +99,10 @@ for (const width of [320, 768, 1440]) {
       await page.screenshot({ path: testInfo.outputPath("header.png") });
       await header.getByRole("link", { name: "Hacksnap home" }).focus();
       await page.keyboard.press("Tab");
+      if (mobile) {
+        await expect(topics).toBeFocused();
+        await page.keyboard.press("Tab");
+      }
       await expect(latest).toBeFocused();
       await page.keyboard.press("Tab");
       await expect(about).toBeFocused();
@@ -103,6 +115,10 @@ for (const width of [320, 768, 1440]) {
       await expect(latest).toHaveAttribute("aria-current", "page");
       await page.goForward();
       await expect(about).toHaveAttribute("aria-current", "page");
+      if (mobile) {
+        await expect(latest).toBeHidden();
+        await topics.click();
+      }
       await latest.click();
       await expect(page).toHaveURL(/\/$/);
       if (await topics.isVisible()) {
@@ -130,9 +146,7 @@ for (const width of [320, 768, 1440]) {
 test("Latest clears the topic and closes an open mobile disclosure", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto("/?category=models-products");
-  const latest = page
-    .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Latest" });
+  const latest = page.locator('.mobile-main-navigation a[href="/"]');
   await expect(latest).not.toHaveAttribute("aria-current");
   await page.locator(".menu-button").click();
   const topics = page.getByRole("navigation", { name: "Mobile topics" });
