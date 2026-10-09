@@ -771,7 +771,7 @@ independently of the article summary. The section omits the full HN discussion
 footer link; theme source-comment links remain available.
 
 New themes replace legacy discussion points. Story HTML labels the section
-**Discussion analysis**, with **Article brief** as the separate article section.
+**Discussion analysis**. The article summary appears without a visible section heading.
 Markdown retains **Discussion themes**. Both omit the older introduction and
 stance cards. The
 stored summary string, RSS and public API contract remain unchanged. Historical

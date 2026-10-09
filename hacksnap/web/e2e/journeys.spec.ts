@@ -285,7 +285,7 @@ test.describe("without JavaScript", () => {
     await page.locator(".story-list").getByRole("link", { name: title, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Article brief", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Article summary", exact: true })).toBeVisible();
     await page.locator("summary").filter({ hasText: "Measuring useful work" }).click();
     await expect(
       page.getByText("Readers ask for repeatable measurements of realistic tasks."),
