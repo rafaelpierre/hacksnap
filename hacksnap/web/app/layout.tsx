@@ -10,6 +10,8 @@ import { SiteContent } from "./site-content";
 import { analyticsBootstrap } from "../lib/analytics-bootstrap";
 import "./globals.css";
 import { ReaderVisit } from "./journey-analytics";
+import { StructuredData } from "./structured-data";
+import { siteStructuredData } from "../lib/structured-data";
 
 const headlines = localFont({
   src: "./fonts/bricolage-grotesque-latin-variable.woff2",
@@ -72,17 +74,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${headlines.variable} ${reading.variable} ${editorial.variable}`}>
       <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebSite",
-              name: "Hacksnap",
-              url: "https://hacksnap.live/",
-            }),
-          }}
-        />
+        <StructuredData data={siteStructuredData} />
       </head>
       <body>
         {/* Queue visits early; fetch GA only after the reader interacts. */}

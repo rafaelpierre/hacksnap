@@ -17,6 +17,8 @@ import { RelatedStories } from "../../related-stories";
 import { ArticleImage } from "../../article-image";
 import { canonicalArticleImage } from "../../../lib/article-image";
 import type { ReactNode } from "react";
+import { StructuredData } from "../../structured-data";
+import { storyStructuredData } from "../../../lib/structured-data";
 
 function StoryShare({ story, placement }: { story: Story; placement: "story_top" | "story_end" }) {
   return (
@@ -52,6 +54,7 @@ export function StoryContent({
 
   return (
     <article className="detail">
+      <StructuredData data={storyStructuredData(story)} />
       <StoryVisit id={story.hn_id} />
       <StoryJourney />
       <header className="story-header">

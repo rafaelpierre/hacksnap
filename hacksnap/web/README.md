@@ -384,6 +384,32 @@ data naming the site `Hacksnap` at `https://hacksnap.live/` so search engines ca
 recognize the brand. Later Latest pages, monthly archives and other pages retain
 their own `<page title> | Hacksnap` titles.
 
+The shared JSON-LD graph also identifies Hacksnap as an `Organization`, using
+the 180px Apple icon as its logo. Published story pages emit `Article` and
+`BreadcrumbList` markup on the server, using the saved canonical URL, headline,
+takeaway, visible article brief and discussion topics. Pending or blank takeaways
+emit no story schema. Article images use the same validated, ready image as the
+page; absent images do not fall back to a brand card in the article schema.
+
+Current discussion-analysis topics also emit individual `DiscussionForumPosting`
+entries with their visible titles and summaries, Hacksnap attribution, source
+comment citations and links to the corresponding topic anchors. Their publication
+time is the stored analysis timestamp; topics without a valid timestamp remain
+in the article content but omit forum entries. Legacy discussion points remain
+article content. Hidden or superseded discussion introductions are omitted.
+The markup does not include a `digitalSourceType` field.
+
+Article `dateModified` uses the latest valid summary-generation or displayed
+analysis timestamp. `datePublished` is omitted for articles: collection time is
+not summary publication time, and regeneration can replace the generation time.
+JSON-LD escapes embedded HTML before serialization into script elements.
+
+Run `npm test -- tests/structured-data.test.mjs tests/story-content.test.tsx`
+for schema and server-rendering coverage. After deployment, test the homepage
+and a published story in Google's Rich Results Test. Detection by that test
+does not guarantee eligibility or display in Google Search; forum content
+guidelines remain a separate constraint from syntactic validation.
+
 The favicon uses the header's square white `h/` mark on charcoal (`#24242b`). Next.js
 serves `app/icon.svg`, a 96px `app/icon.png`, a multi-size `app/favicon.ico`, and
 a 180px `app/apple-icon.png` through its file-based metadata routes. Regenerate
