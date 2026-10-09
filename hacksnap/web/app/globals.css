@@ -685,6 +685,11 @@ body:has(#browse-content) .skip-browse {
 .article-brief-sentence + .article-brief-sentence {
   margin-top: 1lh;
 }
+.editorial .key-points-heading {
+  font-size: var(--text-body);
+  margin-top: var(--space-8);
+  margin-bottom: 0;
+}
 .key-points {
   padding-left: var(--space-5);
   margin: var(--space-5) 0 0;
