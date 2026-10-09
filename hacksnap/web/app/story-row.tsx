@@ -11,7 +11,7 @@ import { ArticleImage } from "./article-image";
 import { canonicalArticleImage } from "../lib/article-image";
 
 const FEED_IMAGE_SIZES =
-  "(min-width: 78rem) min(calc(100vw - 41.5rem - 2px), 41.875rem), (min-width: 60rem) min(calc(100vw - 22rem - 2px), 41.875rem), (min-width: 42rem) min(calc(100vw - 8rem - 2px), 41.875rem), (max-width: 26rem) calc(100vw - 4rem - 2px), calc(100vw - 5rem - 2px)";
+  "(min-width: 78rem) min(calc(100vw - 41.5rem - 2px), 41.875rem), (min-width: 60rem) min(calc(100vw - 22rem - 2px), 41.875rem), (min-width: 42rem) min(calc(100vw - 8rem - 2px), 41.875rem), (max-width: 26rem) calc(100vw - 2rem), calc(100vw - 3rem)";
 
 export function StoryRow({
   story,

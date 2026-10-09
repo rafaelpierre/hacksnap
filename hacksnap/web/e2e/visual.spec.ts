@@ -95,12 +95,24 @@ for (const width of [320, 1280])
           }
           const headline = await card.locator(".feed-story-title").boundingBox();
           const excerpt = await card.locator(".feed-excerpt").boundingBox();
+          const discussion = card.locator(".feed-discussion-preview");
+          await expect(
+            discussion.getByRole("heading", { name: "Discussion summary" }),
+          ).toBeVisible();
+          const discussionBounds = await discussion.boundingBox();
           const image = await card.locator(".feed-story-image").boundingBox();
           expect(excerpt!.y, "Subtitle follows the headline").toBeGreaterThanOrEqual(
             headline!.y + headline!.height,
           );
-          expect(image!.y, "Image follows the subtitle").toBeGreaterThanOrEqual(
+          expect(discussionBounds!.y, "Discussion follows the subtitle").toBeGreaterThanOrEqual(
             excerpt!.y + excerpt!.height,
+          );
+          expect(discussionBounds!.x).toBeGreaterThan(cardBounds!.x);
+          expect(discussionBounds!.x + discussionBounds!.width).toBeLessThan(
+            cardBounds!.x + cardBounds!.width,
+          );
+          expect(image!.y, "Image follows the discussion summary").toBeGreaterThanOrEqual(
+            discussionBounds!.y + discussionBounds!.height,
           );
         }
         const header = await page.getByRole("banner").boundingBox();

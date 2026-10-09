@@ -66,13 +66,15 @@ for (const width of widths) {
           left: rect.x - cardRect.x,
           right: cardRect.right - rect.right,
           padding: parseFloat(css.paddingLeft),
+          border: parseFloat(css.borderLeftWidth),
           fit: getComputedStyle(node).objectFit,
         };
       });
       const variant = variants[name as keyof typeof variants];
       expect(geometry.width / geometry.height).toBeCloseTo(variant.width / variant.height, 2);
-      expect(geometry.left).toBeCloseTo(geometry.padding + 1, 0);
-      expect(geometry.right).toBeCloseTo(geometry.padding + 1, 0);
+      expect(geometry.border).toBe(width < 672 ? 0 : 1);
+      expect(geometry.left).toBeCloseTo(geometry.padding + geometry.border, 0);
+      expect(geometry.right).toBeCloseTo(geometry.padding + geometry.border, 0);
       expect(geometry.fit).not.toBe("cover");
       if (index > 0) await expect(image).toHaveAttribute("loading", "lazy");
       await testInfo.attach(`${name}-${width}-selected-image.json`, {
