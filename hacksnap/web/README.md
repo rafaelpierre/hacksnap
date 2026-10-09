@@ -385,8 +385,8 @@ published, the story enters the sitemap and becomes indexable on the page's next
 revalidation (the existing cache interval is 30 minutes). The metadata and page
 share a request-scoped read backed by the bounded per-instance story cache.
 
-Social previews use a ready stored Vercel Blob asset when one passes the public
-image contract. Pending, failed, missing, or malformed assets use the shared
+Social previews use a ready publisher-sourced Vercel Blob asset when one passes the public
+image contract. Generated, pending, failed, missing, or malformed assets use the shared
 1200×630 brand card at `/opengraph-image`, rendered by `lib/og-image.tsx`.
 The story metadata declares that choice directly because a story-level
 `opengraph-image` file would take priority over it. The legacy story preview
@@ -677,10 +677,17 @@ runtime and development packages.
 ## Canonical article images
 
 Migration `0015_article_images` adds nullable image fields to
-`hacker_news_threads`. The web reader checks that all five fields and their
-column grants are available on each uncached story read. Before the migration,
+`hacker_news_threads`. Migration `0022_image_source_reader` grants the web reader
+SELECT on the existing `image_source_type` column. The reader checks that all six
+fields and their column grants are available on each uncached story read. Before the migration,
 or while its reader grant is unavailable, pages and public API responses use
 null image fields and keep their ordinary text layout.
+
+Queries only return image metadata for publisher sources (`og`, `twitter`, or
+`json_ld`). Generated fallbacks, missing source types, and unknown source types
+return null image fields across feeds, story pages, and the public API. No stored
+assets are deleted and image generation remains unchanged. Older saved feed
+snapshots are invalidated so they cannot restore generated images.
 
 The interface only renders records with `image_status = 'ready'` and an HTTPS
 URL on a `*.public.blob.vercel-storage.com` host. It never reads or exposes the

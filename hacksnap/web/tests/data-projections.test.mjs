@@ -94,8 +94,10 @@ test("each loader uses its intended projection; older cached fields remain optio
     queries.length = 0;
     await data.getStory("123");
     assert.ok(queries.some((sql) => sql.includes(storyFields)));
-    assert.ok(queries.some((sql) => sql.includes("t.image_url, t.image_status")));
-    assert.ok(queries.every((sql) => !sql.includes("image_source_")));
+    assert.ok(
+      queries.some((sql) => sql.includes("t.image_source_type IN ('og', 'twitter', 'json_ld')")),
+    );
+    assert.ok(queries.every((sql) => !sql.includes("image_source_url")));
 
     rows = [
       { items: [], stories: [], ingestion: null, ranked_at: new Date("2026-09-27T12:00:00Z") },
@@ -150,7 +152,7 @@ test("browse readers filter pending briefs before 15-card limits, offsets, count
       CREATE TABLE hacker_news_threads (
         hn_id bigint PRIMARY KEY, title text, url text, points int,
         comment_count int, date_added timestamptz, category text,
-        image_url text, image_status text, image_width int, image_height int, image_mime_type text
+        image_url text, image_status text, image_width int, image_height int, image_mime_type text, image_source_type text
       );
       CREATE TABLE hacksnap_summaries (
         story_id bigint PRIMARY KEY, article_summary text, article_key_points jsonb,
@@ -451,7 +453,7 @@ test("image reads fall back to null projections until every reader grant is avai
       await load();
       assert.ok(queries.includes(imageColumnsSQL) || queries.includes(browseCapabilitiesSQL));
       assert.ok(queries.some((sql) => sql.includes(fields)));
-      assert.ok(queries.every((sql) => !sql.includes("image_source_")));
+      assert.ok(queries.every((sql) => !sql.includes("t.image_source_type")));
     }
   } finally {
     imagesAvailable = true;
@@ -496,7 +498,7 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
       CREATE TABLE hacker_news_threads (
         hn_id bigint PRIMARY KEY, title text, url text, points int,
         comment_count int, date_added timestamptz, category text,
-        image_url text, image_status text, image_width int, image_height int, image_mime_type text
+        image_url text, image_status text, image_width int, image_height int, image_mime_type text, image_source_type text
       );
       CREATE VIEW hacksnap_ranked_stories AS
         SELECT *, date_added >= CURRENT_TIMESTAMP - INTERVAL '24 hours' AS is_recent,
@@ -611,7 +613,7 @@ test("ready selection captures the first ten atomically and hydrates only reques
       CREATE TABLE hacker_news_threads (
         hn_id bigint PRIMARY KEY, title text, url text, points int,
         comment_count int, date_added timestamptz, category text,
-        image_url text, image_status text, image_width int, image_height int, image_mime_type text
+        image_url text, image_status text, image_width int, image_height int, image_mime_type text, image_source_type text
       );
       CREATE VIEW hacksnap_ranked_stories AS
         SELECT *, true AS is_recent, row_number() OVER (ORDER BY points DESC, hn_id DESC) AS rank

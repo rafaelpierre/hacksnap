@@ -67,7 +67,7 @@ for (const listingPath of ["/", "/?page=2", "/?category=agents-coding"]) {
       value: () => [{ type: "reload", name: `https://hacksnap.live${listingPath}` }],
     });
     const snapshot = {
-      version: 1,
+      version: 3,
       url: listingPath,
       stories: [card(1), card(11)],
       pagination: browsePagination(2, true),

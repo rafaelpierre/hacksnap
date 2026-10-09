@@ -142,7 +142,7 @@ test.describe("mobile browser history", () => {
         ),
       );
       const snapshot: FeedSnapshot = {
-        version: 1,
+        version: 3,
         url: "/",
         stories: pages.flatMap(({ stories }) => stories),
         pagination: pages[1].pagination,

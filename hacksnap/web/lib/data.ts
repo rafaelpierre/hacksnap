@@ -166,7 +166,9 @@ async function hasImageColumns(client: PoolClient): Promise<boolean> {
   const { rows } = await client.query<{ available: boolean }>(imageColumnsSQL);
   const available = rows[0].available;
   if (!available) {
-    console.warn("Hacksnap stored images unavailable: apply migration 0015 and its reader grants");
+    console.warn(
+      "Hacksnap stored images unavailable: apply migrations through 0022 and reader grants",
+    );
   }
   return available;
 }
@@ -235,7 +237,7 @@ function readBrowseStories<T>(
       );
     if (!capabilities.images_available)
       console.warn(
-        "Hacksnap stored images unavailable: apply migration 0015 and its reader grants",
+        "Hacksnap stored images unavailable: apply migrations through 0022 and reader grants",
       );
     return query(
       client,

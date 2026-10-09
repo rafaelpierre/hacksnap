@@ -183,7 +183,7 @@ test("story URLs stay clean while each history entry retains its own journey", a
     act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
   try {
     const savedFeed: FeedSnapshot = {
-      version: 1,
+      version: 3,
       url: "/?page=3",
       stories: [
         {
@@ -401,7 +401,7 @@ for (const historyFormat of ["reference", "legacy"] as const) {
     const click = () => act(async () => (document.querySelector("a") as HTMLAnchorElement).click());
     try {
       const savedFeed: FeedSnapshot = {
-        version: 1,
+        version: 3,
         url: "/",
         stories: Array.from({ length: 30 }, (_, index) => ({
           hn_id: String(index + 1),

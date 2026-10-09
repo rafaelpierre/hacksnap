@@ -418,7 +418,7 @@ test("lead image priority starts in HTML and clears on an offscreen return", asy
       dom.window.history.replaceState(
         {
           hacksnapHomeFeed: {
-            version: 1,
+            version: 3,
             url: "/",
             stories: [ready, story(2)],
             pagination: pagination(1, false),
@@ -517,7 +517,7 @@ test("a deep restored anchor is mounted before StoryFeed restores its scroll and
   dom.window.history.replaceState(
     {
       hacksnapHomeFeed: {
-        version: 1,
+        version: 3,
         url: "/",
         stories,
         pagination: pagination(40, false),

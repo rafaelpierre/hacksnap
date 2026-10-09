@@ -20,8 +20,8 @@ function positiveInteger(value: unknown): number | undefined {
 }
 
 /**
- * The database stores publisher provenance privately. Only a ready image copied
- * into the public Blob store can enter the reader-facing contract.
+ * Database projections omit generated images and publisher provenance. Only a
+ * ready image copied into the public Blob store enters the rendering contract.
  */
 export function canonicalArticleImage(image: ArticleImage): CanonicalArticleImage | null {
   if (image.image_status !== "ready" || typeof image.image_url !== "string") return null;

@@ -109,7 +109,7 @@ export function StoryFeed({
   function snapshotNow(): FeedSnapshot {
     const current = feedRef.current;
     return {
-      version: 1,
+      version: 3,
       url: currentURL(),
       stories: current.stories,
       leadStoryId: current.leadStoryId,

@@ -8,14 +8,19 @@ import {
   saveFeedSnapshot,
   positionFeedSnapshot,
 } from "../lib/feed-snapshot-storage";
-import { packFeedSnapshot, unpackFeedSnapshot, type FeedSnapshot } from "../lib/feed-state";
+import {
+  packFeedSnapshot,
+  unpackFeedSnapshot,
+  validFeedSnapshot,
+  type FeedSnapshot,
+} from "../lib/feed-state";
 import { ARCHIVE_PAGE_SIZE } from "../lib/archive";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 
 function snapshot(count: number, page: number, savedAt = Date.now()): FeedSnapshot {
   return {
-    version: 1,
+    version: 3,
     url: "/",
     stories: Array.from({ length: count }, (_, index) => ({
       hn_id: String(index + 1),
@@ -87,6 +92,14 @@ test("compact deep feed stays inside the per-snapshot budget and round-trips", (
       );
     }
   }
+});
+
+test("snapshots saved before publisher-only images cannot restore generated fallbacks", () => {
+  const feed = snapshot(15, 1);
+  assert.equal(validFeedSnapshot({ ...feed, version: 1 }, "/"), null);
+  const packed = JSON.parse(packFeedSnapshot(feed));
+  packed[0] = 2;
+  assert.equal(unpackFeedSnapshot(JSON.stringify(packed), "/"), null);
 });
 
 test("one tab-level record reconstructs earlier feed depths with exact pagination and focus", () => {
