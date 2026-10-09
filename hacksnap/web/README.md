@@ -119,17 +119,18 @@ the redirects; `robots.txt` does not block them.
 
 ## Most-read stories by period
 
-The root site layout owns the lifetime “Most read” card of up to five stories.
-It renders on the initial request to every HTML page, including direct article
+The root site layout owns two cards of up to five stories each: “Trending” for
+reads in the last seven days, above the lifetime “Most read” card.
+Each renders on the initial request to every HTML page, including direct article
 URLs, supporting pages and data-outage states. It remains mounted
 across client navigation; it does not depend on entering through a feed.
 It sits to the right at 78rem and below the main content at narrower widths, including
 phones. Its loading, empty and failure states are
-independent of the required feed or article. Weekly ranking remains available to existing
-data consumers; the DEV presentation does not show a second weekly widget.
+independent of the required feed or article and of the other card. Both cards reuse
+the same component, with separate rankings and accessible headings.
 Links use the stored canonical story slug.
 The grid renders its route children immediately. On full-document requests, a
-sibling component waits for required route validation and data reads to finish
+sibling components wait for required route validation and data reads to finish
 before starting popularity,
 so the optional query cannot take the single database connection ahead of the
 article or feed. This coordination uses React’s per-render cache and is released
@@ -154,12 +155,12 @@ future events, and historical GA totals, which have no per-read timestamps.
 Apply migration `0021_weekly_story_popularity` for the partial timestamp index
 and scoped reader grants. It retains RLS and keeps visit identifiers private.
 Before migration, the weekly reader reports unavailable while the all-time reader
-remains usable. The current interface only renders the all-time result, with
+remains usable. Both cards render their respective results, with
 ordinary canonical article links that work without JavaScript. Full document
 requests await the optional popularity read after required feed data; client
 navigation streams its loading, empty, and unavailable states independently.
-The interface omits the lifetime label; “Most read” ranks across all time.
-The retained weekly reader counts reads over a rolling seven-day period rather
+“Most read” includes the “Across all time” label and ranks lifetime reads.
+The weekly reader counts reads over a rolling seven-day period rather
 than calculating a rate of growth.
 
 All-time ranking uses `historical_views + story_views`, with HN ID descending as

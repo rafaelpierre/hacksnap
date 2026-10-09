@@ -13,7 +13,7 @@ function PopularStoriesShell({
   return (
     <aside className="popular-stories" aria-labelledby={heading}>
       <div className="popular-stories-heading">
-        <h2 id={heading}>{period === "last-7-days" ? "Trending this week" : "Most read"}</h2>
+        <h2 id={heading}>{period === "last-7-days" ? "Trending" : "Most read"}</h2>
         {period === "all-time" && <p>Across all time</p>}
       </div>
       {children}

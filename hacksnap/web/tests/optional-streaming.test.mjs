@@ -149,7 +149,7 @@ const categoryProps = {
 
 test("article and sidebar shell stream while popularity is pending", async () => {
   const pending = deferred();
-  getPopularStories.mockImplementationOnce(() => pending.promise);
+  getPopularStories.mockResolvedValueOnce([]).mockImplementationOnce(() => pending.promise);
   const rendered = stream(await SiteContent({ children: await StoryPage(storyProps) }));
   await rendered.contains(/Loading most read stories/);
   assert.match(rendered.html, /The primary article brief/);
@@ -162,7 +162,7 @@ test("article and sidebar shell stream while popularity is pending", async () =>
 });
 
 test("failed popularity keeps the article and sidebar failure message", async () => {
-  getPopularStories.mockRejectedValueOnce(new DataUnavailableError());
+  getPopularStories.mockResolvedValueOnce([]).mockRejectedValueOnce(new DataUnavailableError());
   const rendered = stream(await SiteContent({ children: await StoryPage(storyProps) }));
   await rendered.complete;
   assert.match(rendered.html, /The primary article brief/);
@@ -176,7 +176,7 @@ test.each([
 ])("document %s read runs while popularity is pending", async (_name, Page, props, primary) => {
   shouldStreamBrowse.mockResolvedValue(false);
   const pending = deferred();
-  getPopularStories.mockImplementationOnce(() => {
+  getPopularStories.mockResolvedValueOnce([]).mockImplementationOnce(() => {
     events.push("popularity");
     return pending.promise;
   });
@@ -223,7 +223,7 @@ test.each([
       await rendered.complete;
       shouldStreamBrowse.mockResolvedValue(true);
     }
-    assert.equal(getPopularStories.mock.calls.length, 1);
+    assert.equal(getPopularStories.mock.calls.length, 2);
     assert.match(rendered.html, /Primary headline/);
     assert.deepEqual(rendered.errors, []);
   },
