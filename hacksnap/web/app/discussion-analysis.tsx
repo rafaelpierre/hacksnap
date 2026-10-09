@@ -10,6 +10,8 @@ function SourceComment({ id, context }: { id: number; context: string }) {
     <a
       className="analysis-source"
       href={`https://news.ycombinator.com/item?id=${id}`}
+      target="_blank"
+      rel="noopener noreferrer"
       aria-label={`Read HN comment ${id}: ${context}`}
     >
       HN comment {id} <ArrowUpRight className="inline-icon" aria-hidden="true" />

@@ -4,8 +4,8 @@ import AxeBuilder from "@axe-core/playwright";
 test.describe("article source without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("the opening excerpt is a working server-rendered source link", async ({ page }) => {
-    await page.route("https://example.com/research", (route) =>
+  test("the opening excerpt opens the source in a new tab", async ({ page, context }) => {
+    await context.route("https://example.com/research", (route) =>
       route.fulfill({ contentType: "text/html", body: "<h1>Original source fixture</h1>" }),
     );
     await page.goto(storyPath);
@@ -14,10 +14,14 @@ test.describe("article source without JavaScript", () => {
       "Researchers compared small models on a repeatable set of development tasks",
     );
     await link.focus();
+    const popupPromise = page.waitForEvent("popup");
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL("https://example.com/research");
-    await expect(page.getByRole("heading")).toHaveText("Original source fixture");
-    await page.goBack();
+    const popup = await popupPromise;
+    await expect(popup).toHaveURL("https://example.com/research");
+    await expect(popup.getByRole("heading")).toHaveText("Original source fixture");
+    expect(await popup.evaluate(() => window.opener)).toBeNull();
+    await popup.close();
+    await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
     await expect(link).toBeVisible();
   });
 });

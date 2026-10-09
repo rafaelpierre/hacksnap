@@ -5,6 +5,8 @@ import { test } from "@jest/globals";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
+import { createRequire } from "node:module";
+const { JSDOM } = createRequire(import.meta.url)("jsdom");
 import { StoryContent } from "../app/story/[id]/story-content";
 import { StoryRow } from "../app/story-row";
 import { BrowseLayout } from "../app/topic-sidebar";
@@ -46,6 +48,39 @@ const relatedStories: RelatedStory[] = [
     date_added: new Date("2026-09-26T09:00:00Z"),
   },
 ];
+
+test("external links open new tabs across feed, legacy and pending story states", () => {
+  const legacy: Story = {
+    ...story,
+    summary: {
+      ...story.summary!,
+      discussion_points: [{ title: "Evidence", summary: "A point.", comment_ids: [90000002] }],
+    },
+  };
+  const elements = [
+    createElement(StoryRow, { story }),
+    ...[
+      story,
+      legacy,
+      { ...story, summary: null },
+      { ...story, url: "https://news.ycombinator.com/item?id=90000001", summary: null },
+    ].map((item) => createElement(StoryContent, { story: item, relatedStories })),
+  ];
+  for (const element of elements) {
+    const dom = new JSDOM(render(element));
+    const document: Document = dom.window.document;
+    const external = document.querySelectorAll('a[href^="https://"]');
+    assert.ok(external.length > 0);
+    for (const link of external) {
+      assert.equal(link.getAttribute("target"), "_blank", link.getAttribute("href")!);
+      assert.equal(link.getAttribute("rel"), "noopener noreferrer");
+    }
+    const internal = document.querySelectorAll('a[href^="/"]');
+    assert.ok(internal.length > 0);
+    for (const link of internal) assert.equal(link.getAttribute("target"), null);
+    dom.window.close();
+  }
+});
 
 function render(element: ReactElement) {
   return renderToStaticMarkup(
@@ -135,7 +170,7 @@ test("article brief separates sentences while preserving punctuation and escapin
   );
   assert.match(
     html,
-    /<p><span class="article-brief-sentence"><a href="https:\/\/example.com\/article">Dr<\/a>\. Smith says version 3\.5 costs \$2\.50 per run\. <\/span><span class="article-brief-sentence">Does it help\? <\/span><span class="article-brief-sentence">Yes! <\/span><span class="article-brief-sentence">&lt;script&gt;/,
+    /<p><span class="article-brief-sentence"><a href="https:\/\/example.com\/article"[^>]*>Dr<\/a>\. Smith says version 3\.5 costs \$2\.50 per run\. <\/span><span class="article-brief-sentence">Does it help\? <\/span><span class="article-brief-sentence">Yes! <\/span><span class="article-brief-sentence">&lt;script&gt;/,
   );
   assert.doesNotMatch(html, /<script>alert/);
 });
@@ -152,7 +187,7 @@ test.each([":", "?", ".", ";", ",", "!", "…", "—", "–", "(", "/"])(
     );
     assert.ok(
       html.includes(
-        `<span class="article-brief-sentence"><a href="${story.url}">${opening}</a>${punctuation}`,
+        `<span class="article-brief-sentence"><a href="${story.url}" target="_blank" rel="noopener noreferrer">${opening}</a>${punctuation}`,
       ),
     );
     assert.equal((html.match(/article-brief-sentence"><a /g) ?? []).length, 1);
@@ -176,7 +211,9 @@ test.each([
       }),
     );
     assert.ok(
-      html.includes(`<span class="article-brief-sentence"><a href="${story.url}">${opening}</a>`),
+      html.includes(
+        `<span class="article-brief-sentence"><a href="${story.url}" target="_blank" rel="noopener noreferrer">${opening}</a>`,
+      ),
     );
   },
 );

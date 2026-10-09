@@ -24,6 +24,8 @@ export function StoryRail({
       <a
         className="feed-stat feed-comments"
         href={`https://news.ycombinator.com/item?id=${id}`}
+        target="_blank"
+        rel="noopener noreferrer"
         title={`${commentCount.toLocaleString("en-GB")} comments`}
       >
         <MessageCircle size={18} aria-hidden="true" />
