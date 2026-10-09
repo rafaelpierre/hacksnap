@@ -54,6 +54,8 @@ for (const { id, expected: analysis } of fixtures) {
           .closest(".analysis-theme")!
           .querySelector(`a[href="https://news.ycombinator.com/item?id=${id}"]`);
         assert.ok(link?.getAttribute("aria-label")?.includes(topic.title));
+        assert.equal(link?.getAttribute("target"), "_blank");
+        assert.equal(link?.getAttribute("rel"), "noopener noreferrer");
       }
     }
     if (analysis.status === "no_comments") assert.match(text, /No usable comments were available/);

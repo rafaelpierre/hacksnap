@@ -100,6 +100,10 @@ keyboard focus and blocked storage.
 
 ## Story URLs
 
+External web links open in a new tab with `noopener noreferrer`, including the
+comments pill, original articles, HN threads and source-comment citations.
+Internal story, topic and feed navigation stays in the current tab.
+
 Existing stories retain `/story/<hn-id>` permanently. Migration `0014_story_slugs`
 adds a nullable stored slug without backfilling any existing row. After the updated
 collector is deployed, only first inserts receive `/story/<headline>-<hn-id>`.

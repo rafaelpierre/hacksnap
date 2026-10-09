@@ -94,7 +94,9 @@ export function StoryContent({
                     <span className="article-brief-sentence" key={index}>
                       {index === 0 && article && opening ? (
                         <>
-                          <a href={article}>{opening}</a>
+                          <a href={article} target="_blank" rel="noopener noreferrer">
+                            {opening}
+                          </a>
                           {sentence.slice(opening.length)}
                         </>
                       ) : (
@@ -162,6 +164,8 @@ export function StoryContent({
                                     <a
                                       key={comment}
                                       href={`https://news.ycombinator.com/item?id=${comment}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       aria-label={`Source comment ${comment} for ${point.title}`}
                                     >
                                       [{index + 1}]{" "}
@@ -181,7 +185,7 @@ export function StoryContent({
                     {discussion.kind === "legacy"
                       ? "No distinct themes were identified in this summary."
                       : "No usable discussion was available for this summary."}{" "}
-                    <a href={hnURL}>
+                    <a href={hnURL} target="_blank" rel="noopener noreferrer">
                       Read the HN thread <ArrowUpRight className="inline-icon" aria-hidden="true" />
                     </a>
                   </p>
@@ -202,11 +206,11 @@ export function StoryContent({
             {article ? (
               <>
                 Read the{" "}
-                <a href={article}>
+                <a href={article} target="_blank" rel="noopener noreferrer">
                   original source <ArrowUpRight className="inline-icon" aria-hidden="true" />
                 </a>{" "}
                 or the{" "}
-                <a href={hnURL}>
+                <a href={hnURL} target="_blank" rel="noopener noreferrer">
                   HN discussion <ArrowUpRight className="inline-icon" aria-hidden="true" />
                 </a>
                 .
@@ -214,7 +218,7 @@ export function StoryContent({
             ) : (
               <>
                 Read the{" "}
-                <a href={hnURL}>
+                <a href={hnURL} target="_blank" rel="noopener noreferrer">
                   HN post and discussion <ArrowUpRight className="inline-icon" aria-hidden="true" />
                 </a>
                 .
