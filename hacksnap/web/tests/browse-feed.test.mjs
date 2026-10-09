@@ -146,7 +146,7 @@ test("browse snapshots accept 15 published cards per batch without weakening ran
   );
   assert.ok(validFeedPage(body));
   const snapshot = {
-    version: 1,
+    version: 3,
     url: "/",
     stories: Array.from({ length: 450 }, (_, i) => ({ ...stories[0], hn_id: String(i + 1) })),
     pagination: browsePagination(30, true),

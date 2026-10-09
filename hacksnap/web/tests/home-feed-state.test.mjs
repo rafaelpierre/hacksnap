@@ -55,7 +55,7 @@ test("Latest continuation appends unique cards", () => {
 test("return snapshot reconstructs the loaded list before restoring its position", () => {
   const now = Date.now();
   const snapshot = {
-    version: 1,
+    version: 3,
     url: "/",
     stories: [story(1), story(11), story(21)],
     pagination: { ...pagination, page: 3 },
@@ -102,7 +102,7 @@ test.each(["/", "/2026/09", "/?category=agents-coding"])(
     const browse = browsePagination(1, true);
     const good = { ...story(1), rank: null };
     const snapshot = {
-      version: 1,
+      version: 3,
       url,
       stories: [good],
       pagination: browse,
@@ -153,7 +153,7 @@ test.each(["/", "/2026/09", "/?category=agents-coding"])(
 test("legacy category feed records normalize URLs while retaining loaded depth and strict selection matching", () => {
   const now = Date.now();
   const legacy = {
-    version: 1,
+    version: 3,
     url: "/category/agents-coding?page=2",
     stories: [story(1), story(11), story(21)],
     pagination: browsePagination(4, true),

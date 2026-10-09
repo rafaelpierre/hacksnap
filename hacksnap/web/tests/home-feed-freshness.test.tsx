@@ -35,7 +35,7 @@ test("root Latest ignores retired ranked state, loads 15 via browse API, and res
   const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
   const initial = Array.from({ length: 15 }, (_, index) => story(index + 100));
   const old = {
-    version: 1,
+    version: 3,
     url: "/",
     stories: [story(1)],
     pagination: {

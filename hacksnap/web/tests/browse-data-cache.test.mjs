@@ -178,7 +178,7 @@ test("combined capability query requires every reader grant and detects later ro
       CREATE ROLE hacksnap_reader;
       CREATE TABLE hacker_news_threads (
         hn_id bigint, story_slug text, image_url text, image_status text,
-        image_width int, image_height int, image_mime_type text
+        image_width int, image_height int, image_mime_type text, image_source_type text
       );
       CREATE TABLE hacksnap_summaries (
         discussion_analysis jsonb, discussion_analyzed_at timestamptz,
@@ -198,7 +198,7 @@ test("combined capability query requires every reader grant and detects later ro
     });
     await db.exec(`
       RESET ROLE;
-      GRANT SELECT (story_slug, image_mime_type) ON hacker_news_threads TO hacksnap_reader;
+      GRANT SELECT (story_slug, image_mime_type, image_source_type) ON hacker_news_threads TO hacksnap_reader;
       GRANT SELECT (discussion_analysis_coverage) ON hacksnap_summaries TO hacksnap_reader;
       SET ROLE hacksnap_reader;
     `);

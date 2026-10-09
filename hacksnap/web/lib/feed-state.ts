@@ -17,7 +17,7 @@ export type FeedPagination = {
 };
 
 export type FeedSnapshot = {
-  version: 1;
+  version: 3;
   leadStoryId?: string | null;
   url: string;
   stories: PublicFeedStory[];
@@ -79,7 +79,7 @@ export function validFeedSnapshotRef(
 // names from deep feed snapshots without dropping any rendered card data.
 export function packFeedSnapshot(snapshot: FeedSnapshot): string {
   return JSON.stringify([
-    2,
+    3,
     snapshot.url,
     snapshot.stories.map((story) => [
       story.hn_id,
@@ -126,7 +126,8 @@ export function packFeedSnapshot(snapshot: FeedSnapshot): string {
 export function unpackFeedSnapshot(raw: string, url: string): FeedSnapshot | null {
   try {
     const packed: unknown = JSON.parse(raw);
-    if (!Array.isArray(packed) || ![7, 8].includes(packed.length) || packed[0] !== 2) return null;
+    // Earlier snapshots can contain generated image URLs without provenance.
+    if (!Array.isArray(packed) || ![7, 8].includes(packed.length) || packed[0] !== 3) return null;
     const [, savedURL, rows, pagination, scrollY, focusStoryId, savedAt, leadStoryId] = packed;
     if (!Array.isArray(rows)) return null;
     const stories = rows.map((value: unknown) => {
@@ -189,7 +190,7 @@ export function unpackFeedSnapshot(raw: string, url: string): FeedSnapshot | nul
     if (stories.includes(null)) return null;
     return validFeedSnapshot(
       {
-        version: 1,
+        version: 3,
         url: savedURL,
         stories,
         pagination,
@@ -219,7 +220,7 @@ export function validFeedPage(
   if (!Array.isArray(page.stories) || page.stories.length > ARCHIVE_PAGE_SIZE) return null;
   const snapshot = validFeedSnapshot(
     {
-      version: 1,
+      version: 3,
       url,
       stories: page.stories,
       pagination: page.pagination,
@@ -269,7 +270,7 @@ export function validFeedSnapshot(
   const normalizedURL = normalizedBrowseURL(url);
   if (!normalizedURL || typeof snapshot.url !== "string") return null;
   if (
-    snapshot.version !== 1 ||
+    snapshot.version !== 3 ||
     normalizedBrowseURL(snapshot.url) !== normalizedURL ||
     !Array.isArray(snapshot.stories) ||
     snapshot.stories.length > ARCHIVE_PAGE_SIZE * MAX_BROWSE_PAGE ||

@@ -1,8 +1,19 @@
 // Only columns granted to hacksnap_reader belong in these projections.
 // Cards retain a bounded excerpt, never the full discussion analysis JSON.
 
-const storedImageFields = `t.image_url, t.image_status, t.image_width, t.image_height,
-  t.image_mime_type`;
+// Source type is used only to filter; provenance stays out of public results.
+const storedImageFields = [
+  "image_url",
+  "image_status",
+  "image_width",
+  "image_height",
+  "image_mime_type",
+]
+  .map(
+    (field) =>
+      `CASE WHEN t.image_source_type IN ('og', 'twitter', 'json_ld') THEN t.${field} ELSE NULL END AS ${field}`,
+  )
+  .join(", ");
 const unavailableImageFields = `NULL::text AS image_url, NULL::text AS image_status,
   NULL::integer AS image_width, NULL::integer AS image_height, NULL::text AS image_mime_type`;
 
@@ -87,10 +98,10 @@ export const discussionColumnsSQL = `SELECT count(*) = 3 AS available
     AND has_column_privilege(attrelid, attname, 'SELECT')`;
 
 // The reader grant can land separately from the additive image migration.
-export const imageColumnsSQL = `SELECT count(*) = 5 AS available
+export const imageColumnsSQL = `SELECT count(*) = 6 AS available
   FROM pg_attribute
   WHERE attrelid = 'hacker_news_threads'::regclass
-    AND attname IN ('image_url', 'image_status', 'image_width', 'image_height', 'image_mime_type')
+    AND attname IN ('image_url', 'image_status', 'image_width', 'image_height', 'image_mime_type', 'image_source_type')
     AND NOT attisdropped
     AND has_column_privilege(attrelid, attname, 'SELECT')`;
 

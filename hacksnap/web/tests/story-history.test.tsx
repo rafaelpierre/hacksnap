@@ -67,7 +67,7 @@ test("legacy openings migrate to independent keys and seen-only records disappea
     dom.window.localStorage.setItem(
       STORY_HISTORY_KEY,
       JSON.stringify({
-        version: 1,
+        version: 3,
         hideSeen: true,
         entries: {
           "404": { seenAt: Date.now() },
