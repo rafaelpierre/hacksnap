@@ -48,8 +48,9 @@ after hydration; ordinary navigation remains available before JavaScript loads.
 All routes share a normal-flow header with visible Latest and About links, aligned
 right from 38rem, desktop topic navigation and Most read sidebar. An underline marks the current main
 destination; topic-filtered feeds select their topic instead. Below 38rem the
-main links occupy a second header row alongside Topics, with another row when
-enlarged text needs it. Native “Topics” disclosure expands inline below 60rem and
+main links occupy a second header row alongside an icon-only menu button, with
+another row when enlarged text needs it. The menu button has a transparent,
+borderless 44px target and an accessible “Topics” label. Its native disclosure expands inline below 60rem and
 works without JavaScript; Escape closes it and returns focus. The topic-only left
 sidebar is sticky above 60rem. At
 78rem the 83.5rem shell has a 12.5rem navigation column and an 18rem supporting
