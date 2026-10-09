@@ -924,6 +924,8 @@ that gains a takeaway. Reader edits survive same-story refreshes and closing and
 reopening the editor. Reset draft restores the latest suggestion and focuses the
 textarea. Changing story identity resets the draft and copy feedback; delayed
 clipboard completions cannot update a replacement identity or draft.
+Closing or toggling the dialog also invalidates pending copies, so reopening it
+cannot restore an earlier session's LinkedIn action, feedback or manual-copy field.
 
 ## Production browser regression suite
 

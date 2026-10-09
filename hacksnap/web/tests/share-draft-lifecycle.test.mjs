@@ -142,6 +142,51 @@ test("share draft refresh, reset, identity changes, and delayed copies follow th
     );
     assert.equal(document.querySelector(".share-feedback").textContent, "");
     assert.equal(document.querySelector(".share-manual"), null);
+
+    const closeActions = {
+      trigger: () => button("Share").click(),
+      button: () => document.querySelector(".share-close").click(),
+      escape: () =>
+        document
+          .querySelector(".share-panel")
+          .dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+      cancel: () =>
+        document
+          .querySelector(".share-panel")
+          .dispatchEvent(new dom.window.Event("cancel", { cancelable: true })),
+      backdrop: () =>
+        document
+          .querySelector(".share-panel")
+          .dispatchEvent(
+            new dom.window.MouseEvent("click", { clientX: -1, clientY: -1, bubbles: true }),
+          ),
+    };
+    for (const [method, closeDialog] of Object.entries(closeActions)) {
+      for (const succeeds of [true, false]) {
+        await click(button("LinkedIn"));
+        const pendingCopy = writes.at(-1);
+        const savedDraft = document.querySelector(".share-draft").value;
+        await act(async () => closeDialog());
+        assert.equal(document.querySelector(".share-panel"), null, method);
+        await click(button("Share"));
+        const focusedAction = document.activeElement;
+        await settle(() =>
+          succeeds ? pendingCopy.resolve() : pendingCopy.reject(new Error("clipboard unavailable")),
+        );
+        assert.equal(document.querySelector(".share-feedback").textContent, "", method);
+        assert.equal(document.querySelector(".share-manual"), null, method);
+        assert.equal(
+          document.querySelector('a[aria-label="Open LinkedIn (opens in a new tab)"]'),
+          null,
+          method,
+        );
+        assert.equal(document.querySelector(".share-draft").value, savedDraft, method);
+        assert.equal(document.activeElement, focusedAction, method);
+      }
+    }
+    await click(button("LinkedIn"));
+    await settle(() => writes.at(-1).resolve());
+    assert.ok(document.querySelector('a[aria-label="Open LinkedIn (opens in a new tab)"]'));
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
