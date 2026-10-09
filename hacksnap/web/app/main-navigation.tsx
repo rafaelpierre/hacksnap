@@ -68,18 +68,28 @@ function NavigationLinks({
   );
 }
 
-function RouteNavigation({ pathname, ...props }: NavigationProps & { pathname: string }) {
+function NavigationCategory({ onChange }: { onChange: (category: string | null) => void }) {
   const search = useSearchParams();
-  const category = pathname === "/" ? search.get("category") : null;
-  return <NavigationLinks {...props} pathname={pathname} category={category} />;
+  const category = search.get("category");
+  useEffect(() => onChange(category), [category, onChange]);
+  return null;
 }
 
 export function TopicNavigation(props: NavigationProps) {
   const pathname = usePathname();
+  const [category, setCategory] = useState<string | null>(null);
   return (
-    <Suspense fallback={<NavigationLinks {...props} pathname={pathname} />}>
-      <RouteNavigation {...props} pathname={pathname} />
-    </Suspense>
+    <>
+      {/* Revealing search parameters must not replace a focused navigation link. */}
+      <Suspense fallback={null}>
+        <NavigationCategory onChange={setCategory} />
+      </Suspense>
+      <NavigationLinks
+        {...props}
+        pathname={pathname}
+        category={pathname === "/" ? category : null}
+      />
+    </>
   );
 }
 
@@ -107,19 +117,16 @@ function HeaderLinks({ pathname, category }: { pathname: string; category?: stri
   );
 }
 
-function RouteHeaderLinks({ pathname }: { pathname: string }) {
-  const search = useSearchParams();
-  return (
-    <HeaderLinks pathname={pathname} category={pathname === "/" ? search.get("category") : null} />
-  );
-}
-
 export function MainNavigation() {
   const pathname = usePathname();
+  const [category, setCategory] = useState<string | null>(null);
   return (
-    <Suspense fallback={<HeaderLinks pathname={pathname} />}>
-      <RouteHeaderLinks pathname={pathname} />
-    </Suspense>
+    <>
+      <Suspense fallback={null}>
+        <NavigationCategory onChange={setCategory} />
+      </Suspense>
+      <HeaderLinks pathname={pathname} category={pathname === "/" ? category : null} />
+    </>
   );
 }
 

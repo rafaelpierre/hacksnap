@@ -1,6 +1,49 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "./browser";
 
+for (const destination of [
+  { navigation: "Topic navigation", name: "Browse by topic", url: /\/topics$/ },
+  { navigation: "Main navigation", name: "About", url: /\/about$/ },
+]) {
+  test(`${destination.name} retains keyboard focus through hydration`, async ({ page }) => {
+    // Hold React's streamed-boundary reveal until a reader has focused a link.
+    await page.addInitScript(() => {
+      const requestFrame = window.requestAnimationFrame.bind(window);
+      const frames: FrameRequestCallback[] = [];
+      window.requestAnimationFrame = (callback) => frames.push(callback);
+      window.addEventListener(
+        "test:reveal-stream",
+        () => {
+          window.requestAnimationFrame = requestFrame;
+          for (const callback of frames) requestFrame(callback);
+        },
+        { once: true },
+      );
+    });
+    await page.goto("/?category=models-products");
+    const link = page
+      .getByRole("navigation", { name: destination.navigation, exact: true })
+      .getByRole("link", { name: destination.name, exact: true });
+    await link.focus();
+    await expect(link).toBeFocused();
+    await page.evaluate(() => window.dispatchEvent(new Event("test:reveal-stream")));
+    // The selected topic appears once the search-parameter reader has hydrated.
+    await expect(
+      page
+        .getByRole("navigation", { name: "Topic navigation", exact: true })
+        .getByRole("link", { name: "Models & Products", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(
+      page
+        .getByRole("navigation", { name: "Main navigation", exact: true })
+        .getByRole("link", { name: "Latest", exact: true }),
+    ).not.toHaveAttribute("aria-current");
+    await expect(link).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(destination.url);
+  });
+}
+
 for (const width of [320, 768, 1440]) {
   for (const scale of [1, 2]) {
     test(`top bar at ${width}px and ${scale * 100}% text`, async ({ page }, testInfo) => {

@@ -41,6 +41,10 @@ preferences do not affect the page. There is no appearance control or theme scri
 
 ## Shared design foundations
 
+Navigation links stay outside search-parameter Suspense boundaries so streamed
+content cannot replace a focused link. Query-based active-topic indicators update
+after hydration; ordinary navigation remains available before JavaScript loads.
+
 All routes share a normal-flow header with visible Latest and About links, desktop
 topic navigation and Most read sidebar. An underline marks the current main
 destination; topic-filtered feeds select their topic instead. Below 38rem the
