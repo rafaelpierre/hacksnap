@@ -657,6 +657,12 @@ body:has(#browse-content) .skip-browse {
   white-space: pre-line;
   margin-bottom: var(--space-5);
 }
+.article-brief-sentence {
+  display: block;
+}
+.article-brief-sentence + .article-brief-sentence {
+  margin-top: 1lh;
+}
 .key-points {
   padding-left: var(--space-5);
   margin: var(--space-5) 0 0;

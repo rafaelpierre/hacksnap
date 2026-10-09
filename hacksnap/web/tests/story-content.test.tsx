@@ -69,7 +69,7 @@ test("mocked story renders the reading journey and recommendations without a dat
   assert.doesNotMatch(html, /story-metrics/);
 });
 
-test("article brief breaks between sentences while preserving punctuation and escaping text", () => {
+test("article brief separates sentences while preserving punctuation and escaping text", () => {
   const article_summary =
     'Dr. Smith says version 3.5 costs $2.50 per run. Does it help? Yes! <script>alert("unsafe")</script>';
   const html = render(
@@ -79,7 +79,7 @@ test("article brief breaks between sentences while preserving punctuation and es
   );
   assert.match(
     html,
-    /<p>Dr\. Smith says version 3\.5 costs \$2\.50 per run\. <br\/>Does it help\? <br\/>Yes! <br\/>&lt;script&gt;/,
+    /<p><span class="article-brief-sentence">Dr\. Smith says version 3\.5 costs \$2\.50 per run\. <\/span><span class="article-brief-sentence">Does it help\? <\/span><span class="article-brief-sentence">Yes! <\/span><span class="article-brief-sentence">&lt;script&gt;/,
   );
   assert.doesNotMatch(html, /<script>alert/);
 });
