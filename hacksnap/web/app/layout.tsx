@@ -4,7 +4,7 @@ import Link from "next/link";
 import Script from "next/script";
 import localFont from "next/font/local";
 import { SiteHeader } from "./sticky-header";
-import { MobileNavigation } from "./main-navigation";
+import { MainNavigation, MobileNavigation } from "./main-navigation";
 import { TopicSidebar } from "./topic-sidebar";
 import { SiteContent } from "./site-content";
 import { analyticsBootstrap } from "../lib/analytics-bootstrap";
@@ -103,6 +103,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </span>
               hacksnap
             </Link>
+            <MainNavigation />
             <MobileNavigation />
           </div>
         </SiteHeader>

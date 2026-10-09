@@ -23,12 +23,12 @@ const { BrowseLayout } = await import("../app/topic-sidebar");
 
 test("mobile navigation renders a native disclosure and ordinary links before hydration", () => {
   const html = renderToStaticMarkup(<MobileNavigation />);
-  assert.match(html, /^<details class="mobile-navigation">/);
+  assert.match(html, /<details class="mobile-navigation">/);
   assert.match(html, /<summary[^>]*aria-controls="mobile-navigation-panel"/);
   // Native summary exposes the open state without a stale JavaScript-only aria value.
   assert.doesNotMatch(html, /aria-expanded/);
-  assert.match(html, /Topics &amp; menu/);
-  assert.match(html, /href="\/about"/);
+  assert.match(html, /<span>Topics<\/span>/);
+  assert.doesNotMatch(html, /href="\/about"|href="\/"/);
   assert.match(html, /href="\/\?category=agents-coding"/);
 });
 
@@ -60,7 +60,8 @@ test("mobile disclosure closes on Escape, selection, and browser route changes",
     await act(async () => root.render(<MobileNavigation />));
     const details = document.querySelector("details")!;
     const summary = document.querySelector("summary")!;
-    const link = document.querySelector<HTMLAnchorElement>('a[href="/about"]')!;
+    assert.equal(summary.getAttribute("aria-expanded"), "false");
+    const link = document.querySelector<HTMLAnchorElement>('a[href="/topics"]')!;
     const open = async () => {
       await act(async () => {
         details.open = true;
@@ -87,10 +88,15 @@ test("mobile disclosure closes on Escape, selection, and browser route changes",
     assert.equal(document.activeElement, summary);
 
     await open();
-    pathname = "/about";
+    search = new URLSearchParams("category=agents-coding");
     await act(async () => root.render(<MobileNavigation />));
     assert.equal(details.open, false);
-    assert.equal(document.querySelector('a[href="/about"]')?.getAttribute("aria-current"), "page");
+
+    await open();
+    pathname = "/topics";
+    await act(async () => root.render(<MobileNavigation />));
+    assert.equal(details.open, false);
+    assert.equal(document.querySelector('a[href="/topics"]')?.getAttribute("aria-current"), "page");
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
@@ -99,5 +105,6 @@ test("mobile disclosure closes on Escape, selection, and browser route changes",
       else Reflect.deleteProperty(globalThis, key);
     });
     pathname = "/";
+    search = new URLSearchParams();
   }
 });

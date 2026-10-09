@@ -53,11 +53,12 @@ test("navigation keeps its real destinations and current-route semantics", () =>
   const header = renderToStaticMarkup(<MainNavigation />);
   assert.doesNotMatch(header, /href="\/archive"|Top stories/);
   assert.match(header, /href="\/"[^>]*aria-current="location"/);
-  assert.match(header, /href="\/topics"/);
+  assert.doesNotMatch(header, /href="\/topics"|href="\/\?category=/);
   assert.match(header, /href="\/about"/);
 
   const sidebar = renderToStaticMarkup(<TopicSidebar active="agents_coding" />);
   assert.match(sidebar, /href="\/topics"/);
+  assert.doesNotMatch(sidebar, /href="\/"|href="\/about"/);
   assert.match(sidebar, /href="\/\?category=agents-coding"[^>]*aria-current="page"/);
 });
 
@@ -65,12 +66,13 @@ test("Latest is the root destination and selects the homepage", () => {
   pending = false;
   pathname = "/";
   const header = renderToStaticMarkup(<MainNavigation />);
-  assert.match(header, /href="\/"[^>]*aria-current="page"[^>]*>[\s\S]*?<span>Latest<\/span>/);
+  assert.match(header, /href="\/"[^>]*aria-current="page"[^>]*>Latest/);
   assert.doesNotMatch(header, /href="\/archive"/);
 
   pathname = "/about";
   const about = renderToStaticMarkup(<MainNavigation />);
   assert.doesNotMatch(about, /href="\/"[^>]*aria-current/);
+  assert.match(about, /href="\/about"[^>]*aria-current="page"/);
 });
 
 test("query topic destinations select the topic and clear Latest", () => {
@@ -78,7 +80,8 @@ test("query topic destinations select the topic and clear Latest", () => {
   search = new URLSearchParams("category=agents-coding&page=2");
   const html = renderToStaticMarkup(<MainNavigation />);
   assert.doesNotMatch(html, /href="\/"[^>]*aria-current/);
-  assert.match(html, /href="\/\?category=agents-coding"[^>]*aria-current="page"/);
-  assert.equal((html.match(/aria-current="page"/g) ?? []).length, 1);
+  const sidebar = renderToStaticMarkup(<TopicSidebar />);
+  assert.match(sidebar, /href="\/\?category=agents-coding"[^>]*aria-current="page"/);
+  assert.equal((sidebar.match(/aria-current="page"/g) ?? []).length, 1);
   search = new URLSearchParams();
 });
