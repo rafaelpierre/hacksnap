@@ -813,7 +813,7 @@ backfill or export regeneration.
 ## Feed card layout
 
 Latest, dated and topic feeds share this order: category and compact age, headline,
-takeaway, full-width inset image, optional discussion preview, then a compact
+takeaway, optional discussion preview, full-width inset image, then a compact
 rail with an up-arrow points count and a comment-count link to Hacker News.
 The counts use neutral pills, with blue hover/focus feedback on the comment link,
 screen-reader labels and a 44px touch target. The points count is informational.
@@ -823,8 +823,9 @@ filtered feeds. Missing images omit the media container; failed requests reserve
 the source aspect ratio. All images retain intrinsic proportions without cropping.
 
 All cards use the same headline, excerpt and padding styles, including the first.
-Each card with available current discussion topics shows an “Inside the discussion”
-widget. The feed query selects up to two nonblank topic summaries, bounded to 440
+Each card with available current discussion topics shows a “Discussion summary”
+widget, with a muted blue heading and decorative Lucide sparkle icon. The feed
+query selects up to two nonblank topic summaries, bounded to 440
 characters before the public feed serializer makes a 220-character excerpt.
 The excerpt travels with its story through pagination, virtualization and session
 restoration, without extra detail queries. Legacy summaries and unavailable analysis

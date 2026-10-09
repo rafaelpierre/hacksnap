@@ -38,7 +38,7 @@ function render(element: React.ReactElement) {
   );
 }
 
-test("every card places its discussion below the image and above its actions", () => {
+test("every card places its discussion below the subtitle and above the image", () => {
   for (const lead of [true, false]) {
     const html = render(
       <StoryRow story={publicFeedStory(story)} lead={lead} showCategory={false} />,
@@ -47,8 +47,8 @@ test("every card places its discussion below the image and above its actions", (
       "story-context",
       '<h2 class="feed-story-title"',
       "feed-excerpt",
-      'class="feed-story-image"',
       "feed-discussion-preview",
+      'class="feed-story-image"',
       'class="feed-story-rail"',
     ];
     const positions = markers.map((marker) => html.indexOf(marker));
@@ -59,7 +59,7 @@ test("every card places its discussion below the image and above its actions", (
     );
     assert.match(html, /Browse Agents/);
     assert.match(html, /aria-label="Share: A feed story"/);
-    assert.match(html, /<h3>Inside the discussion<\/h3>/);
+    assert.match(html, /<span>Discussion summary<\/span>/);
     assert.match(html, /Readers ask about reproducibility/);
     assert.match(html, /href="\/story\/90000001"/);
   }
