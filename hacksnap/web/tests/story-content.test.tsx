@@ -53,6 +53,43 @@ function render(element: ReactElement) {
   );
 }
 
+test("server-rendered stories include schema and forum links target the displayed analysis topics", () => {
+  const analyzed = {
+    ...story,
+    summary: {
+      ...story.summary!,
+      discussion_analyzed_at: "2026-10-09T10:00:00Z",
+      discussion_analysis: {
+        status: "available" as const,
+        reference_claims: [],
+        critical_comments: [],
+        supportive_comments: [],
+        topics: [
+          {
+            key: "evidence" as const,
+            title: "Evidence",
+            summary: "Evidence is limited.",
+            comment_ids: [123],
+          },
+        ],
+      },
+    },
+  };
+  const html = render(createElement(StoryContent, { story: analyzed }));
+  const script = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  assert.ok(script);
+  const graph = JSON.parse(script[1])["@graph"];
+  assert.equal(graph[0]["@type"], "Article");
+  assert.equal(graph[1]["@type"], "BreadcrumbList");
+  assert.equal(graph[2]["@type"], "DiscussionForumPosting");
+  const fragment = new URL(graph[2].url).hash.slice(1);
+  assert.ok(html.includes(`id="${fragment}"`));
+  assert.equal(graph[2].headline, "Evidence");
+  assert.equal(graph[2].text, "Evidence is limited.");
+  const pending = render(createElement(StoryContent, { story: { ...story, summary: null } }));
+  assert.doesNotMatch(pending, /application\/ld\+json/);
+});
+
 test("mocked story renders the reading journey and recommendations without a database", () => {
   const html = render(createElement(StoryContent, { story, relatedStories }));
   assert.match(html, /<h1>A mocked story title<\/h1>/);

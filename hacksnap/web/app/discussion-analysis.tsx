@@ -158,7 +158,11 @@ export function DiscussionAnalysis({
           {analysis.topics.length > 0 ? (
             <div className="analysis-themes">
               {analysis.topics.map((topic, topicIndex) => (
-                <div className="analysis-theme" key={`${topic.key}-${topicIndex}`}>
+                <div
+                  className="analysis-theme"
+                  id={`discussion-topic-${topic.key}-${topicIndex}`}
+                  key={`${topic.key}-${topicIndex}`}
+                >
                   <details className="analysis-theme-details">
                     <summary>
                       <span>{topic.title}</span>
