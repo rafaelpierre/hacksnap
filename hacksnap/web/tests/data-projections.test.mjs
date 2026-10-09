@@ -302,7 +302,8 @@ test("cards omit article and analysis payloads; article reads omit retained metr
     assert.ok(!cardQuery.includes("s.article_key_points"));
     assert.ok(!cardQuery.includes("s.discussion_summary"));
     assert.ok(!cardQuery.includes("s.discussion_points"));
-    assert.ok(!cardQuery.includes("s.discussion_analysis"));
+    assert.ok(cardQuery.includes("'discussion_preview'"));
+    assert.ok(!cardQuery.includes("'discussion_analysis', s.discussion_analysis"));
     assert.ok(!cardQuery.includes(rankHistorySQL));
     assert.match(cardRankHistorySQL, /ORDER BY observed_at DESC LIMIT 2/);
 

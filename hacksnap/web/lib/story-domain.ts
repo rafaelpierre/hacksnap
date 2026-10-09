@@ -25,6 +25,7 @@ export type StoryIdentity = StoryImageFields & {
 
 export type CardSummary = {
   overall_takeaway: string;
+  discussion_preview?: string | null;
   sentiment: -1 | 0 | 1 | null;
   source_coverage: SourceCoverage;
   // Older in-memory fixtures may still carry this unused field. Card SQL omits it.

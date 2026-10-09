@@ -177,8 +177,13 @@ test("denied storage keeps exact same-tab navigation without losing rendered car
 
 test("logical lead identity round-trips without persisting discussion detail", () => {
   const feed = { ...snapshot(30, 2), leadStoryId: "1" };
+  feed.stories[1]!.summary!.discussion_preview = "Discussion belonging to the second story.";
   const packed = packFeedSnapshot(feed);
   assert.equal(unpackFeedSnapshot(packed, "/")?.leadStoryId, "1");
+  assert.equal(
+    unpackFeedSnapshot(packed, "/")?.stories[1]?.summary?.discussion_preview,
+    "Discussion belonging to the second story.",
+  );
   assert.doesNotMatch(packed, /discussion_analysis|discussionPreview|discussion_summary/);
   const corrupted = JSON.parse(packed);
   corrupted[7] = "2";

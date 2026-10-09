@@ -290,7 +290,7 @@ test("filtered Latest streams stories without requesting category counts", async
   pending.resolve(categoryList);
   await rendered.complete;
   assert.match(rendered.html, /Primary headline/);
-  assert.deepEqual(events, ["list-start", "list-end", "story"]);
+  assert.deepEqual(events, ["list-start", "list-end"]);
   assert.equal(getCategoryCounts.mock.calls.length, 0);
   assert.deepEqual(rendered.errors, []);
 });

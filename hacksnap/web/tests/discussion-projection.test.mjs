@@ -118,6 +118,16 @@ test("reader projections preserve shared fixtures and legacy rows while excludin
           assert.deepEqual(summary.discussion_analysis, fixture.expected);
           assert.equal(summary.discussion_analysis_preview, undefined);
         } else {
+          const expectedPreview =
+            fixture.expected?.status === "available"
+              ? fixture.expected.topics
+                  .map((topic) => topic.summary.trim())
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join(" ")
+                  .slice(0, 440) || null
+              : null;
+          assert.equal(summary.discussion_preview, expectedPreview);
           assert.equal(summary.discussion_analysis, undefined);
           assert.equal(summary.discussion_analysis_preview, undefined);
           assert.equal(summary.discussion_summary, undefined);

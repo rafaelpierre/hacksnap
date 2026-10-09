@@ -12,7 +12,6 @@ import {
 } from "react";
 import type { PublicFeedStory } from "../lib/stories-api";
 import { canonicalArticleImage } from "../lib/article-image";
-import type { LeadDiscussionPreview } from "../lib/feed-presentation";
 import { StoryRow } from "./story-row";
 
 const ESTIMATED_STORY_HEIGHT = 390;
@@ -38,7 +37,6 @@ type StoryItemProps = {
   feedPosition?: number;
   leadImage: boolean;
   lead: boolean;
-  discussionPreview?: LeadDiscussionPreview | null;
   onHeight: (id: string, height: number) => void;
   onFocus: (index: number) => void;
   opened: boolean;
@@ -55,7 +53,6 @@ function StoryItem({
   feedPosition,
   leadImage,
   lead,
-  discussionPreview,
   onHeight,
   onFocus,
   opened,
@@ -94,7 +91,6 @@ function StoryItem({
         opened={opened}
         leadImage={leadImage}
         lead={lead}
-        discussionPreview={discussionPreview}
       />
     </li>
   );
@@ -157,7 +153,6 @@ export function WindowedStoryList({
   openedIds = new Set<string>(),
   showCategory = true,
   leadStoryId = stories[0]?.hn_id ?? null,
-  discussionPreview,
 }: {
   stories: PublicFeedStory[];
   ranked: boolean;
@@ -169,7 +164,6 @@ export function WindowedStoryList({
   openedIds?: ReadonlySet<string>;
   showCategory?: boolean;
   leadStoryId?: string | null;
-  discussionPreview?: LeadDiscussionPreview | null;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const heights = useRef(new Map<string, number>());
@@ -214,14 +208,11 @@ export function WindowedStoryList({
       const mediaWidth =
         story.hn_id === leadStoryId ? mediaWidths.current.lead : mediaWidths.current.ordinary;
       const mediaHeight = image ? (mediaWidth * image.height) / image.width + 16 : 0;
-      const leadHeight =
-        story.hn_id === leadStoryId
-          ? 80 + (discussionPreview?.storyId === leadStoryId ? 140 : 0)
-          : 0;
+      const discussionHeight = story.summary?.discussion_preview?.trim() ? 140 : 0;
       storyOffsets.push(
         storyOffsets.at(-1)! +
           (heights.current.get(story.hn_id) ??
-            ESTIMATED_STORY_HEIGHT + mediaHeight + leadHeight + STORY_GAP),
+            ESTIMATED_STORY_HEIGHT + mediaHeight + discussionHeight + STORY_GAP),
       );
     }
 
@@ -242,7 +233,7 @@ export function WindowedStoryList({
       }
     }
     return { storyOffsets, viewportOffsets, totalHeight };
-  }, [groupByDay, groups, layoutVersion, stories, leadStoryId, discussionPreview]);
+  }, [groupByDay, groups, layoutVersion, stories, leadStoryId]);
 
   useLayoutEffect(() => {
     const element = root.current;
@@ -264,10 +255,7 @@ export function WindowedStoryList({
         );
       };
       const ordinary = cardWidth(".feed-story:not(.feed-story-lead)", Math.max(0, width - 66));
-      const lead = cardWidth(
-        ".feed-story-lead",
-        Math.max(0, ordinary - (window.matchMedia?.("(min-width: 60rem)").matches ? 16 : 0)),
-      );
+      const lead = cardWidth(".feed-story-lead", ordinary);
       // A rotated viewport invalidates offscreen measurements too. Refresh mounted
       // rows immediately so restoration never positions against an empty cache.
       if (mediaWidths.current.width > 0) {
@@ -385,7 +373,6 @@ export function WindowedStoryList({
         feedPosition={ranked ? (initialPage - 1) * 10 + index + 1 : undefined}
         leadImage={leadImagePriority && story.hn_id === firstImageId && !pinnedStoryId}
         lead={story.hn_id === leadStoryId}
-        discussionPreview={discussionPreview}
         onHeight={onStoryHeight}
         onFocus={onStoryFocus}
         opened={openedIds.has(story.hn_id)}

@@ -4,7 +4,6 @@ import type { CardStory } from "../lib/story-domain";
 import type { PublicFeedStory } from "../lib/stories-api";
 import { CategoryBadge } from "./categories";
 import { briefExcerpt } from "../lib/brief";
-import type { LeadDiscussionPreview } from "../lib/feed-presentation";
 import { BrowseStoryLink } from "./story-navigation";
 import { StoryAge } from "./story-age";
 import { ArticleImage } from "./article-image";
@@ -12,8 +11,6 @@ import { canonicalArticleImage } from "../lib/article-image";
 
 const FEED_IMAGE_SIZES =
   "(min-width: 78rem) min(calc(100vw - 41.5rem - 2px), 41.875rem), (min-width: 60rem) min(calc(100vw - 22rem - 2px), 41.875rem), (min-width: 42rem) min(calc(100vw - 8rem - 2px), 41.875rem), (max-width: 26rem) calc(100vw - 4rem - 2px), calc(100vw - 5rem - 2px)";
-const LEAD_IMAGE_SIZES =
-  "(min-width: 78rem) min(calc(100vw - 42.5rem - 2px), 40.875rem), (min-width: 60rem) min(calc(100vw - 23rem - 2px), 40.875rem), (min-width: 42rem) min(calc(100vw - 8rem - 2px), 41.875rem), (max-width: 26rem) calc(100vw - 4rem - 2px), calc(100vw - 5rem - 2px)";
 
 export function StoryRow({
   story,
@@ -22,7 +19,6 @@ export function StoryRow({
   opened = false,
   leadImage = false,
   lead = false,
-  discussionPreview,
 }: {
   story: CardStory | PublicFeedStory;
   variant?: "ranked" | "unranked";
@@ -31,9 +27,9 @@ export function StoryRow({
   leadImage?: boolean;
   showCategory?: boolean;
   lead?: boolean;
-  discussionPreview?: LeadDiscussionPreview | null;
 }) {
   const takeaway = story.summary?.overall_takeaway?.trim();
+  const discussionPreview = story.summary?.discussion_preview?.trim();
   const image = canonicalArticleImage(story);
   const showArchive = variant === "ranked" && story.is_recent === false;
 
@@ -71,13 +67,13 @@ export function StoryRow({
         className="feed-story-image"
         loading={leadImage ? "eager" : "lazy"}
         fetchPriority={leadImage ? "high" : undefined}
-        sizes={lead ? LEAD_IMAGE_SIZES : FEED_IMAGE_SIZES}
+        sizes={FEED_IMAGE_SIZES}
       />
       <div className="story-content">
-        {lead && discussionPreview?.storyId === story.hn_id && (
+        {discussionPreview && (
           <div className="feed-discussion-preview">
             <h3>Inside the discussion</h3>
-            <p>{discussionPreview.text}</p>
+            <p>{briefExcerpt(discussionPreview)}</p>
           </div>
         )}
         <StoryRail id={story.hn_id} points={story.points} commentCount={story.comment_count}>

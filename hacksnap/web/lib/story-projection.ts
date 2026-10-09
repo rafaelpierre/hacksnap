@@ -1,6 +1,5 @@
 // Only columns granted to hacksnap_reader belong in these projections.
-// Cards render only a takeaway and sentiment. No discussion analysis JSON is
-// extracted or retained in their database result or server cache.
+// Cards retain a bounded excerpt, never the full discussion analysis JSON.
 
 const storedImageFields = `t.image_url, t.image_status, t.image_width, t.image_height,
   t.image_mime_type`;
@@ -30,6 +29,21 @@ const fields = (
 
 const cardSummary = `'overall_takeaway', s.overall_takeaway, 'sentiment', s.sentiment,
     'source_coverage', s.source_coverage`;
+const cardDiscussion = `, 'discussion_preview', CASE
+  WHEN s.discussion_analysis->>'status' = 'available' THEN (
+    SELECT left(string_agg(preview.text, ' ' ORDER BY preview.position), 440)
+    FROM (
+      SELECT btrim(topic->>'summary') AS text, position
+      FROM jsonb_array_elements(CASE
+        WHEN jsonb_typeof(s.discussion_analysis->'topics') = 'array'
+        THEN s.discussion_analysis->'topics' ELSE '[]'::jsonb END)
+        WITH ORDINALITY AS topics(topic, position)
+      WHERE jsonb_typeof(topic->'summary') = 'string'
+        AND topic->>'summary' ~ '[^[:space:]]'
+      ORDER BY position
+      LIMIT 2
+    ) preview
+  ) ELSE NULL END`;
 const articleSummary = `'article_summary', s.article_summary, 'article_key_points', s.article_key_points,
     'discussion_summary', s.discussion_summary, 'discussion_points', s.discussion_points,
     'sentiment', s.sentiment, 'overall_takeaway', s.overall_takeaway, 'generated_at', s.generated_at,
@@ -38,9 +52,9 @@ const exportSummary = `'article_summary', s.article_summary,
     'discussion_summary', s.discussion_summary, 'overall_takeaway', s.overall_takeaway,
     'sentiment', s.sentiment, 'source_coverage', s.source_coverage`;
 
-export const feedFields = fields(cardSummary, null);
+export const feedFields = fields(cardSummary + cardDiscussion, null);
 export const feedFieldsWithoutImages = fields(
-  cardSummary,
+  cardSummary + cardDiscussion,
   null,
   "NULL",
   "NULL",
@@ -80,14 +94,20 @@ export const imageColumnsSQL = `SELECT count(*) = 5 AS available
     AND NOT attisdropped
     AND has_column_privilege(attrelid, attname, 'SELECT')`;
 
-export const legacyFeedFields = feedFields;
+export const legacyFeedFields = fields(cardSummary, null);
 export const legacyStoryFields = fields(
   articleSummary,
   "'discussion_analysis', NULL",
   "NULL",
   "NULL",
 );
-export const legacyFeedFieldsWithoutImages = feedFieldsWithoutImages;
+export const legacyFeedFieldsWithoutImages = fields(
+  cardSummary,
+  null,
+  "NULL",
+  "NULL",
+  unavailableImageFields,
+);
 export const legacyStoryFieldsWithoutImages = fields(
   articleSummary,
   "'discussion_analysis', NULL",
