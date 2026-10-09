@@ -417,6 +417,7 @@ body:has(#browse-content) .skip-browse {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  padding-inline: var(--space-2);
   min-height: var(--touch-target);
   max-width: 100%;
   color: var(--accent);
