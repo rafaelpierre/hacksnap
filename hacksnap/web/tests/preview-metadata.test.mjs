@@ -49,6 +49,15 @@ test("long stories get compact previews without changing the source title or ima
   assert.equal(metadata.twitter.images[0].alt, title);
   assert.equal(story.title, title);
   assert.equal(metadata.alternates.canonical, "https://hacksnap.live/story/49783999");
+  assert.deepEqual(metadata.openGraph.images, [
+    {
+      url: "https://hacksnap.live/story/49783999/opengraph-image",
+      alt: title,
+      width: 1200,
+      height: 630,
+    },
+  ]);
+  assert.deepEqual(metadata.twitter.images, metadata.openGraph.images);
 });
 
 test("search and social titles use the headline while descriptions retain the actual sample and topics", () => {
@@ -96,6 +105,11 @@ test.each([null, undefined, "", " ", "\n\t\r "])(
     assert.deepEqual(pending.robots, { index: false, follow: true });
     assert.deepEqual({ ...pending, robots: published.robots }, published);
     assert.equal(pending.alternates.canonical, "https://hacksnap.live/story/small-models-1");
+    assert.equal(
+      pending.openGraph.images[0].url,
+      "https://hacksnap.live/story/small-models-1/opengraph-image",
+    );
+    assert.deepEqual(pending.twitter.images, pending.openGraph.images);
   },
 );
 

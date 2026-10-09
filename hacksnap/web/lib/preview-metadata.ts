@@ -1,7 +1,6 @@
 import { canonicalStoryUrl } from "./story-url";
 import type { Metadata } from "next";
 import type { Summary } from "./data";
-import { readyStoryImage, type StoryImageFields } from "./story-image";
 import { storyDiscussion } from "./story-presentation";
 import { hasPublishedTakeaway } from "./ready-stories";
 
@@ -81,14 +80,12 @@ function reactionDescription(summary: PreviewSummary | null): string {
   return `${introduction} ${topics ? `Topics: ${topics}` : summary.overall_takeaway}`;
 }
 
-export function storyPreviewMetadata(
-  story: StoryImageFields & {
-    hn_id: string;
-    title: string;
-    story_slug?: string | null;
-    summary: PreviewSummary | null;
-  },
-): Metadata {
+export function storyPreviewMetadata(story: {
+  hn_id: string;
+  title: string;
+  story_slug?: string | null;
+  summary: PreviewSummary | null;
+}): Metadata {
   // Keep preview headlines compact while retaining the brand in the SEO title.
   const title = previewText(story.title, 60);
   const pageTitle = `${title} | Hacksnap`;
@@ -96,22 +93,12 @@ export function storyPreviewMetadata(
   const description = previewText(reaction, 155);
   const socialDescription = previewText(reaction, 125);
   const url = canonicalStoryUrl(story.hn_id, story.story_slug);
-  // A story route metadata file would have higher priority than this metadata.
-  // The ready Blob URL or this site-level brand card is therefore declared here.
-  const storedImage = readyStoryImage(story);
-  const image = storedImage
-    ? {
-        url: storedImage.url,
-        alt: story.title,
-        width: storedImage.width,
-        height: storedImage.height,
-      }
-    : {
-        url: "https://hacksnap.live/opengraph-image",
-        alt: story.title,
-        width: 1200,
-        height: 630,
-      };
+  const image = {
+    url: `${url}/opengraph-image`,
+    alt: story.title,
+    width: 1200,
+    height: 630,
+  };
   return {
     title: { absolute: pageTitle },
     description,
