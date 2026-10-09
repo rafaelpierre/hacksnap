@@ -43,7 +43,7 @@ test("popular stories preserve five full titles, ranking order and stored canoni
   const html = renderToStaticMarkup(await PopularStories());
   assert.match(html, /aria-labelledby="popular-stories-heading"/);
   assert.match(html, /Most read/);
-  assert.doesNotMatch(html, /All time|role="tab"/);
+  assert.doesNotMatch(html, /Across all time|All time|role="tab"/);
   assert.match(html, /href="\/story\/long-story-1"/);
   assert.ok(html.includes(longTitle));
   assert.equal((html.match(/<li>/g) ?? []).length, 5);
@@ -75,9 +75,9 @@ test("weekly and lifetime widgets have separate headings and independent failure
   const html = weekly + lifetime;
   assert.match(html, /temporarily unavailable/);
   assert.match(html, /href="\/story\/lifetime-story-7"/);
-  assert.match(weekly, /<h2 id="trending-stories-heading">Trending<\/h2>/);
-  assert.match(lifetime, /<h2 id="popular-stories-heading">Most read<\/h2>/);
-  assert.doesNotMatch(html, /All time|role="tab"|hidden=""/);
+  assert.match(weekly, /<h2 id="trending-stories-heading">[\s\S]*Trending<\/h2>/);
+  assert.match(lifetime, /<h2 id="popular-stories-heading">[\s\S]*Most read<\/h2>/);
+  assert.doesNotMatch(html, /Across all time|All time|role="tab"|hidden=""/);
   assert.equal(getPopularStories.mock.calls.at(-2)?.[0], "last-7-days");
   assert.equal(getPopularStories.mock.calls.at(-1)?.[0], "all-time");
   getPopularStories.mockResolvedValueOnce([]);

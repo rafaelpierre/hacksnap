@@ -1,3 +1,4 @@
+import { Flame, Trophy } from "lucide-react";
 import type { PopularPeriod } from "../lib/popular-stories";
 import { getPopularStories } from "../lib/data";
 import { BrowseStoryLink } from "./story-navigation";
@@ -10,11 +11,14 @@ function PopularStoriesShell({
   period: PopularPeriod;
 }) {
   const heading = period === "last-7-days" ? "trending-stories-heading" : "popular-stories-heading";
+  const Icon = period === "last-7-days" ? Flame : Trophy;
   return (
     <aside className="popular-stories" aria-labelledby={heading}>
       <div className="popular-stories-heading">
-        <h2 id={heading}>{period === "last-7-days" ? "Trending" : "Most read"}</h2>
-        {period === "all-time" && <p>Across all time</p>}
+        <h2 id={heading}>
+          <Icon aria-hidden="true" />
+          {period === "last-7-days" ? "Trending" : "Most read"}
+        </h2>
       </div>
       {children}
     </aside>
@@ -45,11 +49,14 @@ export async function PopularStories({ period = "all-time" }: { period?: Popular
     return (
       <PopularStoriesShell period={period}>
         {stories.length ? (
-          <ol>
-            {stories.slice(0, 5).map((story) => (
+          <ol role="list">
+            {stories.slice(0, 5).map((story, index) => (
               <li key={story.hn_id}>
                 <BrowseStoryLink id={story.hn_id} slug={story.story_slug} focusFeedStory={false}>
-                  {story.title}
+                  <span className="popular-stories-rank" aria-hidden="true">
+                    {index + 1}
+                  </span>
+                  <span>{story.title}</span>
                 </BrowseStoryLink>
               </li>
             ))}

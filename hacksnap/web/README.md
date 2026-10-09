@@ -185,7 +185,8 @@ remains usable. Both cards render their respective results, with
 ordinary canonical article links that work without JavaScript. Full document
 requests await the optional popularity read after required feed data; client
 navigation streams its loading, empty, and unavailable states independently.
-“Most read” includes the “Across all time” label and ranks lifetime reads.
+“Trending” uses a flame icon and “Most read” uses a trophy icon. Both lists show
+numbered rank pills in muted accent blue. “Most read” ranks lifetime reads.
 The weekly reader counts reads over a rolling seven-day period rather
 than calculating a rate of growth.
 
