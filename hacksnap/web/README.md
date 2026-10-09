@@ -7,7 +7,7 @@ headings and related stories. Source Sans 3 carries navigation, metadata, feed
 takeaways, reader introductions, article text and About-page copy. Article text matches the byline
 font at 1.25rem (20px) with a 1.5 line height. Reader subtitles use 1.375rem (22px),
 staying larger at every viewport and enlarged text setting.
-All three fonts remain local. Feed lead
+Both page fonts remain local. Feed lead
 headlines use weight 750 and a larger scale; ordinary headlines use weight 700.
 Monospace is reserved for code.
 
@@ -31,8 +31,8 @@ no key points.
 
 The variable WOFF2 files and their licenses live in `app/fonts`. `next/font/local`
 serves and preloads the fonts with `font-display: swap` and adjusted fallbacks;
-builds and visits do not need an external font service. Newsreader uses an adjusted
-Times New Roman fallback, with Georgia and system serifs as additional fallbacks.
+builds and visits do not need an external font service. The unused Newsreader
+upright and italic fonts are not registered or preloaded by the page layout.
 Social previews use static local Bricolage Grotesque for headlines and the wordmark,
 and Source Sans 3 for excerpts and metadata, matching the feed typography.
 
@@ -470,6 +470,12 @@ in `app/globals.css`; About, Topics and discussion analysis own their feature CS
 modules. This adds initial stylesheet requests while reducing compressed HTML and
 repeat navigation transfer. See the [CSS audit and measurements](../../docs/performance/issue-149-css.md)
 for the removal audit, cold/repeat figures and the inlining decision.
+Only Bricolage Grotesque and Source Sans 3 are preloaded. Removing the unused
+Newsreader registration avoids 278,908 bytes across its upright and italic WOFF2
+files. Route performance tests include font bytes and request counts, with a
+115,000-byte limit and at most two font URLs per cold route.
+See the [PageSpeed follow-up](../../docs/performance/pagespeed-2026-10-09.md)
+for measurements and the framework-JavaScript findings.
 Google Analytics queues its configuration and early journey events in a small
 inline script. The 175 KiB Google tag downloads only after the first pointer,
 keyboard, or scroll input. An untouched visit sends no data to GA; an external
@@ -933,6 +939,11 @@ copy before leaving. Loading and failed-editor states use the same flow.
 
 ## Share draft lifecycle
 
+Initial pages load the share trigger only. The dialog controller imports on the
+first open, and its editor/parser remain deferred separately. A pending dialog
+can be dismissed with Escape or the trigger; failed imports expose Retry sharing.
+Once loaded, the controller stays mounted so closing it preserves edited drafts.
+
 Untouched suggested posts follow refreshed story data, including a pending story
 that gains a takeaway. Reader edits survive same-story refreshes and closing and
 reopening the editor. Reset draft restores the latest suggestion and focuses the
@@ -968,6 +979,9 @@ CI stores screenshots, failure traces and route measurements for 14 days. See
 [`docs/performance/issue-148-browser-regressions.md`](../../docs/performance/issue-148-browser-regressions.md)
 for scenario coverage, measurement definitions, budget review and the release
 screen-reader checklist. The existing Jest and production build jobs remain gates.
+Route measurement artifacts also report document `responseStartMs` and FCP
+separately from LCP. These timings describe the local fixture run; they are not
+production TTFB measurements or PageSpeed savings estimates.
 
 Category-only and paginated navigations use pathname plus sorted search parameters
 as the analytics route identity, shared by ReaderVisit and event tracking. Each

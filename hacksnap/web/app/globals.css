@@ -21,7 +21,6 @@
   --focus: #0000cc;
   --sans: var(--font-body), Arial, sans-serif;
   --heading: var(--font-heading), Arial, sans-serif;
-  --serif: var(--font-editorial), Georgia, "Times New Roman", serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --text-xs: 0.8125rem;
   --text-sm: 0.875rem;
