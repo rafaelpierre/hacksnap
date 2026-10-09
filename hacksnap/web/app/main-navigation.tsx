@@ -160,11 +160,11 @@ export function MobileNavigation() {
       <summary
         ref={summary}
         className="menu-button"
+        aria-label="Topics"
         aria-expanded={expanded}
         aria-controls="mobile-navigation-panel"
       >
         <Menu className="inline-icon" aria-hidden="true" />
-        <span>Topics</span>
       </summary>
       <Suspense fallback={null}>
         <CloseMenuOnNavigation onNavigate={close} />

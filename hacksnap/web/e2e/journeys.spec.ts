@@ -533,7 +533,15 @@ test("mobile topics disclosure expands inline, closes on selection, and returns 
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
-  const menu = page.getByText("Topics", { exact: true });
+  const menu = page.getByLabel("Topics", { exact: true });
+  await expect(menu).toHaveText("");
+  await expect(menu).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(menu).toHaveCSS("border-width", "0px");
+  const target = (await menu.boundingBox())!;
+  expect(target.width).toBeGreaterThanOrEqual(44);
+  expect(target.height).toBeGreaterThanOrEqual(44);
+  await menu.hover();
+  await expect(menu).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   const navigation = page.getByRole("navigation", { name: "Mobile topics" });
   const content = page.locator("#main");
   const initialTop = (await content.boundingBox())!.y;

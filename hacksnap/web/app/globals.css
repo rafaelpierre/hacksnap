@@ -267,19 +267,20 @@ body:has(#browse-content) .skip-browse {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  min-width: var(--touch-target);
   min-height: var(--touch-target);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--control-line);
-  border-radius: var(--radius-control);
+  padding: var(--space-2);
+  border: 0;
+  background: transparent;
   list-style: none;
   font-size: 1rem;
 }
+.menu-button .inline-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
 .menu-button::-webkit-details-marker {
   display: none;
-}
-.menu-button:hover {
-  background: var(--accent-soft);
 }
 .mobile-navigation-panel {
   margin-top: var(--space-3);
