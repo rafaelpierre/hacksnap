@@ -869,8 +869,7 @@ body:has(#browse-content) .skip-browse {
   color: var(--muted);
   font: var(--text-sm)/1.5 var(--sans);
 }
-.story-source-date,
-.story-source-actions {
+.story-source-date {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

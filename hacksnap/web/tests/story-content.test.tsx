@@ -216,7 +216,7 @@ test("compact header and recommendations preserve the new story component and tr
   assert.match(header, /class="category-badge/);
   assert.match(header, /<time class="story-age" dateTime="2026-09-26T10:00:00.000Z"/);
   assert.doesNotMatch(header, /class="back-link"/);
-  assert.match(html, /Original article on example.com/);
+  assert.doesNotMatch(html, /story-source-actions|Read original article|Open Hacker News thread/);
   assert.match(header, /aria-label="Share: A mocked story title"/);
   assert.match(html, /class="skepticism"/);
   const next = html.match(/<ul class="related-story-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
@@ -479,7 +479,7 @@ test("old discussion bullets are hidden for current and legacy analysis", () => 
   }
 });
 
-test("unavailable article retains the source CTA and discussion without an article brief", () => {
+test("unavailable article retains discussion without an article brief or source action row", () => {
   const unavailable: Story = {
     ...story,
     summary: {
@@ -491,7 +491,10 @@ test("unavailable article retains the source CTA and discussion without an artic
   };
   const html = render(createElement(StoryContent, { story: unavailable, relatedStories: [] }));
   assert.match(html, /The original article was unavailable to summarize/);
-  assert.match(html, /href="https:\/\/example.com\/article"[^>]*>Open the original source/);
+  assert.doesNotMatch(
+    html,
+    /story-source-actions|Open the original source|Open Hacker News thread/,
+  );
   assert.match(html, /Discussion analysis/);
   assert.doesNotMatch(html, /The mocked article brief|class="key-points"/);
 });
