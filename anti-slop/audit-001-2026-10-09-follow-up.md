@@ -1,15 +1,15 @@
-# Widget gutter: finding 1 resolved
+# Widget gutters and plain headings: approved changes resolved
 
-The user approved finding 1 from the 9 October spacing audit. This follow-up covers only Trending and Most read spacing.
+The user approved the 9 October spacing finding and subsequently requested removal of both number badges and heading icons. This report covers that final scope for Trending and Most read.
 
 ## Change and purpose
 
 - Headers, story rows, status messages and loading placeholders use a 1rem horizontal inset instead of 1.5rem.
-- Rank-to-title gap is 0.5rem instead of 0.75rem. The 1.5rem rank badge and vertical spacing remain unchanged.
+- Heading icons and numbered badges are removed. Headers and story titles share the same left edge. Ordered-list semantics and ranking order remain intact.
 - At content widths of 17rem or less, the existing 0.5rem compact inset also applies to status messages and loading placeholders.
-- At a normal 16px root size in a 288px card, headline capacity increases from 202px to 222px. The headline starts 48px from the inner edge instead of 60px.
+- At a normal 16px root size in a 288px card, headline capacity increases from 202px to 254px. The headline starts 16px from the inner edge instead of 60px.
 
-Reason: recover reading width within narrow ranking cards while preserving rank recognition, balanced card edges and separation from the feed.
+Reason: recover reading width within narrow ranking cards and align headings with their content, while preserving balanced card edges and separation from the feed.
 
 Direction: retain the existing editorial cards, Bricolage headings, Source Sans UI, pale canvas and blue accents. ENERGY 2 / RHYTHM 1 / MOTION 1. No new assets or content.
 
@@ -21,9 +21,9 @@ Direction: retain the existing editorial cards, Bricolage headings, Source Sans 
 - Existing popularity browser suite: 15 tests passed. Widths 320, 393, 768, 820 and 1440, each at 100% and 200% text; no horizontal overflow, targets at least 44px high, focus checks and zero axe WCAG A/AA violations.
 - Loading, empty, weekly failure and full failure scenarios passed. Feed stays available; slow loading remains below the layout-shift threshold.
 - JavaScript-disabled Most read navigation and keyboard activation passed. Browser suite reports no browser console/hydration errors. The fixture server logged two expected image-optimizer failures for its deliberately non-live image URL in the JavaScript-disabled scenario; these did not fail the suite.
-- Live local DOM inspection confirmed 16px row padding and 8px gap in both widgets. The long Most read fixture title occupies the full 222px available width.
+- Final screenshots confirm plain headings, badge-free story rows and aligned left edges. Source inspection confirms 16px horizontal padding and 254px available headline width in a 288px card.
 
-Manual widget navigation record, using the local fixture application:
+Manual widget navigation record from the initial spacing verification, using the local fixture application. Numbered positions below identify list entries; badges have since been removed. The final browser suite reran keyboard and JavaScript-disabled navigation after the removals.
 
 | Widget control | Action | Verified destination |
 | --- | --- | --- |
@@ -43,11 +43,11 @@ The final link was activated by keyboard after the browser automation could not 
 ## Delivery gate for the approved change
 
 - Hard gates PASS: no new prose, assets, claims or controls; existing links activate; browser matrix covers overflow, target size, focus, contrast and data states. Fixed light appearance is the only shipped theme. CSS was edited directly and the app was built and run.
-- Purpose gates PASS: only spacing changes; the reading-width rationale is recorded above. Colors, icons, typography, cards and motion retain the established design.
+- Purpose gates PASS: tighter insets and removal of optional icons/badges serve the recorded reading-width and alignment rationale. Colors, typography, cards and motion retain the established design.
 - Liveliness PASS: declared ENERGY 2 / RHYTHM 1 / MOTION 1 retained; the feed remains primary, ranked widgets remain secondary, blue accents and heading treatment remain consistent. Whitespace separates content while leaving more room for headlines.
 - Craftsmanship and quality PASS: same shared component and tokens serve both widgets; loading and status insets follow the rows; responsive and enlarged-text checks pass. No new sections, fabricated content or interaction behavior.
 
-This gate is scoped to the approved spacing adjustment, not a claim of a new whole-site audit.
+This gate is scoped to the approved widget simplification, not a claim of a new whole-site audit.
 
 ## Screenshots
 

@@ -590,16 +590,8 @@ body:has(#browse-content) .skip-browse {
   border-bottom: 1px solid #ebebef;
 }
 .popular-stories-heading h2 {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
   font: 700 1.35rem/1.2 var(--heading);
   letter-spacing: -0.025em;
-}
-.popular-stories-heading svg {
-  width: 1em;
-  height: 1em;
-  flex: none;
 }
 .popular-stories ol {
   list-style: none;
@@ -610,29 +602,11 @@ body:has(#browse-content) .skip-browse {
   border-top: 1px solid #ebebef;
 }
 .popular-stories li a {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
+  display: block;
   padding: var(--space-4);
   min-height: var(--touch-target);
   font: 600 var(--text-base)/1.35 var(--sans);
   text-decoration: none;
-}
-.popular-stories-rank {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: color-mix(in srgb, var(--accent) 55%, var(--muted));
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-}
-.popular-stories li a > span:last-child {
-  min-width: 0;
   overflow-wrap: anywhere;
 }
 .popular-stories li a:hover {

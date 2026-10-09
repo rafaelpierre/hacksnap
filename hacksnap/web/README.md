@@ -185,11 +185,11 @@ remains usable. Both cards render their respective results, with
 ordinary canonical article links that work without JavaScript. Full document
 requests await the optional popularity read after required feed data; client
 navigation streams its loading, empty, and unavailable states independently.
-“Trending” uses a flame icon and “Most read” uses a trophy icon. Both lists show
-numbered rank pills in muted accent blue. “Most read” ranks lifetime reads.
-Widget headings, rows and fallback states share a 1rem horizontal inset, with
-0.5rem between each rank and headline to leave more room for reading. Below the
-17rem content-width threshold, all states use a 0.5rem inset.
+“Trending” and “Most read” use plain text headings and full-width story links
+without icons or number badges, retaining their ranking order.
+“Most read” ranks lifetime reads. Widget headings, rows and fallback states share
+a 1rem horizontal inset. Below the 17rem content-width threshold, all states use
+a 0.5rem inset.
 The weekly reader counts reads over a rolling seven-day period rather
 than calculating a rate of growth.
 
