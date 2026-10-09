@@ -27,9 +27,9 @@
   --text-sm: 0.875rem;
   --text-label: 0.9375rem;
   --text-base: 1.0625rem;
-  --text-body: 1.375rem;
+  --text-body: 1.25rem;
   --text-title: clamp(1.4rem, 2.2vw, 1.8rem);
-  --text-deck: 1.2rem;
+  --text-deck: 1.375rem;
   --text-section: 1.7rem;
   --text-page: clamp(1.875rem, 3vw, 2.75rem);
   --text-story: clamp(2rem, 3.3vw, 2.8rem);
