@@ -27,9 +27,10 @@ test("mobile navigation renders a native disclosure and ordinary links before hy
   assert.match(html, /<summary[^>]*aria-controls="mobile-navigation-panel"/);
   // Native summary exposes the open state without a stale JavaScript-only aria value.
   assert.doesNotMatch(html, /aria-expanded/);
-  assert.match(html, /aria-label="Topics"/);
+  assert.match(html, /aria-label="Menu"/);
   assert.doesNotMatch(html, /<span>Topics<\/span>/);
-  assert.doesNotMatch(html, /href="\/about"|href="\/"/);
+  assert.match(html, /href="\/about"/);
+  assert.match(html, /href="\/"[^>]*aria-current="page"/);
   assert.match(html, /href="\/\?category=agents-coding"/);
 });
 

@@ -93,13 +93,24 @@ export function TopicNavigation(props: NavigationProps) {
   );
 }
 
-function HeaderLinks({ pathname, category }: { pathname: string; category?: string | null }) {
+function HeaderLinks({
+  pathname,
+  category,
+  mobile,
+}: {
+  pathname: string;
+  category?: string | null;
+  mobile: boolean;
+}) {
   const latest = !category && (pathname === "/" || /^\/\d{4}\/\d{2}$/.test(pathname));
   return (
-    <nav className="header-navigation" aria-label="Main navigation">
+    <nav
+      className={mobile ? "mobile-main-navigation" : "header-navigation"}
+      aria-label="Main navigation"
+    >
       <NavigationPendingLink
         href="/"
-        className="header-link"
+        className={mobile ? "nav-link" : "header-link"}
         aria-current={latest ? (pathname === "/" ? "page" : "location") : undefined}
         pendingLabel="Loading latest stories…"
       >
@@ -107,7 +118,7 @@ function HeaderLinks({ pathname, category }: { pathname: string; category?: stri
       </NavigationPendingLink>
       <NavigationPendingLink
         href="/about"
-        className="header-link"
+        className={mobile ? "nav-link" : "header-link"}
         aria-current={pathname === "/about" ? "page" : undefined}
         pendingLabel="Loading About…"
       >
@@ -117,7 +128,7 @@ function HeaderLinks({ pathname, category }: { pathname: string; category?: stri
   );
 }
 
-export function MainNavigation() {
+export function MainNavigation({ mobile = false }: { mobile?: boolean }) {
   const pathname = usePathname();
   const [category, setCategory] = useState<string | null>(null);
   return (
@@ -125,7 +136,11 @@ export function MainNavigation() {
       <Suspense fallback={null}>
         <NavigationCategory onChange={setCategory} />
       </Suspense>
-      <HeaderLinks pathname={pathname} category={pathname === "/" ? category : null} />
+      <HeaderLinks
+        pathname={pathname}
+        category={pathname === "/" ? category : null}
+        mobile={mobile}
+      />
     </>
   );
 }
@@ -160,7 +175,7 @@ export function MobileNavigation() {
       <summary
         ref={summary}
         className="menu-button"
-        aria-label="Topics"
+        aria-label="Menu"
         aria-expanded={expanded}
         aria-controls="mobile-navigation-panel"
       >
@@ -176,6 +191,7 @@ export function MobileNavigation() {
           if ((event.target as HTMLElement).closest("a")) close(true);
         }}
       >
+        <MainNavigation mobile />
         <TopicNavigation label="Mobile topics" />
       </div>
     </details>

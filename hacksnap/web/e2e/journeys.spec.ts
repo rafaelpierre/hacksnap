@@ -520,7 +520,7 @@ test("mobile topics disclosure expands inline, closes on selection, and returns 
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
-  const menu = page.getByLabel("Topics", { exact: true });
+  const menu = page.getByLabel("Menu", { exact: true });
   await expect(menu).toHaveText("");
   await expect(menu).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expect(menu).toHaveCSS("border-width", "0px");
@@ -562,7 +562,7 @@ test("mobile topics disclosure expands inline, closes on selection, and returns 
 
 test.describe("native mobile menu without JavaScript", () => {
   test.use({ javaScriptEnabled: false, viewport: { width: 320, height: 800 } });
-  test("Topics disclosure and visible About link work without JavaScript", async ({ page }) => {
+  test("mobile topics, About and Latest work without JavaScript", async ({ page }) => {
     await page.goto("/");
     const navigation = page.getByRole("navigation", { name: "Mobile topics" });
     await expect(navigation).not.toBeVisible();
@@ -570,12 +570,14 @@ test.describe("native mobile menu without JavaScript", () => {
     await navigation.getByRole("link", { name: "Models & Products", exact: true }).click();
     await expect(page).toHaveURL(/category=models-products$/);
     await expect(navigation).not.toBeVisible();
+    await page.locator(".menu-button").click();
     await page
       .getByRole("navigation", { name: "Main navigation" })
       .getByRole("link", { name: "About", exact: true })
       .click();
     await expect(page.getByRole("heading", { name: "About Hacksnap" })).toBeVisible();
     await expect(page.getByRole("main")).toHaveCount(1);
+    await page.locator(".menu-button").click();
     await page
       .getByRole("navigation", { name: "Main navigation" })
       .getByRole("link", { name: "Latest", exact: true })

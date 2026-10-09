@@ -232,7 +232,7 @@ body:has(#browse-content) .skip-browse {
   grid-row: 2;
   justify-self: start;
   z-index: 1;
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   gap: var(--space-4);
 }
@@ -258,7 +258,7 @@ body:has(#browse-content) .skip-browse {
 }
 .mobile-navigation {
   grid-column: 1 / -1;
-  grid-row: 2;
+  grid-row: 1;
   min-width: 0;
 }
 .menu-button {
@@ -291,6 +291,13 @@ body:has(#browse-content) .skip-browse {
 }
 .desktop-navigation {
   display: none;
+}
+.mobile-main-navigation {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line);
 }
 .site-shell {
   width: 100%;
@@ -1245,7 +1252,7 @@ dialog.share-panel::backdrop {
     padding-inline: var(--space-1);
   }
   .mobile-navigation {
-    grid-row: 3;
+    grid-row: 2;
   }
   .menu-button {
     margin-left: 0;
@@ -1321,6 +1328,9 @@ dialog.share-panel::backdrop {
   }
 }
 @container page (min-width: 60rem) {
+  .header-navigation {
+    display: flex;
+  }
   .header-inner {
     grid-template-columns: auto minmax(0, 1fr);
   }
