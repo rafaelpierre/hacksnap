@@ -1276,6 +1276,7 @@ dialog.share-panel::backdrop {
   .header-navigation {
     grid-column: 2;
     grid-row: 1;
+    justify-self: end;
   }
   .mobile-navigation {
     grid-row: 1;
