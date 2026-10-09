@@ -7,7 +7,6 @@ export function proxy(request: NextRequest) {
   const pageRoute =
     pathname === "/" ||
     pathname === "/archive" ||
-    pathname === "/docs/api" ||
     /^\/(?:archive\/)?[1-9]\d{3}\/(0[1-9]|1[0-2])$/.test(pathname) ||
     /^\/story\/[^/]+$/.test(pathname);
   if (!pageRoute) return NextResponse.next();
@@ -39,5 +38,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/:year/:month", "/archive/:path*", "/story/:id", "/docs/api"],
+  matcher: ["/", "/:year/:month", "/archive/:path*", "/story/:id"],
 };

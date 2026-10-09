@@ -9,7 +9,6 @@ import {
 import { isAiAgent, latestMarkdown, markdownResponse, storyMarkdown } from "../../lib/markdown";
 import { archiveMonth, archivePage, archiveURL } from "../../lib/archive";
 import { categoryBySlug, categoryURL } from "../../lib/categories";
-import { apiDocsMarkdown } from "../../lib/api-docs-markdown";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +70,6 @@ export async function GET(request: Request) {
       if (feedPage > 1 && !result.stories.length) return markdownResponse("# Not found\n", 404);
       return respond(latestMarkdown({ ...result, month, page: feedPage, category }), canonical);
     }
-    if (page === "/docs/api") return respond(apiDocsMarkdown, "/docs/api");
     const match = page?.match(/^\/story\/([^/]+)$/);
     const id = match ? storyIdFromSlug(match[1]) : null;
     if (id) {

@@ -213,7 +213,7 @@ test("HTML and Markdown negotiation keep route semantics", async ({ request }) =
 });
 
 test("AI user agents receive Markdown with the public URL heading", async ({ request }) => {
-  for (const route of ["/", "/archive", storyPath, "/docs/api"]) {
+  for (const route of ["/", "/archive", storyPath]) {
     const publicPath = route === "/archive" ? "/" : route;
     for (const agent of ["ChatGPT-User", "OAI-SearchBot", "Claude-User", "Claude-SearchBot"]) {
       const headers = { Accept: "text/html", "User-Agent": `${agent}/1.0` };
@@ -237,7 +237,9 @@ test("AI user agents receive Markdown with the public URL heading", async ({ req
     const html = await request.get(route, { headers: { Accept: "text/html" } });
     expect(html.headers()["content-type"]).toContain("text/html");
   }
-  const api = await request.get("/api/stories", { headers: { "User-Agent": "ChatGPT-User/1.0" } });
+  const api = await request.get("/api/browse-stories?path=%2F&page=1", {
+    headers: { "User-Agent": "ChatGPT-User/1.0" },
+  });
   expect(api.headers()["content-type"]).toContain("application/json");
 });
 
@@ -327,12 +329,6 @@ test("feature routes remain reachable by keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/about$/);
   await expect(page.getByRole("heading", { name: "About Hacksnap" })).toBeVisible();
-  await page.goto("/docs/api");
-  const specification = page.getByRole("link", { name: "OpenAPI specification" });
-  await specification.focus();
-  await expect(specification).toBeFocused();
-  await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/openapi.json$/);
 });
 
 test("desktop topics stay left of the feed and close to the header", async ({ page }) => {
@@ -380,7 +376,7 @@ test("a delayed story navigation keeps the feed without extra status text", asyn
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
 });
 
-test("category and API documentation home links open Latest directly", async ({ page }) => {
+test("category home links open Latest directly", async ({ page }) => {
   await page.goto("/category/safety-privacy");
   await expect(page.getByRole("heading", { name: "No stories in this topic yet." })).toBeVisible();
   await expect(page).toHaveURL(/\/\?category=safety-privacy$/);
@@ -402,15 +398,6 @@ test("category and API documentation home links open Latest directly", async ({ 
   await page.goBack();
   await expect(page).toHaveURL(/\/\?category=safety-privacy$/);
   await expect(browse).toBeVisible();
-  await page.goto("/docs/api");
-  const back = page.locator("main .back-link");
-  await expect(back).toHaveAttribute("href", "/");
-  await back.focus();
-  await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/$/);
-  await expect(
-    page.locator(".story-list").getByRole("link", { name: title, exact: true }),
-  ).toBeVisible();
 });
 
 test("Latest owns root and dated canonicals while legacy archive URLs only redirect", async ({

@@ -49,7 +49,7 @@ test("ordinary negotiation and non-read methods retain their behavior", () => {
     assert.equal(response.headers.get("vary"), "Accept, User-Agent");
   }
   const markdown = proxy(
-    new NextRequest("https://hacksnap.live/docs/api", {
+    new NextRequest("https://hacksnap.live/story/123", {
       headers: { accept: "text/markdown", "user-agent": "Mozilla/5.0" },
     }),
   );

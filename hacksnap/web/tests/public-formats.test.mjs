@@ -93,7 +93,7 @@ test("direct and negotiated Markdown preserve format, HEAD, validation and failu
 });
 
 test("AI Markdown starts with the public page URL and retains content and HEAD semantics", async () => {
-  for (const page of ["/", "/docs/api"]) {
+  for (const page of ["/", "/2026/09"]) {
     for (const ua of [
       "ChatGPT-User/1.0",
       "OAI-SearchBot/1.0",

@@ -176,9 +176,9 @@ The source and underlying technical questions lead the coverage.
   Source validation requires at least one bullet when comments are supplied and
   rejects bullets when no comments are supplied, before any summary is saved.
   The worker inserts blank lines and bullet markers into the stored summary string.
-  RSS/API retain the same plain-text content. Story HTML and Markdown now show
+  RSS retains the same plain-text content. Story HTML and Markdown now show
   discussion themes instead of this introduction.
-  Storage and public API schemas are unchanged; no migration is needed.
+  Storage is unchanged; no migration is needed.
 - Distinguish proposals, reported results, verified findings and interpretations.
   Attribute experience or original evidence where provenance matters, retain material
   uncertainty, and avoid hype, generic openings and claims of community consensus.
@@ -332,26 +332,9 @@ After deploying, POST `{"url":"https://hacksnap.live"}` as JSON to
 `https://isitagentready.com/api/scan` and check that
 `checks.discoverability.sitemap.status` is `"pass"`.
 
-### Public Stories API and catalog
+### Internal feed endpoints
 
-`GET /.well-known/api-catalog` returns an RFC 9727 Linkset with HTTP 200 and
-`application/linkset+json`, linking the Stories API to `/openapi.json` and
-`/docs/api`. HEAD returns the same content type and an `api-catalog` Link header.
-All web responses also advertise the catalog in a Link header. These discovery
-resources do not need database access.
-
-`GET /api/stories` returns the current ranked stories and ingestion timestamp,
-using the ranked APIs' 60-second per-instance data cache. `GET /api/stories/{id}` returns
-one story, including archived stories, using a minimal primary-key query with a
-five-minute bounded per-instance cache (one minute for missing stories). Successful
-responses also permit five minutes of shared HTTP caching; safe 404s permit one
-minute. See `web/README.md` for freshness bounds and per-instance admission limits.
-Both are public and read-only, exposing
-an explicit set of story fields and summary text. Invalid IDs return 400,
-unknown stories return 404, and data failures return a sanitized 503 with
-`Retry-After: 60`. See `/docs/api` for the response contract and polling guidance.
-
-`GET /api/ready-stories` is an additive pagination endpoint for the existing
+`GET /api/ready-stories` is a pagination endpoint for the existing
 summary-ready ranked pool. Its `pagination.cursor` is a portable, unsigned public
 selection of ordered IDs, ranks and recency flags; it is not a credential. Send it
 back as `cursor` to receive the next batch. The cursor freezes membership and rank
@@ -359,21 +342,12 @@ order for eight hours, while card details can refresh. Invalid cursors return 40
 expired or no-longer-ready selected rows return 410, so callers restart from the
 first batch. The response exposes `selectionLimited` when its bounded 400-story
 selection ends before the full pool; this is distinct from `hasMore: false` for an
-exhausted selection. Existing `/api/stories`, Markdown, and RSS formats are unchanged.
+exhausted selection. Markdown and RSS are also available.
 The web app compares this bounded selection's IDs during an active Top-feed visit;
 a new member offers an explicit fresh selection without reordering the open feed.
 This is in-session selection freshness, with no previous-visit history or exact count.
 
 Run `npm run test:api`, `npm run typecheck`, and `npm run build` from `web/`.
-After deploying the frontend, validate the public catalog with:
-
-```sh
-curl -sS https://isitagentready.com/api/scan \
-  -H 'Content-Type: application/json' \
-  -d '{"url":"https://hacksnap.live"}'
-```
-
-Check that `checks.discovery.apiCatalog.status` is `"pass"`.
 
 ## Cache and failures
 
@@ -636,7 +610,7 @@ Publisher image ingestion runs independently of summaries and remains disabled u
 image worker tries Open Graph, Twitter and JSON-LD metadata, then generates a
 branded fallback. New canonical assets are stored as 1200 × 630 WebP images in a
 public Vercel Blob store. Existing ready images retain their URLs and dimensions.
-The website and public API receive only canonical image metadata; publisher source
+The website receives only canonical image metadata; publisher source
 URLs and retry diagnostics remain private.
 
 After each completed Modal summarization run, `refresh_hacksnap` asynchronously
