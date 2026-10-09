@@ -9,7 +9,7 @@
 .page > p,
 .page section p {
   color: var(--prose);
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-size: 1.125rem;
   line-height: 1.7;
 }

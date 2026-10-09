@@ -1,7 +1,5 @@
 import styles from "./page.module.css";
-import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "About",
@@ -87,15 +85,9 @@ export default function AboutPage() {
       <section aria-labelledby="read-elsewhere-heading">
         <h2 id="read-elsewhere-heading">Read elsewhere</h2>
         <p>
-          Follow the <a href="/feed.xml">RSS feed</a> or use the{" "}
-          <Link href="/docs/api">Stories API</Link>.
+          Follow the <a href="/feed.xml">RSS feed</a>.
         </p>
       </section>
-      <p>
-        <Link href="/">
-          <ChevronLeft className="inline-icon" aria-hidden="true" /> Back to stories
-        </Link>
-      </p>
     </article>
   );
 }

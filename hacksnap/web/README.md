@@ -4,7 +4,7 @@
 
 Bricolage Grotesque is used for the wordmark, feed and reader headlines, section
 headings and related stories. Source Sans 3 carries navigation, metadata, feed
-takeaways, reader introductions and article text. Article text matches the byline
+takeaways, reader introductions, article text and About-page copy. Article text matches the byline
 font at 1.375rem with a 1.5 line height. All three fonts remain local. Feed lead
 headlines use weight 750 and a larger scale; ordinary headlines use weight 700.
 Monospace is reserved for code.
