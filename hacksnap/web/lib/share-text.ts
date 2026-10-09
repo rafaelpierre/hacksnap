@@ -14,6 +14,15 @@ export function suggestedPost(
     : `${title.trim()}\n\nSummary pending. Read the story and Hacker News discussion: ${url}`;
 }
 
+/** LinkedIn needs a pasteable URL even when the reader removes it from the draft. */
+export function linkedInPost(post: string, url: string): string {
+  const links = post.matchAll(/(?:^|[\s<>"'“”‘’()[\]{},:;!?])(https?:\/\/[^\s<>"'“”‘’()[\]{}]+)/gu);
+  for (const [, link] of links) {
+    if (link.replace(/[.,!?;:…]+$/u, "") === url) return post;
+  }
+  return post.trim() ? `${post}\n\n${url}` : url;
+}
+
 /** Destinations are navigation only. None of these URLs publishes a post. */
 export function shareDestinations(post: string, url: string, title: string) {
   return [

@@ -67,8 +67,8 @@ export function ShareEditor({
         </button>
       )}
       <p id={xHintId} className="share-destination-hint">
-        {!xStatus.valid ? "Shorten the draft to share on X. " : ""}LinkedIn shares the link; paste
-        your copied post there.
+        {!xStatus.valid ? "Shorten the draft to share on X. " : ""}LinkedIn needs a paste: copy your
+        post here, then open LinkedIn.
       </p>
       <button
         type="button"
@@ -112,7 +112,11 @@ export function ShareEditor({
               key={destination.name}
               type="button"
               onClick={() => onDestination(destination.name, destination.href)}
-              aria-label={`${destination.name}${destination.name === "Email" ? "" : " (opens in a new tab)"}`}
+              aria-label={
+                destination.name === "LinkedIn"
+                  ? "LinkedIn (copy post first)"
+                  : `${destination.name}${destination.name === "Email" ? "" : " (opens in a new tab)"}`
+              }
             >
               <Icon size={20} aria-hidden="true" />
               <span>{destination.name}</span>

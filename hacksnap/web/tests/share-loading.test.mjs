@@ -43,7 +43,14 @@ test("loading controls work, closed panels stay closed, and editor resolution ke
     );
     await click(menu(0).querySelector(".share-trigger"));
     assert.match(menu(0).querySelector(".share-load-status").textContent, /Loading post editor/);
-    assert.ok(menu(0).querySelector('button[aria-label="LinkedIn (opens in a new tab)"]'));
+    assert.ok(menu(0).querySelector('button[aria-label="LinkedIn (copy post first)"]'));
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+    await click(menu(0).querySelector('button[aria-label="LinkedIn (copy post first)"]'));
+    assert.match(
+      menu(0).querySelector(".share-manual").value,
+      /https:\/\/hacksnap.live\/story\/1$/,
+    );
+    assert.ok(menu(0).querySelector('a[aria-label="Open LinkedIn (opens in a new tab)"]'));
     await click(menu(0).querySelector(".share-close"));
     assert.equal(menu(0).querySelector(".share-panel"), null);
 
