@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import { jest, test } from "@jest/globals";
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 
+const { JSDOM } = createRequire(import.meta.url)("jsdom");
 let pending = false;
 let pathname = "/";
 let search = new URLSearchParams();
@@ -75,13 +78,54 @@ test("Latest is the root destination and selects the homepage", () => {
   assert.match(about, /href="\/about"[^>]*aria-current="page"/);
 });
 
-test("query topic destinations select the topic and clear Latest", () => {
+test("query topic destinations select the topic and clear Latest without replacing links", async () => {
+  const dom = new JSDOM("<body></body>", { url: "https://hacksnap.live/" });
+  const values = {
+    window: dom.window,
+    document: dom.window.document,
+    navigator: dom.window.navigator,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  };
+  const previous = Object.keys(values).map((key) =>
+    Object.getOwnPropertyDescriptor(globalThis, key),
+  );
+  Object.entries(values).forEach(([key, value]) =>
+    Object.defineProperty(globalThis, key, { configurable: true, value }),
+  );
   pathname = "/";
   search = new URLSearchParams("category=agents-coding&page=2");
-  const html = renderToStaticMarkup(<MainNavigation />);
-  assert.doesNotMatch(html, /href="\/"[^>]*aria-current/);
-  const sidebar = renderToStaticMarkup(<TopicSidebar />);
-  assert.match(sidebar, /href="\/\?category=agents-coding"[^>]*aria-current="page"/);
-  assert.equal((sidebar.match(/aria-current="page"/g) ?? []).length, 1);
-  search = new URLSearchParams();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const render = () =>
+    root.render(
+      <>
+        <MainNavigation />
+        <TopicSidebar />
+      </>,
+    );
+  try {
+    await act(render);
+    const latest = container.querySelector('a[href="/"]')!;
+    const topic = container.querySelector<HTMLAnchorElement>('a[href="/?category=agents-coding"]')!;
+    assert.equal(latest.hasAttribute("aria-current"), false);
+    assert.equal(topic.getAttribute("aria-current"), "page");
+    assert.equal(container.querySelectorAll('[aria-current="page"]').length, 1);
+    topic.focus();
+    search = new URLSearchParams();
+    await act(render);
+    assert.equal(latest.getAttribute("aria-current"), "page");
+    assert.equal(topic.hasAttribute("aria-current"), false);
+    assert.equal(document.activeElement, topic);
+    assert.equal(container.querySelector('a[href="/?category=agents-coding"]'), topic);
+  } finally {
+    await act(() => root.unmount());
+    container.remove();
+    dom.window.close();
+    Object.keys(values).forEach((key, index) => {
+      if (previous[index]) Object.defineProperty(globalThis, key, previous[index]!);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+    search = new URLSearchParams();
+  }
 });
