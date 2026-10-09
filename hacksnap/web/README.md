@@ -824,7 +824,8 @@ the source aspect ratio. All images retain intrinsic proportions without croppin
 
 All cards use the same headline, excerpt and padding styles, including the first.
 Each card with available current discussion topics shows a “Discussion summary”
-widget, with a muted blue heading and decorative Lucide sparkle icon. The feed
+widget, with a blue heading and decorative Lucide sparkle icon using the
+`--discussion-summary-heading` token, which follows the shared accent color. The feed
 query selects up to two nonblank topic summaries, bounded to 440
 characters before the public feed serializer makes a 220-character excerpt.
 The excerpt travels with its story through pagination, virtualization and session

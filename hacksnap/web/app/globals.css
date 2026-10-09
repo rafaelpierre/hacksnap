@@ -10,6 +10,7 @@
   --accent: #0000ff;
   --accent-hover: #0000cc;
   --accent-soft: #eeeeff;
+  --discussion-summary-heading: var(--accent);
   --prose: #474751;
   --row-hover: #f8f8fa;
   --selection: #ddddff;
@@ -502,7 +503,7 @@ body:has(#browse-content) .skip-browse {
 }
 .feed-discussion-preview h3 {
   font: 700 0.975rem/1.4 var(--sans);
-  color: #326393;
+  color: var(--discussion-summary-heading);
   margin-bottom: 0.35rem;
 }
 .feed-discussion-preview h3 svg {
