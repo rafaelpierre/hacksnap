@@ -1,3 +1,4 @@
+import { Sparkles } from "lucide-react";
 import { StoryRail } from "./story-rail";
 import { ShareLinks } from "./share-links";
 import type { CardStory } from "../lib/story-domain";
@@ -61,6 +62,15 @@ export function StoryRow({
           Brief pending. Check back after the next summary update.
         </p>
       )}
+      {discussionPreview && (
+        <div className="feed-discussion-preview">
+          <h3>
+            <Sparkles aria-hidden="true" />
+            <span>Discussion summary</span>
+          </h3>
+          <p>{briefExcerpt(discussionPreview)}</p>
+        </div>
+      )}
       <ArticleImage
         image={image}
         alt=""
@@ -70,12 +80,6 @@ export function StoryRow({
         sizes={FEED_IMAGE_SIZES}
       />
       <div className="story-content">
-        {discussionPreview && (
-          <div className="feed-discussion-preview">
-            <h3>Inside the discussion</h3>
-            <p>{briefExcerpt(discussionPreview)}</p>
-          </div>
-        )}
         <StoryRail id={story.hn_id} points={story.points} commentCount={story.comment_count}>
           <ShareLinks
             id={story.hn_id}

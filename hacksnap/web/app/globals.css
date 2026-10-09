@@ -10,6 +10,7 @@
   --accent: #0000ff;
   --accent-hover: #0000cc;
   --accent-soft: #eeeeff;
+  --discussion-summary-heading: var(--accent);
   --prose: #474751;
   --row-hover: #f8f8fa;
   --selection: #ddddff;
@@ -494,7 +495,7 @@ body:has(#browse-content) .skip-browse {
 }
 .feed-discussion-preview {
   margin-top: var(--space-6);
-  padding: var(--space-4);
+  padding: min(var(--space-4), 4vw);
   background: #f4f4f7;
   border-radius: var(--radius-control);
   color: #50505b;
@@ -502,8 +503,15 @@ body:has(#browse-content) .skip-browse {
 }
 .feed-discussion-preview h3 {
   font: 700 0.975rem/1.4 var(--sans);
-  color: var(--ink);
+  color: var(--discussion-summary-heading);
   margin-bottom: 0.35rem;
+}
+.feed-discussion-preview h3 svg {
+  display: inline-block;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-right: var(--space-2);
+  vertical-align: -0.2em;
 }
 .story-meta {
   display: flex;
