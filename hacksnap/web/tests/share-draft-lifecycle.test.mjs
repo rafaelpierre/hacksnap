@@ -136,7 +136,10 @@ test("share draft refresh, reset, identity changes, and delayed copies follow th
       takeaway: "Third takeaway",
     });
     await settle(() => writes[4].reject(new Error("clipboard unavailable")));
-    assert.equal(button("Open LinkedIn"), undefined);
+    assert.equal(
+      document.querySelector('a[aria-label="Open LinkedIn (opens in a new tab)"]'),
+      null,
+    );
     assert.equal(document.querySelector(".share-feedback").textContent, "");
     assert.equal(document.querySelector(".share-manual"), null);
   } finally {

@@ -49,7 +49,7 @@ test("failed editor loading keeps fallback actions and retry does not steal manu
       document.querySelector(".share-manual").value,
       /https:\/\/hacksnap.live\/story\/7$/,
     );
-    assert.ok(button("Open LinkedIn"));
+    assert.ok(document.querySelector('a[aria-label="Open LinkedIn (opens in a new tab)"]'));
     await click(button("Retry editor"));
     assert.equal(loadCount, 2);
     await click(button("Copy suggested post"));

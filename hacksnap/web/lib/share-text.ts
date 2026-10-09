@@ -16,7 +16,10 @@ export function suggestedPost(
 
 /** LinkedIn needs a pasteable URL even when the reader removes it from the draft. */
 export function linkedInPost(post: string, url: string): string {
-  if (post.split(/\s+/u).includes(url)) return post;
+  const links = post.matchAll(/(?:^|[\s<>"'“”‘’()[\]{},:;!?])(https?:\/\/[^\s<>"'“”‘’()[\]{}]+)/gu);
+  for (const [, link] of links) {
+    if (link.replace(/[.,!?;:…]+$/u, "") === url) return post;
+  }
   return post.trim() ? `${post}\n\n${url}` : url;
 }
 

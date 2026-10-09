@@ -94,8 +94,20 @@ test("deferred share editor preserves edited Unicode drafts and modal focus, Esc
     await click(document.querySelector('button[aria-label="LinkedIn (copy post first)"]'));
     assert.equal(opened.length, 0);
     assert.equal(document.querySelector(".share-manual").value, edited);
-    await click(button("Open LinkedIn"));
-    assert.equal(new URL(opened[0][0]).searchParams.get("url"), "https://hacksnap.live/story/123");
+    const linkedIn = document.querySelector('a[aria-label="Open LinkedIn (opens in a new tab)"]');
+    assert.ok(linkedIn);
+    assert.equal(new URL(linkedIn.href).searchParams.get("url"), "https://hacksnap.live/story/123");
+    assert.equal(linkedIn.target, "_blank");
+    assert.equal(linkedIn.rel, "noopener noreferrer");
+    linkedIn.addEventListener("click", (event) => event.preventDefault(), { once: true });
+    await click(linkedIn);
+    assert.equal(opened.length, 0);
+    assert.equal(
+      events.filter(
+        (event) => event.name === "share_destination_select" && event.destination === "linkedin",
+      ).length,
+      1,
+    );
     const closeButton = document.querySelector(".share-close");
     const lastControl = document.querySelector(".share-manual");
     await act(async () => lastControl.focus());

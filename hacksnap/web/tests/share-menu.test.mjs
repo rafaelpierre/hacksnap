@@ -101,3 +101,28 @@ test("LinkedIn paste text preserves edits and always includes the canonical stor
   assert.equal(linkedInPost(" \n", url), url);
   assert.equal(linkedInPost(`${url}-other`, url), `${url}-other\n\n${url}`);
 });
+
+test.each([
+  "Read URL.",
+  "Read URL, then discuss.",
+  "Read URL!",
+  "Read (URL).",
+  'Read "URL".',
+  "Read ‘URL’.",
+  "Read [URL].",
+  "Read:URL;",
+  "URL…",
+])("LinkedIn preserves a punctuation-delimited story link in %s", (template) => {
+  const url = canonicalStoryUrl("123", "example-123");
+  const post = template.replace("URL", url);
+  assert.equal(linkedInPost(post, url), post);
+});
+
+test.each(["-other", ".html", "/other", "?ref=other", "#other"])(
+  "LinkedIn does not mistake a longer URL ending in %s for the canonical URL",
+  (suffix) => {
+    const url = canonicalStoryUrl("123", "example-123");
+    const post = `Read ${url}${suffix}.`;
+    assert.equal(linkedInPost(post, url), `${post}\n\n${url}`);
+  },
+);

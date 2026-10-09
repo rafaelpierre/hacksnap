@@ -24,11 +24,13 @@ for (const { width, textSize } of [
             },
           },
         });
-        window.open = (url, target, features) => {
-          document.documentElement.dataset.opened = JSON.stringify([url, target, features]);
-          return null;
-        };
       }, denied);
+      await context.route("https://www.linkedin.com/sharing/share-offsite/**", (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: "<title>LinkedIn navigation fixture</title>",
+        }),
+      );
       await page.goto(storyPath);
       await page.evaluate((size) => {
         document.documentElement.style.fontSize = `${size}%`;
@@ -43,12 +45,12 @@ for (const { width, textSize } of [
       await draft.fill(edited);
       await dialog.getByRole("button", { name: "LinkedIn (copy post first)", exact: true }).click();
       const expected = `${edited}\n\nhttps://hacksnap.live${storyPath}`;
-      const open = dialog.getByRole("button", {
+      const open = dialog.getByRole("link", {
         name: "Open LinkedIn (opens in a new tab)",
         exact: true,
       });
       await expect(open).toBeVisible();
-      await expect(page.locator("html")).not.toHaveAttribute("data-opened");
+      expect(context.pages()).toHaveLength(1);
       if (denied) {
         const manual = dialog.getByRole("textbox", { name: "Text for manual copy" });
         await expect(manual).toHaveValue(expected);
@@ -75,11 +77,17 @@ for (const { width, textSize } of [
       await page.screenshot({
         path: testInfo.outputPath(`linkedin-${width}-${textSize}-${denied}.png`),
       });
+      await expect(open).toHaveAttribute("target", "_blank");
+      await expect(open).toHaveAttribute("rel", "noopener noreferrer");
+      const href = await open.getAttribute("href");
+      expect(new URL(href!).searchParams.get("url")).toBe(`https://hacksnap.live${storyPath}`);
+      expect(href).not.toContain(encodeURIComponent(edited));
+      const popupPromise = page.waitForEvent("popup");
       await open.click();
-      const opened = JSON.parse((await page.locator("html").getAttribute("data-opened"))!);
-      expect(new URL(opened[0]).searchParams.get("url")).toBe(`https://hacksnap.live${storyPath}`);
-      expect(opened.slice(1)).toEqual(["_blank", "noopener,noreferrer"]);
-      expect(opened[0]).not.toContain(encodeURIComponent(edited));
+      const popup = await popupPromise;
+      await expect(popup).toHaveURL(href!);
+      expect(await popup.evaluate(() => window.opener)).toBeNull();
+      await popup.close();
       await expect(draft).toHaveValue(edited);
       await draft.fill("A changed draft");
       await expect(open).toHaveCount(0);

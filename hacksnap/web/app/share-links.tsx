@@ -196,12 +196,16 @@ export function ShareLinks({
     openDestination(name, href);
   }
 
-  function openDestination(name: string, href: string) {
+  function trackDestination(name: string) {
     track("share_destination_select", {
       story_id: id,
       destination: name.toLowerCase(),
       placement,
     });
+  }
+
+  function openDestination(name: string, href: string) {
+    trackDestination(name);
     // Keep edited drafts out of DOM URLs and GA automatic outbound-link events.
     if (name === "Email") window.location.assign(href);
     else window.open(href, "_blank", "noopener,noreferrer");
@@ -365,14 +369,16 @@ export function ShareLinks({
             {feedback}
           </p>
           {linkedInHref !== null && (
-            <button
-              type="button"
+            <a
+              href={linkedInHref}
+              target="_blank"
+              rel="noopener noreferrer"
               className="share-copy-post"
               aria-label="Open LinkedIn (opens in a new tab)"
-              onClick={() => openDestination("LinkedIn", linkedInHref)}
+              onClick={() => trackDestination("LinkedIn")}
             >
               Open LinkedIn
-            </button>
+            </a>
           )}
           {manualText !== null && (
             <textarea
