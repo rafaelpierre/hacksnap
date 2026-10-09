@@ -97,11 +97,14 @@ export function StoryContent({
                   ))}
                 </p>
                 {summary.article_key_points.length > 0 && (
-                  <ul className="key-points">
-                    {summary.article_key_points.map((point, i) => (
-                      <li key={i}>{point}</li>
-                    ))}
-                  </ul>
+                  <>
+                    <h2 className="key-points-heading">The bits that matter</h2>
+                    <ul className="key-points">
+                      {summary.article_key_points.map((point, i) => (
+                        <li key={i}>{point}</li>
+                      ))}
+                    </ul>
+                  </>
                 )}
               </>
             ) : (

@@ -16,6 +16,10 @@ URLs and decimals. The tokenizer stays in the article renderer's server module
 graph. Stored summaries and generation prompts are unchanged; Markdown, RSS
 and API responses retain the original text.
 
+Article key points appear under “The bits that matter”, a compact H2 between
+the article summary and its bullet list. The heading is omitted when there are
+no key points.
+
 The variable WOFF2 files and their licenses live in `app/fonts`. `next/font/local`
 serves and preloads the fonts with `font-display: swap` and adjusted fallbacks;
 builds and visits do not need an external font service. Newsreader uses an adjusted

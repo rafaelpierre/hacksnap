@@ -69,6 +69,25 @@ test("mocked story renders the reading journey and recommendations without a dat
   assert.doesNotMatch(html, /story-metrics/);
 });
 
+test("article key points render the exact heading before a nonempty list", () => {
+  const html = render(createElement(StoryContent, { story, relatedStories: [] }));
+  assert.match(
+    html,
+    /<h2[^>]*>The bits that matter<\/h2><ul class="key-points"><li>A concrete point\.<\/li><\/ul>/,
+  );
+});
+
+test("available article with no key points keeps its brief without the heading or list", () => {
+  const html = render(
+    createElement(StoryContent, {
+      story: { ...story, summary: { ...story.summary!, article_key_points: [] } },
+      relatedStories: [],
+    }),
+  );
+  assert.match(html, /The mocked article brief\./);
+  assert.doesNotMatch(html, /The bits that matter|class="key-points-heading"|class="key-points"/);
+});
+
 test("article brief separates sentences while preserving punctuation and escaping text", () => {
   const article_summary =
     'Dr. Smith says version 3.5 costs $2.50 per run. Does it help? Yes! <script>alert("unsafe")</script>';
