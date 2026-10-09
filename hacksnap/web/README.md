@@ -728,9 +728,9 @@ its independent timestamp and coverage. It omits ranking history and retained-hi
 metrics. Markdown requests those metrics separately through `getStoryMetrics`;
 HTML and metadata share the same request-level article read.
 
-Card reads for archive and category listings contain only takeaway,
-sentiment and source coverage in their summary. They omit full article/discussion
-bodies, legacy points, and analysis previews. RSS and public API lists use a
+Card reads for archive and category listings contain takeaway,
+sentiment, source coverage and a bounded current discussion excerpt in their summary.
+They omit full article/discussion bodies, legacy points and analysis evidence. RSS and public API lists use a
 separate export projection that retains their existing summary strings. Public
 API detail and story Markdown retain analysis and evidence. Worker metadata and
 raw comments remain private.
@@ -813,7 +813,7 @@ exclusion. Ajv validates API responses against the published OpenAPI schemas.
 ## Feed card layout
 
 Latest, dated and topic feeds share this order: category and compact age, headline,
-takeaway, full-width inset image, optional lead discussion preview, then a compact
+takeaway, full-width inset image, optional discussion preview, then a compact
 rail with an up-arrow points count and a comment-count link to Hacker News.
 The counts use neutral pills, with blue hover/focus feedback on the comment link,
 screen-reader labels and a 44px touch target. The points count is informational.
@@ -822,13 +822,13 @@ omitted from cards. Categories stay visible even in
 filtered feeds. Missing images omit the media container; failed requests reserve
 the source aspect ratio. All images retain intrinsic proportions without cropping.
 
-The first logical story receives lead typography, identified by ID through append,
-virtualization and session restoration. At most one optional detail read supplies
-a bounded preview from that story's available current discussion topics. Legacy
-summary text never substitutes for current analysis. No full discussion payload
-enters public cards or feed snapshots. A preview is shown only for its matching
-lead ID. The optional detail read has a 500ms presentation deadline; timeout or
-failure omits the preview and leaves the listing usable.
+All cards use the same headline, excerpt and padding styles, including the first.
+Each card with available current discussion topics shows an “Inside the discussion”
+widget. The feed query selects up to two nonblank topic summaries, bounded to 440
+characters before the public feed serializer makes a 220-character excerpt.
+The excerpt travels with its story through pagination, virtualization and session
+restoration, without extra detail queries. Legacy summaries and unavailable analysis
+omit the widget. Full discussion payloads stay out of public cards and snapshots.
 
 The first eligible initial image receives eager/high priority; subsequent images
 remain lazy. Responsive image sizes reflect actual shell and card padding. Cards

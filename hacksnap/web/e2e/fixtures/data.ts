@@ -55,6 +55,7 @@ const stories: ArticleStory[] = Array.from({ length: 40 }, (_, i) => ({
     ],
     discussion_summary:
       "Readers discuss practical deployment, measurement quality, and the cost of maintaining local tools.",
+    discussion_preview: `Discussion fixture ${i + 1}: Readers ask for repeatable measurements of realistic tasks.`,
     discussion_points: [],
     generated_at: timestamp,
     model: "browser-fixture",

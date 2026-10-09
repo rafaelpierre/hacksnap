@@ -9,6 +9,7 @@ import {
 } from "./public-story";
 import type { DiscussionFields } from "./discussion-analysis";
 import { canonicalArticleImage } from "./article-image";
+import { briefExcerpt } from "./brief";
 
 // Explicitly copy every nested field: cached/query objects may contain private extras.
 function publicDiscussion(summary: DiscussionFields) {
@@ -118,6 +119,9 @@ export function publicFeedStory(story: CardStory) {
       ? {
           overall_takeaway: story.summary.overall_takeaway,
           sentiment: story.summary.sentiment,
+          ...(story.summary.discussion_preview?.trim()
+            ? { discussion_preview: briefExcerpt(story.summary.discussion_preview) }
+            : {}),
           source_coverage: coverage
             ? {
                 stored_comments: coverage.stored_comments,

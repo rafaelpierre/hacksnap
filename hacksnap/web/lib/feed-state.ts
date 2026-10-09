@@ -111,6 +111,7 @@ export function packFeedSnapshot(snapshot: FeedSnapshot): string {
                   story.summary.source_coverage.sentiment?.included_comments ?? null,
                 ]
               : null,
+            story.summary.discussion_preview ?? null,
           ]
         : null,
     ]),
@@ -137,7 +138,8 @@ export function unpackFeedSnapshot(raw: string, url: string): FeedSnapshot | nul
         history.some((point) => !Array.isArray(point) || point.length !== 2)
       )
         return null;
-      if (summary !== null && (!Array.isArray(summary) || summary.length !== 3)) return null;
+      if (summary !== null && (!Array.isArray(summary) || ![3, 4].includes(summary.length)))
+        return null;
       const coverage = summary?.[2];
       if (
         coverage !== null &&
@@ -168,6 +170,7 @@ export function unpackFeedSnapshot(raw: string, url: string): FeedSnapshot | nul
             : {
                 overall_takeaway: summary[0],
                 sentiment: summary[1],
+                ...(summary[3] == null ? {} : { discussion_preview: summary[3] }),
                 source_coverage:
                   coverage === null
                     ? null
@@ -322,6 +325,9 @@ export function validFeedSnapshot(
       ) ||
       !story.summary ||
       !hasPublishedTakeaway(story.summary.overall_takeaway) ||
+      (story.summary.discussion_preview != null &&
+        (typeof story.summary.discussion_preview !== "string" ||
+          story.summary.discussion_preview.length > 220)) ||
       ![-1, 0, 1, null].includes(story.summary.sentiment) ||
       (coverage !== null &&
         (!coverage ||

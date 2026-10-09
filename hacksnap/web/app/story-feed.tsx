@@ -23,8 +23,6 @@ import { consumeFeedReturn, saveFeedHistory } from "./story-navigation";
 import { WindowedStoryList } from "./windowed-story-list";
 import { emptyStoryHistory, readStoryHistory, subscribeStoryHistory } from "../lib/story-history";
 
-import type { LeadDiscussionPreview } from "../lib/feed-presentation";
-
 type FeedState = {
   leadStoryId: string | null;
   stories: PublicFeedStory[];
@@ -55,7 +53,6 @@ export function StoryFeed({
   showCategory = true,
   emptyState,
   leadStoryId = initialStories[0]?.hn_id ?? null,
-  discussionPreview,
 }: {
   initialStories: PublicFeedStory[];
   initialPagination: FeedPagination;
@@ -64,7 +61,6 @@ export function StoryFeed({
   showCategory?: boolean;
   emptyState?: ReactNode;
   leadStoryId?: string | null;
-  discussionPreview?: LeadDiscussionPreview | null;
 }) {
   const latest = listingPath.split("?")[0] === "/";
   const pageURL = (page: number) => browsePageURL(listingPath, page);
@@ -400,7 +396,6 @@ export function StoryFeed({
         <WindowedStoryList
           stories={feed.stories}
           leadStoryId={feed.leadStoryId}
-          discussionPreview={discussionPreview}
           showCategory={showCategory}
           ranked={false}
           openedIds={openedIds}
