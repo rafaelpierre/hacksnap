@@ -904,6 +904,14 @@ summary projections for articles. Cards and RSS do not select analysis payloads.
 unchanged. Remove the setting and redeploy to restore analysis.
 See the [rollout runbook](../../docs/evaluations/issue-42/README.md).
 
+## LinkedIn sharing
+
+LinkedIn’s URL share dialog cannot prefill post text. The LinkedIn action copies
+an edited draft with the canonical story URL and reveals **Open LinkedIn**. Paste
+the copied text into LinkedIn’s composer; the URL stays in the post even when a
+preview is unavailable. Denied clipboard access shows selected text for manual
+copy before leaving. Loading and failed-editor states use the same flow.
+
 ## Share draft lifecycle
 
 Untouched suggested posts follow refreshed story data, including a pending story

@@ -3,6 +3,7 @@ import { test } from "@jest/globals";
 import {
   canonicalStoryUrl,
   copyText,
+  linkedInPost,
   shareDestinations,
   suggestedPost,
 } from "../lib/share-text.ts";
@@ -91,3 +92,37 @@ test("X validation accounts for transformed links and weighted Unicode without c
   assert.equal(xPostStatus(longDraft).valid, false);
   assert.ok(longDraft.includes("takeaway ".repeat(400).trim()));
 });
+
+test("LinkedIn paste text preserves edits and always includes the canonical story URL", () => {
+  const url = canonicalStoryUrl("123", "headline-123");
+  const post = "My take 😀 & #topic\nSecond line.";
+  assert.equal(linkedInPost(post, url), `${post}\n\n${url}`);
+  assert.equal(linkedInPost(`${post}\n\n${url}`, url), `${post}\n\n${url}`);
+  assert.equal(linkedInPost(" \n", url), url);
+  assert.equal(linkedInPost(`${url}-other`, url), `${url}-other\n\n${url}`);
+});
+
+test.each([
+  "Read URL.",
+  "Read URL, then discuss.",
+  "Read URL!",
+  "Read (URL).",
+  'Read "URL".',
+  "Read ‘URL’.",
+  "Read [URL].",
+  "Read:URL;",
+  "URL…",
+])("LinkedIn preserves a punctuation-delimited story link in %s", (template) => {
+  const url = canonicalStoryUrl("123", "example-123");
+  const post = template.replace("URL", url);
+  assert.equal(linkedInPost(post, url), post);
+});
+
+test.each(["-other", ".html", "/other", "?ref=other", "#other"])(
+  "LinkedIn does not mistake a longer URL ending in %s for the canonical URL",
+  (suffix) => {
+    const url = canonicalStoryUrl("123", "example-123");
+    const post = `Read ${url}${suffix}.`;
+    assert.equal(linkedInPost(post, url), `${post}\n\n${url}`);
+  },
+);
