@@ -149,7 +149,7 @@ const categoryProps = {
 
 test("article and sidebar shell stream while popularity is pending", async () => {
   const pending = deferred();
-  getPopularStories.mockResolvedValueOnce([]).mockImplementationOnce(() => pending.promise);
+  getPopularStories.mockImplementationOnce(() => pending.promise);
   const rendered = stream(await SiteContent({ children: await StoryPage(storyProps) }));
   await rendered.contains(/Loading most read stories/);
   assert.match(rendered.html, /The primary article brief/);
@@ -162,7 +162,7 @@ test("article and sidebar shell stream while popularity is pending", async () =>
 });
 
 test("failed popularity keeps the article and sidebar failure message", async () => {
-  getPopularStories.mockResolvedValueOnce([]).mockRejectedValueOnce(new DataUnavailableError());
+  getPopularStories.mockRejectedValueOnce(new DataUnavailableError());
   const rendered = stream(await SiteContent({ children: await StoryPage(storyProps) }));
   await rendered.complete;
   assert.match(rendered.html, /The primary article brief/);
@@ -176,7 +176,7 @@ test.each([
 ])("document %s read runs while popularity is pending", async (_name, Page, props, primary) => {
   shouldStreamBrowse.mockResolvedValue(false);
   const pending = deferred();
-  getPopularStories.mockResolvedValueOnce([]).mockImplementationOnce(() => {
+  getPopularStories.mockImplementationOnce(() => {
     events.push("popularity");
     return pending.promise;
   });
@@ -228,6 +228,59 @@ test.each([
     assert.deepEqual(rendered.errors, []);
   },
 );
+
+test.each([true, false])(
+  "lifetime read finishes before a stalled weekly read starts (stream=%s)",
+  async (streaming) => {
+    shouldStreamBrowse.mockResolvedValue(streaming);
+    const lifetime = deferred();
+    const weekly = deferred();
+    getPopularStories.mockClear();
+    getPopularStories
+      .mockImplementationOnce(() => lifetime.promise)
+      .mockImplementationOnce(() => weekly.promise);
+    const rendered = stream(createElement(SiteContent, null, "Main content"));
+    try {
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(getPopularStories.mock.calls.length, 1);
+      assert.equal(getPopularStories.mock.calls[0][0], "all-time");
+      lifetime.resolve([{ hn_id: "789", title: "Lifetime headline", views: "10" }]);
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(getPopularStories.mock.calls.length, 2);
+      assert.equal(getPopularStories.mock.calls[0][0], "all-time");
+      assert.equal(getPopularStories.mock.calls[1][0], "last-7-days");
+      if (streaming) {
+        await rendered.contains(/Lifetime headline/);
+        assert.match(rendered.html, /Loading trending stories/);
+        assert.match(rendered.html, /Main content/);
+      }
+    } finally {
+      lifetime.resolve([]);
+      weekly.reject(new DataUnavailableError());
+      await rendered.complete;
+      shouldStreamBrowse.mockResolvedValue(true);
+    }
+    assert.match(rendered.html, /Lifetime headline/);
+    assert.match(rendered.html, /Trending stories are temporarily unavailable/);
+    assert.doesNotMatch(rendered.html, /Most read stories are temporarily unavailable/);
+    assert.deepEqual(rendered.errors, []);
+  },
+);
+
+test("a failed lifetime read still starts Trending", async () => {
+  getPopularStories.mockClear();
+  getPopularStories
+    .mockRejectedValueOnce(new DataUnavailableError())
+    .mockResolvedValueOnce([{ hn_id: "790", title: "Weekly headline", views: "5" }]);
+  const rendered = stream(createElement(SiteContent, null, "Main content"));
+  await rendered.complete;
+  assert.equal(getPopularStories.mock.calls.length, 2);
+  assert.equal(getPopularStories.mock.calls[0][0], "all-time");
+  assert.equal(getPopularStories.mock.calls[1][0], "last-7-days");
+  assert.match(rendered.html, /Most read stories are temporarily unavailable/);
+  assert.match(rendered.html, /Weekly headline/);
+  assert.deepEqual(rendered.errors, []);
+});
 
 test("warm primary story streams before a stalled recommendation and retains cards", async () => {
   const pending = deferred();

@@ -130,11 +130,14 @@ independent of the required feed or article and of the other card. Both cards re
 the same component, with separate rankings and accessible headings.
 Links use the stored canonical story slug.
 The grid renders its route children immediately. On full-document requests, a
-sibling components wait for required route validation and data reads to finish
+sibling component waits for required route validation and data reads to finish
 before starting popularity,
 so the optional query cannot take the single database connection ahead of the
 article or feed. This coordination uses React’s per-render cache and is released
-on success, outages and routing errors.
+on success, outages and routing errors. Most read finishes its read before
+Trending starts, so a cold weekly aggregate cannot queue the lifetime read behind
+it on the single reader connection. Trending still runs if the lifetime read fails.
+Streaming requests can display the lifetime result while Trending is pending.
 Full-document requests await the popularity result so links and terminal states
 work without JavaScript. Client-router requests can stream the optional sidebar
 when constructing the shell. Existing shells retain their list during navigation;
