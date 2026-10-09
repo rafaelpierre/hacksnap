@@ -442,15 +442,14 @@ published, the story enters the sitemap and becomes indexable on the page's next
 revalidation (the existing cache interval is 30 minutes). The metadata and page
 share a request-scoped read backed by the bounded per-instance story cache.
 
-Social previews use a ready publisher-sourced Vercel Blob asset when one passes the public
-image contract. Generated, pending, failed, missing, or malformed assets use the shared
-1200×630 brand card at `/opengraph-image`, rendered by `lib/og-image.tsx`.
-The story metadata declares that choice directly because a story-level
-`opengraph-image` file would take priority over it. The legacy story preview
-URL remains an ordinary route handler, so old links redirect to a ready asset or
-return the brand card without changing metadata. The brand card uses the bundled
-fonts and needs no external image/font service or model call. It follows the
-frontend's light gray canvas, white reading card, charcoal headings, and blue
+Article Open Graph and Twitter previews use the 1200×630 card at the canonical
+`/story/:id/opengraph-image` URL, including stored slugs. The route passes the
+article title, source domain, and published takeaway subtitle to `lib/og-image.tsx`,
+regardless of stored publisher-image availability. Pending summaries still show
+the article title and source, without a subtitle. Numeric preview URLs continue
+to work. The homepage keeps the generic brand card at `/opengraph-image`.
+Both cards use bundled fonts and need no external image/font service or model call.
+The renderer follows the frontend's light gray canvas, white reading card, charcoal headings, and blue
 source/domain accents. The square mark preserves the header identity at small
 sizes; generous card padding keeps headlines readable in social feeds. The old
 grain texture is no longer loaded by the renderer.

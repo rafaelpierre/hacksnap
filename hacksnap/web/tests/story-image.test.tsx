@@ -61,19 +61,17 @@ test("cards never emit the publisher source URL and omit unavailable images", ()
   }
 });
 
-test("ready social metadata uses Blob while unavailable assets use the site brand card", () => {
-  const ready = storyPreviewMetadata(story);
-  assert.equal(imageURL(ready.openGraph?.images as { url: string }[]), blobURL);
-  assert.equal(imageURL(ready.twitter?.images as { url: string }[]), blobURL);
-  for (const image_status of ["pending", "failed", null] as const) {
-    const metadata = storyPreviewMetadata({ ...story, image_status });
+test("social metadata uses the canonical story card regardless of stored image availability", () => {
+  for (const image_status of ["ready", "pending", "failed", null] as const) {
+    const imageStory = { ...story, image_status };
+    const metadata = storyPreviewMetadata(imageStory);
     assert.equal(
       imageURL(metadata.openGraph?.images as { url: string }[]),
-      "https://hacksnap.live/opengraph-image",
+      "https://hacksnap.live/story/90000001/opengraph-image",
     );
     assert.equal(
       imageURL(metadata.twitter?.images as { url: string }[]),
-      "https://hacksnap.live/opengraph-image",
+      "https://hacksnap.live/story/90000001/opengraph-image",
     );
   }
 });
