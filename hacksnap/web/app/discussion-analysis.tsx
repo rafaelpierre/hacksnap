@@ -1,4 +1,5 @@
 import styles from "./discussion-analysis.module.css";
+import { DiscussionTopics } from "./discussion-topics";
 import { ArrowUpRight, ChevronDown, Info, X } from "lucide-react";
 import type {
   DiscussionAnalysis as Analysis,
@@ -158,7 +159,7 @@ export function DiscussionAnalysis({
       ) : (
         <>
           {analysis.topics.length > 0 ? (
-            <div className="analysis-themes">
+            <DiscussionTopics>
               {analysis.topics.map((topic, topicIndex) => (
                 <div
                   className="analysis-theme"
@@ -181,7 +182,7 @@ export function DiscussionAnalysis({
                   </details>
                 </div>
               ))}
-            </div>
+            </DiscussionTopics>
           ) : (
             <p className="muted">No distinct themes were identified in the analyzed comments.</p>
           )}

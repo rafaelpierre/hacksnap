@@ -83,6 +83,12 @@ const stories: ArticleStory[] = Array.from({ length: 40 }, (_, i) => ({
           summary: "Readers ask for repeatable measurements of realistic tasks.",
           comment_ids: [92000001, 92000002],
         },
+        {
+          key: "evidence",
+          title: "Accounting for support costs",
+          summary: "Readers include ongoing maintenance in the deployment comparison.",
+          comment_ids: [92000001],
+        },
       ],
       critical_comments: [
         {

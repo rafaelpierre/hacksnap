@@ -3,6 +3,74 @@ import AxeBuilder from "@axe-core/playwright";
 
 for (const width of [320, 1280])
   for (const textScale of [1, 2]) {
+    test(`topic deep link: ${width}px ${textScale * 100}% text`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${storyPath}#discussion-topic-evidence-1`);
+      const topic = page.locator("#discussion-topic-evidence-1");
+      const details = topic.locator("details");
+      await expect(details).toHaveAttribute("open", "");
+      await expect(page.locator("#discussion-topic-evidence-0 details")).not.toHaveAttribute(
+        "open",
+      );
+      await expect(topic.locator("summary")).toBeInViewport();
+      await expect(topic.locator(".analysis-theme-body")).toBeVisible();
+      await page.evaluate((scale) => {
+        document.documentElement.style.fontSize = `${scale * 100}%`;
+      }, textScale);
+      await topic.scrollIntoViewIfNeeded();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+      ).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath("topic-deep-link.png") });
+      await topic.locator("summary").focus();
+      await page.keyboard.press("Enter");
+      await expect(details).not.toHaveAttribute("open");
+      await page.keyboard.press("Enter");
+      await expect(details).toHaveAttribute("open", "");
+      await page.reload();
+      await expect(details).toHaveAttribute("open", "");
+      await expect(topic.locator("summary")).toBeInViewport();
+    });
+  }
+
+test("hash changes and Back/Forward reveal the selected topic", async ({ page }) => {
+  await page.goto(storyPath);
+  const first = page.locator("#discussion-topic-evidence-0 details");
+  const second = page.locator("#discussion-topic-evidence-1 details");
+  await expect(page.locator(".analysis-theme-details[open]")).toHaveCount(0);
+  await page.evaluate(() => {
+    location.hash = "discussion-topic-evidence-0";
+  });
+  await expect(first).toHaveAttribute("open", "");
+  await expect(second).not.toHaveAttribute("open");
+  await first.locator("summary").click();
+  await page.evaluate(() => {
+    location.hash = "discussion-topic-evidence-1";
+  });
+  await expect(second).toHaveAttribute("open", "");
+  await expect(first).not.toHaveAttribute("open");
+  await second.locator("summary").click();
+  await page.goBack();
+  await expect(first).toHaveAttribute("open", "");
+  await expect(second).not.toHaveAttribute("open");
+  await page.goForward();
+  await expect(second).toHaveAttribute("open", "");
+  await expect(first).toHaveAttribute("open", "");
+});
+
+for (const hash of ["discussion-topic-missing-99", "discussion-analysis", "%E0%A4%A"])
+  test(`unmatched fragment leaves topics collapsed: ${hash}`, async ({ page }) => {
+    await page.goto(`${storyPath}#${hash}`);
+    await expect(page.locator(".analysis-theme-details")).toHaveCount(2);
+    await expect(page.locator(".analysis-theme-details[open]")).toHaveCount(0);
+    await page.evaluate(() => {
+      location.hash = "discussion-topic-%65vidence-1";
+    });
+    await expect(page.locator("#discussion-topic-evidence-1 details")).toHaveAttribute("open", "");
+  });
+
+for (const width of [320, 1280])
+  for (const textScale of [1, 2]) {
     test(`analysis information: ${width}px ${textScale * 100}% text`, async ({
       page,
     }, testInfo) => {
@@ -80,5 +148,14 @@ test.describe("without JavaScript", () => {
     await expect(popup).toBeVisible();
     await page.getByRole("button", { name: "Close analysis information" }).click();
     await expect(popup).not.toBeVisible();
+  });
+
+  test("topic deep links retain a usable native disclosure", async ({ page }) => {
+    await page.goto(`${storyPath}#discussion-topic-evidence-1`);
+    const topic = page.locator("#discussion-topic-evidence-1");
+    await expect(topic.locator("summary")).toBeInViewport();
+    await topic.locator("summary").click();
+    await expect(topic.locator("details")).toHaveAttribute("open", "");
+    await expect(topic.locator(".analysis-theme-body")).toBeVisible();
   });
 });
