@@ -120,21 +120,28 @@ the redirects; `robots.txt` does not block them.
 
 ## Most-read stories by period
 
-The root site layout owns the lifetime “Most read” card of up to five stories.
-It renders on the initial request to every HTML page, including direct article
+The root site layout owns two cards of up to five stories each: “Trending” for
+reads in the last seven days, above the lifetime “Most read” card.
+Each renders on the initial request to every HTML page, including direct article
 URLs, supporting pages and data-outage states. It remains mounted
 across client navigation; it does not depend on entering through a feed.
 It sits to the right at 78rem and below the main content at narrower widths, including
 phones. Its loading, empty and failure states are
-independent of the required feed or article. Weekly ranking remains available to existing
-data consumers; the DEV presentation does not show a second weekly widget.
+independent of the required feed or article and of the other card. Both cards reuse
+the same component, with separate rankings and accessible headings.
 Links use the stored canonical story slug.
 The grid renders its route children immediately. On full-document requests, a
 sibling component waits for required route validation and data reads to finish
-before starting popularity,
-so the optional query cannot take the single database connection ahead of the
-article or feed. This coordination uses React’s per-render cache and is released
-on success, outages and routing errors.
+before starting sidebar reads. This coordination uses React’s per-render cache
+and is released on success, outages and routing errors. Within a render, Most
+read finishes before Trending starts; Trending still runs if the lifetime read fails.
+Streaming requests can display the lifetime result while Trending is pending.
+Trending uses a separate, lazily created pool capped at one connection per instance,
+so it cannot occupy the primary pool across concurrent requests. Its existing
+five-minute cache coalesces concurrent weekly requests into one aggregate. Both
+pools use the same reader credentials, verified TLS, read-only transactions,
+10-second acquisition/statement timeouts and 90-second idle timeout. The maximum
+reader connection budget is two per instance, one primary and one Trending.
 Full-document requests await the popularity result so links and terminal states
 work without JavaScript. Client-router requests can stream the optional sidebar
 when constructing the shell. Existing shells retain their list during navigation;
@@ -155,12 +162,12 @@ future events, and historical GA totals, which have no per-read timestamps.
 Apply migration `0021_weekly_story_popularity` for the partial timestamp index
 and scoped reader grants. It retains RLS and keeps visit identifiers private.
 Before migration, the weekly reader reports unavailable while the all-time reader
-remains usable. The current interface only renders the all-time result, with
+remains usable. Both cards render their respective results, with
 ordinary canonical article links that work without JavaScript. Full document
 requests await the optional popularity read after required feed data; client
 navigation streams its loading, empty, and unavailable states independently.
-The interface omits the lifetime label; “Most read” ranks across all time.
-The retained weekly reader counts reads over a rolling seven-day period rather
+“Most read” includes the “Across all time” label and ranks lifetime reads.
+The weekly reader counts reads over a rolling seven-day period rather
 than calculating a rate of growth.
 
 All-time ranking uses `historical_views + story_views`, with HN ID descending as
@@ -511,7 +518,7 @@ Story data uses the bounded per-instance cache documented below. Story HTML wait
 for the required story and canonical URL check, then streams the article while
 the optional "Related stories" query resolves. Category HTML waits for its required
 story list and page check, then streams the optional count. This ordering matters
-because each instance has one pooled database connection: optional reads begin
+because these reads share one primary pool connection per instance: optional reads begin
 only after required reads finish. A failed optional read keeps the article or list
 and renders its local fallback. The first HTML stream remains useful without
 JavaScript; recommendation cards still use the existing exposure tracking when

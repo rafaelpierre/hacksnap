@@ -76,10 +76,11 @@ export type { ArticleStory, CardStory, ExportStory } from "./story-domain";
 export type Story = ArticleStory;
 export type Summary = NonNullable<ArticleStory["summary"]>;
 
-const globalDB = globalThis as unknown as { hacksnapPool?: Pool };
+type ReadPool = "hacksnapPool" | "hacksnapTrendingPool";
+const globalDB = globalThis as unknown as Partial<Record<ReadPool, Pool>>;
 
-function pool(): Pool {
-  if (!globalDB.hacksnapPool) {
+function pool(key: ReadPool): Pool {
+  if (!globalDB[key]) {
     let connectionString = process.env.HACKSNAP_WEB_DATABASE_URL;
     if (!connectionString) throw new Error("HACKSNAP_WEB_DATABASE_URL is required");
     // Bundle the public Supabase CA so hosted Node runtimes can verify TLS too.
@@ -106,22 +107,25 @@ function pool(): Pool {
       }
       connectionString = databaseURL.toString();
     }
-    globalDB.hacksnapPool = new Pool({
+    globalDB[key] = new Pool({
       connectionString,
       max: 1,
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 90000,
       allowExitOnIdle: true,
     });
-    globalDB.hacksnapPool.on("error", () => console.error("Hacksnap database connection failed"));
+    globalDB[key].on("error", () => console.error("Hacksnap database connection failed"));
   }
-  return globalDB.hacksnapPool;
+  return globalDB[key];
 }
 
-async function read<T>(query: (client: PoolClient) => Promise<T>): Promise<T> {
+async function read<T>(
+  query: (client: PoolClient) => Promise<T>,
+  poolKey: ReadPool = "hacksnapPool",
+): Promise<T> {
   let client: PoolClient | undefined;
   try {
-    client = await pool().connect();
+    client = await pool(poolKey).connect();
     // Transaction pooling does not preserve session-level settings.
     await client.query(
       "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY; SET LOCAL statement_timeout = '10s'",
@@ -674,20 +678,25 @@ export async function getMarkdownLeaderboard() {
 }
 
 const cachedPopularStories = boundedCache(
-  async (key: string): Promise<PopularStory[]> =>
-    read(async (client) => {
-      const period: PopularPeriod = key === "last-7-days" ? "last-7-days" : "all-time";
-      const { rows } = await client.query<{ available: boolean }>(
-        period === "last-7-days" ? weeklyPopularityAvailableSQL : popularityAvailableSQL,
-      );
-      if (rows[0]?.available !== true) {
-        if (period === "last-7-days") throw new DataUnavailableError();
-        return [];
-      }
-      return (
-        await client.query<PopularStory>(popularStoriesSQL(await storySlugField(client), period))
-      ).rows;
-    }),
+  async (key: string): Promise<PopularStory[]> => {
+    const period: PopularPeriod = key === "last-7-days" ? "last-7-days" : "all-time";
+    return read(
+      async (client) => {
+        const { rows } = await client.query<{ available: boolean }>(
+          period === "last-7-days" ? weeklyPopularityAvailableSQL : popularityAvailableSQL,
+        );
+        if (rows[0]?.available !== true) {
+          if (period === "last-7-days") throw new DataUnavailableError();
+          return [];
+        }
+        return (
+          await client.query<PopularStory>(popularStoriesSQL(await storySlugField(client), period))
+        ).rows;
+      },
+      // A slow aggregate must not occupy the pool used by other requests' pages.
+      period === "last-7-days" ? "hacksnapTrendingPool" : "hacksnapPool",
+    );
+  },
   { ttl: () => 300_000, maxEntries: 2, maxPending: 2 },
 );
 
