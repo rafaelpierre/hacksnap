@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import type { ArticleStory, CardStory, ExportStory } from "../../lib/story-domain";
 import type { CategoryId, CategoryCounts } from "../../lib/categories";
 import type { RankingMetrics } from "../../lib/story-metrics";
-import type { PublicStory } from "../../lib/public-story";
 import { DataUnavailableError } from "../../lib/data-availability";
 import { ARCHIVE_PAGE_SIZE } from "../../lib/archive";
 import { CATEGORY_PAGE_SIZE } from "../../lib/categories";
@@ -219,9 +218,6 @@ export async function getPopularStories(period: "last-7-days" | "all-time" = "al
 export async function getMarkdownLeaderboard() {
   return getReadyStoryPage();
 }
-export async function getApiLeaderboard() {
-  return { stories: stories.slice(0, 10), ingestion: new Date(timestamp) };
-}
 export async function getFeedStories(): Promise<CardStory[]> {
   return cards;
 }
@@ -240,9 +236,6 @@ export const getStory = cache(async (id: string): Promise<ArticleStory | null> =
   }
   return story && cookie.includes("fixture-images=varied") ? variedImage(story) : story;
 });
-export async function getPublicStory(id: string): Promise<PublicStory | null> {
-  return getStory(id);
-}
 export async function getStoryMetrics(_id: string): Promise<RankingMetrics | null> {
   return null;
 }

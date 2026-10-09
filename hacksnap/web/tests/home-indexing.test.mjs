@@ -30,7 +30,6 @@ test("clean homepage, tracking queries, and other routes keep their indexing beh
     "/?page=4",
     "/2026/09?page=2",
     "/story/123?page=4",
-    "/docs/api?cursor=example",
   ]) {
     for (const accept of ["text/html", "text/markdown"]) {
       const response = proxy(

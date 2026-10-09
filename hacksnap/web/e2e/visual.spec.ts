@@ -14,7 +14,6 @@ for (const width of [320, 1280])
         "/?category=safety-privacy",
         "/topics",
         "/about",
-        "/docs/api",
         storyPath,
       ]) {
         await page.goto(route);
@@ -106,7 +105,7 @@ for (const width of [320, 1280])
         expect(firstContent!.y, "Content follows the normal-flow header").toBeGreaterThanOrEqual(
           header!.y + header!.height,
         );
-        if (["/about", "/docs/api", storyPath].includes(route))
+        if (["/about", storyPath].includes(route))
           expect(firstContent!.width, "Reading column stays bounded").toBeLessThanOrEqual(
             Math.min(width, 736 * textScale),
           );

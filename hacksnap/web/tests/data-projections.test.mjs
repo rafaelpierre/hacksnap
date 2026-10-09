@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { publicStorySQL } from "../lib/public-story.ts";
 import { browseCapabilitiesSQL } from "../lib/browse-capabilities.ts";
 import { PGlite } from "@electric-sql/pglite";
 import { hasReadySummary } from "../lib/ready-stories.ts";
@@ -329,7 +328,7 @@ test("cards omit article and analysis payloads; article reads omit retained metr
   }
 });
 
-test("API export and Markdown history coalesce per ranked snapshot and reject newly pending exports", async () => {
+test("Markdown history coalesces per ranked snapshot", async () => {
   process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
   const selected = {
     items: [{ hn_id: "14400", rank: "1", is_recent: true }],
@@ -344,14 +343,9 @@ test("API export and Markdown history coalesce per ranked snapshot and reject ne
     ingestion: null,
     ranked_at: new Date(clock),
   };
-  let exportReady = true;
   readyQuery = (sql) => {
     if (typeof sql !== "string") return undefined;
     if (sql.includes("AS ranked_at")) return { rows: [selected] };
-    if (sql.includes("WITH ORDINALITY AS selected(hn_id, position)"))
-      return {
-        rows: [{ hn_id: "14400", summary: { overall_takeaway: exportReady ? "Ready" : " " } }],
-      };
     if (sql.includes("AS rank_history") && sql.includes("ANY($1::bigint[])"))
       return { rows: [{ hn_id: "14400", rank_history: [] }] };
     return undefined;
@@ -359,21 +353,12 @@ test("API export and Markdown history coalesce per ranked snapshot and reject ne
   try {
     rows = [];
     queries.length = 0;
-    await Promise.all([data.getApiLeaderboard(), data.getApiLeaderboard()]);
-    assert.equal(
-      queries.filter((sql) => sql.includes("WITH ORDINALITY AS selected(hn_id, position)")).length,
-      1,
-    );
     await Promise.all([data.getMarkdownLeaderboard(), data.getMarkdownLeaderboard()]);
     assert.equal(
       queries.filter((sql) => sql.includes("AS rank_history") && sql.includes("ANY($1::bigint[])"))
         .length,
       1,
     );
-    exportReady = false;
-    clock += 60_001;
-    selected.ranked_at = new Date(clock);
-    await assert.rejects(data.getApiLeaderboard(), /Hacksnap data is temporarily unavailable/);
   } finally {
     readyQuery = undefined;
     rows = [];
@@ -446,7 +431,6 @@ test("image reads fall back to null projections until every reader grant is avai
       [() => data.getCategoryStories("agents_coding", 1), feedFieldsWithoutImages],
       [() => data.getStory("987"), storyFieldsWithoutImages],
       [() => data.getLeaderboard(), feedFieldsWithoutImages],
-      [() => data.getPublicStory("987"), publicStorySQL(true, false)],
     ]) {
       queries.length = 0;
       rows = [{ items: [], stories: [], ingestion: null, ranked_at: new Date() }];
@@ -580,7 +564,6 @@ test("rendering fallback uses legacy projections without reading or changing sto
       [() => data.getArchiveStories(null, 1), legacyFeedFields],
       [() => data.getCategoryStories("agents_coding", 1), legacyFeedFields],
       [() => data.getStory("456"), legacyStoryFields],
-      [() => data.getPublicStory("456"), publicStorySQL(false)],
       [() => data.getLeaderboard(), legacyFeedFields],
     ]) {
       rows = [{ items: [], stories: [], ingestion: null, ranked_at: new Date() }];

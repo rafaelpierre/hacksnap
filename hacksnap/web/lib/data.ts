@@ -14,7 +14,7 @@ import {
   parseReadyStoryCursor,
   type ReadyStorySnapshotItem,
 } from "./ready-story-pagination";
-import { publicStorySQL, validStoryId, type PublicStory } from "./public-story";
+import { validStoryId } from "./public-story";
 import {
   ARCHIVE_PAGE_SIZE,
   MAX_BROWSE_PAGE,
@@ -629,56 +629,6 @@ export function getRssStories(): Promise<ExportStory[]> {
   return cachedRssStories("rss");
 }
 
-// Public list output still contains article and discussion summary strings.
-// Hydrate just the ranked IDs selected by the common leaderboard cache.
-const cachedApiStories = boundedCache(
-  async (key: string): Promise<ExportStory[]> => {
-    const ids = key
-      .slice(key.indexOf("|") + 1)
-      .split(",")
-      .filter(Boolean);
-    if (!ids.length) return [];
-    const stories = await readStories(
-      "export",
-      async (client, fields) =>
-        (
-          await client.query<ExportStory>(
-            `SELECT ${fields} FROM unnest($1::bigint[]) WITH ORDINALITY AS selected(hn_id, position)
-        INNER JOIN hacker_news_threads t ON t.hn_id = selected.hn_id
-        LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
-        ORDER BY selected.position`,
-            [ids],
-          )
-        ).rows,
-    );
-    // An export read can race a summary removal after the ranked selection was
-    // cached. Fail the export rather than returning a newly pending top story.
-    if (
-      stories.length !== ids.length ||
-      stories.some((story) => !story.summary?.overall_takeaway?.trim())
-    )
-      throw new DataUnavailableError();
-    return stories;
-  },
-  { ttl: () => 60_000, maxEntries: 2, maxPending: 1 },
-);
-
-export async function getApiLeaderboard(): Promise<{
-  stories: ExportStory[];
-  ingestion: Date | null;
-}> {
-  const selection = await loadReadyStorySelection();
-  const key = `${selection.observed_at}|${selection.stories.map((story) => story.hn_id).join(",")}`;
-  try {
-    return {
-      stories: await cachedApiStories(key),
-      ingestion: selection.ingestion ? new Date(selection.ingestion) : null,
-    };
-  } catch {
-    throw new DataUnavailableError();
-  }
-}
-
 // Homepage Markdown presents every observed position within the 24-hour window.
 // Keep that history out of the cached HTML cards and attach it only on demand.
 const cachedMarkdownHistories = boundedCache(
@@ -721,23 +671,6 @@ export async function getMarkdownLeaderboard() {
       rank_history: byId.get(story.hn_id) ?? [],
     })),
   };
-}
-
-const cachedPublicStory = boundedCache(
-  async (id: string): Promise<PublicStory | null> =>
-    read(async (client) => {
-      const sql = publicStorySQL(
-        await hasDiscussionColumns(client),
-        (await client.query<{ available: boolean }>(imageColumnsSQL)).rows[0]?.available === true,
-      );
-      return (await client.query<PublicStory>(sql, [id])).rows[0] ?? null;
-    }),
-  { ttl: (story) => (story ? 300_000 : 60_000), maxEntries: 512, maxPending: 8 },
-);
-
-export async function getPublicStory(id: string): Promise<PublicStory | null> {
-  if (!validStoryId(id)) return null;
-  return cachedPublicStory(id);
 }
 
 const cachedPopularStories = boundedCache(

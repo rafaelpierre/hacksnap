@@ -96,7 +96,7 @@ Every public link uses the stored slug or falls back to the numeric ID: feed and
 related stories, sharing, metadata, social images, Markdown, RSS and the sitemap.
 Missing column/grant detection lets the website run before the migration; it uses
 numeric URLs until the column is readable. The leaderboard cache version changes
-to discard older projections. RSS GUIDs and the public API's numeric IDs remain stable.
+to discard older projections. RSS GUIDs remain stable.
 
 Alternate URLs redirect to the saved canonical address; an older story's numeric
 URL renders directly. Markdown GET/HEAD return 308. HTML uses Next.js permanent
@@ -291,7 +291,7 @@ return, and event contract coverage.
 
 ## Markdown content negotiation
 
-`/`, `/YYYY/MM`, `/story/:id`, and `/docs/api` return Markdown when requested with
+`/`, `/YYYY/MM`, and `/story/:id` return Markdown when requested with
 `Accept: text/markdown` or a recognized AI user agent: `ChatGPT-User`,
 `OAI-SearchBot`, `GPTBot`, `Claude-User`, `Claude-SearchBot`, `ClaudeBot`,
 `PerplexityBot`, or `Perplexity-User`. Agent product tokens are matched
@@ -321,8 +321,8 @@ error responses retain their existing semantics.
 Markdown responses use `Cache-Control: no-store` to preserve negotiation across
 CDNs. Story data behind the handler has a bounded 30-minute cache shared by
 HTML/metadata reads in the same instance; missing stories expire after 60 seconds.
-The leaderboard uses a bounded 60-second per-instance data cache. Latest, story HTML,
-and `/docs/api` render per request. The proxy rewrites Markdown requests to the
+The leaderboard uses a bounded 60-second per-instance data cache. Latest and story HTML
+render per request. The proxy rewrites Markdown requests to the
 Markdown handler before rendering.
 Next.js replaces the HTML `Vary` header with its own router headers, so an
 external CDN must bypass caching for these negotiated page URLs.
@@ -503,9 +503,7 @@ with the dedicated `hacksnap_reader` login. Leaderboard data uses a bounded
 60-second per-instance cache with one entry and one pending load. The shared selection
 contains the first ten cards, bounded continuation IDs/ranks/recency flags, ingestion
 time, and observation time from one SQL statement. `getLeaderboard()` and the first ready-stories API page read that same cached
-snapshot. `/api/stories` uses its same selection, with separately
-bounded 60-second reads for history and export summary fields; request order
-cannot populate independent first-page rankings or timestamps.
+snapshot. Markdown reads ranking history separately with a bounded 60-second cache.
 Concurrent callers share a load; after expiry they wait for fresh data, and failures use the existing
 unavailable response rather than returning stale rankings. Separate instances can
 differ within that one-minute window. This applies to the legacy ranked APIs; it also refreshes ranking changes caused by the 24-hour recency cutoff.
@@ -551,8 +549,7 @@ In Cloudflare, create a **Bypass cache** rule for:
 ```text
 (http.host eq "hacksnap.live" and
  (http.request.uri.path eq "/" or
-  starts_with(http.request.uri.path, "/story/") or
-  http.request.uri.path eq "/docs/api"))
+  starts_with(http.request.uri.path, "/story/")))
 ```
 
 Ensure no later cache rule overrides this bypass. Keep static asset caching
@@ -681,12 +678,12 @@ Migration `0015_article_images` adds nullable image fields to
 `hacker_news_threads`. Migration `0022_image_source_reader` grants the web reader
 SELECT on the existing `image_source_type` column. The reader checks that all six
 fields and their column grants are available on each uncached story read. Before the migration,
-or while its reader grant is unavailable, pages and public API responses use
+or while its reader grant is unavailable, pages and feed responses use
 null image fields and keep their ordinary text layout.
 
 Queries only return image metadata for publisher sources (`og`, `twitter`, or
 `json_ld`). Generated fallbacks, missing source types, and unknown source types
-return null image fields across feeds, story pages, and the public API. No stored
+return null image fields across feeds and story pages. No stored
 assets are deleted and image generation remains unchanged. Older saved feed
 snapshots are invalidated so they cannot restore generated images.
 
@@ -738,16 +735,15 @@ HTML and metadata share the same request-level article read.
 
 Card reads for archive and category listings contain takeaway,
 sentiment, source coverage and a bounded current discussion excerpt in their summary.
-They omit full article/discussion bodies, legacy points and analysis evidence. RSS and public API lists use a
-separate export projection that retains their existing summary strings. Public
-API detail and story Markdown retain analysis and evidence. Worker metadata and
+They omit full article/discussion bodies, legacy points and analysis evidence. RSS uses a separate export projection that retains its existing summary strings.
+Story Markdown retains analysis and evidence. Worker metadata and
 raw comments remain private.
 
 The domain contracts live in `lib/story-domain.ts`, independently of database
 connections and caching. Missing or null article analysis means unavailable;
 it does not promise backfill. An analysis with `status: "no_comments"` is an
 explicit analyzed result. Migration/grant fallback and the discussion-rendering
-rollback preserve legacy article and public-detail rendering.
+rollback preserve legacy article rendering.
 
 `tests/discussion-projection.test.mjs` runs the shared contract fixtures, legacy
 and pending rows through embedded PostgreSQL with the migration's reader grant.
@@ -790,8 +786,8 @@ New themes replace legacy discussion points. Story HTML labels the section
 **Discussion analysis**. The article summary appears without a visible section heading.
 Markdown retains **Discussion themes**. Both omit the older introduction and
 stance cards. The
-stored summary string, RSS and public API contract remain unchanged. Historical
-claim and stance arrays stay available through the API; new analysis leaves them
+stored summary string and RSS remain unchanged. Historical
+claim and stance arrays remain stored; new analysis leaves them
 empty. Null or absent analysis uses legacy cited points without promising a backfill.
 No-comments and empty-theme states explain their limits. Legacy skepticism is never
 treated as explicit support.
@@ -806,17 +802,6 @@ Story Markdown includes themes, source-comment links, sample limitations, and
 independent analysis coverage/time. Missing analysis keeps legacy discussion points;
 no-comments and empty-theme results describe their limits. Nothing triggers a
 backfill or export regeneration.
-
-`GET /api/stories/{id}` adds optional, nullable `summary.discussion_analysis`.
-The object explicitly exports status, historical claims/highlights, cited themes, `analyzed_at`,
-and `coverage`. Nested fields are allowlisted, excluding worker metadata and raw
-source payloads. The list endpoint retains its compact summary; request a detail
-for evidence. OpenAPI 1.1.0, HTML docs, and negotiated Markdown docs describe the
-same additive contract. Clients should handle absent fields from older responses.
-
-Run `npm test -- tests/api.test.mjs tests/markdown.test.mjs` for shared analysis
-fixtures, schema validation, legacy/unavailable states, escaping, and private-field
-exclusion. Ajv validates API responses against the published OpenAPI schemas.
 
 ## Feed card layout
 
@@ -846,18 +831,10 @@ editable drafts and manual-copy recovery. Headline links preserve feed context.
 
 ## Public read limits
 
-`/api/stories/{id}` uses a parameterized primary-key lookup of just the existing
-public fields, three summary strings, and the public discussion analysis now in
-the detail contract. It does not read ranking views, rank history, or worker metadata. Invalid IDs return an uncacheable
-400 before acquiring a database connection. Unknown valid IDs return a cacheable 404. Database failures and cache-capacity failures return a sanitized, uncacheable
-503 with `Retry-After: 60`.
-
 | Data cache                   | Positive TTL  | Missing TTL | Maximum entries | Maximum pending distinct keys |
 | ---------------------------- | ------------- | ----------- | --------------- | ----------------------------- |
-| Public API detail            | 300 seconds   | 60 seconds  | 512             | 8                             |
 | Story rendering / Markdown   | 1,800 seconds | 60 seconds  | 128             | 4                             |
 | Markdown story metrics       | 1,800 seconds | 60 seconds  | 128             | 4                             |
-| API list export fields       | 60 seconds    | n/a         | 2               | 1                             |
 | Markdown leaderboard history | 60 seconds    | n/a         | 2               | 1                             |
 | RSS data                     | 300 seconds   | n/a         | 1               | 1                             |
 
@@ -870,9 +847,6 @@ Schema/grant checks run on cache misses; cached legacy projections pick up a
 new migration after expiry. Cold starts and separate instances each have their own caches. These are work and
 memory bounds, not a distributed request-rate limit or a byte limit on stored text.
 
-API detail successes declare `public, max-age=0, s-maxage=300`; safe 404s declare
-`public, max-age=0, s-maxage=60`. Combining data and HTTP caches can delay a detail
-update by up to ten minutes, or discovery of a previously missing ID by two minutes.
 Story HTML renders per request using story data cached for at most 30 minutes. Markdown stays
 uncacheable at HTTP level and preserves `Vary: Accept` and HEAD behavior.
 
@@ -919,8 +893,7 @@ with origin and Cloudflare telemetry before extending its TTL or adding layers.
 ## Discussion rendering fallback
 
 Set server-only `HACKSNAP_DISCUSSION_RENDERING=false` and redeploy to use legacy
-summary projections for articles and public API detail. Cards, RSS and public API
-lists do not select analysis payloads. Stored analysis and worker generation are
+summary projections for articles. Cards and RSS do not select analysis payloads. Stored analysis and worker generation are
 unchanged. Remove the setting and redeploy to restore analysis.
 See the [rollout runbook](../../docs/evaluations/issue-42/README.md).
 

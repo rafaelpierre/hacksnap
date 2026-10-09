@@ -34,7 +34,6 @@ jest.unstable_mockModule("../app/topic-sidebar.tsx", () => ({
 
 const { ArchiveStoryList } = await import("../app/archive-story-list.tsx");
 const { categoryBySlug } = await import("../lib/categories.ts");
-const { default: ApiDocs } = await import("../app/docs/api/page.tsx");
 
 test("an empty filtered feed links its browse action directly to Latest", async () => {
   const shell = await ArchiveStoryList({
@@ -46,12 +45,4 @@ test("an empty filtered feed links its browse action directly to Latest", async 
   assert.match(html, /No stories in this topic yet/);
   assert.match(html, /href="\/"[^>]*>Browse latest stories/);
   assert.doesNotMatch(html, /href="\/archive"|Browse top stories/);
-});
-
-test("API docs return directly to Latest while describing the separate ranked API", () => {
-  const html = renderToStaticMarkup(createElement(ApiDocs));
-  assert.match(html, /<a(?=[^>]*class="back-link")(?=[^>]*href="\/")[^>]*>/);
-  assert.match(html, /Latest stories<\/a>/);
-  assert.match(html, /Stories follow Hacksnap ranking/);
-  assert.doesNotMatch(html, /href="\/archive"|homepage ranking/);
 });
