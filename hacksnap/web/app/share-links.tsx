@@ -147,6 +147,7 @@ export function ShareLinks({
   }
 
   function close(returnFocus: boolean) {
+    copyOperation.current += 1;
     if (typeof dialog.current?.close === "function") dialog.current.close();
     setOpen(false);
     if (returnFocus) trigger.current?.focus();
@@ -222,6 +223,7 @@ export function ShareLinks({
         aria-controls={panelId}
         aria-label={`${label}: ${title}`}
         onClick={() => {
+          copyOperation.current += 1;
           if (!open) {
             track("share_menu_open", { story_id: id, placement });
             if (!Editor && !loadFailed) loadEditor();

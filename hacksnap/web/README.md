@@ -61,6 +61,9 @@ rail separated by 24px gaps. Decorative category icons accompany full labels and
 44px controls. The DEV mock and approved adjustments are documented in
 `../../docs/ux/2026-10-08/frontend-revamp/implementation-plan.md`.
 Latest has an accessible page heading without a visible hero or breadcrumb.
+Below 42rem, Latest, topic and dated archive feed cards extend to both viewport
+edges, with square corners and no side borders. Internal card padding remains;
+headers, feed controls and supporting content retain their usual page gutters.
 
 Article headers reuse the feed's category and compact relative age as plain text.
 The category links to its feed; Latest is available in the main navigation.
@@ -924,6 +927,8 @@ that gains a takeaway. Reader edits survive same-story refreshes and closing and
 reopening the editor. Reset draft restores the latest suggestion and focuses the
 textarea. Changing story identity resets the draft and copy feedback; delayed
 clipboard completions cannot update a replacement identity or draft.
+Closing or toggling the dialog also invalidates pending copies, so reopening it
+cannot restore an earlier session's LinkedIn action, feedback or manual-copy field.
 
 ## Production browser regression suite
 
