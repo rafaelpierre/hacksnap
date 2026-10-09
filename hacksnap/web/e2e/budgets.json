@@ -1,7 +1,9 @@
 {
-  "description": "Fixed-fixture cold desktop navigation, Chromium, DPR 1. Asset bytes are decoded response bodies, gzip bytes use level 9. Rendering limits accommodate CI machine variance.",
+  "description": "Fixed-fixture cold desktop navigation, Chromium, DPR 1. Asset bytes are decoded response bodies, gzip bytes use level 9. Font requests count unique font URLs. Rendering limits accommodate CI machine variance; responseStartMs and fcpMs are informational.",
   "routes": {
     "/": {
+      "fontBytes": 115000,
+      "fontRequests": 2,
       "jsBytes": 610000,
       "cssBytes": 46000,
       "imageBytes": 3500,
@@ -11,6 +13,8 @@
       "cls": 0.1
     },
     "/2026/01": {
+      "fontBytes": 115000,
+      "fontRequests": 2,
       "jsBytes": 610000,
       "cssBytes": 46000,
       "imageBytes": 3500,
@@ -20,6 +24,8 @@
       "cls": 0.1
     },
     "/category/models-products": {
+      "fontBytes": 115000,
+      "fontRequests": 2,
       "jsBytes": 610000,
       "cssBytes": 46000,
       "imageBytes": 3500,
@@ -29,6 +35,8 @@
       "cls": 0.1
     },
     "/story/91000001": {
+      "fontBytes": 115000,
+      "fontRequests": 2,
       "jsBytes": 590000,
       "cssBytes": 46000,
       "imageBytes": 3500,
