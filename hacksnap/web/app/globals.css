@@ -623,10 +623,9 @@ body:has(#browse-content) .skip-browse {
   align-items: center;
   justify-content: center;
   flex: none;
-  min-width: 1.75rem;
-  min-height: 1.5rem;
-  padding: 0 var(--space-1);
-  border-radius: 999px;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
   background: var(--accent-soft);
   color: color-mix(in srgb, var(--accent) 55%, var(--muted));
   font-size: var(--text-sm);
