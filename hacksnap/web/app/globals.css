@@ -579,6 +579,7 @@ body:has(#browse-content) .skip-browse {
 
 /* Supporting ranking is subordinate to the feed and follows it on small screens. */
 .popular-stories {
+  container: popularity / inline-size;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
@@ -589,13 +590,16 @@ body:has(#browse-content) .skip-browse {
   border-bottom: 1px solid #ebebef;
 }
 .popular-stories-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font: 700 1.35rem/1.2 var(--heading);
   letter-spacing: -0.025em;
 }
-.popular-stories-heading p {
-  margin-top: var(--space-2);
-  color: var(--muted);
-  font-size: var(--text-sm);
+.popular-stories-heading svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
 }
 .popular-stories ol {
   list-style: none;
@@ -606,11 +610,31 @@ body:has(#browse-content) .skip-browse {
   border-top: 1px solid #ebebef;
 }
 .popular-stories li a {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
   padding: var(--space-4) var(--space-6);
   min-height: var(--touch-target);
   font: 600 var(--text-base)/1.35 var(--sans);
   text-decoration: none;
+}
+.popular-stories-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 1.75rem;
+  min-height: 1.5rem;
+  padding: 0 var(--space-1);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: color-mix(in srgb, var(--accent) 55%, var(--muted));
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.popular-stories li a > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .popular-stories li a:hover {
   background: var(--row-hover);
@@ -627,6 +651,16 @@ body:has(#browse-content) .skip-browse {
   margin: var(--space-4) var(--space-6);
   background: var(--bg);
   border-radius: var(--radius-control);
+}
+
+@container popularity (max-width: 17rem) {
+  .popular-stories-heading,
+  .popular-stories li a {
+    padding-inline: var(--space-2);
+  }
+  .popular-stories li a {
+    gap: var(--space-2);
+  }
 }
 
 /* A bounded white panel carries the reader, About and supporting route content. */

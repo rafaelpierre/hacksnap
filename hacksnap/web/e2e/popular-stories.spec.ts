@@ -23,7 +23,7 @@ for (const width of [320, 393, 768, 820, 1440])
         await expect(mostRead).toBeVisible();
         await expect(trending).toBeVisible();
         await expect(mostRead.getByRole("link")).toHaveCount(5);
-        await expect(mostRead.getByRole("link").first()).toHaveText(title);
+        await expect(mostRead.getByRole("link").first()).toHaveAccessibleName(title);
         await expect(mostRead.getByRole("link").first()).toHaveAttribute("href", "/story/91000001");
         await expect(trending.getByRole("link")).toHaveCount(5);
         await expect(trending.getByRole("link").first()).toHaveAttribute("href", "/story/91000006");
@@ -34,7 +34,7 @@ for (const width of [320, 393, 768, 820, 1440])
         if (width === 1440 && textScale === 1)
           expect(mostReadBounds.x).toBeGreaterThan(feedBounds.x + feedBounds.width - 1);
         else expect(mostReadBounds.y).toBeGreaterThanOrEqual(feedBounds.y + feedBounds.height);
-        await expect(page.locator(".browse-right-sidebar")).not.toContainText("All time");
+        await expect(page.locator(".browse-right-sidebar")).not.toContainText("Across all time");
         await expect(page.getByRole("tablist")).toHaveCount(0);
         for (const widget of [trending, mostRead]) {
           for (const link of await widget.getByRole("link").all())
@@ -51,7 +51,7 @@ for (const width of [320, 393, 768, 820, 1440])
         (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
           .violations,
       ).toEqual([]);
-      const output = path.resolve("../../docs/ux/2026-10-09/restore-trending");
+      const output = path.resolve("../../docs/ux/2026-10-09/sidebar-widget-rankings");
       await mkdir(output, { recursive: true });
       await page.screenshot({
         path: path.join(output, `home-${width}-${textScale * 100}.png`),
