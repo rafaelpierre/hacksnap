@@ -1315,6 +1315,15 @@ dialog.share-panel::backdrop {
     white-space: nowrap;
   }
 }
+@container page (width < 42rem) {
+  .story-list {
+    margin-inline: calc(-1 * var(--page-gutter));
+  }
+  .story-row.feed-story {
+    border-inline: 0;
+    border-radius: 0;
+  }
+}
 @container page (min-width: 42rem) {
   .header-inner,
   .site-shell {

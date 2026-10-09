@@ -84,6 +84,15 @@ for (const width of [320, 1280])
         }
         if (["/", "/2026/01", "/?category=models-products"].includes(route)) {
           const card = page.locator(".feed-story").first();
+          const cardBounds = await card.boundingBox();
+          if (width < 42 * 16 * textScale) {
+            expect(cardBounds!.x, "Mobile cards reach the left viewport edge").toBe(0);
+            expect(cardBounds!.width, "Mobile cards fill the viewport width").toBe(width);
+            await expect(card).toHaveCSS("border-radius", "0px");
+          } else {
+            expect(cardBounds!.x, "Desktop cards retain the page gutter").toBeGreaterThan(0);
+            expect(cardBounds!.width).toBeLessThan(width);
+          }
           const headline = await card.locator(".feed-story-title").boundingBox();
           const excerpt = await card.locator(".feed-excerpt").boundingBox();
           const image = await card.locator(".feed-story-image").boundingBox();

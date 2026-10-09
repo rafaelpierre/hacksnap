@@ -58,6 +58,9 @@ rail separated by 24px gaps. Decorative category icons accompany full labels and
 44px controls. The DEV mock and approved adjustments are documented in
 `../../docs/ux/2026-10-08/frontend-revamp/implementation-plan.md`.
 Latest has an accessible page heading without a visible hero or breadcrumb.
+Below 42rem, Latest, topic and dated archive feed cards extend to both viewport
+edges, with square corners and no side borders. Internal card padding remains;
+headers, feed controls and supporting content retain their usual page gutters.
 
 Article headers reuse the feed's category and compact relative age as plain text.
 The category links to its feed; Latest is available in the main navigation.
