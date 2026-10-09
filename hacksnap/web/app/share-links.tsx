@@ -3,7 +3,13 @@
 import { Forward, X } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { copyShareText, track } from "../lib/analytics";
-import { canonicalStoryUrl, copyText, shareDestinations, suggestedPost } from "../lib/share-text";
+import {
+  canonicalStoryUrl,
+  copyText,
+  linkedInPost,
+  shareDestinations,
+  suggestedPost,
+} from "../lib/share-text";
 import { loadShareEditor } from "./share-editor-loader";
 
 type ShareProps = {
@@ -30,6 +36,7 @@ export function ShareLinks({
   const [post, setPost] = useState(() => suggestedPost(id, title, takeaway, slug));
   const [postEdited, setPostEdited] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [linkedInHref, setLinkedInHref] = useState<string | null>(null);
   const [manualText, setManualText] = useState<string | null>(null);
   const [Editor, setEditor] = useState<ShareEditorComponent | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -58,6 +65,7 @@ export function ShareLinks({
     setPostEdited(false);
     setFeedback("");
     setManualText(null);
+    setLinkedInHref(null);
   }, [id, slug, title, takeaway]);
 
   useLayoutEffect(() => {
@@ -67,6 +75,7 @@ export function ShareLinks({
     copyGeneration.current += 1;
     setFeedback("");
     setManualText(null);
+    setLinkedInHref(null);
     setPost(refreshedPost);
   }, [id, slug, title, takeaway, post, postEdited]);
 
@@ -143,11 +152,12 @@ export function ShareLinks({
     if (returnFocus) trigger.current?.focus();
   }
 
-  async function copy(value: string, kind: "link" | "post") {
+  async function copy(value: string, kind: "link" | "post", destinationHref?: string) {
     const identity = id;
     const generation = copyGeneration.current;
     const operation = ++copyOperation.current;
     setManualText(null);
+    setLinkedInHref(null);
     setFeedback("");
     const succeeded = await copyShareText(value, id, placement, kind, async (text) => {
       if (!(await copyText(text, navigator.clipboard))) throw new Error("Clipboard write failed");
@@ -159,17 +169,34 @@ export function ShareLinks({
     ) {
       return;
     }
+    setLinkedInHref(destinationHref ?? null);
     if (succeeded) {
       setFeedback(
-        kind === "link" ? "Link copied to clipboard." : "Suggested post copied to clipboard.",
+        destinationHref
+          ? "Post and link copied. Open LinkedIn, then paste into your post."
+          : kind === "link"
+            ? "Link copied to clipboard."
+            : "Suggested post copied to clipboard.",
       );
     } else {
       setManualText(value);
-      setFeedback("Couldn’t copy automatically. Select and copy the text below.");
+      setFeedback(
+        destinationHref
+          ? "Copy the text below, then open LinkedIn and paste it into your post. The story link is included even if its preview fails."
+          : "Couldn’t copy automatically. Select and copy the text below.",
+      );
     }
   }
 
   function selectDestination(name: string, href: string) {
+    if (name === "LinkedIn") {
+      void copy(linkedInPost(post, url), "post", href);
+      return;
+    }
+    openDestination(name, href);
+  }
+
+  function openDestination(name: string, href: string) {
     track("share_destination_select", {
       story_id: id,
       destination: name.toLowerCase(),
@@ -198,6 +225,7 @@ export function ShareLinks({
           setOpen(!open);
           setFeedback("");
           setManualText(null);
+          setLinkedInHref(null);
         }}
       >
         <Forward size={18} aria-hidden="true" /> {label}
@@ -273,6 +301,7 @@ export function ShareLinks({
                 setPostEdited(value !== suggestedPost(id, title, takeaway, slug));
                 setFeedback("");
                 setManualText(null);
+                setLinkedInHref(null);
               }}
               onResetPost={() => {
                 copyGeneration.current += 1;
@@ -280,6 +309,7 @@ export function ShareLinks({
                 setPostEdited(false);
                 setFeedback("");
                 setManualText(null);
+                setLinkedInHref(null);
               }}
               onCopy={(value, kind) => void copy(value, kind)}
               onDestination={selectDestination}
@@ -304,12 +334,19 @@ export function ShareLinks({
                       key={destination.name}
                       type="button"
                       onClick={() => selectDestination(destination.name, destination.href)}
-                      aria-label={`${destination.name}${destination.name === "Email" ? "" : " (opens in a new tab)"}`}
+                      aria-label={
+                        destination.name === "LinkedIn"
+                          ? "LinkedIn (copy post first)"
+                          : destination.name
+                      }
                     >
                       {destination.name}
                     </button>
                   ))}
               </div>
+              <p className="share-destination-hint">
+                LinkedIn needs a paste: copy your post here, then open LinkedIn.
+              </p>
               <button
                 type="button"
                 className="share-copy-post"
@@ -327,6 +364,16 @@ export function ShareLinks({
           <p className="share-feedback" role="status" aria-live="polite">
             {feedback}
           </p>
+          {linkedInHref !== null && (
+            <button
+              type="button"
+              className="share-copy-post"
+              aria-label="Open LinkedIn (opens in a new tab)"
+              onClick={() => openDestination("LinkedIn", linkedInHref)}
+            >
+              Open LinkedIn
+            </button>
+          )}
           {manualText !== null && (
             <textarea
               ref={manualField}

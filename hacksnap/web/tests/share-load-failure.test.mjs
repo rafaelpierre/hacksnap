@@ -44,8 +44,12 @@ test("failed editor loading keeps fallback actions and retry does not steal manu
     assert.ok(button("LinkedIn"));
     assert.ok(button("Email"));
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
-    await click(button("Copy link"));
-    assert.equal(document.querySelector(".share-manual").value, "https://hacksnap.live/story/7");
+    await click(button("LinkedIn"));
+    assert.match(
+      document.querySelector(".share-manual").value,
+      /https:\/\/hacksnap.live\/story\/7$/,
+    );
+    assert.ok(button("Open LinkedIn"));
     await click(button("Retry editor"));
     assert.equal(loadCount, 2);
     await click(button("Copy suggested post"));

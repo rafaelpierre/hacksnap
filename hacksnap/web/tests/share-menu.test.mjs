@@ -3,6 +3,7 @@ import { test } from "@jest/globals";
 import {
   canonicalStoryUrl,
   copyText,
+  linkedInPost,
   shareDestinations,
   suggestedPost,
 } from "../lib/share-text.ts";
@@ -90,4 +91,13 @@ test("X validation accounts for transformed links and weighted Unicode without c
   const longDraft = suggestedPost("123", "Headline", "takeaway ".repeat(400));
   assert.equal(xPostStatus(longDraft).valid, false);
   assert.ok(longDraft.includes("takeaway ".repeat(400).trim()));
+});
+
+test("LinkedIn paste text preserves edits and always includes the canonical story URL", () => {
+  const url = canonicalStoryUrl("123", "headline-123");
+  const post = "My take 😀 & #topic\nSecond line.";
+  assert.equal(linkedInPost(post, url), `${post}\n\n${url}`);
+  assert.equal(linkedInPost(`${post}\n\n${url}`, url), `${post}\n\n${url}`);
+  assert.equal(linkedInPost(" \n", url), url);
+  assert.equal(linkedInPost(`${url}-other`, url), `${url}-other\n\n${url}`);
 });

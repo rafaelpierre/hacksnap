@@ -91,7 +91,10 @@ test("deferred share editor preserves edited Unicode drafts and modal focus, Esc
 
     const opened = [];
     window.open = (...args) => opened.push(args);
-    await click(document.querySelector('button[aria-label="LinkedIn (opens in a new tab)"]'));
+    await click(document.querySelector('button[aria-label="LinkedIn (copy post first)"]'));
+    assert.equal(opened.length, 0);
+    assert.equal(document.querySelector(".share-manual").value, edited);
+    await click(button("Open LinkedIn"));
     assert.equal(new URL(opened[0][0]).searchParams.get("url"), "https://hacksnap.live/story/123");
     const closeButton = document.querySelector(".share-close");
     const lastControl = document.querySelector(".share-manual");
