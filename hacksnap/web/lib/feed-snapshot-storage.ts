@@ -108,6 +108,17 @@ export function saveFeedSnapshot(
 ): FeedSnapshotRef | null {
   const old = validFeedSnapshotRef(previous, snapshot.url);
   const prior = old ? (memory().get(old.id) ?? readFeedSnapshot(old, snapshot.url)) : null;
+  // StoryFeed replaces these references when content changes; scroll saves reuse them.
+  if (
+    old &&
+    prior &&
+    prior.savedAt === old.contentAt &&
+    prior.stories.length === old.storyCount &&
+    prior.stories === snapshot.stories &&
+    prior.pagination === snapshot.pagination
+  ) {
+    return positionFeedSnapshot(old, snapshot.url, snapshot.scrollY, snapshot.focusStoryId);
+  }
   const continuesSelection =
     prior &&
     prior.stories.length <= snapshot.stories.length &&
