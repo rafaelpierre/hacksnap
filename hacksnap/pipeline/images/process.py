@@ -6,6 +6,7 @@ from io import BytesIO
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .fetch import DEFAULT_LIMITS, ImageError, ImageLimits
+from .quality import validate_webp
 
 
 def normalize_image(data: bytes, limits: ImageLimits = DEFAULT_LIMITS) -> tuple[bytes, int, int]:
@@ -31,7 +32,9 @@ def normalize_image(data: bytes, limits: ImageLimits = DEFAULT_LIMITS) -> tuple[
                 result = oriented.convert(mode)
                 output = BytesIO()
                 result.save(output, format="WEBP", quality=82, method=4)
-                return output.getvalue(), result.width, result.height
+                data = output.getvalue()
+                validate_webp(data, result.size)
+                return data, result.width, result.height
     except ImageError:
         raise
     except (Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:

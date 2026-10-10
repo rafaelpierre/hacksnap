@@ -21,6 +21,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps, UnidentifiedImageError
 
 from ..image_metadata import ImageFetchError, PublicFetcher, extract_candidates, safe_url
 from ..image_scope import BACKFILL_START, scope_result
+from .fetch import ImageError
+from .quality import validate_webp, visible_rgb
 
 logger = logging.getLogger("hacksnap.images")
 Image.MAX_IMAGE_PIXELS = 30_000_000
@@ -113,6 +115,8 @@ def _reason(error: ImageFetchError) -> str:
         return "invalid_content_type"
     if code == "invalid_image":
         return "decode_failed"
+    if code in {"decode_failed", "image_too_few_bytes", "image_blank"}:
+        return code
     if re.fullmatch(r"http_[1-5][0-9]{2}", code):
         return code
     return "fetch_failed"
@@ -130,17 +134,24 @@ def normalize_image(data: bytes, mime_type: str, settings: ImageSettings) -> byt
             if source.width * source.height > Image.MAX_IMAGE_PIXELS:
                 raise ImageFetchError("too_many_pixels")
             source.load()
-            image = ImageOps.exif_transpose(source).convert("RGB")
+            mode = "RGBA" if "A" in source.getbands() or "transparency" in source.info else "RGB"
+            image = ImageOps.exif_transpose(source).convert(mode)
     except ImageFetchError:
         raise
     except Image.DecompressionBombError as exc:
         raise ImageFetchError("too_many_pixels") from exc
-    except (UnidentifiedImageError, OSError, ValueError) as exc:
+    except (UnidentifiedImageError, OSError, ValueError, EOFError) as exc:
         raise ImageFetchError("invalid_image") from exc
     image = ImageOps.fit(image, (settings.width, settings.height), method=Image.Resampling.LANCZOS)
+    image = visible_rgb(image)
     buffer = io.BytesIO()
     image.save(buffer, format="WEBP", quality=84, method=5)
-    return buffer.getvalue()
+    data = buffer.getvalue()
+    try:
+        validate_webp(data, (settings.width, settings.height))
+    except ImageError as exc:
+        raise ImageFetchError(exc.reason) from exc
+    return data
 
 
 def _font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -318,6 +329,11 @@ def process_image_job(
             return "skipped"
     try:
         webp = generate_artwork(job, settings)
+        validate_webp(webp, (settings.width, settings.height))
+    except ImageError as exc:
+        _log(job, None, "generated", exc.reason)
+        _mark_failed(job, repository, exc.reason)
+        return "failed"
     except Exception:  # noqa: BLE001 - image errors never fail an article
         _log(job, None, "generated", "generation_failed")
         _mark_failed(job, repository, "generation_failed")

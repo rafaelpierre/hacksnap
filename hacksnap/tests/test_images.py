@@ -215,13 +215,13 @@ def test_streaming_cap_and_timeout(publisher):
 
 def make_image(size=(2400, 1200), mode="RGB"):
     buffer = BytesIO()
-    Image.new(mode, size, "red").save(buffer, "PNG")
+    Image.effect_mandelbrot(size, (-2, -1, 1, 1), 32).convert(mode).save(buffer, "PNG")
     return buffer.getvalue()
 
 
 def test_normalization_bounds_and_strips_metadata():
     raw = BytesIO()
-    Image.new("RGB", (2400, 1200), "red").save(raw, "PNG", pnginfo=None)
+    raw.write(make_image())
     output, width, height = normalize_image(raw.getvalue())
     assert (width, height) == (1600, 800)
     with Image.open(BytesIO(output)) as image:
@@ -236,7 +236,7 @@ def test_normalization_bounds_and_strips_metadata():
 
 
 def test_orientation_and_exif_are_applied_then_removed():
-    source = Image.new("RGB", (300, 600), "blue")
+    source = Image.effect_mandelbrot((300, 600), (-2, -1, 1, 1), 32).convert("RGB")
     exif = Image.Exif()
     exif[274] = 6  # Rotate the portrait into a 600x300 landscape image.
     exif[315] = "Publisher"

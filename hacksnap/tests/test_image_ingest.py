@@ -22,7 +22,7 @@ def setup_ingester(monkeypatch):
     uploader = Mock()
     uploader.upload.return_value = CANONICAL
     image = BytesIO()
-    Image.new("RGB", (1200, 600), "navy").save(image, format="PNG")
+    Image.effect_mandelbrot((1200, 600), (-2, -1, 1, 1), 32).save(image, format="PNG")
     monkeypatch.setattr(ingest, "fetch_html", Mock(return_value=(
         '<meta property="og:image" content="/hero.png?secret=hidden">'
     )))
@@ -61,6 +61,18 @@ def test_image_failures_stay_out_of_article_fetch_failure_path(monkeypatch, capl
     assert worker.failure_counts == {reason: 1}
     repo.save_fetch_failure.assert_not_called()
     repo.save_summary.assert_not_called()
+
+
+def test_blank_image_is_failed_without_upload_or_publication(monkeypatch):
+    repo, uploader, worker = setup_ingester(monkeypatch)
+    blank = BytesIO()
+    Image.new("RGB", (1200, 630), "white").save(blank, "PNG")
+    monkeypatch.setattr(ingest, "fetch_image", Mock(return_value=blank.getvalue()))
+    assert worker.ingest_article_image(100, "https://publisher.example/a") == "failed"
+    assert repo.save_image_failed.call_args.kwargs["reason"] == "image_too_few_bytes"
+    uploader.upload.assert_not_called()
+    repo.save_image_ready.assert_not_called()
+    repo.save_fetch_failure.assert_not_called()
 
 
 def test_missing_metadata_finishes_failed(monkeypatch):
