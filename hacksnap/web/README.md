@@ -254,8 +254,9 @@ server-rendered Newer/Older links preserve navigation when automatic loading or
 JavaScript is unavailable. Failures keep loaded cards visible and offer a retry.
 Automatic loading stops while continuation controls have keyboard focus.
 
-Opening a story saves loaded cards once per listing entry in tab-scoped session
-storage. Browser Back/Forward and explicit story returns restore the loaded depth,
+Loaded cards are saved in tab-scoped session storage when stories or pagination
+change. Scroll-only saves update the lightweight history reference without packing
+or writing the cards again. Browser Back/Forward and explicit story returns restore the loaded depth,
 scroll position and focused story. Blocked or full storage falls back to same-tab
 memory. Feed records retain the existing bounded storage budgets and eight-hour
 expiry. Older snapshots without the current page-size marker are rejected so pagination and pending

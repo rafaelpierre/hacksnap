@@ -154,6 +154,67 @@ test("one tab-level record reconstructs earlier feed depths with exact paginatio
   }
 });
 
+test("position-only saves reuse content until stories or pagination change", () => {
+  const dom = new JSDOM("", { url: "https://hacksnap.live/" });
+  const before = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", { value: dom.window, configurable: true });
+  const setItem = dom.window.Storage.prototype.setItem;
+  let contentWrites = 0;
+  dom.window.Storage.prototype.setItem = function (key: string, value: string) {
+    if (key.startsWith("hacksnap:feed-snapshot:")) contentWrites++;
+    return setItem.call(this, key, value);
+  };
+  try {
+    const initial = snapshot(1485, 99, Date.now() - 1000);
+    let ref = saveFeedSnapshot(initial, null)!;
+    const contentAt = ref.contentAt;
+    for (let index = 1; index <= 10; index++) {
+      ref = saveFeedSnapshot(
+        { ...initial, scrollY: index * 100, focusStoryId: "800", savedAt: Date.now() },
+        ref,
+      )!;
+    }
+    assert.equal(contentWrites, 1);
+    assert.equal(ref.contentAt, contentAt);
+    assert.equal(readFeedSnapshot(ref, "/")?.scrollY, 1000);
+    assert.equal(readFeedSnapshot(ref, "/")?.focusStoryId, "800");
+
+    const updated = {
+      ...initial,
+      stories: initial.stories.map((story, index) =>
+        index === 0 ? { ...story, title: "Updated title" } : story,
+      ),
+      savedAt: Date.now(),
+    };
+    ref = saveFeedSnapshot(updated, ref)!;
+    assert.equal(contentWrites, 2);
+    assert.equal(readFeedSnapshot(ref, "/")?.stories[0].title, "Updated title");
+
+    const repaginated = { ...updated, pagination: { ...updated.pagination, hasMore: false } };
+    ref = saveFeedSnapshot(repaginated, ref)!;
+    assert.equal(contentWrites, 3);
+    assert.equal(readFeedSnapshot(ref, "/")?.pagination.hasMore, false);
+    const appended = snapshot(1500, 100);
+    ref = saveFeedSnapshot(appended, ref)!;
+    assert.equal(contentWrites, 4);
+    assert.equal(readFeedSnapshot(ref, "/")?.stories.length, 1500);
+
+    const reloaded = new JSDOM("", { url: "https://hacksnap.live/" });
+    const key = `hacksnap:feed-snapshot:${ref.id}`;
+    reloaded.window.sessionStorage.setItem(key, dom.window.sessionStorage.getItem(key)!);
+    ref = saveFeedSnapshot({ ...appended, scrollY: 4200, focusStoryId: "900" }, ref)!;
+    assert.equal(contentWrites, 4);
+    Object.defineProperty(globalThis, "window", { value: reloaded.window, configurable: true });
+    assert.equal(readFeedSnapshot(ref, "/")?.scrollY, 4200);
+    assert.equal(readFeedSnapshot(ref, "/")?.focusStoryId, "900");
+    reloaded.window.close();
+  } finally {
+    if (before) Object.defineProperty(globalThis, "window", before);
+    else Reflect.deleteProperty(globalThis, "window");
+    dom.window.close();
+  }
+});
+
 test("denied storage keeps exact same-tab navigation without losing rendered cards", () => {
   const dom = new JSDOM("", { url: "https://hacksnap.live/" });
   const before = Object.getOwnPropertyDescriptor(globalThis, "window");
