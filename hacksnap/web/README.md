@@ -625,6 +625,32 @@ cache merely to improve its cache-hit metric.
 
 Unit tests verify cache expiry, format headers, and route validation using mocks.
 
+## Data and feed module boundaries
+
+`lib/data.ts` preserves the public loader and type exports. Server-only implementations
+live in `lib/data/`: `read.ts` owns read-only transactions and cleanup,
+`capabilities.ts` owns schema/grant fallbacks, `ranked.ts` owns frozen ranked
+pagination, `exports.ts` owns sitemap/feed/Markdown reads, `stories.ts` owns
+articles, metrics and popularity, and `browse.ts` owns archives and categories.
+`cache-policy.ts` defines hard-expiry and cache-size limits plus one shared budget
+of eight pending reads. Every reader acquires it before entering a pool, including
+uncached sitemap reads; cache hits and coalesced callers do not acquire extra slots.
+Excess work raises `DataUnavailableError`, and success or failure releases the slot.
+Trending retains its isolated connection pool within that shared read budget.
+
+`lib/database-pool.ts` centralizes lazy pool construction, TLS verification and
+role validation. Reader and Trending pools use `hacksnap_reader`; counter writes
+keep their separate `hacksnap_counter` credentials, pool, timeouts and write budget.
+Importing the façade does not require database credentials.
+
+`StoryFeed` renders the feed controls and list. Its hooks in `app/hooks/` coordinate
+pagination (`use-story-feed`), history snapshots (`use-feed-persistence`) and
+scroll/focus restoration (`use-feed-scroll-restoration`). `lib/fetch-feed-page.ts`
+validates fetched pages. Navigation components delegate React/router state to
+`use-story-navigation`, persistence to `lib/story-journey.ts`, and the iOS document
+navigation workaround to `lib/story-navigation-platform.ts`. Existing navigation
+exports remain compatible, including feed-history helpers.
+
 ## Latest and dated feeds
 
 `/` lists retained stories with a published takeaway, newest first. `/YYYY/MM` filters by the UTC month in which a story was added to
