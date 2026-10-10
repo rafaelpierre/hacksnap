@@ -101,7 +101,7 @@ for (const width of widths) {
     await missing.screenshot({ path: testInfo.outputPath(`missing-${width}.png`) });
     const failed = page.locator('[data-home-story-id="91000005"]');
     await failed.scrollIntoViewIfNeeded();
-    await expect(failed.locator(".article-image-unavailable")).toBeVisible();
+    await expect(failed.locator(".feed-story-image")).toHaveCount(0);
     await failed.screenshot({ path: testInfo.outputPath(`failed-${width}.png`) });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       width + 1,
@@ -109,11 +109,7 @@ for (const width of widths) {
   });
 }
 
-test("image decode failure preserves the reserved card geometry", async ({
-  page,
-  context,
-  baseURL,
-}) => {
+test("image decode failure removes the image wrapper", async ({ page, context, baseURL }) => {
   await context.addCookies([{ name: "fixture-images", value: "varied", url: baseURL! }]);
   let failImage!: () => void;
   const response = new Promise<void>((resolve) => {
@@ -124,14 +120,48 @@ test("image decode failure preserves the reserved card geometry", async ({
   const row = page.locator('[data-home-story-id="91000005"]');
   await row.scrollIntoViewIfNeeded();
   const media = row.locator(".feed-story-image");
-  const before = await media.boundingBox();
+  await expect(media).toBeVisible();
   failImage();
-  await expect(row.locator(".article-image-unavailable")).toBeVisible();
-  const after = await media.boundingBox();
-  expect(after!.width).toBeCloseTo(before!.width, 0);
-  expect(after!.height).toBeCloseTo(before!.height, 0);
-  expect(after!.width / after!.height).toBeCloseTo(1000 / 600, 2);
+  await expect(media).toHaveCount(0);
 });
+
+for (const width of [320, 1440]) {
+  test(`small original image is hidden without a placeholder at ${width}px`, async ({
+    page,
+    context,
+    baseURL,
+  }, testInfo) => {
+    await context.addCookies([{ name: "fixture-images", value: "varied", url: baseURL! }]);
+    await imageFixtures(page);
+    let finish!: () => void;
+    const response = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    await page.route("https://*.public.blob.vercel-storage.com/**", async (route) => {
+      if (!route.request().url().includes("frontend-fixture-wide")) return route.fallback();
+      expect(route.request().method()).toBe("HEAD");
+      await response;
+      await route.fulfill({
+        headers: { "access-control-allow-origin": "*", "content-length": "1428" },
+      });
+    });
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const row = page.locator('[data-home-story-id="91000001"]');
+    await expect(row.locator("img")).toBeVisible();
+    finish();
+    await expect(row.locator(".feed-story-image")).toHaveCount(0);
+    await expect(row.locator(".article-image-unavailable")).toHaveCount(0);
+    await expect(page.locator('[data-home-story-id="91000002"] img')).toBeVisible();
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width + 1,
+    );
+    await row.screenshot({ path: testInfo.outputPath(`hidden-small-image-${width}.png`) });
+  });
+}
 
 test("appending and windowing never promote a later card to lead", async ({ page }) => {
   await page.goto("/");
