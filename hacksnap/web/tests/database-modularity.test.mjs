@@ -70,7 +70,7 @@ test("all reader modules share a budget, including uncached exports, while count
     data.getStoryMetrics("105"),
     data.getStoryMetrics("106"),
     data.getArchiveStories(null, 1),
-    data.getSitemapStories(),
+    data.getSitemapStories("0"),
   ];
   const coalesced = data.getStory("101");
   await new Promise((resolve) => setImmediate(resolve));
@@ -78,7 +78,7 @@ test("all reader modules share a budget, including uncached exports, while count
     assert.equal(connects, 8);
     for (const load of [
       data.getRssStories,
-      data.getSitemapStories,
+      () => data.getSitemapStories("0"),
       () => data.getPopularStories("last-7-days"),
     ])
       await assert.rejects(load(), { name: "DataUnavailableError" });
@@ -93,7 +93,7 @@ test("all reader modules share a budget, including uncached exports, while count
     release();
     await Promise.all([...pending, coalesced]);
   }
-  await data.getSitemapStories();
+  await data.getSitemapStories("0");
   assert.equal(connects, 10);
 });
 
@@ -102,9 +102,9 @@ test("failed pool acquisitions release the shared budget", async () => {
   const log = jest.spyOn(console, "error").mockImplementation(() => {});
   try {
     for (let i = 0; i < 10; i++)
-      await assert.rejects(data.getSitemapStories(), { name: "DataUnavailableError" });
+      await assert.rejects(data.getSitemapStories("0"), { name: "DataUnavailableError" });
     failConnect = false;
-    await data.getSitemapStories();
+    await data.getSitemapStories("0");
     assert.equal(connects, 11);
     assert.doesNotMatch(JSON.stringify(log.mock.calls), /private connection diagnostic/);
   } finally {

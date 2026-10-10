@@ -426,7 +426,23 @@ the raster copies from the SVG with `node scripts/generate-icons.mjs`.
 Google chooses its displayed title, site name, and favicon after recrawling;
 deploying these preferences does not immediately change existing search results.
 
-`/sitemap.xml` lists the canonical Latest feed, archive pages, and stories with published takeaways. Story `lastmod`
+`/sitemap.xml` is an index linking to `/sitemap/pages.xml` for Latest, categories,
+and dated feeds, plus `/sitemap/<id>.xml` story partitions. Each partition covers
+a stable range of 10,000 HN IDs, so it contains at most 10,000 published stories.
+The index discovers occupied ranges without loading story histories; story queries
+use indexed ID bounds without offsets. The index supports 49,999 story partitions
+plus navigation and fails explicitly if that capacity is exceeded.
+
+Generated XML has a five-minute, ten-entry per-instance LRU cache with same-key
+request coalescing and at most two pending generations across all sitemap routes.
+HTTP caches must revalidate to avoid adding another freshness window. Navigation
+also uses the existing five-minute archive-month cache. All reads through the shared
+database reader, including sitemap and reader traffic, share an eight-operation
+admission limit checked before pool acquisition. These limits are per process,
+not distributed rate limits. Saturation and database errors return uncached 503s
+with `Retry-After: 60`; failed generations are immediately retryable.
+
+Story `lastmod`
 values use the latest stored publication, summary update, content snapshot, or ranking observation
 timestamp. They remain stable between content writes; requests do not advance them.
 The Latest landing page omits `lastmod`; story timestamps retain their stored values. `changefreq` and `priority` are intentionally omitted.
@@ -862,7 +878,7 @@ counts are optional, so their failure does not hide otherwise available content.
 
 JSON APIs, Markdown, RSS, and story image endpoints return a sanitized 503 with
 `Retry-After: 60` and `Cache-Control: no-store` when their data is unavailable.
-The sitemap retains static navigation entries during outages. Unexpected errors
+Sitemap routes also return an uncached, retryable 503 during outages. Unexpected errors
 outside data reads still reach the normal error boundary.
 
 ## Story discussion analysis

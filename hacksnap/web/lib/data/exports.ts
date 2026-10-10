@@ -1,4 +1,5 @@
 import "server-only";
+import { sitemapRange, SITEMAP_RANGE_SIZE } from "../sitemap";
 import { cachePolicy } from "./cache-policy";
 import { read } from "./read";
 import { readStories, storySlugField } from "./capabilities";
@@ -14,9 +15,23 @@ import {
   type RankObservation,
 } from "../rank-history";
 
-export async function getSitemapStories(): Promise<
-  { hn_id: string; story_slug: string | null; modified_at: Date }[]
-> {
+export async function getSitemapPartitions() {
+  return read(async (client) => {
+    const { rows } = await client.query<{ id: string }>(`
+    SELECT DISTINCT (t.hn_id / ${SITEMAP_RANGE_SIZE})::text AS id
+    FROM hacker_news_threads t
+    INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
+    WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${readySummarySQL}
+    ORDER BY id LIMIT 50000`);
+    if (rows.length >= 50000) throw new Error("Sitemap index capacity exceeded");
+    return rows;
+  });
+}
+
+export async function getSitemapStories(
+  id: string,
+): Promise<{ hn_id: string; story_slug: string | null; modified_at: Date }[]> {
+  const [start, end] = sitemapRange(id);
   return read(async (client) => {
     // Include current and archived stories only once a takeaway is published,
     // matching the indexing policy in storyPreviewMetadata.
@@ -24,7 +39,8 @@ export async function getSitemapStories(): Promise<
       hn_id: string;
       story_slug: string | null;
       modified_at: Date;
-    }>(`
+    }>(
+      `
       SELECT t.hn_id, ${await storySlugField(client)}, GREATEST(t.date_added, s.updated_at, (
         SELECT observed_at FROM hn_thread_snapshots
         WHERE hn_id = t.hn_id ORDER BY observed_at DESC LIMIT 1
@@ -35,8 +51,11 @@ export async function getSitemapStories(): Promise<
       )) AS modified_at
       FROM hacker_news_threads t
       INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
-      WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${readySummarySQL}
-      ORDER BY t.hn_id`);
+      WHERE t.hn_id BETWEEN 1 AND 999999999999999
+        AND t.hn_id >= $1 AND t.hn_id < $2 AND ${readySummarySQL}
+      ORDER BY t.hn_id LIMIT ${SITEMAP_RANGE_SIZE}`,
+      [start, end],
+    );
     return result.rows;
   });
 }

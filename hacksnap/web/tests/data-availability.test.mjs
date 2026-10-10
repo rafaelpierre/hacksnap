@@ -31,6 +31,7 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
   getCategoryCounts: fail,
   getCategoryStories: fail,
   getSitemapStories: fail,
+  getSitemapPartitions: fail,
 }));
 const notFound = new Error("NEXT_HTTP_ERROR_FALLBACK;404");
 jest.unstable_mockModule("next/navigation", () => ({
@@ -128,14 +129,15 @@ test("story metadata distinguishes an outage from a missing story; related failu
   assert.equal(element.props.children.props.story.hn_id, "123");
 });
 
-test("topics and sitemap remain available without database data", async () => {
+test("topics remain available and sitemap failures are retryable without database data", async () => {
   const { default: Topics } = await import("../app/topics/page.tsx");
   const element = await Topics();
   assert.ok(element);
-  const { default: sitemap } = await import("../app/sitemap.ts");
-  const urls = (await sitemap()).map((entry) => entry.url);
-  assert.ok(urls.includes("https://hacksnap.live/"));
-  assert.ok(urls.every((url) => !url.includes("/archive")));
+  const { GET } = await import("../app/sitemap.xml/route.ts");
+  const response = await GET();
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("retry-after"), "60");
 });
 
 test("RSS and legacy story preview URLs return retryable, uncached 503s during an outage", async () => {
