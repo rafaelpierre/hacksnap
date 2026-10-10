@@ -425,10 +425,32 @@ test("Latest owns root and dated canonicals while legacy archive URLs only redir
   }
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
-  const xml = await sitemap.text();
+  const index = await sitemap.text();
+  expect(index).toContain("<sitemapindex");
+  expect(index).toContain("<loc>https://hacksnap.live/sitemap/pages.xml</loc>");
+  const pages = await request.get("/sitemap/pages.xml");
+  expect(pages.status()).toBe(200);
+  const xml = await pages.text();
   expect(xml).toContain("<loc>https://hacksnap.live/</loc>");
   expect(xml).toContain("<loc>https://hacksnap.live/2026/01</loc>");
   expect(xml).not.toContain("/archive");
+  const partitions = [...index.matchAll(/<loc>(.*?)<\/loc>/g)]
+    .map((match) => new URL(match[1]).pathname)
+    .filter((path) => path !== "/sitemap/pages.xml");
+  expect(partitions.length).toBeGreaterThan(0);
+  const storyURLs: string[] = [];
+  for (const path of partitions) {
+    const response = await request.get(path);
+    expect(response.status()).toBe(200);
+    const body = await response.text();
+    expect(body).toContain("<urlset");
+    const urls = [...body.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
+    expect(urls.length).toBeLessThanOrEqual(10000);
+    expect(urls.every((url) => url.startsWith("https://hacksnap.live/story/"))).toBe(true);
+    storyURLs.push(...urls);
+  }
+  expect(storyURLs.length).toBeGreaterThan(0);
+  expect(new Set(storyURLs).size).toBe(storyURLs.length);
 });
 
 test("topic filters reuse Latest and retain selection through paging and history", async ({
