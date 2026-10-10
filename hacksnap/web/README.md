@@ -751,14 +751,23 @@ snapshots are invalidated so they cannot restore generated images.
 The interface only renders records with `image_status = 'ready'` and an HTTPS
 URL on a `*.public.blob.vercel-storage.com` host. It never reads or exposes the
 publisher source-image URL. Missing, pending, failed, and malformed records omit
-the image wrapper. Browser load errors keep a branded placeholder in the reserved
-frame while preserving the card or story content. Until source descriptions are stored, the supplementary images use an
+the image wrapper. Browser load errors also remove the image and its wrapper,
+without a placeholder, while preserving the card or story content. Until source descriptions are stored, the supplementary images use an
 empty alt attribute so the headline remains the accessible label. Detail images
 retain their supplied intrinsic dimensions. Feed images also keep their original
 aspect ratio: they span the card's padded content width and their height is automatic,
-so the complete image is visible without cropping or letterboxing. Error
-placeholders preserve the stored aspect ratio. This applies to Latest, archive and
+so the complete image is visible without cropping or letterboxing. This applies to Latest, archive and
 category feeds. Social Open Graph images retain the existing generated template.
+
+After an image loads (including one cached before hydration), the client makes
+one `HEAD` request to its original public Blob URL. A successful response with a
+valid `Content-Length` below 2 KiB removes the image and its wrapper. This matches
+ingestion QA and also hides older undersized assets without reprocessing them.
+The threshold applies to the original WebP, not a smaller Next.js thumbnail.
+The check waits for lazy images to load and is aborted on URL change, unmount,
+or after five seconds. Missing or invalid headers, unsuccessful responses, and
+network/CORS errors leave a decoded image visible. Removal happens after hydration
+and may shift the layout; no image is deleted from storage.
 
 Feed and detail images use the built-in Next image optimizer with layout-specific
 `sizes`, eight candidate widths from 128 to 1600 px, and one quality (75). The
@@ -883,8 +892,8 @@ The counts use neutral pills, with blue hover/focus feedback on the comment link
 screen-reader labels and a 44px touch target. The points count is informational.
 The headline opens the brief; duplicate brief, analysis and Share actions are
 omitted from cards. Categories stay visible even in
-filtered feeds. Missing images omit the media container; failed requests reserve
-the source aspect ratio. All images retain intrinsic proportions without cropping.
+filtered feeds. Missing, failed, and undersized images omit the media container.
+Visible images retain intrinsic proportions without cropping.
 
 All cards use the same headline, excerpt and padding styles, including the first.
 Each card with available current discussion topics shows a “Discussion summary”

@@ -33,6 +33,14 @@ export const test = base.extend<{ browserErrors: string[]; expectedNetworkErrors
             contentType: "image/webp",
             body: await readFile(path.resolve(`.browser-app/public/browser-images/${width}.webp`)),
           });
+        } else if (
+          route.request().method() === "HEAD" &&
+          /^[a-z0-9-]+\.public\.blob\.vercel-storage\.com$/i.test(url.hostname) &&
+          url.pathname.startsWith("/articles/")
+        ) {
+          await route.fulfill({
+            headers: { "access-control-allow-origin": "*", "content-length": "50000" },
+          });
         } else if (url.origin === baseURL) await route.continue();
         else if (url.hostname === "www.googletagmanager.com")
           await route.fulfill({ contentType: "application/javascript", body: "" });

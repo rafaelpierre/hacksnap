@@ -481,13 +481,6 @@ body:has(#browse-content) .skip-browse {
   width: 100%;
   height: auto;
 }
-.article-image-unavailable {
-  display: grid;
-  place-items: center;
-  background: var(--bg);
-  color: var(--muted);
-  font: 600 1rem/1.5 var(--sans);
-}
 .story-content {
   min-width: 0;
 }
