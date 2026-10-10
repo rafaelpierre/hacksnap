@@ -20,7 +20,7 @@ from pipeline.images.worker import (
 
 def make_image(width=900, height=600, image_format="PNG"):
     output = io.BytesIO()
-    Image.new("RGB", (width, height), "navy").save(output, format=image_format)
+    Image.effect_mandelbrot((width, height), (-2, -1, 1, 1), 32).save(output, format=image_format)
     return output.getvalue()
 
 
@@ -196,6 +196,47 @@ def test_malformed_candidate_does_not_block_lower_priority_candidate():
     repository = FakeRepository()
     assert process_image_job(job(), repository, FakeUploader(), fetcher=fetcher) == "publisher"
     assert repository.saved[0][0][3] == "twitter"
+
+
+def test_blank_og_is_logged_and_next_candidate_is_published(caplog):
+    blank = io.BytesIO()
+    Image.new("RGB", (1200, 630), "white").save(blank, "PNG")
+    fetcher = FakeFetcher(
+        '<meta property="og:image" content="/blank.png">'
+        '<meta name="twitter:image" content="/good.png">',
+        {"https://example.com/blank.png": blank.getvalue(),
+         "https://example.com/good.png": make_image()},
+    )
+    repository, uploader = FakeRepository(), FakeUploader()
+    assert process_image_job(job(), repository, uploader, fetcher=fetcher) == "publisher"
+    assert repository.saved[0][0][3] == "twitter"
+    assert len(uploader.uploaded) == 1
+    assert "image_too_few_bytes" in caplog.text
+
+
+def test_invalid_publisher_images_only_publish_a_hidden_generated_fallback():
+    fetcher = FakeFetcher('<meta property="og:image" content="/bad.png">', {
+        "https://example.com/bad.png": b"not an image",
+    })
+    repository, uploader = FakeRepository(), FakeUploader()
+    assert process_image_job(job(), repository, uploader, fetcher=fetcher) == "generated"
+    assert len(uploader.uploaded) == 1
+    assert repository.saved[0][0][3] == "generated"
+
+
+@pytest.mark.parametrize("corrupt", [False, True])
+def test_generated_output_must_pass_qa_before_upload(monkeypatch, corrupt):
+    blank = io.BytesIO()
+    Image.new("RGB", (1200, 630), "white").save(blank, "WEBP")
+    monkeypatch.setattr("pipeline.images.worker.generate_artwork",
+                        lambda *_: b"broken" if corrupt else blank.getvalue())
+    repository, uploader = FakeRepository(), FakeUploader()
+    assert process_image_job(job(article_url=None), repository, uploader) == "failed"
+    assert repository.saved == []
+    assert uploader.uploaded == []
+    assert repository.failed[0][0][2] == (
+        "decode_failed" if corrupt else "image_too_few_bytes"
+    )
 
 
 def test_generated_unicode_and_missing_fields():

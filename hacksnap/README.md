@@ -616,6 +616,30 @@ public Vercel Blob store. Existing ready images retain their URLs and dimensions
 The website receives only canonical image metadata; publisher source
 URLs and retry diagnostics remain private.
 
+Both ingestion paths validate the final encoded WebP before upload. The exact
+bytes must decode fully as a single WebP frame at the expected dimensions, contain
+at least 2 KiB, and have visible pixel variation (at least one RGB channel must
+have a standard deviation above 1 on the 0–255 scale). Transparency is evaluated
+against the site's white background; the scheduled worker composites it before
+encoding. Checks run after resizing/cropping so a crop that removes all content
+is rejected too. The byte floor deliberately favors omitting a suspicious image
+over displaying it, and can reject very simple but legitimate graphics.
+
+Rejections are logged as `decode_failed`, `image_too_few_bytes`, or `image_blank`.
+The scheduled worker tries the next publisher candidate; if none passes, its
+generated fallback remains excluded by the existing public projection. Generated
+output must pass the same checks before upload. A failed generated output or
+legacy ingestion attempt records the existing image failure state, which the
+frontend omits. Article publication is independent of image QA. No new public
+field or database migration is required.
+
+These checks apply to new attempts, not previously stored ready assets. Reprocess
+an existing bad image through the image worker to apply QA; the fixed-date
+backfill commands below cannot repair stories outside their date scope. A failed
+replacement still retains its previous asset, so failure alone does not remove
+an older bad image. Existing immutable Blob URLs and cached pages are not purged
+by deploying this change.
+
 After each completed Modal summarization run, `refresh_hacksnap` asynchronously
 triggers `refresh_article_images` when images are enabled. Images require published
 summaries, so the handoff follows summarization rather than raw HN collection.
