@@ -253,6 +253,10 @@ test("sitemap reader selects only published takeaways and retains canonical URLs
       INSERT INTO hacksnap_rank_history VALUES
         (6, '2020-09-04T00:00:00Z'), (6, '9999-09-01T00:00:00Z');
       INSERT INTO hacker_news_threads (hn_id, date_added) VALUES
+        (9999, '2020-09-01'), (10000, '2020-09-01'), (19999, '2020-09-01'), (20000, '2020-09-01');
+      INSERT INTO hacksnap_summaries (story_id, overall_takeaway, updated_at)
+        SELECT hn_id, 'Published', date_added FROM hacker_news_threads WHERE hn_id >= 9999;
+      INSERT INTO hacker_news_threads (hn_id, date_added) VALUES
         (-1, '2020-09-01T00:00:00Z'), (9999999999999999, '2020-09-01T00:00:00Z');
       INSERT INTO hacksnap_summaries (story_id, overall_takeaway, updated_at) VALUES
         (-1, 'Published takeaway', '2020-09-02T00:00:00Z'),
@@ -260,23 +264,36 @@ test("sitemap reader selects only published takeaways and retains canonical URLs
     `);
     readyQuery = (sql, values) => {
       if (sql === storySlugColumnSQL) return { rows: [{ available: true }] };
-      if (typeof sql === "string" && sql.includes("AS modified_at")) return db.query(sql, values);
+      if (
+        typeof sql === "string" &&
+        (sql.includes("AS modified_at") || sql.includes("SELECT DISTINCT (t.hn_id"))
+      )
+        return db.query(sql, values);
     };
     rows = [];
-    const stories = await data.getSitemapStories();
+    const stories = await data.getSitemapStories("0");
     assert.deepEqual(
       stories.map((story) => String(story.hn_id)),
-      ["6", "7"],
+      ["6", "7", "9999"],
     );
     assert.equal(stories[0].modified_at.toISOString(), "2020-09-04T00:00:00.000Z");
     assert.equal(stories[1].modified_at.toISOString(), "2020-09-02T00:00:00.000Z");
     assert.equal(stories[0].story_slug, "published-story-6");
     assert.equal(stories[1].story_slug, null);
     assert.deepEqual(
+      (await data.getSitemapStories("1")).map((story) => String(story.hn_id)),
+      ["10000", "19999"],
+    );
+    assert.deepEqual(
+      (await data.getSitemapStories("2")).map((story) => String(story.hn_id)),
+      ["20000"],
+    );
+    assert.deepEqual(await data.getSitemapPartitions(), [{ id: "0" }, { id: "1" }, { id: "2" }]);
+    assert.deepEqual(
       // PGlite returns small bigint IDs as numbers; pg preserves string IDs.
-      sitemapEntries(stories.map((story) => ({ ...story, hn_id: String(story.hn_id) }))).map(
-        (entry) => entry.url,
-      ),
+      sitemapEntries(
+        stories.slice(0, 2).map((story) => ({ ...story, hn_id: String(story.hn_id) })),
+      ).map((entry) => entry.url),
       [
         "https://hacksnap.live/",
         "https://hacksnap.live/story/published-story-6",
@@ -291,6 +308,33 @@ test("sitemap reader selects only published takeaways and retains canonical URLs
     await db.close();
   }
 }, 30000);
+
+test("database admission is shared by sitemap and reader loads and releases completed work", async () => {
+  queries.length = 0;
+  process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  let release;
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+  readyQuery = async (sql) => {
+    if (typeof sql === "string" && sql.includes("AS modified_at")) {
+      await held;
+      return { rows: [] };
+    }
+    return { rows: [] };
+  };
+  const work = Array.from({ length: 8 }, (_, i) => data.getSitemapStories(String(i)));
+  try {
+    await assert.rejects(data.getStoryMetrics("87654321"), { name: "DataUnavailableError" });
+    await assert.rejects(data.getSitemapStories("8"), { name: "DataUnavailableError" });
+    assert.equal(queries.filter((sql) => sql.startsWith("BEGIN")).length, 8);
+  } finally {
+    release();
+    await Promise.all(work);
+    readyQuery = undefined;
+  }
+  await data.getSitemapStories("8");
+});
 
 test("cards omit article and analysis payloads; article reads omit retained metrics", async () => {
   process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";

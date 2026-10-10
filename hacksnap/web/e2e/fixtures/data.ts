@@ -281,10 +281,17 @@ export async function getRelatedStories(
     .slice(0, 2)
     .map((story) => ({ ...story, takeaway: story.summary!.overall_takeaway }));
 }
-export async function getSitemapStories() {
-  return stories.map(({ hn_id, story_slug }) => ({
-    hn_id,
-    story_slug: story_slug ?? null,
-    modified_at: new Date(timestamp),
-  }));
+export async function getSitemapPartitions() {
+  return [...new Set(stories.map(({ hn_id }) => String(Math.floor(Number(hn_id) / 10_000))))].map(
+    (id) => ({ id }),
+  );
+}
+export async function getSitemapStories(id: string) {
+  return stories
+    .filter(({ hn_id }) => String(Math.floor(Number(hn_id) / 10_000)) === id)
+    .map(({ hn_id, story_slug }) => ({
+      hn_id,
+      story_slug: story_slug ?? null,
+      modified_at: new Date(timestamp),
+    }));
 }

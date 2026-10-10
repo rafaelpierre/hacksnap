@@ -18,6 +18,7 @@ export {
 } from "./data/ranked";
 export {
   getSitemapStories,
+  getSitemapPartitions,
   getFeedStories,
   getRssStories,
   getMarkdownLeaderboard,
