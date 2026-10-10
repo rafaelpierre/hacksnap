@@ -159,6 +159,42 @@ analysis. The smoke test above predates this prompt. See
 [initial analysis validation and measurement status](../docs/evaluations/issue-36-initial-analysis.md)
 for the response budget, local checks, and metrics to collect during normal processing.
 
+### Experimental writer and reviewer
+
+The optional OpenAI Agents SDK prototype lives in `pipeline/editorial_review.py`
+(workflow and evidence validation), `pipeline/editorial_agents.py` (Modal-compatible
+SDK adapter), and `pipeline/editorial_prompts.py` (candidate editorial instructions).
+The scheduled worker does not import these modules. Production prompts, schemas,
+model routing, persistence and deployment entrypoints are unchanged.
+
+Install and run the tests with `uv run --directory hacksnap --extra editorial pytest`.
+From `hacksnap/`, run a two-case live pilot:
+
+```sh
+uv run --extra editorial modal run tests/modal_editorial_agents.py
+```
+
+Use `--suite full` for saved failures, four fresh synthetic cases and two topic
+refreshes. The experiment uses the existing `hacksnap` Modal secret: the configured
+DeepSeek endpoint writes, and the GLM sentiment endpoint independently reviews at
+high reasoning. A higher-reasoning DeepSeek single-pass control uses the same inputs.
+It performs no database access or production content writes.
+
+The reviewer must cover every prose field with original-source quotes and reasoning.
+Python validates quote membership, citation IDs, schema, empty states and obvious
+style violations. At most one revision is permitted, followed by mandatory re-review.
+Rejection returns no publishable draft; invalid output or endpoint errors raise.
+Each SDK call allows one turn with SDK/client retries disabled and a 240-second
+wall-time limit. Truncated responses are rejected even if their JSON parses.
+SDK cloud tracing is disabled; only the explicitly invoked synthetic evaluation
+captures intermediate prose locally. Token counts and stage latency are recorded;
+unavailable usage remains null rather than being treated as zero cost.
+
+The saved [evaluation report](../docs/evaluations/editorial-prompts/agents-report.md)
+includes comparison results and limitations. This prototype is not a publication gate
+until its reviewer accuracy and acceptance rate have been demonstrated. Existing
+published summaries remain unchanged; there is no backfill or rollout switch.
+
 ### Summary writing style
 
 `pipeline/prompts.py` defines Hacksnap's editorial voice: Bloomberg-style specificity

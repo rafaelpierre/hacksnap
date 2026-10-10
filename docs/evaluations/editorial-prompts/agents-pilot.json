@@ -1,0 +1,373 @@
+{
+  "evaluated_at": "2026-10-10T17:03:50.113595+00:00",
+  "suite": "pilot",
+  "scope": "Synthetic inputs; no database access, publication or worker deployment.",
+  "results": [
+    {
+      "case": "saved_pricing",
+      "operation": "summary",
+      "source": {
+        "title": "LedgerCloud changes its pricing",
+        "article_url": null,
+        "story_text": null,
+        "article": "LedgerCloud will replace its $20 monthly developer plan with a $5 base fee plus $1 per thousand API calls on November 1. The company says 60% of current accounts make fewer than 10,000 calls a month. Existing annual contracts keep their price until renewal. Usage alerts arrive at 80% of a customer-set budget; they do not stop requests. Customers can set a hard cap, which rejects excess requests.",
+        "comments": [
+          {
+            "id": 201,
+            "parent": 100,
+            "depth": 1,
+            "author": "fixture_author_201",
+            "text": "My integration retries failed requests. If those count as billable calls, an outage could increase my bill. I cannot find a definition of a billable call."
+          },
+          {
+            "id": 202,
+            "parent": 201,
+            "depth": 2,
+            "author": "fixture_author_202",
+            "text": "A hard cap would stop that bill but could also take checkout offline. The cap policy has to match how critical the integration is."
+          }
+        ]
+      },
+      "arms": {
+        "single_pass": {
+          "status": "generated",
+          "draft": {
+            "discussion_analysis": {
+              "status": "available",
+              "topics": [
+                {
+                  "key": "cost",
+                  "title": "Retry billing remains undefined",
+                  "summary": "Failed requests that retry may count as billable calls, and the definition of a billable call remains unclear, leaving outage costs uncertain.",
+                  "comment_ids": [
+                    201
+                  ]
+                },
+                {
+                  "key": "technical_limitations",
+                  "title": "Hard caps can halt checkout",
+                  "summary": "A hard cap prevents runaway bills but rejects excess requests, so it can take checkout offline; the cap policy must match integration criticality.",
+                  "comment_ids": [
+                    202
+                  ]
+                }
+              ]
+            },
+            "article_summary": "LedgerCloud will replace its $20 monthly developer plan with a $5 base fee plus $1 per thousand API calls on November 1. The company says 60% of current accounts make fewer than 10,000 calls a month. Existing annual contracts keep their price until renewal. Usage alerts at 80% of a customer-set budget do not stop requests, while a hard cap rejects excess requests.",
+            "article_key_points": [
+              "The $20 monthly developer plan becomes a $5 base fee plus $1 per thousand API calls on November 1.",
+              "LedgerCloud says 60% of current accounts make fewer than 10,000 calls a month.",
+              "Existing annual contracts keep their price until renewal.",
+              "Usage alerts at 80% of a customer-set budget do not stop requests; a hard cap rejects excess requests."
+            ],
+            "discussion_points": [
+              {
+                "title": "Retries may be billed without a stated definition of a billable call, so an outage could raise costs unpredictably.",
+                "summary": "Retries may be billed without a stated definition of a billable call, so an outage could raise costs unpredictably.",
+                "comment_ids": [
+                  201
+                ]
+              },
+              {
+                "title": "A hard cap limits bill exposure but can reject checkout traffic, making the cap policy dependent on how critical the integration is.",
+                "summary": "A hard cap limits bill exposure but can reject checkout traffic, making the cap policy dependent on how critical the integration is.",
+                "comment_ids": [
+                  202
+                ]
+              }
+            ],
+            "sentiment": -1,
+            "overall_takeaway": "LedgerCloud's $5-plus-usage pricing may cut costs for low-volume accounts, but unclear billable-call rules and hard caps that can reject checkout traffic leave billing risk unresolved.",
+            "discussion_summary": {
+              "opening": "The pricing change raises billing-definition and availability questions.",
+              "bullets": [
+                "Retry behavior could inflate bills if failed requests are billable; the definition of a billable call remains unclear.",
+                "A hard cap stops runaway charges but can reject checkout traffic, so its use depends on integration criticality."
+              ]
+            }
+          },
+          "deterministic_findings": [],
+          "elapsed_seconds": 0.001
+        },
+        "reviewed": {
+          "status": "failed",
+          "error_type": "ValueError",
+          "validation_error": "Reviewed field has no source evidence"
+        }
+      },
+      "prompt_sha256": "a0b3ec299af7eee4e51e1b8e65956f7371ce2d51632cafe06765d54213771067",
+      "review_sha256": "6058166f22bec7de55d7f2f3d2317ef06c70c82766549520974c6f2a72866b30",
+      "calls": [
+        {
+          "role": "revision",
+          "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+          "reasoning_effort": "low",
+          "status": "succeeded",
+          "input_tokens": 6735,
+          "output_tokens": 2931,
+          "finish_reason": "stop",
+          "requests": 1,
+          "elapsed_seconds": 7.694
+        },
+        {
+          "role": "reviewer",
+          "model": "nvidia/GLM-5.3-Flash-NVFP4",
+          "reasoning_effort": "high",
+          "status": "succeeded",
+          "input_tokens": 2417,
+          "output_tokens": 8484,
+          "finish_reason": "stop",
+          "requests": 1,
+          "elapsed_seconds": 48.223
+        },
+        {
+          "role": "reviewer",
+          "model": "nvidia/GLM-5.3-Flash-NVFP4",
+          "reasoning_effort": "high",
+          "status": "succeeded",
+          "input_tokens": 2411,
+          "output_tokens": 7083,
+          "finish_reason": "stop",
+          "requests": 1,
+          "elapsed_seconds": 40.699
+        }
+      ]
+    },
+    {
+      "case": "quantization",
+      "operation": "summary",
+      "source": {
+        "title": "Helio ships a smaller model build",
+        "article_url": null,
+        "story_text": null,
+        "article": "Helio released a quantized build of its language model on Friday. In Helio's batch-one test, GPU memory fell from 32GB to 20GB, while throughput fell from 130 to 110 tokens per second. The test used one A100 GPU and English prompts. The weights are available under Apache 2.0.",
+        "comments": [
+          {
+            "id": 701,
+            "parent": 700,
+            "depth": 1,
+            "author": "new_reader_701",
+            "text": "Fitting within a 24GB card can matter more than losing some throughput if the alternative is buying a larger card. This test alone does not establish performance on a different GPU."
+          },
+          {
+            "id": 702,
+            "parent": 700,
+            "depth": 1,
+            "author": "new_reader_702",
+            "text": "I tested ten French prompts and noticed worse answers. That tiny sample is not enough to measure an accuracy regression."
+          }
+        ]
+      },
+      "arms": {
+        "single_pass": {
+          "status": "generated",
+          "draft": {
+            "discussion_analysis": {
+              "status": "available",
+              "topics": [
+                {
+                  "key": "cost",
+                  "title": "24GB fit may avoid larger GPU",
+                  "summary": "A 20GB footprint can fit 24GB cards, potentially avoiding a larger GPU purchase; the throughput drop is the tradeoff.",
+                  "comment_ids": [
+                    701
+                  ]
+                },
+                {
+                  "key": "evidence",
+                  "title": "Other GPUs remain untested",
+                  "summary": "The batch-one A100 result does not establish performance on different GPU hardware.",
+                  "comment_ids": [
+                    701
+                  ]
+                },
+                {
+                  "key": "evidence",
+                  "title": "French accuracy sample too small",
+                  "summary": "Ten French prompts showed worse answers in a self-reported test, insufficient to measure an accuracy regression.",
+                  "comment_ids": [
+                    702
+                  ]
+                }
+              ]
+            },
+            "article_summary": "Helio released a quantized build of its language model on Friday. In a batch-one test on one A100 GPU with English prompts, GPU memory fell from 32GB to 20GB while throughput dropped from 130 to 110 tokens per second. The weights are available under Apache 2.0.",
+            "article_key_points": [
+              "Helio's batch-one test measured GPU memory at 20GB, down from 32GB, on a single A100 GPU.",
+              "Throughput in that test fell from 130 to 110 tokens per second.",
+              "The test used English prompts, and the weights are released under Apache 2.0."
+            ],
+            "discussion_points": [
+              {
+                "title": "24GB fit may avoid larger GPU",
+                "summary": "A 20GB footprint can fit 24GB cards, potentially avoiding a larger GPU purchase; the throughput drop is the tradeoff.",
+                "comment_ids": [
+                  701
+                ]
+              },
+              {
+                "title": "Other GPUs remain untested",
+                "summary": "The batch-one A100 result does not establish performance on different GPU hardware.",
+                "comment_ids": [
+                  701
+                ]
+              },
+              {
+                "title": "French accuracy signal inconclusive",
+                "summary": "Ten French prompts produced worse answers in a self-reported test, too small to measure an accuracy regression.",
+                "comment_ids": [
+                  702
+                ]
+              }
+            ],
+            "sentiment": 0,
+            "overall_takeaway": "Helio's quantized build cuts GPU memory to 20GB from 32GB on one A100, with throughput down to 110 tokens/s; tests on other GPUs and non-English accuracy remain unestablished.",
+            "discussion_summary": {
+              "opening": "The tradeoff centers on memory savings versus throughput, with untested scope and an inconclusive accuracy signal.",
+              "bullets": [
+                "A 20GB footprint can fit 24GB cards, potentially avoiding a larger GPU purchase; the throughput drop is the cost.",
+                "The single-A100 English test does not show behavior on other GPUs.",
+                "Ten French prompts produced worse answers in a self-reported check, too small to establish an accuracy regression."
+              ]
+            }
+          },
+          "deterministic_findings": [],
+          "elapsed_seconds": 13.905
+        },
+        "reviewed": {
+          "status": "failed",
+          "error_type": "ValueError",
+          "validation_error": "Reviewed field has no source evidence"
+        },
+        "higher_reasoning": {
+          "status": "generated",
+          "draft": {
+            "discussion_analysis": {
+              "status": "available",
+              "topics": [
+                {
+                  "key": "applicability",
+                  "title": "24GB fit may outweigh throughput loss",
+                  "summary": "A 24GB card can be the practical target; losing some throughput may be acceptable if the alternative is buying a larger GPU.",
+                  "comment_ids": [
+                    701
+                  ]
+                },
+                {
+                  "key": "evidence",
+                  "title": "Small tests leave hardware and accuracy uncertain",
+                  "summary": "The batch-one A100 test does not establish performance on other GPUs, and ten French prompts are too few to measure an accuracy regression.",
+                  "comment_ids": [
+                    701,
+                    702
+                  ]
+                }
+              ]
+            },
+            "article_summary": "Helio released a quantized build of its language model on Friday. In a batch-one test on one A100 GPU with English prompts, GPU memory fell from 32GB to 20GB while throughput fell from 130 to 110 tokens per second. The weights are available under Apache 2.0.",
+            "article_key_points": [
+              "Helio's batch-one A100 test measured GPU memory at 20GB, down from 32GB.",
+              "Throughput in the same test fell from 130 to 110 tokens per second.",
+              "The test used English prompts and one A100 GPU.",
+              "The quantized weights are available under Apache 2.0."
+            ],
+            "discussion_points": [
+              {
+                "title": "24GB fit can justify throughput loss",
+                "summary": "A 24GB card may be the practical target; losing some throughput can be acceptable if the alternative is buying a larger GPU.",
+                "comment_ids": [
+                  701
+                ]
+              },
+              {
+                "title": "A100 result may not generalize",
+                "summary": "The batch-one A100 test leaves performance on different GPUs unverified.",
+                "comment_ids": [
+                  701
+                ]
+              },
+              {
+                "title": "French prompt accuracy drop unmeasured",
+                "summary": "Ten French prompts produced worse answers, but the sample is too small to establish an accuracy regression.",
+                "comment_ids": [
+                  702
+                ]
+              }
+            ],
+            "sentiment": 0,
+            "overall_takeaway": "Helio's quantized model cuts GPU memory from 32GB to 20GB and throughput from 130 to 110 tokens/s in a single A100 test, but hardware and language generalization remain unverified.",
+            "discussion_summary": {
+              "opening": "The quantized build trades throughput for memory; the available tests leave hardware and language coverage uncertain.",
+              "bullets": [
+                "A 24GB card may be the practical target; losing some throughput can be acceptable if the alternative is buying a larger GPU.",
+                "The batch-one A100 test does not establish performance on other GPUs.",
+                "Ten French prompts produced worse answers, but the sample is too small to measure an accuracy regression."
+              ]
+            }
+          },
+          "deterministic_findings": [],
+          "elapsed_seconds": 15.439
+        }
+      },
+      "prompt_sha256": "a0b3ec299af7eee4e51e1b8e65956f7371ce2d51632cafe06765d54213771067",
+      "review_sha256": "6058166f22bec7de55d7f2f3d2317ef06c70c82766549520974c6f2a72866b30",
+      "calls": [
+        {
+          "role": "writer",
+          "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+          "reasoning_effort": "low",
+          "status": "succeeded",
+          "input_tokens": 2895,
+          "output_tokens": 3225,
+          "finish_reason": "stop",
+          "requests": 1,
+          "elapsed_seconds": 13.904
+        },
+        {
+          "role": "revision",
+          "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+          "reasoning_effort": "low",
+          "status": "succeeded",
+          "input_tokens": 6554,
+          "output_tokens": 2188,
+          "finish_reason": "stop",
+          "requests": 1,
+          "elapsed_seconds": 6.185
+        },
+        {
+          "role": "reviewer",
+          "model": "nvidia/GLM-5.3-Flash-NVFP4",
+          "reasoning_effort": "high",
+          "status": "succeeded",
+          "input_tokens": 2491,
+          "output_tokens": 5528,
+          "finish_reason": "stop",
+          "requests": 1,
+          "elapsed_seconds": 34.831
+        },
+        {
+          "role": "reviewer",
+          "model": "nvidia/GLM-5.3-Flash-NVFP4",
+          "reasoning_effort": "high",
+          "status": "succeeded",
+          "input_tokens": 2519,
+          "output_tokens": 2436,
+          "finish_reason": "stop",
+          "requests": 1,
+          "elapsed_seconds": 12.266
+        },
+        {
+          "role": "writer_high_reasoning",
+          "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+          "reasoning_effort": "high",
+          "status": "succeeded",
+          "input_tokens": 2895,
+          "output_tokens": 4972,
+          "finish_reason": "stop",
+          "requests": 1,
+          "elapsed_seconds": 15.439
+        }
+      ]
+    }
+  ]
+}
