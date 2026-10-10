@@ -16,7 +16,7 @@ const story: CardStory = {
   comment_count: 12,
   date_added: new Date("2026-10-01T12:00:00Z"),
   image_status: "ready",
-  image_url: "https://store.public.blob.vercel-storage.com/articles/90000001.webp",
+  image_url: "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/90000001.webp",
   image_width: 1200,
   image_height: 675,
   image_mime_type: "image/webp",

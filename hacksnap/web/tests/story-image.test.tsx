@@ -9,7 +9,7 @@ import { publicFeedStory } from "../lib/stories-api";
 import { WindowedStoryList } from "../app/windowed-story-list";
 import type { Story } from "../lib/data";
 
-const blobURL = "https://store-id.public.blob.vercel-storage.com/articles/90000001.webp";
+const blobURL = "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/90000001.webp";
 
 const story: Story = {
   hn_id: "90000001",

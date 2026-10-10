@@ -8,13 +8,13 @@ import { ArticleImage } from "../app/article-image";
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
 const ready = {
   image_status: "ready",
-  image_url: "https://store.public.blob.vercel-storage.com/articles/123.webp",
+  image_url: "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/123.webp",
   image_width: 1200,
   image_height: 675,
   image_mime_type: "image/webp",
 };
 
-test("only a ready public Blob image enters the rendering contract", () => {
+test("only a ready Hacksnap Blob image enters the rendering contract", () => {
   assert.deepEqual(canonicalArticleImage(ready), {
     url: ready.image_url,
     width: 1200,
@@ -25,9 +25,13 @@ test("only a ready public Blob image enters the rendering contract", () => {
     { ...ready, image_status: "pending" },
     { ...ready, image_status: "failed" },
     { ...ready, image_url: "https://publisher.example/article.jpg" },
-    { ...ready, image_url: "http://store.public.blob.vercel-storage.com/article.jpg" },
+    { ...ready, image_url: "https://unrelated.public.blob.vercel-storage.com/articles/123.webp" },
+    { ...ready, image_url: ready.image_url.replace("https://", "https://sub.") },
+    { ...ready, image_url: ready.image_url.replace(".com/", ".com.evil.example/") },
+    { ...ready, image_url: ready.image_url.replace(".com/", ".com:8443/") },
+    { ...ready, image_url: "http://caiasssg5nuaa1i1.public.blob.vercel-storage.com/article.jpg" },
     { ...ready, image_url: "https://public.blob.vercel-storage.com/article.jpg" },
-    { ...ready, image_url: "https://store.public.blob.vercel-storage.com/article.jpg" },
+    { ...ready, image_url: "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/article.jpg" },
     { ...ready, image_url: `${ready.image_url}?private=1` },
     { ...ready, image_url: `${ready.image_url}#fragment` },
     { ...ready, image_url: "not a URL" },

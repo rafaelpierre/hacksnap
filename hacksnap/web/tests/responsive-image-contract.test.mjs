@@ -13,7 +13,7 @@ const { ImageConfigContext } = require("next/dist/shared/lib/image-config-contex
 const { imageConfigDefault } = require("next/dist/shared/lib/image-config");
 const { hasRemoteMatch } = require("next/dist/shared/lib/match-remote-pattern");
 const imageConfig = { ...imageConfigDefault, ...nextConfig.images };
-const blobURL = "https://store.public.blob.vercel-storage.com/articles/123.webp";
+const blobURL = "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/123.webp";
 
 function renderImage(src) {
   return renderToStaticMarkup(
@@ -48,8 +48,12 @@ test("optimizer remote pattern rejects other hosts, paths, schemes, and queries"
   assert.equal(hasRemoteMatch([], imageConfig.remotePatterns, new URL(blobURL)), true);
   for (const src of [
     "https://publisher.example/articles/123.webp",
-    "https://store.public.blob.vercel-storage.com/other/123.webp",
-    "http://store.public.blob.vercel-storage.com/articles/123.webp",
+    "https://unrelated.public.blob.vercel-storage.com/articles/123.webp",
+    blobURL.replace("https://", "https://sub."),
+    blobURL.replace(".com/", ".com.evil.example/"),
+    blobURL.replace(".com/", ".com:8443/"),
+    "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/other/123.webp",
+    "http://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/123.webp",
     `${blobURL}?token=1`,
   ]) {
     assert.equal(hasRemoteMatch([], imageConfig.remotePatterns, new URL(src)), false, src);

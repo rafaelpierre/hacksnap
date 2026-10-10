@@ -54,7 +54,7 @@ test("rotation invalidates offscreen heights and re-estimates proportional image
       date_added: new Date("2026-10-01T12:00:00Z"),
       summary: null,
       image_status: "ready",
-      image_url: "https://store.public.blob.vercel-storage.com/articles/test.webp",
+      image_url: "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/test.webp",
       image_width: 1200,
       image_height: 600,
       image_mime_type: "image/webp",
