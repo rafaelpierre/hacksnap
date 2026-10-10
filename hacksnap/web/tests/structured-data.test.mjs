@@ -100,7 +100,7 @@ test("pending and blank summaries emit no article or breadcrumb script", () => {
 
 test("only the actual ready page image is eligible for article markup", () => {
   const image = {
-    image_url: "https://store-id.public.blob.vercel-storage.com/articles/123.webp",
+    image_url: "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/123.webp",
     image_status: "ready",
     image_width: 1200,
     image_height: 675,

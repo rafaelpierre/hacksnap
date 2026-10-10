@@ -749,7 +749,7 @@ assets are deleted and image generation remains unchanged. Older saved feed
 snapshots are invalidated so they cannot restore generated images.
 
 The interface only renders records with `image_status = 'ready'` and an HTTPS
-URL on a `*.public.blob.vercel-storage.com` host. It never reads or exposes the
+URL on a `caiasssg5nuaa1i1.public.blob.vercel-storage.com` host. It never reads or exposes the
 publisher source-image URL. Missing, pending, failed, and malformed records omit
 the image wrapper. Browser load errors also remove the image and its wrapper,
 without a placeholder, while preserving the card or story content. Until source descriptions are stored, the supplementary images use an
@@ -771,9 +771,12 @@ and may shift the layout; no image is deleted from storage.
 
 Feed and detail images use the built-in Next image optimizer with layout-specific
 `sizes`, eight candidate widths from 128 to 1600 px, and one quality (75). The
-optimizer accepts only HTTPS `*.public.blob.vercel-storage.com/articles/**` URLs
+optimizer accepts only HTTPS `caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/**` URLs
 without a query string or redirects, after the ready-image contract above has
-validated the URL and dimensions. The first eligible image in the initial listing
+validated the URL and dimensions. Both boundaries use the exact hostname in
+`lib/article-image-origin.ts`; a store migration must update that constant.
+Direct optimizer requests are restricted by the remote pattern independently of
+ingestion. The first eligible image in the initial listing
 uses eager/high priority in server HTML. If the lead story has no ready image,
 the next image-bearing initial story receives priority. The browser can discover
 that image before hydration; a deep restored feed may fetch it before the client

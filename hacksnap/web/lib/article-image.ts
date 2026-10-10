@@ -1,3 +1,5 @@
+import { ARTICLE_IMAGE_HOSTNAME } from "./article-image-origin";
+
 export type ArticleImage = {
   image_url?: string | null;
   image_status?: string | null;
@@ -12,8 +14,6 @@ export type CanonicalArticleImage = {
   height: number;
   mimeType: string;
 };
-
-const BLOB_HOST = /^[a-z0-9-]+\.public\.blob\.vercel-storage\.com$/i;
 
 function positiveInteger(value: unknown): number | undefined {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : undefined;
@@ -32,7 +32,7 @@ export function canonicalArticleImage(image: ArticleImage): CanonicalArticleImag
       url.username ||
       url.password ||
       url.port ||
-      !BLOB_HOST.test(url.hostname) ||
+      url.hostname !== ARTICLE_IMAGE_HOSTNAME ||
       !url.pathname.startsWith("/articles/") ||
       url.search ||
       url.hash

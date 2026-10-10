@@ -34,7 +34,7 @@ const stories: ArticleStory[] = Array.from({ length: 40 }, (_, i) => ({
     i === 0 ? "Small models make local tools more useful" : `Practical AI research update ${i + 1}`,
   category: "models_products",
   url: "https://example.com/research",
-  image_url: "https://fixture.public.blob.vercel-storage.com/articles/browser.webp",
+  image_url: "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/browser.webp",
   image_status: "ready",
   image_width: 1600,
   image_height: 900,
@@ -126,7 +126,7 @@ function variedImage<T extends ArticleStory>(story: T): T {
   const variant = variants[index];
   return {
     ...story,
-    image_url: `https://fixture.public.blob.vercel-storage.com/articles/frontend-fixture-${variant.name}.webp`,
+    image_url: `https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/frontend-fixture-${variant.name}.webp`,
     image_width: variant.width,
     image_height: variant.height,
   };

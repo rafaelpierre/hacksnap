@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { expect, jest, test } from "@jest/globals";
 
-const blobURL = "https://store-id.public.blob.vercel-storage.com/articles/123/hero-a1b2c3.webp";
+const blobURL =
+  "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/123/hero-a1b2c3.webp";
 const getStory = jest.fn();
 const ogImage = jest.fn(
   () => new Response("story card", { headers: { "content-type": "image/png" } }),

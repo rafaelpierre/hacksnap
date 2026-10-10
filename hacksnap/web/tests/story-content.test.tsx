@@ -283,7 +283,7 @@ test("ranked and unranked cards share semantic order, with Archive limited to ra
     is_recent: false,
     summary: null,
     image_status: "ready",
-    image_url: "https://store.public.blob.vercel-storage.com/articles/90000001.webp",
+    image_url: "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/90000001.webp",
     image_width: 1200,
     image_height: 675,
     image_mime_type: "image/webp",
@@ -312,7 +312,7 @@ test("cards and detail use a ready canonical image while invalid states keep the
   const withImage = {
     ...story,
     image_status: "ready",
-    image_url: "https://store.public.blob.vercel-storage.com/articles/90000001.webp",
+    image_url: "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/90000001.webp",
     image_width: 1200,
     image_height: 675,
     image_mime_type: "image/webp",

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { ARTICLE_IMAGE_HOSTNAME } from "./lib/article-image-origin";
 
 const config: NextConfig = {
   agentRules: false,
@@ -13,7 +14,7 @@ const config: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "*.public.blob.vercel-storage.com",
+        hostname: ARTICLE_IMAGE_HOSTNAME,
         port: "",
         pathname: "/articles/**",
         search: "",

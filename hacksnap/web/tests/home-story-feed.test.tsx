@@ -398,7 +398,7 @@ test("lead image priority starts in HTML and clears on an offscreen return", asy
   const ready = {
     ...story(1),
     image_status: "ready",
-    image_url: "https://store.public.blob.vercel-storage.com/articles/1.webp",
+    image_url: "https://caiasssg5nuaa1i1.public.blob.vercel-storage.com/articles/1.webp",
     image_width: 1200,
     image_height: 675,
     image_mime_type: "image/webp",
