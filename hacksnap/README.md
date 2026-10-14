@@ -155,8 +155,8 @@ Both completed normally and passed schema and source-ID validation. This was one
 small request per model, not a quality or latency benchmark on production stories.
 The endpoint and model are configuration, not dependencies of the pipeline.
 
-Initial summaries use prompt `v8-discussion-bullets`, retaining cited discussion
-analysis. The smoke test above predates this prompt. See
+Initial summaries use the reviewed editorial pipeline described below, retaining cited
+discussion analysis. The smoke test above predates this pipeline. See
 [initial analysis validation and measurement status](../docs/evaluations/issue-36-initial-analysis.md)
 for the response budget, local checks, and metrics to collect during normal processing.
 
@@ -246,28 +246,39 @@ pushing its feature branch only runs CI. No separate activation flag is required
 and information density, with Financial Times-style clarity, restraint and skepticism.
 The source and underlying technical questions lead the coverage.
 
-- **TLDR:** `article_summary` opens with the source's central contribution in 2–4
-  sentences, followed by factual, non-repeating `article_key_points`. Prefer 4–6
-  bullets (within the existing six-item schema), fewer when evidence is sparse.
+- **TLDR:** for substantial sources, `article_summary` targets 160-240 words covering
+  the central contribution, how it works, the strongest evidence and supported
+  limitations. `article_key_points` adds 1-6 non-repeating facts, normally 30-60 words
+  each when explanation is useful. Short sources still need only a brief summary
+  and one useful point; word targets are guidance, not minimums.
 - **Discussion:** the model returns `discussion_summary` as an object with a short
-  `opening` sentence and 2–4 `bullets`, each covering one main argument or caveat in
-  1–2 short sentences. Aim for 100–180 words total; leave secondary tangents to the
-  detailed analysis. Sparse discussions need fewer bullets; no comments means none.
-  The inference schema caps the opening at 300 characters and each bullet at 450.
+  `opening` sentence and 1-4 `bullets`, each developing one argument with its reasoning
+  and material qualifications. Substantive samples target 180-280 words total and
+  40-70 per bullet. Sparse discussions need fewer words and bullets; no comments means none.
+  The inference schema caps the opening at 300 characters and each bullet at 650.
   Source validation requires at least one bullet when comments are supplied and
   rejects bullets when no comments are supplied, before any summary is saved.
   The worker inserts blank lines and bullet markers into the stored summary string.
   RSS retains the same plain-text content. Story HTML and Markdown now show
   discussion themes instead of this introduction.
   Storage is unchanged; no migration is needed.
+- **Discussion themes and points:** substantive ideas target 50-80 words each, explaining
+  the claim, supporting reasoning and consequence or qualification. Simple points can
+  be shorter. Topic summaries retain their 600-character schema cap and cited source IDs.
+  The same topic guidance applies to initial summaries and later discussion refreshes.
 - Distinguish proposals, reported results, verified findings and interpretations.
   Attribute experience or original evidence where provenance matters, retain material
   uncertainty, and avoid hype, generic openings and claims of community consensus.
-- The model performs a final editorial pass on those three fields. Detailed discussion
-  points, topics, sentiment and the takeaway keep their existing instructions.
-  The response remains schema-constrained JSON,
-  with the existing 32,000-token response limit and concise output targets (up to
-  180 words for the Discussion introduction).
+- The model edits all prose before returning schema-constrained JSON, then the
+  independent reviewer checks it against the original sources. Added length must
+  explain supported detail, not repeat claims or add generic background.
+  Both editorial stages keep high reasoning effort and a 32,000-token response
+  limit per call, including reasoning. The 220-character takeaway stays compact.
+
+The reviewed prompts are `v14-fuller-summaries` and `v6-fuller-topics`.
+The legacy prompts in `pipeline/prompts.py` use the same length targets and no longer
+refer to the obsolete 8,000-token budget. Production cache identity hashes the full
+editorial prompts, so these changes invalidate the discussion-analysis fingerprint.
 
 This version applies to newly generated summaries after worker deployment. Existing
 summaries and Discussion introductions are retained; the normal evidence refresh

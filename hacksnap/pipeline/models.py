@@ -249,7 +249,7 @@ class DiscussionBrief(StrictModel):
         strip_whitespace=True, min_length=1, max_length=300
     )]
     bullets: list[Annotated[str, StringConstraints(
-        strip_whitespace=True, min_length=1, max_length=450
+        strip_whitespace=True, min_length=1, max_length=650
     )]] = Field(max_length=4)
 
     @model_validator(mode="after")

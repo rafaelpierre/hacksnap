@@ -391,7 +391,7 @@ def test_modal_endpoint_requires_complete_structured_response(finish_reason):
         assert brief["opening"]["minLength"] == 1
         assert brief["opening"]["maxLength"] == 300
         assert brief["bullets"]["items"]["minLength"] == 1
-        assert brief["bullets"]["items"]["maxLength"] == 450
+        assert brief["bullets"]["items"]["maxLength"] == 650
         assert request_json["model"] == "test-model"
         return httpx.Response(
             200,
