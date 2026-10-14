@@ -865,7 +865,9 @@ Fetch failures and empty fetched pages skip all model calls.
 This is a model judgment within the existing inference call, not a deterministic
 page-quality filter. A nonempty shell page may need one writer call to identify
 it; short genuine articles remain eligible. HN self-posts still use their supplied
-post and discussion without requiring an external article.
+post and discussion without requiring an external article. They do not receive
+an unavailable-source takeaway. Shared source validation rejects that notice
+(including a notice followed by substantive text) before review or fail-open.
 
 Previously saved summaries marked `article_status=unavailable` remain stored but
 are excluded from worker selection, feeds, archive/category/related results,

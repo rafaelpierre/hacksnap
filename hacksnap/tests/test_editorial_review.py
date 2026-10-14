@@ -368,7 +368,6 @@ def test_revision_unavailable_marker_cannot_fall_back_to_previous_draft(source, 
     ("/discussion_summary/opening", "No additional analysis available."),
     ("/discussion_summary/bullets/0", "No additional analysis available."),
     ("/discussion_points/0/title", "No additional analysis available."),
-    ("/overall_takeaway", "Source text unavailable."),
     ("/article_summary", "Source text unavailable."),
 ])
 def test_notices_cannot_bypass_review_with_present_sources(path, notice, source, draft):
@@ -389,14 +388,24 @@ def test_notices_cannot_bypass_review_with_present_sources(path, notice, source,
     assert result.status == "rejected" and result.draft is None
 
 
-def test_missing_source_notices_are_exempt_only_on_prescribed_paths(source, unavailable_draft):
+def test_self_post_takeaway_has_no_empty_state_evidence_exemption(source, unavailable_draft):
     source["article"] = None
     unavailable_draft.article_summary = None
     review = verdict(unavailable_draft)
     for check in review.checks:
         check.evidence = []
+    with pytest.raises(ValueError, match="no source evidence"):
+        validate_review(review, unavailable_draft.model_dump(), source)
+    # The legitimate no-comments opening keeps its exemption, while a self-post
+    # takeaway must be supported by the post itself.
+    source["story_text"] = "Probe reports memory use of 5GB."
+    unavailable_draft.overall_takeaway = source["story_text"]
+    review = verdict(unavailable_draft)
+    for check in review.checks:
+        check.evidence = ([Evidence(source="story_text", comment_id=None, quote=source["story_text"])]
+                          if check.path == "/overall_takeaway" else [])
     validate_review(review, unavailable_draft.model_dump(), source)
-    # An empty source does not allow the notices to swap fields.
+    # An empty discussion does not allow the notices to swap fields.
     unavailable_draft.overall_takeaway = "No additional analysis available."
     unavailable_draft.discussion_summary.opening = "Source text unavailable."
     review = verdict(unavailable_draft)
@@ -404,6 +413,28 @@ def test_missing_source_notices_are_exempt_only_on_prescribed_paths(source, unav
         check.evidence = []
     with pytest.raises(ValueError, match="no source evidence"):
         validate_review(review, unavailable_draft.model_dump(), source)
+
+
+@pytest.mark.parametrize("notice", [
+    "Source text unavailable.",
+    "Source text unavailable. One local test measured 6GB.",
+    "source text unavailable. One local test measured 6GB.",
+])
+@pytest.mark.parametrize("stage", ["writer", "revision"])
+def test_self_post_unavailable_prefix_cannot_pass_review_or_fail_open(stage, notice, source, draft):
+    source["article"] = None
+    draft.article_summary = None
+    draft.article_key_points = []
+    bad = draft.model_copy(update={"overall_takeaway": notice})
+    review = verdict(draft, revise=True)
+    for evidence in [e for check in review.checks for e in check.evidence] + review.findings[0].evidence:
+        evidence.source, evidence.comment_id = "comment", 10
+        evidence.quote = source["comments"][0]["text"]
+    writer = FakeInference([bad] if stage == "writer" else [draft, bad])
+    reviewer = FakeInference([review] + [TimeoutError()] * 6)
+    with pytest.raises(ValueError, match="not a publishable takeaway"):
+        asyncio.run(reviewed_generation(writer, reviewer, source))
+    assert len(reviewer.calls) == (0 if stage == "writer" else 1)
 
 
 def test_unusable_page_takeaway_still_requires_evidence(source, unavailable_draft):

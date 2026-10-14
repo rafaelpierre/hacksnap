@@ -208,10 +208,6 @@ def validate_review(review: EditorialReview, draft: dict, source: dict) -> None:
             check.path == "/discussion_summary/opening"
             and paths[check.path] == "No additional analysis available."
             and not source["comments"]
-        ) or (
-            check.path == "/overall_takeaway"
-            and paths[check.path] == "Source text unavailable."
-            and source.get("article") is None
         )
         if not check.evidence and not is_notice and check.path not in style_rejections:
             invalid("Reviewed field has no source evidence", "missing_evidence",
@@ -252,11 +248,8 @@ def validate_draft(draft: BaseModel, source: dict, operation: str) -> list[str]:
         if text == "No additional analysis available." and (
                 path != "/discussion_summary/opening" or source["comments"]):
             issues.append(f"{path}: no-comments notice requires an empty discussion opening")
-        if text == "Source text unavailable." and (
-                path != "/overall_takeaway" or (
-                    source.get("article") is not None
-                    and draft.model_dump().get("article_summary") != ARTICLE_UNAVAILABLE_NOTICE)):
-            issues.append(f"{path}: source-unavailable notice requires a missing-source takeaway")
+        if text == "Source text unavailable.":
+            issues.append(f"{path}: source-unavailable notice is not publishable prose")
         if re.search(r"\b(the article|the discussion|the thread|commenters?|the tester|"
                      r"hacker news users)\b", text, re.IGNORECASE):
             issues.append(f"{path}: remove source-narration")

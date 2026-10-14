@@ -124,3 +124,18 @@ def test_short_genuine_article_keeps_normal_validation():
     summary.article_key_points = []
     with pytest.raises(ValueError, match="omits the supplied article"):
         summary.validate_sources("Batching reduces costs.", [{"id": 1}, {"id": 2}])
+
+
+@pytest.mark.parametrize("notice", [
+    "Source text unavailable.",
+    "Source text unavailable. Batching reduces costs.",
+    ARTICLE_UNAVAILABLE_NOTICE,
+])
+@pytest.mark.parametrize("article", [None, "Batching reduces costs."])
+def test_unavailable_takeaway_is_rejected_at_shared_source_validation(notice, article):
+    result = output(article=article is not None)
+    result["overall_takeaway"] = notice
+    with pytest.raises(ValueError, match="not a publishable takeaway"):
+        StorySummary.model_validate(result).validate_sources(
+            article, [{"id": 1}, {"id": 2}], "Batching reduces costs.",
+        )

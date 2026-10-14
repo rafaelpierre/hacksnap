@@ -224,6 +224,10 @@ class StorySummary(SummaryContent):
             raise ValueError("Summary cites comments not supplied to the model")
         if article is None and (self.article_summary is not None or self.article_key_points):
             raise ValueError("Summary contains article claims without an article")
+        if not self.article_unavailable and self.overall_takeaway.casefold().startswith((
+            "source text unavailable.", ARTICLE_UNAVAILABLE_NOTICE.casefold(),
+        )):
+            raise ValueError("Unavailable-source notice is not a publishable takeaway")
         if self.article_unavailable:
             if not article:
                 raise ValueError("Unavailable-article notice requires a retrieved page")

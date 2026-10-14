@@ -124,6 +124,35 @@ def test_unavailable_article_never_reaches_reviewer_sentiment_or_publication(
     assert sentiment.sentiment_calls == 0
 
 
+@pytest.mark.parametrize("has_notice", [False, True])
+def test_self_post_publication_uses_post_text_and_cannot_fail_open_with_notice(
+        has_notice, settings, inference, source, draft):
+    post_text = source["article"]
+    source["article"] = None
+    draft.article_summary = None
+    draft.article_key_points = []
+    if has_notice:
+        draft.overall_takeaway = "Source text unavailable. One local test measured 6GB."
+    inference.reviewer_timeout = True
+    post = item(source)
+    post["url"] = "https://news.ycombinator.com/item?id=100"
+    payload = json.loads(post["full_raw_text_contents"])
+    payload["story"]["text"] = post_text
+    post["full_raw_text_contents"] = json.dumps(payload)
+    repo = FakeRepository([post])
+    model = RoutedSummarizer(ReviewedSummarizer(settings), SimpleNamespace(model="sentiment",
+        estimate_sentiment=lambda _: CommentSentiment(sentiment=0)))
+    assert process_story(post, repo, None, model) == ("failed" if has_notice else "generated")
+    assert not repo.failures  # A bad draft must not permanently exclude a valid HN post.
+    assert len(inference.clients[1].calls) == (0 if has_notice else 6)
+    assert all(c.closed for c in inference.clients)
+    if has_notice:
+        assert not repo.saved
+    else:
+        assert repo.saved[100]["summary"] == draft.to_summary()
+        assert repo.saved[100]["coverage"]["article_status"] == "not_applicable"
+
+
 @pytest.mark.parametrize("failure", ["reject", "fail"])
 def test_failed_review_never_publishes_or_overwrites(failure, settings, inference, source):
     repo = FakeRepository([item(source)])
