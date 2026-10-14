@@ -108,6 +108,24 @@ def test_scheduled_run_uses_review_before_publication(monkeypatch, settings, inf
     assert repo.saved[100]["summary"].sentiment == -1
 
 
+@pytest.mark.parametrize("bullet_length", [451, 650])
+def test_fuller_discussion_survives_review_and_storage(
+        bullet_length, settings, inference, source, draft):
+    draft.discussion_summary.opening = "A" * 300
+    draft.discussion_summary.bullets = [letter * bullet_length for letter in "BCDE"]
+    repo = FakeRepository([item(source)])
+    model = RoutedSummarizer(ReviewedSummarizer(settings), FakeSummarizer())
+
+    assert process_story(item(source), repo,
+        SimpleNamespace(fetch=lambda _: source["article"]), model) == "generated"
+
+    expected = draft.discussion_summary.opening + "\n\n" + "\n".join(
+        f"- {bullet}" for bullet in draft.discussion_summary.bullets
+    )
+    assert repo.saved[100]["summary"].discussion_summary == expected
+    assert [call["role"] for c in inference.clients for call in c.calls] == ["writer", "reviewer"]
+
+
 def test_unavailable_article_never_reaches_reviewer_sentiment_or_publication(
         settings, inference, source, draft):
     draft.article_summary = ARTICLE_UNAVAILABLE_NOTICE

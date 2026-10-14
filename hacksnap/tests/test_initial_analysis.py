@@ -265,7 +265,7 @@ def test_editorial_paragraphs_and_bullets_survive_generation_and_storage():
 
 @pytest.mark.parametrize("brief", [
     {"opening": "Question", "bullets": ["A"] * 5},
-    {"opening": "Question", "bullets": ["x" * 451]},
+    {"opening": "Question", "bullets": ["x" * 651]},
     {"opening": "x" * 301, "bullets": []},
     {"opening": "Question", "bullets": [" "]},
     {"opening": "Question", "bullets": ["First\nSecond"]},
@@ -330,5 +330,5 @@ def test_brief_schema_requires_separate_opening_and_bullets_but_storage_stays_te
     assert set(brief["required"]) == {"opening", "bullets"}
     assert brief["additionalProperties"] is False
     assert brief["properties"]["bullets"]["maxItems"] == 4
-    assert brief["properties"]["bullets"]["items"]["maxLength"] == 450
+    assert brief["properties"]["bullets"]["items"]["maxLength"] == 650
     assert StorySummary.model_json_schema()["properties"]["discussion_summary"]["type"] == "string"
