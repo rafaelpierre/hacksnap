@@ -103,7 +103,7 @@ def test_blob_adapter_uploads_immutable_public_webp_and_deletes_by_url(monkeypat
 
 def test_date_window_requires_aware_ordered_bounds_before_database_access(database):
     repo, connection = database
-    naive = datetime(2026, 9, 29)  # noqa: DTZ001 - invalid input under test
+    naive = datetime(2026, 9, 29)  # invalid input under test
     start = datetime(2026, 9, 28, 23, tzinfo=UTC)
     with pytest.raises(ValueError, match="timezone-aware"):
         repo.list_image_candidates(limit=1, added_from=naive)
