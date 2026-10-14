@@ -12,7 +12,7 @@ from test_editorial_review import verdict
 from test_pipeline import FakeRepository, FakeSummarizer, story
 
 from pipeline.config import Settings
-from pipeline.editorial_review import EditorialReview
+from pipeline.editorial_review import EditorialReview, InferenceOutputError
 from pipeline.models import CommentSentiment
 from pipeline.refresh import process_story
 from pipeline.reviewed_summarise import EditorialRejected, ReviewedSummarizer
@@ -31,7 +31,8 @@ def settings():
 
 @pytest.fixture
 def inference(monkeypatch, draft, source):
-    state = SimpleNamespace(clients=[], reject=False, fail=False)
+    state = SimpleNamespace(clients=[], reject=False, fail=False,
+                            invalid_review=False, invalid_output=False)
 
     class Client:
         def __init__(self, **config):
@@ -43,8 +44,10 @@ def inference(monkeypatch, draft, source):
             self.calls.append({"role": role, "model": self.config["model"]})
             if state.fail:
                 raise TimeoutError("inference timeout")
-            if role != "reviewer":
+            if role not in {"reviewer", "reviewer_repair"}:
                 return draft if schema.__name__ == "GeneratedStorySummary" else draft.discussion_analysis
+            if state.invalid_output:
+                raise InferenceOutputError("Invalid JSON")
             value = payload["draft"]
             review = verdict(SimpleNamespace(model_dump=lambda: value), revise=state.reject)
             for check in review.checks:
@@ -56,6 +59,8 @@ def inference(monkeypatch, draft, source):
                 evidence = review.findings[0].evidence[0]
                 evidence.source, evidence.comment_id = "comment", 10
                 evidence.quote = source["comments"][0]["text"]
+            if state.invalid_review:
+                review.checks[0].evidence[0].quote = "fabricated quote"
             return EditorialReview.model_validate(review.model_dump())
 
         async def close(self):
@@ -118,6 +123,35 @@ def test_initial_result_primes_reviewed_refresh_cache(settings, inference, sourc
     assert process_story(item(source), repo, None, changed) == "analysis_updated"
     assert len(inference.clients) == 4
     assert process_story(item(source), repo, None, changed) == "unchanged"
+
+
+@pytest.mark.parametrize("failure", ["invalid_review", "invalid_output"])
+def test_exhausted_repairs_publish_without_any_public_notice(
+        failure, settings, inference, source, draft, caplog):
+    repo = FakeRepository([item(source)])
+    model = RoutedSummarizer(ReviewedSummarizer(settings), SimpleNamespace(model="sentiment",
+        estimate_sentiment=lambda _: CommentSentiment(sentiment=0)))
+    setattr(inference, failure, True)
+    with caplog.at_level("INFO", logger="hacksnap"):
+        assert process_story(item(source), repo,
+            SimpleNamespace(fetch=lambda _: source["article"]), model) == "generated"
+        assert repo.saved[100]["summary"] == draft.to_summary()
+        assert [call["role"] for call in inference.clients[1].calls] == ["reviewer"] + ["reviewer_repair"] * 5
+        before = copy.deepcopy(repo.saved[100]["summary"])
+        changed = RoutedSummarizer(ReviewedSummarizer(
+            replace(settings, sentiment_model="new-reviewer")), model.sentiment)
+        assert process_story(item(source), repo, None, changed) == "analysis_updated"
+    assert repo.saved[100]["summary"] == before
+    assert repo.saved[100]["discussion_analysis"] == draft.discussion_analysis.to_analysis()
+    assert len(inference.clients[3].calls) == 6
+    assert all(client.closed for client in inference.clients)
+    events = [json.loads(record.message) for record in caplog.records
+              if record.message.startswith('{"event": "editorial_review_completed"')]
+    assert len(events) == 2
+    assert all(event["status"] == "unreviewed" and event["fail_open"] for event in events)
+    for secret in [source["article"], source["comments"][0]["text"], "fabricated quote",
+                   settings.llm_api_key, settings.sentiment_api_key]:
+        assert secret not in caplog.text
 
 
 def test_concurrent_stories_get_separate_clients_and_event_loops(settings, inference, source):

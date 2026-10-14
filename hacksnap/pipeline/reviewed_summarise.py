@@ -68,10 +68,12 @@ class ReviewedSummarizer:
             reviewer = AgentInference(**self.reviewer_config)
             try:
                 result = await reviewed_generation(writer, reviewer, source, operation)
-                logger.info(json.dumps({"event": "editorial_review_completed",
+                log = logger.warning if result.status == "unreviewed" else logger.info
+                log(json.dumps({"event": "editorial_review_completed",
                     "operation": operation, "status": result.status,
-                    "review_passes": len(result.history)}))
-                if result.status != "accepted" or result.draft is None:
+                    "review_passes": len(result.history),
+                    "fail_open": result.status == "unreviewed"}))
+                if result.status == "rejected" or result.draft is None:
                     raise EditorialRejected("Editorial review rejected the draft")
                 return result.draft
             finally:

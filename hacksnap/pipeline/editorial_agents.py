@@ -5,11 +5,12 @@ from uuid import uuid4
 
 import httpx
 from agents import Agent, ModelSettings, OpenAIChatCompletionsModel, RunConfig, Runner
+from agents.exceptions import ModelBehaviorError
 from agents.model_settings import ModelRetrySettings
 from openai import AsyncOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
-from .editorial_review import source_json
+from .editorial_review import InferenceOutputError, source_json
 
 
 class AgentInference:
@@ -70,6 +71,12 @@ class AgentInference:
             if self.capture_outputs:
                 self.outputs.append({"role": role, "output": value.model_dump()})
             return value
+        except (ModelBehaviorError, ValidationError) as error:
+            if isinstance(error, ModelBehaviorError) and not str(error).startswith(
+                    "Invalid JSON when parsing"):
+                raise
+            record["failure_kind"] = "invalid_output"
+            raise InferenceOutputError("Model output failed JSON or schema validation") from None
         finally:
             record["elapsed_seconds"] = round(perf_counter() - started, 3)
             self.calls.append(record)
