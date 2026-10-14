@@ -155,3 +155,32 @@ def test_rejection_is_bounded_and_logs_no_sources_or_credentials(settings, infer
     assert sum(len(c.calls) for c in inference.clients) == 4
     for secret in [settings.llm_api_key, settings.sentiment_api_key, source["article"], settings.llm_base_url]:
         assert secret not in caplog.text
+
+
+def test_reviewer_timeout_is_separate_from_writer(settings, inference, source):
+    configured = replace(settings, llm_timeout=17, reviewer_timeout=321)
+    ReviewedSummarizer(configured).summarize(source)
+    assert [c.config["timeout"] for c in inference.clients] == [17, 321]
+    assert settings.reviewer_timeout == 300
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "invalid"])
+def test_reviewer_timeout_env_rejects_invalid_values(monkeypatch, value):
+    for key, content in {"HACKSNAP_DATABASE_URL": "unused",
+                         "MODAL_LLM_BASE_URL": "https://writer.invalid/v1",
+                         "MODAL_LLM_MODEL": "writer", "MODAL_LLM_API_KEY": "test",
+                         "HACKSNAP_REVIEWER_TIMEOUT_SECONDS": value}.items():
+        monkeypatch.setenv(key, content)
+    with pytest.raises(ValueError):
+        Settings.from_env()
+
+
+def test_reviewer_timeout_env_override(monkeypatch):
+    for key, content in {"HACKSNAP_DATABASE_URL": "unused",
+                         "MODAL_LLM_BASE_URL": "https://writer.invalid/v1",
+                         "MODAL_LLM_MODEL": "writer", "MODAL_LLM_API_KEY": "test",
+                         "HACKSNAP_REVIEWER_TIMEOUT_SECONDS": "420"}.items():
+        monkeypatch.setenv(key, content)
+    assert Settings.from_env().reviewer_timeout == 420
+    monkeypatch.delenv("HACKSNAP_REVIEWER_TIMEOUT_SECONDS")
+    assert Settings.from_env().reviewer_timeout == 300

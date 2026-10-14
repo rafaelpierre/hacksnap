@@ -169,9 +169,15 @@ using its existing sentiment prompt and reasoning setting.
 
 The workflow uses the OpenAI Agents SDK, installed as a runtime dependency by the
 Modal image's normal `uv_sync`. Each operation creates separate async clients so
-parallel stories do not share event loops or mutable review state. Each call uses
-`Settings.llm_timeout` (120 seconds), one agent turn and no request retries. At most
-four editorial calls run: write, review, one revision, final review. The scheduled
+parallel stories do not share event loops or mutable review state. Writer and revision
+calls use `Settings.llm_timeout` (120 seconds). Reviewer calls use
+`Settings.reviewer_timeout` (300 seconds), configurable with the positive integer
+`HACKSNAP_REVIEWER_TIMEOUT_SECONDS`. Each call uses one agent turn and no request retries.
+Each review can make one additional coverage repair call with the exact missing,
+unexpected and duplicate JSON pointers. The complete replacement review must pass
+all coverage and evidence checks before it can approve or direct a draft revision.
+At most six editorial calls run: write, review, optional review repair, one revision,
+final review and optional final review repair. The scheduled
 function allows 3,600 seconds for the bounded 50-story batch and sentiment calls.
 
 The reviewer covers every prose field with original-source quotes and reasoning.
@@ -186,7 +192,7 @@ New summaries use the candidate journalistic prompts in `editorial_prompts.py`.
 Existing article summaries and subtitles are not regenerated. Their discussion
 analyses refresh once when encountered because the reviewed prompt/model fingerprint
 changes, then reuse the existing cache when inputs are unchanged. Cache identity
-includes the writer, reviewer and revision prompts, review version, both model names and
+includes the writer, reviewer, coverage repair and revision prompts, review version, both model names and
 reasoning settings. This is ordinary scheduled processing, with no bulk backfill.
 
 The [prototype evaluation](../docs/evaluations/editorial-prompts/agents-report.md)

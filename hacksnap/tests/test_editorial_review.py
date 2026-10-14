@@ -289,7 +289,7 @@ def test_unavailable_article_claim_cannot_escape_review(source, unavailable_draf
         check.evidence = []
     with pytest.raises(ValueError, match="cover every"):
         asyncio.run(reviewed_generation(FakeInference([unavailable_draft]),
-                                        FakeInference([review]), source))
+                                        FakeInference([review, review]), source))
 
 
 def test_unavailable_article_claim_requires_page_evidence(source, unavailable_draft):
@@ -375,3 +375,67 @@ def test_unusable_page_takeaway_still_requires_evidence(source, unavailable_draf
     next(check for check in review.checks if check.path == "/overall_takeaway").evidence = []
     with pytest.raises(ValueError, match="no source evidence"):
         validate_review(review, unavailable_draft.model_dump(), source)
+
+
+@pytest.mark.parametrize("defect", ["missing", "unexpected", "duplicate"])
+def test_coverage_repair_uses_original_sources_and_exact_paths(defect, source, draft):
+    broken = verdict(draft)
+    path = broken.checks[0].path
+    if defect == "missing":
+        broken.checks.pop(0)
+    elif defect == "unexpected":
+        broken.checks[0].path = "article_summary"
+    else:
+        broken.checks.append(broken.checks[0])
+    writer = FakeInference([draft])
+    reviewer = FakeInference([broken, verdict(draft)])
+    result = asyncio.run(reviewed_generation(writer, reviewer, source))
+    assert result.status == "accepted"
+    assert len(writer.calls) == 1
+    role, _, payload, _ = reviewer.calls[1]
+    assert role == "reviewer_repair"
+    assert payload["sources"] == reviewer.calls[0][2]["sources"]
+    assert payload["draft"] == draft.model_dump()
+    assert payload["prose_fields"] == prose_fields(draft.model_dump())
+    assert payload["previous_review"] == broken.model_dump()
+    assert payload["coverage_errors"]["duplicates" if defect == "duplicate" else "missing"] == [path]
+    if defect == "unexpected":
+        assert payload["coverage_errors"]["unexpected"] == ["article_summary"]
+
+
+def test_each_review_has_only_one_repair_and_revision_is_still_bounded(source, draft):
+    broken = verdict(draft)
+    broken.checks.pop()
+    writer = FakeInference([draft, draft])
+    reviewer = FakeInference([broken, verdict(draft, True), broken, verdict(draft)])
+    assert asyncio.run(reviewed_generation(writer, reviewer, source)).status == "accepted"
+    assert len(writer.calls) == 2
+    assert [c[0] for c in reviewer.calls] == ["reviewer", "reviewer_repair"] * 2
+
+
+@pytest.mark.parametrize("failure", ["coverage", "evidence", "timeout"])
+def test_failed_coverage_repair_never_reaches_revision(failure, source, draft):
+    broken = verdict(draft)
+    broken.checks.pop()
+    repaired = verdict(draft)
+    if failure == "coverage":
+        repaired = broken
+    elif failure == "evidence":
+        repaired.checks[0].evidence[0].quote = "invented quote"
+    else:
+        repaired = TimeoutError("repair timeout")
+    writer = FakeInference([draft])
+    reviewer = FakeInference([broken, repaired])
+    with pytest.raises(TimeoutError if failure == "timeout" else ValueError):
+        asyncio.run(reviewed_generation(writer, reviewer, source))
+    assert len(writer.calls) == 1
+    assert len(reviewer.calls) == 2
+
+
+def test_evidence_failure_does_not_trigger_coverage_repair(source, draft):
+    review = verdict(draft)
+    review.checks[0].evidence[0].quote = "invented quote"
+    reviewer = FakeInference([review])
+    with pytest.raises(ValueError, match="original source"):
+        asyncio.run(reviewed_generation(FakeInference([draft]), reviewer, source))
+    assert len(reviewer.calls) == 1

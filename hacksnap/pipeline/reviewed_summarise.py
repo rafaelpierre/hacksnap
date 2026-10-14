@@ -7,7 +7,13 @@ import logging
 from .config import Settings
 from .editorial_agents import AgentInference
 from .editorial_prompts import DISCUSSION_REFRESH_PROMPT, SYSTEM_PROMPT
-from .editorial_review import REVIEW_PROMPT, REVIEW_VERSION, REVISION_PROMPT, reviewed_generation
+from .editorial_review import (
+    REVIEW_PROMPT,
+    REVIEW_REPAIR_PROMPT,
+    REVIEW_VERSION,
+    REVISION_PROMPT,
+    reviewed_generation,
+)
 from .models import GeneratedDiscussionAnalysis, GeneratedStorySummary
 from .telemetry import traced_operation
 
@@ -30,14 +36,15 @@ class ReviewedSummarizer:
             "base_url": settings.sentiment_base_url,
             "api_key": settings.sentiment_api_key or settings.llm_api_key,
             "model": settings.sentiment_model, "effort": "high",
-            "timeout": settings.llm_timeout,
+            "timeout": settings.reviewer_timeout,
         }
         self.prompt_version = self._version(SYSTEM_PROMPT)
         self.discussion_prompt_version = self._version(DISCUSSION_REFRESH_PROMPT)
 
     def _version(self, prompt):
         # Every prompt that can affect an accepted draft participates in the cache key.
-        identity = [prompt, REVIEW_PROMPT, REVISION_PROMPT, REVIEW_VERSION, self.model,
+        identity = [prompt, REVIEW_PROMPT, REVIEW_REPAIR_PROMPT, REVISION_PROMPT,
+                    REVIEW_VERSION, self.model,
                     self.writer_config["effort"], self.reviewer_config["model"],
                     self.reviewer_config["effort"]]
         digest = hashlib.sha256(json.dumps(identity).encode()).hexdigest()[:20]
