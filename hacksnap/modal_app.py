@@ -35,7 +35,7 @@ image_worker_image = (
     image=hacksnap_image,
     schedule=modal.Cron("0 0,9-23 * * *", timezone="Europe/London"),
     secrets=[modal.Secret.from_name("hacksnap")],
-    timeout=2400,
+    timeout=3600,
     max_containers=1,
 )
 def refresh_hacksnap():

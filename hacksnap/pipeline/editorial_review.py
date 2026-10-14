@@ -1,4 +1,4 @@
-"""Bounded editorial experiment. No persistence or production entrypoint imports."""
+"""Bounded editorial review with source validation and no persistence."""
 import json
 import re
 from dataclasses import dataclass, field

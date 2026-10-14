@@ -17,7 +17,13 @@ from .models import (
     StorySummary,
 )
 from .preprocess import sample_sentiment_comments
-from .prompts import DISCUSSION_REFRESH_PROMPT, SENTIMENT_PROMPT, SYSTEM_PROMPT
+from .prompts import (
+    DISCUSSION_REFRESH_PROMPT,
+    DISCUSSION_REFRESH_PROMPT_VERSION,
+    PROMPT_VERSION,
+    SENTIMENT_PROMPT,
+    SYSTEM_PROMPT,
+)
 from .telemetry import post_chat_completion, traced_operation
 
 # Includes reasoning tokens; 8,000 truncated production summary and discussion outputs.
@@ -43,6 +49,10 @@ class RoutedSummarizer:
         self.sentiment = sentiment
         self.model = editorial.model
         self.sentiment_model = sentiment.model
+        self.prompt_version = getattr(editorial, "prompt_version", PROMPT_VERSION)
+        self.discussion_prompt_version = getattr(
+            editorial, "discussion_prompt_version", DISCUSSION_REFRESH_PROMPT_VERSION
+        )
 
     @traced_operation("summarization_pipeline")
     def summarize(self, source: dict) -> StorySummary:

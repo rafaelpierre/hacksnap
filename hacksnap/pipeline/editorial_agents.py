@@ -1,4 +1,4 @@
-"""OpenAI Agents SDK adapter for the optional, inference-only editorial prototype."""
+"""OpenAI Agents SDK adapter for Modal-hosted editorial inference."""
 import asyncio
 from time import perf_counter
 from uuid import uuid4
