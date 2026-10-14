@@ -129,6 +129,25 @@ def test_concurrent_stories_get_separate_clients_and_event_loops(settings, infer
     assert all(c.closed and len(c.calls) == 1 for c in inference.clients)
 
 
+def test_revision_prompt_change_invalidates_both_versions_and_refresh_cache(
+        monkeypatch, settings, inference, source):
+    module = importlib.import_module("pipeline.reviewed_summarise")
+    repo = FakeRepository([item(source)])
+    model = RoutedSummarizer(ReviewedSummarizer(settings), FakeSummarizer())
+    assert process_story(item(source), repo, SimpleNamespace(fetch=lambda _: source["article"]), model) == "generated"
+    assert process_story(item(source), repo, None, model) == "unchanged"
+    original_summary = copy.deepcopy(repo.saved[100]["summary"])
+    monkeypatch.setattr(module, "REVISION_PROMPT", module.REVISION_PROMPT + "\nUpdated revision instructions.")
+    changed = RoutedSummarizer(ReviewedSummarizer(settings), model.sentiment)
+    assert changed.prompt_version != model.prompt_version
+    assert changed.discussion_prompt_version != model.discussion_prompt_version
+    assert process_story(item(source), repo, None, changed) == "analysis_updated"
+    assert len(inference.clients) == 4
+    assert repo.saved[100]["summary"] == original_summary
+    assert process_story(item(source), repo, None, changed) == "unchanged"
+    assert len(inference.clients) == 4
+
+
 def test_rejection_is_bounded_and_logs_no_sources_or_credentials(settings, inference, source, caplog):
     inference.reject = True
     with caplog.at_level("INFO", logger="hacksnap"), pytest.raises(EditorialRejected):

@@ -185,7 +185,7 @@ New summaries use the candidate journalistic prompts in `editorial_prompts.py`.
 Existing article summaries and subtitles are not regenerated. Their discussion
 analyses refresh once when encountered because the reviewed prompt/model fingerprint
 changes, then reuse the existing cache when inputs are unchanged. Cache identity
-includes the writer and reviewer prompts, review version, both model names and
+includes the writer, reviewer and revision prompts, review version, both model names and
 reasoning settings. This is ordinary scheduled processing, with no bulk backfill.
 
 The [prototype evaluation](../docs/evaluations/editorial-prompts/agents-report.md)
