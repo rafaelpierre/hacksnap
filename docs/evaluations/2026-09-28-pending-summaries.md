@@ -1,5 +1,9 @@
 # Pending summaries: 28 September 2026
 
+This report records the findings and changes from 28 September. Its schedule is
+historical; see the [current worker schedule](../../hacksnap/README.md) and
+[image recovery cadence](../images/rollout.md#image-processing-limits).
+
 ## Production findings
 
 Read-only database inspection at approximately 19:24 UTC found 7 pending stories
