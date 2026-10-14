@@ -238,6 +238,27 @@ test("Markdown escapes theme text and excludes private metadata", () => {
   assert.match(unknown, /Analyzed-comment count unavailable/);
 });
 
+test("Markdown preserves summary headings and bold without enabling source HTML or links", () => {
+  const body = storyMarkdown({
+    ...story,
+    summary: {
+      ...story.summary,
+      article_summary:
+        "A **reported result**.\n\n## Conditions\n\nOne workload.\n\n### Limits\n\n<script> [bad](javascript:alert(1))",
+      article_key_points: ["A **fixed baseline**."],
+      discussion_points: [
+        { title: "Evidence", summary: "A **self-reported test**.", comment_ids: [123] },
+      ],
+    },
+  });
+  assert.match(body, /\n\n## Conditions\n\n/);
+  assert.match(body, /\n\n### Limits\n\n/);
+  assert.match(body, /A \*\*reported result\*\*/);
+  assert.match(body, /- A \*\*fixed baseline\*\*/);
+  assert.match(body, /A \*\*self\\-reported test\*\*/);
+  assert.doesNotMatch(body, /<script>|(?<!\\)\[bad\]\(javascript/);
+});
+
 test("Discussion introductions are omitted from Markdown", () => {
   const body = storyMarkdown({
     ...story,

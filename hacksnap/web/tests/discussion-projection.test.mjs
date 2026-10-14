@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "@jest/globals";
 import { PGlite } from "@electric-sql/pglite";
+import { publicFeedStory } from "../lib/stories-api";
 import {
   feedFields,
   feedFieldsWithoutImages,
@@ -67,8 +68,22 @@ test("reader projections preserve shared fixtures and legacy rows while excludin
         ON hacksnap_summaries TO hacksnap_reader;
       ${migration.match(/GRANT SELECT \(discussion_analysis,[\s\S]*?TO hacksnap_reader/)[0]};
     `);
+    const formatted = JSON.parse(
+      JSON.stringify(fixtures.find((fixture) => fixture.expected?.status === "available")),
+    );
+    formatted.id = "formatted_preview";
+    formatted.expected.topics = [
+      { ...formatted.expected.topics[0], summary: `**${"Measured workload ".repeat(30).trim()}**` },
+      { ...formatted.expected.topics[0], summary: "A **qualified** result." },
+      { ...formatted.expected.topics[0], summary: "Omitted third topic." },
+    ];
+    const oversized = JSON.parse(JSON.stringify(formatted));
+    oversized.id = "oversized_preview";
+    oversized.expected.topics[0].summary = "x".repeat(601);
     const cases = [
       ...fixtures,
+      formatted,
+      oversized,
       { id: "legacy", expected: null },
       { id: "pending", expected: null },
     ];
@@ -121,13 +136,19 @@ test("reader projections preserve shared fixtures and legacy rows while excludin
           const expectedPreview =
             fixture.expected?.status === "available"
               ? fixture.expected.topics
+                  .filter((topic) => topic.summary.length <= 600)
                   .map((topic) => topic.summary.trim())
                   .filter(Boolean)
                   .slice(0, 2)
-                  .join(" ")
-                  .slice(0, 440) || null
+                  .join(" ") || null
               : null;
           assert.equal(summary.discussion_preview, expectedPreview);
+          assert.ok((summary.discussion_preview?.length ?? 0) <= 1201);
+          if (fixture.id === "formatted_preview" || fixture.id === "oversized_preview") {
+            const card = publicFeedStory({ ...rows[index], date_added: new Date(0) });
+            assert.doesNotMatch(card.summary.discussion_preview, /\*/);
+            assert.ok(card.summary.discussion_preview.length <= 220);
+          }
           assert.equal(summary.discussion_analysis, undefined);
           assert.equal(summary.discussion_analysis_preview, undefined);
           assert.equal(summary.discussion_summary, undefined);

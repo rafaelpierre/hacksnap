@@ -47,9 +47,13 @@ const stories: ArticleStory[] = Array.from({ length: 40 }, (_, i) => ({
       "Local models can help teams build useful tools while keeping their data close.",
     sentiment: 0,
     article_summary:
-      "Researchers compared small models on a repeatable set of development tasks. The results show useful improvements with clear limits on reliability.",
+      i === 38
+        ? "Researchers compared **small models** on development tasks.\n\n## Repeatable measurements\n\nThe evaluation used **a fixed task set**.\n\n### Reliability limits\n\nThe measured improvements depend on the workload."
+        : "Researchers compared small models on a repeatable set of development tasks. The results show useful improvements with clear limits on reliability.",
     article_key_points: [
-      "The evaluation uses repeatable tasks.",
+      i === 38
+        ? "The evaluation uses **repeatable tasks**."
+        : "The evaluation uses repeatable tasks.",
       "Small models reduce deployment costs.",
     ],
     discussion_summary:
@@ -80,7 +84,10 @@ const stories: ArticleStory[] = Array.from({ length: 40 }, (_, i) => ({
         {
           key: "evidence",
           title: "Measuring useful work",
-          summary: "Readers ask for repeatable measurements of realistic tasks.",
+          summary:
+            i === 38
+              ? "**Repeatable measurements** need realistic tasks."
+              : "Readers ask for repeatable measurements of realistic tasks.",
           comment_ids: [92000001, 92000002],
         },
         {

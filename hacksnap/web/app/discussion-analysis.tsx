@@ -1,4 +1,5 @@
 import styles from "./discussion-analysis.module.css";
+import { SummaryInline } from "./summary-text";
 import { DiscussionTopics } from "./discussion-topics";
 import { ArrowUpRight, ChevronDown, Info, X } from "lucide-react";
 import type {
@@ -172,7 +173,9 @@ export function DiscussionAnalysis({
                       <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
                     </summary>
                     <div className="analysis-theme-body">
-                      <p>{topic.summary}</p>
+                      <p>
+                        <SummaryInline text={topic.summary} />
+                      </p>
                       <SourceComments
                         id={`theme-sources-${topic.key}-${topicIndex}`}
                         context={topic.title}

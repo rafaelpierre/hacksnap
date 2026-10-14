@@ -2,13 +2,14 @@ import type { ReadyStoryPage } from "./data";
 import type { CardStory } from "./story-domain";
 import { ReadyStoryPageError } from "./ready-story-pagination-errors";
 import { canonicalArticleImage } from "./article-image";
-import { briefExcerpt } from "./brief";
+import { discussionExcerpt } from "./brief";
 
 // This feed contract contains only fields rendered on ranked and unranked cards.
 // Cards use the two latest valid observations for their movement badge.
 export function publicFeedStory(story: CardStory) {
   const image = canonicalArticleImage(story);
   const coverage = story.summary?.source_coverage;
+  const discussionPreview = discussionExcerpt(story.summary?.discussion_preview);
   return {
     hn_id: String(story.hn_id),
     story_slug: story.story_slug ?? null,
@@ -36,9 +37,7 @@ export function publicFeedStory(story: CardStory) {
       ? {
           overall_takeaway: story.summary.overall_takeaway,
           sentiment: story.summary.sentiment,
-          ...(story.summary.discussion_preview?.trim()
-            ? { discussion_preview: briefExcerpt(story.summary.discussion_preview) }
-            : {}),
+          ...(discussionPreview ? { discussion_preview: discussionPreview } : {}),
           source_coverage: coverage
             ? {
                 stored_comments: coverage.stored_comments,

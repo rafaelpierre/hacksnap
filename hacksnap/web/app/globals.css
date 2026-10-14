@@ -694,6 +694,17 @@ body:has(#browse-content) .skip-browse {
   white-space: pre-line;
   margin-bottom: var(--space-5);
 }
+.article-summary h2 {
+  margin-top: var(--space-8);
+}
+.article-summary h3 {
+  font: 650 var(--text-body)/1.3 var(--heading);
+  color: var(--ink);
+  margin: var(--space-6) 0 var(--space-3);
+}
+.editorial strong {
+  font-weight: 700;
+}
 .article-brief-sentence {
   display: block;
 }

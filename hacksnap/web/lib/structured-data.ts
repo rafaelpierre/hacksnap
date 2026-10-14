@@ -4,6 +4,7 @@ import { categoryById, categoryURL } from "./categories";
 import { hasPublishedTakeaway } from "./ready-stories";
 import { canonicalStoryUrl } from "./story-url";
 import { storyDiscussion } from "./story-presentation";
+import { summaryInlineText, summaryPlainText } from "./summary-format";
 
 const siteURL = "https://hacksnap.live/";
 const organization = {
@@ -46,7 +47,9 @@ export function storyStructuredData(story: ArticleStory) {
     (discussion.kind === "analysis" && discussion.status !== "no_comments")
       ? discussion.topics
       : [];
-  const discussionText = topics.map((topic) => `${topic.title}\n${topic.summary}`).join("\n\n");
+  const discussionText = topics
+    .map((topic) => `${topic.title}\n${summaryInlineText(topic.summary)}`)
+    .join("\n\n");
   const analyzedAt = summary.discussion_analyzed_at
     ? Date.parse(summary.discussion_analyzed_at)
     : NaN;
@@ -59,7 +62,7 @@ export function storyStructuredData(story: ArticleStory) {
           "@id": `${url}#discussion-topic-${topic.key}-${index}`,
           url: `${url}#discussion-topic-${topic.key}-${index}`,
           headline: topic.title,
-          text: topic.summary,
+          text: summaryInlineText(topic.summary),
           author: { "@type": "Organization", name: "Hacksnap", url: `${siteURL}about` },
           datePublished: new Date(analyzedAt).toISOString(),
           isPartOf: { "@id": `${url}#article` },
@@ -69,7 +72,10 @@ export function storyStructuredData(story: ArticleStory) {
   const articleBody = [
     summary.overall_takeaway.trim(),
     ...(summary.article_summary?.trim()
-      ? [summary.article_summary, ...summary.article_key_points]
+      ? [
+          summaryPlainText(summary.article_summary),
+          ...summary.article_key_points.map(summaryInlineText),
+        ]
       : []),
     ...(discussionText ? ["Discussion analysis", discussionText] : []),
   ].join("\n\n");

@@ -247,11 +247,12 @@ def test_analysis_is_saved_before_run_cleanup(monkeypatch):
 def test_editorial_paragraphs_and_bullets_survive_generation_and_storage():
     result = fixture_output(VALID[0])
     result["article_summary"] = (
-        "The source reports a performance improvement in its measured workload. "
-        "It describes the setup used to obtain that result."
+        "The source reports a **performance improvement** in its measured workload.\n\n"
+        "## Test conditions\n\nIt describes the setup used to obtain that result.\n\n"
+        "### Baseline\n\nThe comparison uses the previous implementation."
     )
     result["article_key_points"] = [
-        "The test uses a fixed workload.",
+        "The test uses a **fixed workload**.",
         "The source identifies its comparison baseline.",
         "The measurements describe the tested hardware.",
         "The implementation details accompany the results.",

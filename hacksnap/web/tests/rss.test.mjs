@@ -57,6 +57,17 @@ test("RSS preserves the opening and readable bullet lines as escaped text", () =
   );
 });
 
+test("RSS descriptions remove summary formatting and keep HTML inert", () => {
+  assertDescriptionRendersAsText(
+    {
+      ...story.summary,
+      article_summary:
+        "A **reported result**.\n\n## Conditions\n\n### Workload\n\n**<script>unsafe</script>**",
+    },
+    "A & B\n\nA reported result.\n\nConditions\n\nWorkload\n\n<script>unsafe</script>\n\nDiscuss ]]> safely",
+  );
+});
+
 test("RSS links use the title while GUIDs survive headline edits", () => {
   const story = {
     hn_id: "123",

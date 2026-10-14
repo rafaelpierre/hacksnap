@@ -1,3 +1,9 @@
+import { summaryInlineText } from "./summary-format";
+
+export function discussionExcerpt(value: string | null | undefined): string {
+  return briefExcerpt(summaryInlineText(value ?? ""));
+}
+
 /** Legacy summaries remain available in full in TLDR; never CSS-clamp prose. */
 export function briefExcerpt(value: string | null | undefined): string {
   const text = value?.trim().replace(/\s+/g, " ") ?? "";

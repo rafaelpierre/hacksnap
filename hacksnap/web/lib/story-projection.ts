@@ -42,9 +42,11 @@ const fields = (
 
 const cardSummary = `'overall_takeaway', s.overall_takeaway, 'sentiment', s.sentiment,
     'source_coverage', s.source_coverage`;
+// Keep complete, schema-bounded summaries until formatting is stripped for display.
+// Truncating Markdown here can split a bold pair before the plain-text conversion.
 const cardDiscussion = `, 'discussion_preview', CASE
   WHEN s.discussion_analysis->>'status' = 'available' THEN (
-    SELECT left(string_agg(preview.text, ' ' ORDER BY preview.position), 440)
+    SELECT string_agg(preview.text, ' ' ORDER BY preview.position)
     FROM (
       SELECT btrim(topic->>'summary') AS text, position
       FROM jsonb_array_elements(CASE
@@ -53,6 +55,7 @@ const cardDiscussion = `, 'discussion_preview', CASE
         WITH ORDINALITY AS topics(topic, position)
       WHERE jsonb_typeof(topic->'summary') = 'string'
         AND topic->>'summary' ~ '[^[:space:]]'
+        AND char_length(topic->>'summary') <= 600
       ORDER BY position
       LIMIT 2
     ) preview
