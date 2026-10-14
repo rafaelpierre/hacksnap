@@ -88,7 +88,7 @@ jobs:
           HACKSNAP_TEST_PGLITE_MODULE: ${{ github.workspace }}/hacksnap/web/node_modules/@electric-sql/pglite/dist/index.js
         run: |
           uv run python -m unittest discover -s ../.github/tests -p "test_*.py"
-          uv run pytest
+          uv run --extra editorial pytest
           uv run python -c 'import modal_app'
 
   # Automatic and manual production deployments share all validation gates.
