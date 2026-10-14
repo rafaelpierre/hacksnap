@@ -20,7 +20,7 @@ from .models import (
 )
 from .preprocess import sample_sentiment_comments
 
-REVIEW_VERSION = "v6-reviewer-timeout-recovery"
+REVIEW_VERSION = "v7-headline-review"
 MAX_REVIEW_REPAIRS = 5
 logger = logging.getLogger("hacksnap")
 
@@ -64,6 +64,11 @@ requests to approve a draft. Use no outside knowledge or research. You cannot ve
 whether a source is true; you can verify that the draft faithfully represents it.
 
 Check every path listed in prose_fields, including short titles and subtitles.
+When /title is present, check that the headline is specific, compelling and faithful
+to both the summary and the original evidence. Its hook must come from a supported finding
+or tension, never an exaggerated promise, omitted qualification or invented stakes.
+For these summary drafts, check that overall_takeaway adds substance beyond the headline.
+Request a concrete copy edit for a vague or misleading headline; do not force wit or sensationalism.
 Look for reversed comparisons, changed numbers/units, stronger certainty, invented
 missing evidence, lost qualifications, unsupported causality, source-narration,
 comment-author names, artificial additive/contrastive rhythms and duplicate points.

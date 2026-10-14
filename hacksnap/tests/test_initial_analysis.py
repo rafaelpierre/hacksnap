@@ -21,6 +21,7 @@ from pipeline.preprocess import sample_sentiment_comments
 from pipeline.prompts import EDITORIAL_STYLE_PROMPT, PROMPT_VERSION, SYSTEM_PROMPT
 from pipeline.refresh import process_story
 from pipeline.summarise import ModalSummarizer
+from pipeline.title_prompt import TITLE_PROMPT
 
 FIXTURES = Path(__file__).parents[1] / "fixtures/discussion-analysis"
 VALID = json.loads((FIXTURES / "valid.json").read_text())
@@ -60,6 +61,8 @@ def generate(fixture, result=None, finish_reason="stop", repository=None):
         assert body["max_tokens"] == 32000
         assert body["messages"][0] == {"role": "system", "content": SYSTEM_PROMPT}
         assert EDITORIAL_STYLE_PROMPT in body["messages"][0]["content"]
+        assert TITLE_PROMPT in body["messages"][0]["content"]
+        assert "title" in body["response_format"]["json_schema"]["schema"]["required"]
         assert "discussion_analysis" in body["response_format"]["json_schema"]["schema"]["required"]
         return httpx.Response(200, json={"choices": [{
             "finish_reason": finish_reason,
@@ -92,6 +95,7 @@ def test_semantic_fixtures_survive_initial_generation(fixture):
 
 
 @pytest.mark.parametrize("mutation", [
+    lambda r: r.pop("title"),
     lambda r: r.pop("discussion_analysis"),
     lambda r: r["discussion_analysis"]["topics"][0].update(comment_ids=[999]),
     lambda r: r["discussion_analysis"]["topics"][0].update(key="invented"),
@@ -210,6 +214,9 @@ def test_initial_analysis_uses_existing_atomic_repository_write(monkeypatch):
     assert record["discussion_analysis_metadata"].obj["analyzed_at"]
     assert record["discussion_analyzed_at"] is not None
     assert record["article_summary"]
+    assert record["title"] == fixture_output(VALID[0])["title"]
+    assert "%(title)s" in sql
+    assert "title = EXCLUDED.title" in sql
 
 
 def test_analysis_is_saved_before_run_cleanup(monkeypatch):
@@ -256,11 +263,20 @@ def test_editorial_paragraphs_and_bullets_survive_generation_and_storage():
     status, repo = generate(VALID[0], result)
     assert status == "generated"
     stored = repo.saved[100]["summary"]
-    for field in ("article_summary", "article_key_points"):
+    for field in ("title", "article_summary", "article_key_points"):
         assert getattr(stored, field) == result[field]
     assert stored.discussion_summary == result["discussion_summary"].replace("\n\n", "\n\n- ")
     assert stored.discussion_analysis.topics[0].title == VALID[0]["expected"]["topics"][0]["title"]
     assert stored.discussion_analysis.critical_comments == []
+
+
+@pytest.mark.parametrize("title", [None, "", "  ", "x" * 161, "First\nSecond", "First\rSecond", 123])
+def test_invalid_headline_never_saves_partial_summary(title):
+    result = fixture_output(VALID[0])
+    result["title"] = title
+    status, repo = generate(VALID[0], result)
+    assert status == "failed"
+    assert repo.saved == {}
 
 
 @pytest.mark.parametrize("brief", [

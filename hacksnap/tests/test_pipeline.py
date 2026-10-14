@@ -74,6 +74,7 @@ def story(story_id=100):
 
 def output(article=True):
     return {
+        "title": "Batching changes the cost of inference",
         "discussion_analysis": {
             "status": "available" if article else "insufficient_context",
             "reference_claims": ([{"id": "cost", "text": "Batching reduces costs.",

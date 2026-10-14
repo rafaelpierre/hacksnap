@@ -3,20 +3,8 @@ import type { PoolClient } from "pg";
 import { read } from "./read";
 import { storySlugColumnSQL, storySlugProjection } from "../story-slug-projection";
 import { browseCapabilitiesSQL } from "../browse-capabilities";
-import {
-  feedFields,
-  feedFieldsWithoutImages,
-  storyFields,
-  storyFieldsWithoutImages,
-  legacyFeedFields,
-  legacyFeedFieldsWithoutImages,
-  legacyStoryFields,
-  legacyStoryFieldsWithoutImages,
-  discussionColumnsSQL,
-  imageColumnsSQL,
-  exportFields,
-  exportFieldsWithoutImages,
-} from "../story-projection";
+import { storyIdentityColumnsSQL, storyTitleProjection } from "../story-title-projection";
+import { storyProjection, discussionColumnsSQL, imageColumnsSQL } from "../story-projection";
 
 async function hasDiscussionColumns(client: PoolClient): Promise<boolean> {
   if (process.env.HACKSNAP_DISCUSSION_RENDERING === "false") return false;
@@ -46,14 +34,15 @@ export async function storySlugField(client: PoolClient): Promise<string> {
   return storySlugProjection(rows[0]?.available === true);
 }
 
-function feedProjection(discussionAvailable: boolean, imagesAvailable: boolean): string {
-  return discussionAvailable
-    ? imagesAvailable
-      ? feedFields
-      : feedFieldsWithoutImages
-    : imagesAvailable
-      ? legacyFeedFields
-      : legacyFeedFieldsWithoutImages;
+export async function storyIdentityFields(client: PoolClient) {
+  const { rows } = await client.query<{ slug_available: boolean; title_available: boolean }>(
+    storyIdentityColumnsSQL,
+  );
+  return {
+    slug: storySlugProjection(rows[0]?.slug_available === true),
+    title: storyTitleProjection(rows[0]?.title_available === true),
+    titleAvailable: rows[0]?.title_available === true,
+  };
 }
 
 // Check on each cache miss so applying the migration needs no process restart.
@@ -62,29 +51,22 @@ export function readStories<T>(
   query: (client: PoolClient, fields: string) => Promise<T>,
 ): Promise<T> {
   return read(async (client) => {
-    const [discussionAvailable, imagesAvailable] = await Promise.all([
+    const [discussionAvailable, imagesAvailable, identity] = await Promise.all([
       hasDiscussionColumns(client),
       hasImageColumns(client),
+      storyIdentityFields(client),
     ]);
-    const fields =
-      kind === "export"
-        ? imagesAvailable
-          ? exportFields
-          : exportFieldsWithoutImages
-        : kind === "feed"
-          ? feedProjection(discussionAvailable, imagesAvailable)
-          : discussionAvailable
-            ? imagesAvailable
-              ? storyFields
-              : storyFieldsWithoutImages
-            : imagesAvailable
-              ? legacyStoryFields
-              : legacyStoryFieldsWithoutImages;
-    return query(client, `${fields}, ${await storySlugField(client)}`);
+    const fields = storyProjection(
+      kind,
+      discussionAvailable,
+      imagesAvailable,
+      identity.titleAvailable,
+    );
+    return query(client, `${fields}, ${identity.slug}`);
   });
 }
 
-// Lists need all three capabilities. Resolve them in one catalog query while
+// Resolve list capabilities in one catalog query while
 // retaining the same migration and reader-grant fallback as other story reads.
 export function readBrowseStories<T>(
   query: (client: PoolClient, fields: string) => Promise<T>,
@@ -94,6 +76,7 @@ export function readBrowseStories<T>(
       discussion_available: boolean;
       images_available: boolean;
       slug_available: boolean;
+      title_available: boolean;
     }>(browseCapabilitiesSQL);
     const capabilities = rows[0];
     if (!capabilities) throw new Error("Story capabilities unavailable");
@@ -109,7 +92,7 @@ export function readBrowseStories<T>(
       );
     return query(
       client,
-      `${feedProjection(discussionAvailable, capabilities.images_available)}, ${storySlugProjection(capabilities.slug_available)}`,
+      `${storyProjection("feed", discussionAvailable, capabilities.images_available, capabilities.title_available)}, ${storySlugProjection(capabilities.slug_available)}`,
     );
   });
 }

@@ -2,6 +2,9 @@
 // existing column-existence and reader SELECT-grant requirement, so partially
 // applied migrations keep using null/legacy projections until the next miss.
 export const browseCapabilitiesSQL = `SELECT
+  (SELECT EXISTS (SELECT 1 FROM pg_attribute
+    WHERE attrelid = 'hacksnap_summaries'::regclass AND attname = 'title'
+      AND NOT attisdropped AND has_column_privilege(attrelid, attname, 'SELECT'))) AS title_available,
   (SELECT count(*) = 3 FROM pg_attribute
     WHERE attrelid = 'hacksnap_summaries'::regclass
       AND attname IN ('discussion_analysis', 'discussion_analyzed_at', 'discussion_analysis_coverage')

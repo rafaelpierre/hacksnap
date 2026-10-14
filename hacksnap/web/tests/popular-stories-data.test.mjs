@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { afterAll, beforeEach, jest, test } from "@jest/globals";
 import { popularityAvailableSQL, weeklyPopularityAvailableSQL } from "../lib/popular-stories.ts";
 import { storySlugColumnSQL } from "../lib/story-slug-projection.ts";
+import { storyIdentityColumnsSQL, storyTitleProjection } from "../lib/story-title-projection.ts";
 
 let clock = Date.now();
 const now = jest.spyOn(Date, "now").mockImplementation(() => clock);
@@ -16,6 +17,8 @@ const client = {
     if (sql === popularityAvailableSQL || sql === weeklyPopularityAvailableSQL)
       return { rows: [{ available }] };
     if (sql === storySlugColumnSQL) return { rows: [{ available: false }] };
+    if (sql === storyIdentityColumnsSQL)
+      return { rows: [{ slug_available: false, title_available: true }] };
     return { rows: [story] };
   },
   release() {},
@@ -44,6 +47,7 @@ test("weekly and lifetime loads have independent cache keys and rollout checks",
   assert.equal(queries.includes(weeklyPopularityAvailableSQL), true);
   assert.equal(queries.includes(popularityAvailableSQL), true);
   assert.equal(queries.filter((sql) => sql.includes("JOIN public.hacker_news_threads")).length, 2);
+  assert.equal(queries.filter((sql) => sql.includes(storyTitleProjection(true))).length, 2);
   queries.length = 0;
   await Promise.all([getPopularStories("last-7-days"), getPopularStories("all-time")]);
   assert.equal(queries.length, 0);

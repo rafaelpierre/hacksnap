@@ -2,7 +2,7 @@ import "server-only";
 import { cachePolicy } from "./cache-policy";
 import { cache } from "react";
 import { read } from "./read";
-import { readStories, storySlugField } from "./capabilities";
+import { readStories, storyIdentityFields } from "./capabilities";
 import { boundedCache } from "../bounded-cache";
 import { DataUnavailableError } from "../data-availability";
 import { validStoryId } from "../public-story";
@@ -28,8 +28,9 @@ const cachedPopularStories = boundedCache(async (key: string): Promise<PopularSt
         if (period === "last-7-days") throw new DataUnavailableError();
         return [];
       }
+      const identity = await storyIdentityFields(client);
       return (
-        await client.query<PopularStory>(popularStoriesSQL(await storySlugField(client), period))
+        await client.query<PopularStory>(popularStoriesSQL(identity.slug, period, identity.title))
       ).rows;
     },
     // A slow aggregate must not occupy the pool used by other requests' pages.

@@ -34,6 +34,7 @@ def source():
 @pytest.fixture
 def draft():
     return GeneratedStorySummary.model_validate({
+        "title": "Probe reports 5GB memory use for its prototype",
         "article_summary": "Probe reports memory use of 5GB.",
         "article_key_points": ["The release is a prototype."],
         "overall_takeaway": "Probe reports 5GB memory use for its prototype.",
@@ -105,6 +106,32 @@ def test_accept_requires_review_of_original_sources(source, draft):
     assert [c[0] for c in writer.calls] == ["writer"]
     assert reviewer.calls[0][2]["sources"]["article"] == source["article"]
     assert reviewer.calls[0][2]["sources"]["comments"] == source["comments"]
+    assert reviewer.calls[0][2]["prose_fields"]["/title"] == draft.title
+    from pipeline.title_prompt import TITLE_PROMPT
+    assert TITLE_PROMPT in writer.calls[0][1]
+    assert "title" in writer.calls[0][3].model_json_schema()["required"]
+
+
+def test_review_must_check_headline_and_support_it_with_evidence(source, draft):
+    review = verdict(draft)
+    title_check = next(check for check in review.checks if check.path == "/title")
+    title_check.evidence.clear()
+    with pytest.raises(ValueError, match="no source evidence"):
+        validate_review(review, draft.model_dump(), source)
+    review.checks.remove(title_check)
+    with pytest.raises(ValueError, match="cover every"):
+        validate_review(review, draft.model_dump(), source)
+
+
+def test_headline_revision_survives_review_and_storage_conversion(source, draft):
+    revised = draft.model_copy(update={"title": "Probe's prototype reports a 5GB memory footprint"})
+    review = verdict(draft, True)
+    review.findings[0].path = "/title"
+    writer = FakeInference([draft, revised])
+    reviewer = FakeInference([review, verdict(revised)])
+    result = asyncio.run(reviewed_generation(writer, reviewer, source))
+    assert result.status == "accepted"
+    assert GeneratedStorySummary.model_validate(result.draft).to_summary().title == revised.title
 
 
 def test_one_revision_gets_independent_final_review(source, draft):
@@ -399,11 +426,12 @@ def test_self_post_takeaway_has_no_empty_state_evidence_exemption(source, unavai
     # The legitimate no-comments opening keeps its exemption, while a self-post
     # takeaway must be supported by the post itself.
     source["story_text"] = "Probe reports memory use of 5GB."
+    unavailable_draft.title = "Probe reports a 5GB memory footprint"
     unavailable_draft.overall_takeaway = source["story_text"]
     review = verdict(unavailable_draft)
     for check in review.checks:
         check.evidence = ([Evidence(source="story_text", comment_id=None, quote=source["story_text"])]
-                          if check.path == "/overall_takeaway" else [])
+                          if check.path in {"/title", "/overall_takeaway"} else [])
     validate_review(review, unavailable_draft.model_dump(), source)
     # An empty discussion does not allow the notices to swap fields.
     unavailable_draft.overall_takeaway = "No additional analysis available."

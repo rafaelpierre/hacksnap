@@ -106,6 +106,7 @@ def test_scheduled_run_uses_review_before_publication(monkeypatch, settings, inf
     assert all(c.closed for c in inference.clients)
     assert repo.saved[100]["discussion_analysis_metadata"].prompt_version.startswith("reviewed-v1-")
     assert repo.saved[100]["summary"].sentiment == -1
+    assert repo.saved[100]["summary"].title == "Probe reports 5GB memory use for its prototype"
 
 
 @pytest.mark.parametrize("bullet_length", [451, 650])

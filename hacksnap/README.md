@@ -91,6 +91,11 @@ summary column. It remains untouched. `hacksnap_summaries` holds one validated,
 structured enrichment per canonical story, without duplicating title, points,
 comments or source timestamps.
 
+Generated headlines are stored separately as `hacksnap_summaries.title`; the original
+HN title remains in `hacker_news_threads.title`. Apply migration `0023_editorial_titles`
+before deploying the updated worker. Existing summary rows keep a null generated title
+and continue to use their original headline. Normal refreshes do not backfill titles.
+
 ## Set up
 
 Requirements: Python 3.12+, uv, Node.js 22+, the existing Supabase database, and a
@@ -195,6 +200,13 @@ timeout cannot extend either budget. Late queued stories do not receive a fresh 
 budget, and no new writer call starts after the cutoff.
 
 The reviewer covers every prose field with original-source quotes and reasoning.
+New summaries require a plain-text `title` of 1–160 characters on a single line.
+The writer creates a specific, catchy headline from the summary's strongest supported
+finding or tension. It should create curiosity while retaining material qualifications,
+avoiding clickbait and making only promises the summary delivers. The reviewer checks
+`/title` against both the summary and original evidence; revisions retain the field.
+The takeaway adds information beyond the headline. The reviewed prompt is
+`v15-editorial-titles`, with the same title contract in the legacy inference path.
 Code checks schema, citations, quote membership, required coverage and empty states.
 This verifies fidelity to the supplied material; it does not research external facts.
 If the five repairs or the shared editorial time budget are exhausted, the workflow
@@ -275,7 +287,7 @@ The source and underlying technical questions lead the coverage.
   Both editorial stages keep high reasoning effort and a 32,000-token response
   limit per call, including reasoning. The 220-character takeaway stays compact.
 
-The reviewed prompts are `v14-fuller-summaries` and `v6-fuller-topics`.
+The reviewed prompts are `v15-editorial-titles` and `v6-fuller-topics`.
 The legacy prompts in `pipeline/prompts.py` use the same length targets and no longer
 refer to the obsolete 8,000-token budget. Production cache identity hashes the full
 editorial prompts, so these changes invalidate the discussion-analysis fingerprint.
