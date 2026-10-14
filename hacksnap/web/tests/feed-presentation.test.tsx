@@ -118,6 +118,23 @@ test("feed previews preserve unmatched markers while stripping later valid bold"
   }
 });
 
+test("raw and public feed cards preserve malformed markers after whitespace normalization", () => {
+  for (const [discussion_preview, expected] of [
+    ["**line\nbreak**", "**line break**"],
+    ["**line\r\nbreak** and **valid**", "**line break** and valid"],
+  ]) {
+    const raw = { ...story, summary: { ...story.summary!, discussion_preview } };
+    const card = publicFeedStory(raw);
+    assert.equal(card.summary!.discussion_preview, expected);
+    for (const candidate of [raw, card]) {
+      const preview = render(<StoryRow story={candidate} />).match(
+        /class="feed-discussion-preview"[\s\S]*?<p>(.*?)<\/p>/,
+      )![1];
+      assert.equal(preview, expected);
+    }
+  }
+});
+
 test("appended and virtualized cards retain their own discussion previews", () => {
   const stories = Array.from({ length: 180 }, (_, index) =>
     publicFeedStory({

@@ -973,9 +973,12 @@ widget, with a blue heading and decorative Lucide sparkle icon using the
 `--discussion-summary-heading` token, which follows the shared accent color. The feed
 query selects up to two complete nonblank topic summaries, each within the generation
 schema's 600-character limit (at most 1,201 characters internally). Oversized stored
-values are omitted. The public feed serializer and card renderer strip supported
-bold formatting before making a 220-character plain-text excerpt, so a SQL cutoff
-cannot split a valid delimiter pair.
+values are omitted. The public feed serializer strips supported bold formatting
+before making a 220-character plain-text excerpt, so a SQL cutoff cannot split a
+valid delimiter pair. Cards render this normalized public preview directly; only
+raw database stories require conversion in the card renderer. Public previews are
+never reparsed, even when whitespace normalization makes a malformed multiline
+delimiter pair look like valid bold.
 The excerpt travels with its story through pagination, virtualization and session
 restoration, without extra detail queries. Legacy summaries and unavailable analysis
 omit the widget. Full discussion payloads stay out of public cards and snapshots.

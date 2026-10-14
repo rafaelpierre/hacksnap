@@ -30,7 +30,11 @@ export function StoryRow({
   lead?: boolean;
 }) {
   const takeaway = story.summary?.overall_takeaway?.trim();
-  const discussionPreview = discussionExcerpt(story.summary?.discussion_preview);
+  // Public stories have serialized dates and already-normalized plain-text previews.
+  const discussionPreview =
+    typeof story.date_added === "string"
+      ? story.summary?.discussion_preview?.trim()
+      : discussionExcerpt(story.summary?.discussion_preview);
   const image = canonicalArticleImage(story);
   const showArchive = variant === "ranked" && story.is_recent === false;
 

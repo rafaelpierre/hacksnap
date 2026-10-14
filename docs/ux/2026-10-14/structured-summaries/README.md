@@ -25,7 +25,7 @@ Validation:
   checks passed with no browser-console/hydration failures or axe WCAG A/AA violations.
 - PASS, content safety: generated HTML and links remain inert; Markdown exports
   escape unsupported syntax; RSS and structured data strip supported formatting.
-- PASS, implementation checks: 476 frontend tests, frontend lint, formatting,
+- PASS, implementation checks: 477 frontend tests, frontend lint, formatting,
   TypeScript and production build; 623 worker tests (two optional database integration
   tests skipped) and Ruff. Prompt tests use mocked inference, not a live model run.
 
@@ -41,6 +41,9 @@ Feed projections preserve up to two complete topic summaries within the schema's
 600-character limit per topic. Cards and the public feed strip bold markers before
 applying the 220-character excerpt limit. Regression coverage exercises the SQL
 projection, API output and card rendering, including bold spans across the former
-440-character SQL cutoff and oversized stored summaries.
+440-character SQL cutoff and oversized stored summaries. Public previews render
+without a second formatting pass. Multiline malformed pairs retain their literal
+markers consistently in API responses and raw or public feed cards after whitespace
+normalization.
 
 The final browser run passed without server or browser-console errors.
