@@ -873,6 +873,9 @@ popularity lists, sitemaps, RSS and direct story reads. They receive no discussi
 or sentiment refresh. The exclusion uses existing coverage metadata and needs no
 database migration or deletion. Cached public responses expire under the existing
 cache policy after deployment.
+Public reads also exclude URLs recorded in `hacksnap_fetch_failures`, including
+newly skipped stories that have no summary row. A corrected URL does not inherit
+the old URL's fetch failure; genuinely pending summaries keep their existing behavior.
 
 ### Structured brief inference compatibility
 

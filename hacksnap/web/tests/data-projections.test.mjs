@@ -174,6 +174,10 @@ test("browse readers filter pending briefs before 15-card limits, offsets, count
         FROM generate_series(110, 140) AS id;
       UPDATE hacksnap_summaries SET overall_takeaway = 'Source text unavailable.',
         source_coverage = '{"article_status":"unavailable"}' WHERE story_id = 140;
+      CREATE TABLE hacksnap_fetch_failures (story_id bigint PRIMARY KEY, article_url text);
+      UPDATE hacker_news_threads SET url = 'https://example.com/blocked' WHERE hn_id = 139;
+      UPDATE hacksnap_summaries SET overall_takeaway = 'Previously published' WHERE story_id = 139;
+      INSERT INTO hacksnap_fetch_failures VALUES (139, 'https://example.com/blocked');
     `);
     readyQuery = (statement, values) => {
       const sql = typeof statement === "string" ? statement : statement.text;
@@ -240,6 +244,8 @@ test("sitemap reader selects only published takeaways and retains canonical URLs
         story_id bigint PRIMARY KEY, overall_takeaway text, updated_at timestamptz, source_coverage jsonb
       );
       CREATE TABLE hn_thread_snapshots (hn_id bigint, observed_at timestamptz);
+      CREATE TABLE hacksnap_fetch_failures (story_id bigint PRIMARY KEY, article_url text);
+      ALTER TABLE hacker_news_threads ADD COLUMN url text;
       CREATE TABLE hacksnap_rank_history (hn_id bigint, observed_at timestamptz);
       INSERT INTO hacker_news_threads (hn_id, date_added)
         SELECT id, '2020-09-01T00:00:00Z' FROM generate_series(1, 7) AS id;
@@ -254,6 +260,9 @@ test("sitemap reader selects only published takeaways and retains canonical URLs
       INSERT INTO hn_thread_snapshots VALUES (6, '2020-09-03T00:00:00Z');
       INSERT INTO hacksnap_summaries (story_id, overall_takeaway, source_coverage)
         VALUES (1, 'Source text unavailable.', '{"article_status":"unavailable"}');
+      UPDATE hacker_news_threads SET url = 'https://example.com/blocked' WHERE hn_id = 2;
+      UPDATE hacksnap_summaries SET overall_takeaway = 'Previously published' WHERE story_id = 2;
+      INSERT INTO hacksnap_fetch_failures VALUES (2, 'https://example.com/blocked');
       INSERT INTO hacksnap_rank_history VALUES
         (6, '2020-09-04T00:00:00Z'), (6, '9999-09-01T00:00:00Z');
       INSERT INTO hacker_news_threads (hn_id, date_added) VALUES
@@ -561,6 +570,10 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
         FROM hacker_news_threads WHERE hn_id <> 8;
       INSERT INTO hacksnap_summaries (story_id, overall_takeaway, source_coverage)
         VALUES (8, 'Source text unavailable.', '{"article_status":"unavailable"}');
+      CREATE TABLE hacksnap_fetch_failures (story_id bigint PRIMARY KEY, article_url text);
+      UPDATE hacker_news_threads SET url = 'https://example.com/blocked' WHERE hn_id = 7;
+      DELETE FROM hacksnap_summaries WHERE story_id = 7;
+      INSERT INTO hacksnap_fetch_failures VALUES (7, 'https://example.com/blocked');
     `);
     for (const ready of [false, true]) {
       clock += 1_800_001;
@@ -592,6 +605,7 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
     // reappear through a direct URL or an export with its own query path.
     for (const load of [
       () => data.getStory("8"),
+      () => data.getStory("7"),
       () => data.getFeedStories(),
       () => data.getRssStories(),
     ]) {
@@ -603,9 +617,22 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
         q.includes("FROM hacker_news_threads t LEFT JOIN hacksnap_summaries"),
       );
       assert.ok(query);
-      const actual = await db.query(query, query.includes("$1") ? ["8"] : []);
-      assert.ok(actual.rows.every((row) => String(row.hn_id) !== "8"));
-      if (query.includes("$1")) assert.deepEqual(actual.rows, []);
+      if (query.includes("$1")) {
+        for (const id of ["7", "8"]) assert.deepEqual((await db.query(query, [id])).rows, []);
+        // A genuinely pending story remains accessible, and a corrected URL
+        // does not inherit a failure recorded for the old URL.
+        assert.equal((await db.query(query, ["6"])).rows.length, 1);
+        await db.exec(
+          "UPDATE hacker_news_threads SET url = 'https://example.com/corrected' WHERE hn_id = 7",
+        );
+        assert.equal((await db.query(query, ["7"])).rows.length, 1);
+        await db.exec(
+          "UPDATE hacker_news_threads SET url = 'https://example.com/blocked' WHERE hn_id = 7",
+        );
+      } else {
+        const actual = await db.query(query);
+        assert.ok(actual.rows.every((row) => !["7", "8"].includes(String(row.hn_id))));
+      }
     }
     await db.exec("DELETE FROM hacksnap_summaries WHERE story_id > 2");
     assert.deepEqual(
@@ -683,6 +710,7 @@ test("ready selection captures the first ten atomically and hydrates only reques
         SELECT id, 100 - id, CURRENT_TIMESTAMP FROM generate_series(1, 14) AS id;
       INSERT INTO hacksnap_summaries (story_id, overall_takeaway)
         SELECT id, CASE WHEN id <= 3 THEN ' ' ELSE 'Ready' END FROM generate_series(1, 14) AS id;
+      CREATE TABLE hacksnap_fetch_failures (story_id bigint PRIMARY KEY, article_url text);
     `);
     const selection = [...Array(11)].map((_, index) => ({
       hn_id: String(index + 4),

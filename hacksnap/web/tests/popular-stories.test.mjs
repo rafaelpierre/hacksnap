@@ -16,7 +16,9 @@ test("the six imported GA baselines rank by views, and a new reader can promote 
       INSERT INTO hacksnap_popularity_state VALUES(true,clock_timestamp());
       INSERT INTO hacker_news_threads SELECT n,'Story '||n,now() FROM generate_series(1,6) n;
       INSERT INTO hacksnap_summaries(story_id,overall_takeaway) SELECT n,'Ready' FROM generate_series(1,6) n;
-      INSERT INTO hacksnap_story_popularity(story_id,historical_views) VALUES (1,322),(2,20),(3,18),(4,12),(5,12),(6,8);`);
+      INSERT INTO hacksnap_story_popularity(story_id,historical_views) VALUES (1,322),(2,20),(3,18),(4,12),(5,12),(6,8);
+      CREATE TABLE hacksnap_fetch_failures (story_id bigint PRIMARY KEY, article_url text);
+      ALTER TABLE hacker_news_threads ADD COLUMN url text;`);
     const ranking = async () =>
       (await db.query(popularStoriesSQL(storySlugProjection(false)))).rows;
     assert.deepEqual(
@@ -61,7 +63,9 @@ test("popular ranking includes archived ready stories, excludes invalid/pending/
         (7,500,0,0),(8,500,0,0),(9,0,0,1000000),(0,500,0,0);
       INSERT INTO hacker_news_threads VALUES (10,'Unavailable',NULL,now());
       INSERT INTO hacksnap_summaries VALUES (10,'Source text unavailable.','{"article_status":"unavailable"}');
-      INSERT INTO hacksnap_story_popularity VALUES (10,1000000,0,0);`);
+      INSERT INTO hacksnap_story_popularity VALUES (10,1000000,0,0);
+      CREATE TABLE hacksnap_fetch_failures (story_id bigint PRIMARY KEY, article_url text);
+      ALTER TABLE hacker_news_threads ADD COLUMN url text;`);
     const rows = (await db.query(popularStoriesSQL(storySlugProjection(true)))).rows;
     assert.deepEqual(
       rows.map((row) => row.hn_id),
@@ -117,7 +121,9 @@ test("weekly ranking counts reads within 168 hours across old and new stories, e
       INSERT INTO hacksnap_popularity_events SELECT 0,'view',now() FROM generate_series(1,100);
       INSERT INTO hacker_news_threads VALUES (10,'Unavailable',NULL,now());
       INSERT INTO hacksnap_summaries VALUES (10,'Source text unavailable.','{"article_status":"unavailable"}');
-      INSERT INTO hacksnap_popularity_events SELECT 10,'view',now() FROM generate_series(1,200);`);
+      INSERT INTO hacksnap_popularity_events SELECT 10,'view',now() FROM generate_series(1,200);
+      CREATE TABLE hacksnap_fetch_failures (story_id bigint PRIMARY KEY, article_url text);
+      ALTER TABLE hacker_news_threads ADD COLUMN url text;`);
     const rows = (await db.query(popularStoriesSQL(storySlugProjection(true), "last-7-days"))).rows;
     assert.deepEqual(
       rows.map(({ hn_id, views }) => [hn_id, views]),
