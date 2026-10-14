@@ -102,14 +102,19 @@ test("feed cards and API previews strip bold before truncating", () => {
 });
 
 test("feed previews preserve unmatched markers while stripping later valid bold", () => {
-  const raw = {
-    ...story,
-    summary: { ...story.summary!, discussion_preview: "**unclosed and **valid**" },
-  };
-  const card = publicFeedStory(raw);
-  assert.equal(card.summary!.discussion_preview, "**unclosed and valid");
-  for (const candidate of [raw, card]) {
-    assert.match(render(<StoryRow story={candidate} />), /<p>\*\*unclosed and valid<\/p>/);
+  for (const prefix of ["**unclosed and ", "\\**literal and ", "***literal and "]) {
+    const raw = {
+      ...story,
+      summary: { ...story.summary!, discussion_preview: `${prefix}**valid**` },
+    };
+    const card = publicFeedStory(raw);
+    assert.equal(card.summary!.discussion_preview, `${prefix}valid`);
+    for (const candidate of [raw, card]) {
+      const preview = render(<StoryRow story={candidate} />).match(
+        /class="feed-discussion-preview"[\s\S]*?<p>(.*?)<\/p>/,
+      )![1];
+      assert.equal(preview, `${prefix}valid`);
+    }
   }
 });
 

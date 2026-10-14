@@ -5,17 +5,16 @@ export type SummaryBlock = { kind: "paragraph" | "h2" | "h3"; text: string };
 export function summarySpans(value: string): SummarySpan[] {
   const spans: SummarySpan[] = [];
   let offset = 0;
-  let opening: { index: number; length: number; canOpen: boolean } | null = null;
+  let opening: { index: number; length: number; startsWithText: boolean } | null = null;
   for (const delimiter of value.matchAll(/\*{2,}/g)) {
+    const startsWithText = /\S/.test(value[delimiter.index + delimiter[0].length] ?? "");
     const canOpen =
-      delimiter[0].length === 2 &&
-      value[delimiter.index - 1] !== "\\" &&
-      /\S/.test(value[delimiter.index + delimiter[0].length] ?? "");
+      delimiter[0].length === 2 && value[delimiter.index - 1] !== "\\" && startsWithText;
     const canClose = /\S/.test(value[delimiter.index - 1] ?? "");
-    // An opening-only marker starts a new pair after an unmatched valid opener.
-    // Keep malformed pairs reserved so their closing marker cannot be reused.
-    if (!opening || (opening.canOpen && canOpen && !canClose)) {
-      opening = { index: delimiter.index, length: delimiter[0].length, canOpen };
+    // Recover after unclosed content even when its delimiter is escaped or unsupported.
+    // Reserve padded pairs so their malformed closing marker cannot start a bold span.
+    if (!opening || (opening.startsWithText && canOpen && !canClose)) {
+      opening = { index: delimiter.index, length: delimiter[0].length, startsWithText };
       continue;
     }
     const text = value.slice(opening.index + opening.length, delimiter.index);

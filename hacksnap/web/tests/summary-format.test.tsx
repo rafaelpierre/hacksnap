@@ -46,8 +46,10 @@ test("malformed bold pairs remain literal without consuming the following valid 
     "**broken * phrase**",
     "** padded **",
     "***unsupported***",
+    "****unsupported****",
     "**line\nbreak**",
     "\\**escaped**",
+    "\\***escaped***",
   ]) {
     for (const separator of [" and ", "and"]) {
       const text = `${malformed}${separator}**valid**`;
@@ -65,7 +67,16 @@ test("malformed bold pairs remain literal without consuming the following valid 
 });
 
 test("unmatched bold openers do not consume later valid emphasis", () => {
-  for (const prefix of ["**unclosed and ", "**unclosed\n", "**first **second "]) {
+  for (const prefix of [
+    "**unclosed and ",
+    "**unclosed\n",
+    "**first **second ",
+    "\\**literal and ",
+    "***literal and ",
+    "****literal and ",
+    "\\***literal\n",
+    "\\**first ***second ",
+  ]) {
     const text = `${prefix}**valid** and **also valid**`;
     assert.equal(
       renderToStaticMarkup(<SummaryInline text={text} />),
