@@ -159,6 +159,8 @@ def validate_draft(draft: BaseModel, source: dict, operation: str) -> list[str]:
         value = GeneratedStorySummary.model_validate(draft.model_dump())
         if bool(source["comments"]) != bool(value.discussion_summary.bullets):
             raise ValueError("Discussion bullets disagree with supplied comments")
+        if not source["comments"] and value.discussion_summary.opening != "No additional analysis available.":
+            raise ValueError("No-comments discussion requires the prescribed empty-state opening")
         value.to_summary().validate_sources(source["article"], source["comments"],
                                            source.get("story_text"))
     else:
@@ -171,8 +173,13 @@ def validate_draft(draft: BaseModel, source: dict, operation: str) -> list[str]:
         if re.search(r"\b(the article|the discussion|the thread|commenters?|the tester|"
                      r"hacker news users)\b", text, re.IGNORECASE):
             issues.append(f"{path}: remove source-narration")
-        if any(re.search(rf"(?<!\w){re.escape(author)}(?!\w)", text.casefold())
-               for author in authors):
+        # Plain alphabetic handles can also be ordinary words or company names.
+        # Require explicit attribution for those; leave ambiguous prose to review.
+        if any(re.search(
+            (rf"(?<!\w){re.escape(author)}(?!\w)" if not author.isalpha() else
+             rf"(?<!\w)(?:@|(?:user|username)\s+){re.escape(author)}(?!\w)"),
+            text.casefold(),
+        ) for author in authors):
             issues.append(f"{path}: remove comment-author name")
         if path.endswith("/title"):
             summary_path = path.removesuffix("/title") + "/summary"

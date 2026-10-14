@@ -188,6 +188,41 @@ def test_author_names_checked_with_word_boundaries(source, draft):
     assert not validate_draft(good, source, "summary")
 
 
+@pytest.mark.parametrize("author", ["it", "one", "test", "memory", "Probe"])
+def test_ordinary_word_handles_do_not_block_valid_prose(author, source, draft):
+    source["comments"][0]["author"] = author
+    draft.discussion_summary.opening = "One local test measured memory use; it reached 6GB, according to one test."
+    writer, reviewer = FakeInference([draft]), FakeInference([verdict(draft)])
+    result = asyncio.run(reviewed_generation(writer, reviewer, source))
+    assert result.status == "accepted"
+    assert len(writer.calls) == 1
+
+
+@pytest.mark.parametrize("text", ["@test measured 6GB.", "Username test reported 6GB.",
+                                  "User test measured 6GB."])
+def test_explicit_attribution_of_word_handles_is_rejected(text, source, draft):
+    source["comments"][0]["author"] = "test"
+    draft.overall_takeaway = text
+    assert any("comment-author" in issue for issue in validate_draft(draft, source, "summary"))
+
+
+@pytest.mark.parametrize("opening", ["A major release arrived", "No additional analysis available."])
+def test_no_comments_opening_enforced_before_review(opening, source, draft):
+    source["comments"] = []
+    draft.sentiment = None
+    draft.discussion_points = []
+    draft.discussion_analysis = GeneratedDiscussionAnalysis(status="no_comments", topics=[])
+    draft.discussion_summary.opening = opening
+    draft.discussion_summary.bullets = []
+    writer, reviewer = FakeInference([draft]), FakeInference([verdict(draft)])
+    if opening == "No additional analysis available.":
+        assert asyncio.run(reviewed_generation(writer, reviewer, source)).status == "accepted"
+    else:
+        with pytest.raises(ValueError, match="empty-state opening"):
+            asyncio.run(reviewed_generation(writer, reviewer, source))
+        assert not reviewer.calls
+
+
 def test_approval_without_positive_evidence_fails(source, draft):
     review = verdict(draft)
     review.checks[0].evidence.clear()
