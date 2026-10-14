@@ -96,10 +96,10 @@ export function SharePanel({
     };
   }, [open]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const label = pendingEditorFocus.current;
     pendingEditorFocus.current = null;
-    if (!open || !Editor || !label) return;
+    if (!open || !Editor || !label || document.activeElement !== document.body) return;
     const actions = dialog.current?.querySelectorAll<HTMLButtonElement>(
       ".share-actions button, .share-copy-post",
     );
@@ -127,16 +127,7 @@ export function SharePanel({
     setLoadFailed(false);
     void loadShareEditor()
       .then(({ ShareEditor }) => {
-        const active = document.activeElement;
-        pendingEditorFocus.current = null;
-        if (
-          active instanceof HTMLElement &&
-          dialog.current?.contains(active) &&
-          active.tagName === "BUTTON" &&
-          (active.closest(".share-actions") || active.classList.contains("share-copy-post"))
-        ) {
-          pendingEditorFocus.current = active.textContent?.trim() || "Copy link";
-        } else if (active === document.body && retryHadFocus.current) {
+        if (document.activeElement === document.body && retryHadFocus.current) {
           pendingEditorFocus.current = "Copy link";
         }
         retryHadFocus.current = false;
@@ -221,6 +212,17 @@ export function SharePanel({
         ref={dialog}
         aria-labelledby={`${panelId}-heading`}
         aria-describedby={`${panelId}-story`}
+        onFocusCapture={(event) => {
+          if (Editor) return;
+          const active = event.target;
+          // Focus can move after the import resolves but before React replaces the fallback.
+          pendingEditorFocus.current =
+            active instanceof HTMLElement &&
+            active.tagName === "BUTTON" &&
+            (active.closest(".share-actions") || active.classList.contains("share-copy-post"))
+              ? active.textContent?.trim() || "Copy link"
+              : null;
+        }}
         onCancel={(event) => {
           event.preventDefault();
           close();
