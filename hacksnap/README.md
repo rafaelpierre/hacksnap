@@ -1,5 +1,17 @@
 # Hacksnap
 
+Generated article briefs begin with a short paragraph, followed by informative H2
+sections where the source warrants them; H3 is reserved for a subsection within H2.
+The 160-240-word target for substantial sources still applies; short sources can
+stay a single paragraph.
+Briefs, key points and discussion topic/point summaries can use selective bold for
+important findings or qualifications. Titles, feed takeaways and the legacy discussion
+introduction stay plain text. The writer, topic refresh and editorial reviewer share
+these rules in `pipeline/summary_format.py`, including the fallback generator.
+Formatting is stored in the existing strings and rendered safely by the website.
+The new prompt versions apply on subsequent generation; this change does not backfill
+existing summaries or trigger a production run.
+
 An article + HN discussion digest refreshed four times a day on top of the existing collector.
 The Modal schedule runs only at 08:00, 12:00, 16:00, and 20:00 in
 `America/New_York` (four runs per day). It follows EST/EDT automatically.
@@ -258,11 +270,13 @@ pushing its feature branch only runs CI. No separate activation flag is required
 and information density, with Financial Times-style clarity, restraint and skepticism.
 The source and underlying technical questions lead the coverage.
 
-- **TLDR:** for substantial sources, `article_summary` targets 160-240 words covering
+- **Article brief:** for substantial sources, `article_summary` targets 160-240 words covering
   the central contribution, how it works, the strongest evidence and supported
-  limitations. `article_key_points` adds 1-6 non-repeating facts, normally 30-60 words
+  limitations, with H2 sections and optional H3 subsections when useful.
+  `article_key_points` adds 1-6 non-repeating facts, normally 30-60 words
   each when explanation is useful. Short sources still need only a brief summary
   and one useful point; word targets are guidance, not minimums.
+  Both can use selective bold emphasis.
 - **Discussion:** the model returns `discussion_summary` as an object with a short
   `opening` sentence and 1-4 `bullets`, each developing one argument with its reasoning
   and material qualifications. Substantive samples target 180-280 words total and

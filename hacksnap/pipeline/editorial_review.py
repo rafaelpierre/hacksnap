@@ -19,8 +19,9 @@ from .models import (
     StrictModel,
 )
 from .preprocess import sample_sentiment_comments
+from .summary_format import SUMMARY_FORMAT_PROMPT
 
-REVIEW_VERSION = "v7-headline-review"
+REVIEW_VERSION = "v8-summary-formatting"
 MAX_REVIEW_REPAIRS = 5
 logger = logging.getLogger("hacksnap")
 
@@ -97,7 +98,7 @@ or append new information. Approve only if no corrections are required. Return o
 the requested structured review. An empty findings array requires decision=accept;
 otherwise decision=revise. Do not flag ordinary factual comparisons or necessary
 negation as a formulaic contrast. Check semantic meaning, not just keywords.
-""" + EDITORIAL_STYLE_PROMPT
+""" + EDITORIAL_STYLE_PROMPT + SUMMARY_FORMAT_PROMPT
 
 REVIEW_REPAIR_PROMPT = """
 Your previous review failed validation. Return a COMPLETE replacement review,

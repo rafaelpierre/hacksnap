@@ -1,0 +1,73 @@
+export type SummarySpan = { text: string; strong: boolean };
+export type SummaryBlock = { kind: "paragraph" | "h2" | "h3"; text: string };
+
+// A deliberately small Markdown subset. Everything else remains literal text.
+export function summarySpans(value: string): SummarySpan[] {
+  const spans: SummarySpan[] = [];
+  let offset = 0;
+  for (const match of value.matchAll(/(?<![\\*])\*\*([^*\n]+)\*\*(?!\*)/g)) {
+    if (match[1] !== match[1].trim()) continue;
+    if (match.index > offset) spans.push({ text: value.slice(offset, match.index), strong: false });
+    spans.push({ text: match[1], strong: true });
+    offset = match.index + match[0].length;
+  }
+  if (offset < value.length) spans.push({ text: value.slice(offset), strong: false });
+  return spans;
+}
+
+export function summaryBlocks(value: string): SummaryBlock[] {
+  const blocks: SummaryBlock[] = [];
+  let paragraph: string[] = [];
+  let hasSection = false;
+  const flush = () => {
+    if (paragraph.length) blocks.push({ kind: "paragraph", text: paragraph.join(" ") });
+    paragraph = [];
+  };
+  for (const line of value.replace(/\r\n?/g, "\n").split("\n")) {
+    const heading = /^(#{2,3})[ \t]+(\S.*)$/.exec(line);
+    if (heading) {
+      flush();
+      // An orphan H3 becomes H2 so malformed output cannot skip a heading level.
+      const kind = heading[1] === "###" && hasSection ? "h3" : "h2";
+      blocks.push({ kind, text: heading[2].trim() });
+      hasSection = true;
+    } else if (!line.trim()) flush();
+    else paragraph.push(line.trim().replace(/\s+/g, " "));
+  }
+  flush();
+  return blocks;
+}
+
+export function summaryInlineText(value: string): string {
+  return summarySpans(value)
+    .map((span) => span.text)
+    .join("");
+}
+
+export function summaryPlainText(value: string): string {
+  return summaryBlocks(value)
+    .map((block) => summaryInlineText(block.text))
+    .join("\n\n");
+}
+
+export function escapeMarkdownText(value: string): string {
+  return value.replace(/\r\n?/g, "\n").replace(/([\\`*_{}[\]<>#+.!|~-])/g, "\\$1");
+}
+
+export function summaryInlineMarkdown(value: string): string {
+  return summarySpans(value)
+    .map((span) => {
+      const escaped = escapeMarkdownText(span.text);
+      return span.strong ? `**${escaped}**` : escaped;
+    })
+    .join("");
+}
+
+export function summaryMarkdown(value: string): string {
+  return summaryBlocks(value)
+    .map((block) => {
+      const prefix = block.kind === "h2" ? "## " : block.kind === "h3" ? "### " : "";
+      return prefix + summaryInlineMarkdown(block.text);
+    })
+    .join("\n\n");
+}

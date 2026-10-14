@@ -8,6 +8,11 @@ import { storyIndicators } from "./story-indicators.ts";
 import { storyMetricsText } from "./story-metrics.ts";
 import { categoryById, categoryURL, type Category } from "./categories.ts";
 import { storyDiscussion, storySource } from "./story-presentation.ts";
+import {
+  escapeMarkdownText as text,
+  summaryInlineMarkdown,
+  summaryMarkdown,
+} from "./summary-format";
 
 // Match product tokens, not generic browser strings or lookalike bot names.
 export function isAiAgent(userAgent: string | null): boolean {
@@ -39,10 +44,6 @@ export function acceptsMarkdown(accept: string | null): boolean {
   return markdown > 0 && markdown >= html;
 }
 
-function text(value: string): string {
-  return value.replace(/\r\n?/g, "\n").replace(/([\\`*_{}[\]<>#+.!|~-])/g, "\\$1");
-}
-
 function link(label: string, url: string): string {
   return `[${text(label)}](<${url.replace(/[<>\s]/g, (c) => encodeURIComponent(c))}>)`;
 }
@@ -67,7 +68,7 @@ function discussionMarkdown(summary: DiscussionFields): string[] {
     return lines;
   }
   for (const topic of analysis.topics) {
-    lines.push(`### ${text(topic.title)}`, text(topic.summary));
+    lines.push(`### ${text(topic.title)}`, summaryInlineMarkdown(topic.summary));
     if (topic.comment_ids.length)
       lines.push(
         "Sources: " +
@@ -122,7 +123,7 @@ export function storyMarkdown(
     text(summary.overall_takeaway),
     source.kind === "article" ? "## The brief" : "## The post",
     source.brief === "available" && summary.article_summary
-      ? text(summary.article_summary)
+      ? summaryMarkdown(summary.article_summary)
       : source.brief === "unavailable"
         ? "The original article couldn’t be retrieved. This brief covers the discussion only."
         : source.kind === "article"
@@ -130,7 +131,10 @@ export function storyMarkdown(
           : "This is an HN post. The discussion is summarized below.",
   );
   if (source.brief === "available" && summary.article_key_points.length)
-    lines.push(summary.article_key_points.map((p) => `- ${text(p)}`).join("\n"));
+    lines.push(
+      "## The bits that matter",
+      summary.article_key_points.map((p) => `- ${summaryInlineMarkdown(p)}`).join("\n"),
+    );
   lines.push("## Discussion themes");
   if (discussion.kind === "legacy_empty")
     lines.push("No usable discussion was available for this summary.");
@@ -138,7 +142,7 @@ export function storyMarkdown(
   if (discussion.kind === "legacy" && !discussion.topics.length)
     lines.push("No distinct themes were identified in this summary.");
   for (const point of discussion.kind === "legacy" ? discussion.topics : []) {
-    lines.push(`### ${text(point.title)}`, text(point.summary));
+    lines.push(`### ${text(point.title)}`, summaryInlineMarkdown(point.summary));
     if (point.comment_ids.length)
       lines.push(
         "Sources: " +

@@ -49,6 +49,30 @@ const relatedStories: RelatedStory[] = [
   },
 ];
 
+test("formatted article and legacy discussion render safely and export plain structured data", () => {
+  const formatted: Story = {
+    ...story,
+    summary: {
+      ...story.summary!,
+      article_summary:
+        "A **reported result**.\n\n## Test setup\n\nOne workload.\n\n### Caveat\n\nLimited scope.",
+      article_key_points: ["A **fixed baseline**."],
+      discussion_points: [
+        { title: "Evidence", summary: "A **self-reported test**.", comment_ids: [123] },
+      ],
+    },
+  };
+  const html = render(createElement(StoryContent, { story: formatted }));
+  assert.match(html, /<h2>Test setup<\/h2>/);
+  assert.match(html, /<h3>Caveat<\/h3>/);
+  assert.match(html, /<li>A <strong>fixed baseline<\/strong>\.<\/li>/);
+  assert.match(html, /A <strong>self-reported test<\/strong>\./);
+  const script = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)!;
+  const graph = JSON.parse(script[1])["@graph"];
+  assert.match(graph[0].articleBody, /Test setup/);
+  assert.doesNotMatch(graph[0].articleBody, /\*\*|##/);
+});
+
 test("external links open new tabs across feed, legacy and pending story states", () => {
   const legacy: Story = {
     ...story,
@@ -103,7 +127,7 @@ test("server-rendered stories include schema and forum links target the displaye
           {
             key: "evidence" as const,
             title: "Evidence",
-            summary: "Evidence is limited.",
+            summary: "Evidence is **limited**.",
             comment_ids: [123],
           },
         ],

@@ -1,6 +1,7 @@
 import { canonicalStoryUrl } from "./story-url";
 import type { ExportStory } from "./story-domain";
 import { storyIndicators } from "./story-indicators.ts";
+import { summaryPlainText } from "./summary-format";
 
 function html(value: string): string {
   return value
@@ -33,7 +34,11 @@ ${stories
     const url = canonicalStoryUrl(story.hn_id, story.story_slug);
     const summary = story.summary;
     const description = summary
-      ? [summary.overall_takeaway, summary.article_summary, summary.discussion_summary]
+      ? [
+          summary.overall_takeaway,
+          summary.article_summary ? summaryPlainText(summary.article_summary) : null,
+          summary.discussion_summary,
+        ]
           .filter(Boolean)
           .join("\n\n")
       : "Summary pending. Read the original sources and Hacker News discussion on Hacksnap.";

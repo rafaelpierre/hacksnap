@@ -10,7 +10,7 @@ import { StoryRail } from "../../story-rail";
 import { ShareLinks } from "../../share-links";
 import { briefExcerpt } from "../../../lib/brief";
 import { StoryJourney } from "../../story-navigation";
-import { briefOpening, briefSentences } from "../../../lib/article-brief";
+import { ArticleSummary, SummaryInline } from "../../summary-text";
 import { StoryAge } from "../../story-age";
 import { CategoryBadge } from "../../categories";
 import { RelatedStories } from "../../related-stories";
@@ -46,7 +46,6 @@ export function StoryContent({
   const fullTakeaway = summary?.overall_takeaway?.trim().replace(/\s+/g, " ");
   const source = storySource(story.url, summary);
   const article = source.article;
-  const opening = briefOpening(summary?.article_summary);
   const discussion = storyDiscussion(summary);
   const hnURL = `https://news.ycombinator.com/item?id=${story.hn_id}`;
   const category = categoryById(story.category);
@@ -92,28 +91,15 @@ export function StoryContent({
             {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
             {source.brief === "available" ? (
               <>
-                <p>
-                  {briefSentences(summary.article_summary).map((sentence, index) => (
-                    <span className="article-brief-sentence" key={index}>
-                      {index === 0 && article && opening ? (
-                        <>
-                          <a href={article} target="_blank" rel="noopener noreferrer">
-                            {opening}
-                          </a>
-                          {sentence.slice(opening.length)}
-                        </>
-                      ) : (
-                        sentence
-                      )}
-                    </span>
-                  ))}
-                </p>
+                <ArticleSummary text={summary.article_summary ?? ""} sourceUrl={article} />
                 {summary.article_key_points.length > 0 && (
                   <>
                     <h2 className="key-points-heading">The bits that matter</h2>
                     <ul className="key-points">
                       {summary.article_key_points.map((point, i) => (
-                        <li key={i}>{point}</li>
+                        <li key={i}>
+                          <SummaryInline text={point} />
+                        </li>
                       ))}
                     </ul>
                   </>
@@ -159,7 +145,9 @@ export function StoryContent({
                               <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
                             </summary>
                             <div className="analysis-theme-body">
-                              <p>{point.summary}</p>
+                              <p>
+                                <SummaryInline text={point.summary} />
+                              </p>
                               {point.comment_ids.length > 0 && (
                                 <div className="comment-links">
                                   <span>Source comments</span>

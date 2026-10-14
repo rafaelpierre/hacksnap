@@ -9,6 +9,17 @@ stays stored; pending summaries and HN self-posts keep their existing behavior.
 
 ## Typography
 
+Article summaries support a limited Markdown subset: `##` section headings, `###`
+subheadings and selective `**bold**` emphasis. Key points and discussion topic/point
+summaries support bold only. The server renders this subset as semantic React elements;
+HTML, links, images and other Markdown stay literal text. Plain-text saved summaries
+remain readable, including their linked opening and sentence spacing. An orphan H3
+is promoted to H2 to avoid skipping a heading level.
+
+Markdown exports preserve this formatting while escaping all other source syntax.
+RSS descriptions and structured-data text remove supported formatting markers.
+Feed takeaways and titles remain plain text. No database migration is needed.
+
 Bricolage Grotesque is used for the wordmark, feed and reader headlines, section
 headings and related stories. Source Sans 3 carries navigation, metadata, feed
 takeaways, reader introductions, article text and About-page copy. Article text matches the byline
@@ -22,8 +33,8 @@ Article brief prose separates sentences with one empty line of CSS spacing
 (`margin-top: 1lh`), while wrapped lines keep the normal line height. It uses `sbd` sentence
 boundary detection during HTML rendering to handle abbreviations, initials,
 URLs and decimals. The tokenizer stays in the article renderer's server module
-graph. Stored summaries and generation prompts are unchanged; Markdown, RSS
-and API responses retain the original text.
+graph. Sentence spacing is presentation-only; the formatting rules above determine
+how the stored summary appears in HTML, Markdown, RSS and structured data.
 
 The first article-summary excerpt links to the validated original source in the
 server-rendered HTML. The excerpt stops before the first punctuation mark (including
