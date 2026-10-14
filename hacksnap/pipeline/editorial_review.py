@@ -140,9 +140,15 @@ def validate_review(review: EditorialReview, draft: dict, source: dict) -> None:
         if (check.path == "/article_summary" and paths[check.path] == ARTICLE_UNAVAILABLE_NOTICE
                 and not any(evidence.source == "article" for evidence in check.evidence)):
             raise ValueError("Unavailable-article claim requires evidence from the retrieved page")
-        is_notice = paths[check.path] in {
-            "No additional analysis available.", "Source text unavailable.",
-        }
+        is_notice = (
+            check.path == "/discussion_summary/opening"
+            and paths[check.path] == "No additional analysis available."
+            and not source["comments"]
+        ) or (
+            check.path == "/overall_takeaway"
+            and paths[check.path] == "Source text unavailable."
+            and source.get("article") is None
+        )
         if not check.evidence and not is_notice and check.path not in style_rejections:
             raise ValueError("Reviewed field has no source evidence")
         for evidence in check.evidence:
@@ -173,6 +179,14 @@ def validate_draft(draft: BaseModel, source: dict, operation: str) -> list[str]:
     issues = []
     authors = {c.get("author", "").casefold() for c in source["comments"]} - {""}
     for path, text in prose_fields(draft.model_dump()).items():
+        if text == "No additional analysis available." and (
+                path != "/discussion_summary/opening" or source["comments"]):
+            issues.append(f"{path}: no-comments notice requires an empty discussion opening")
+        if text == "Source text unavailable." and (
+                path != "/overall_takeaway" or (
+                    source.get("article") is not None
+                    and draft.model_dump().get("article_summary") != ARTICLE_UNAVAILABLE_NOTICE)):
+            issues.append(f"{path}: source-unavailable notice requires a missing-source takeaway")
         if re.search(r"\b(the article|the discussion|the thread|commenters?|the tester|"
                      r"hacker news users)\b", text, re.IGNORECASE):
             issues.append(f"{path}: remove source-narration")

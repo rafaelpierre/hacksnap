@@ -317,9 +317,61 @@ def test_genuinely_unusable_page_can_be_accepted_after_evidence_review(source, u
     review = verdict(unavailable_draft)
     for check in review.checks:
         check.evidence = []
-        if check.path == "/article_summary":
+        if check.path in {"/article_summary", "/overall_takeaway"}:
             check.evidence = [Evidence(source="article", comment_id=None, quote=source["article"])]
     review = EditorialReview.model_validate(review.model_dump())
     result = asyncio.run(reviewed_generation(FakeInference([unavailable_draft]),
                                             FakeInference([review]), source))
     assert result.status == "accepted"
+
+
+@pytest.mark.parametrize("path,notice", [
+    ("/discussion_summary/opening", "No additional analysis available."),
+    ("/discussion_summary/bullets/0", "No additional analysis available."),
+    ("/discussion_points/0/title", "No additional analysis available."),
+    ("/overall_takeaway", "Source text unavailable."),
+    ("/article_summary", "Source text unavailable."),
+])
+def test_notices_cannot_bypass_review_with_present_sources(path, notice, source, draft):
+    data = draft.model_dump()
+    target = data
+    parts = path.strip("/").split("/")
+    for part in parts[:-1]:
+        target = target[int(part)] if isinstance(target, list) else target[part]
+    target[int(parts[-1]) if isinstance(target, list) else parts[-1]] = notice
+    draft = GeneratedStorySummary.model_validate(data)
+    review = verdict(draft)
+    next(check for check in review.checks if check.path == path).evidence = []
+    with pytest.raises(ValueError, match="no source evidence"):
+        validate_review(review, data, source)
+    # Even a reviewer supplying an unrelated quote cannot override the state gate.
+    result = asyncio.run(reviewed_generation(FakeInference([draft, draft]),
+        FakeInference([verdict(draft), verdict(draft)]), source))
+    assert result.status == "rejected" and result.draft is None
+
+
+def test_missing_source_notices_are_exempt_only_on_prescribed_paths(source, unavailable_draft):
+    source["article"] = None
+    unavailable_draft.article_summary = None
+    review = verdict(unavailable_draft)
+    for check in review.checks:
+        check.evidence = []
+    validate_review(review, unavailable_draft.model_dump(), source)
+    # An empty source does not allow the notices to swap fields.
+    unavailable_draft.overall_takeaway = "No additional analysis available."
+    unavailable_draft.discussion_summary.opening = "Source text unavailable."
+    review = verdict(unavailable_draft)
+    for check in review.checks:
+        check.evidence = []
+    with pytest.raises(ValueError, match="no source evidence"):
+        validate_review(review, unavailable_draft.model_dump(), source)
+
+
+def test_unusable_page_takeaway_still_requires_evidence(source, unavailable_draft):
+    source["article"] = "Access denied."
+    review = verdict(unavailable_draft)
+    for check in review.checks:
+        check.evidence = [Evidence(source="article", comment_id=None, quote=source["article"])]
+    next(check for check in review.checks if check.path == "/overall_takeaway").evidence = []
+    with pytest.raises(ValueError, match="no source evidence"):
+        validate_review(review, unavailable_draft.model_dump(), source)
