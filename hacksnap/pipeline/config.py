@@ -38,6 +38,7 @@ class Settings:
     comment_chars: int = DEFAULT_COMMENT_CHARS
     fetch_timeout: int = 30
     llm_timeout: int = 120
+    reviewer_timeout: int = 300
     sentiment_base_url: str = SENTIMENT_BASE_URL
     sentiment_model: str = SENTIMENT_MODEL
     sentiment_api_key: str | None = None
@@ -61,7 +62,11 @@ class Settings:
         sentiment_model = os.environ.get("MODAL_SENTIMENT_MODEL", SENTIMENT_MODEL).strip()
         if not sentiment_model:
             raise ValueError("MODAL_SENTIMENT_MODEL must not be empty")
+        reviewer_timeout = int(os.environ.get("HACKSNAP_REVIEWER_TIMEOUT_SECONDS", "300"))
+        if reviewer_timeout <= 0:
+            raise ValueError("HACKSNAP_REVIEWER_TIMEOUT_SECONDS must be positive")
         return cls(
+            reviewer_timeout=reviewer_timeout,
             database_url=database_url,
             llm_base_url=endpoint,
             llm_model=os.environ["MODAL_LLM_MODEL"],
