@@ -164,8 +164,10 @@ for the response budget, local checks, and metrics to collect during normal proc
 
 `pipeline.refresh.run()` uses `ReviewedSummarizer` for new summaries and discussion
 refreshes. The configured DeepSeek endpoint writes; the configured GLM sentiment
-endpoint reviews at high reasoning effort. Sentiment remains a separate GLM call
-using its existing sentiment prompt and reasoning setting.
+endpoint reviews. Both stages use fixed high reasoning effort, including revisions
+and review repairs. `MODAL_LLM_REASONING_EFFORT` applies only to the legacy
+summarizer; it cannot lower the reviewed pipeline's effort. Sentiment remains a
+separate GLM call using its existing sentiment prompt and reasoning setting.
 
 The workflow uses the OpenAI Agents SDK, installed as a runtime dependency by the
 Modal image's normal `uv_sync`. Each operation creates separate async clients so

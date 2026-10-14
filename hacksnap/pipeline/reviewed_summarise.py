@@ -30,7 +30,7 @@ class ReviewedSummarizer:
         self.deadline = deadline
         self.writer_config = {
             "base_url": settings.llm_base_url, "api_key": settings.llm_api_key,
-            "model": settings.llm_model, "effort": settings.llm_reasoning_effort,
+            "model": settings.llm_model, "effort": "high",
             "timeout": settings.llm_timeout,
         }
         self.reviewer_config = {
