@@ -122,7 +122,8 @@ class FakeRepository:
         self.rank_observations = []
 
     def get_current_top_stories(self, limit):
-        return [s for s in self.stories if self.failures.get(s["hn_id"]) != s["url"]][:limit]
+        return [s for s in self.stories
+                if s["hn_id"] not in self.failures or self.failures[s["hn_id"]] != s["url"]][:limit]
 
     def cleanup_contents(self):
         return {}
@@ -133,7 +134,8 @@ class FakeRepository:
 
     def record_rank_history(self):
         self.rank_observations.append([s["hn_id"] for s in self.stories
-                                       if self.failures.get(s["hn_id"]) != s["url"]])
+                                       if s["hn_id"] not in self.failures
+                                       or self.failures[s["hn_id"]] != s["url"]])
 
     def save_fetch_failure(self, story_id, article_url):
         self.failures[story_id] = article_url
@@ -313,6 +315,62 @@ def test_hn_self_post_never_fetches_hn_again():
     assert process_story(item, repo, None, FakeSummarizer()) == "generated"
     assert repo.saved[100]["summary"].article_summary is None
     assert repo.saved[100]["coverage"]["article_status"] == "not_applicable"
+
+
+@pytest.mark.parametrize("url", [None, "", "https://news.ycombinator.com/item?id=100"])
+@pytest.mark.parametrize("text", [None, " \n\t", "<p>&nbsp;</p>", "<script>hidden</script>"])
+def test_title_only_posts_skip_generation_and_publication(url, text, caplog):
+    item = story()
+    item["url"] = url
+    item["full_raw_text_contents"] = json.dumps({
+        "story": {"id": 100, "text": text},
+        "comments": payload()["comments"][2:],  # Only dead, deleted and empty comments.
+    })
+    repo, model = FakeRepository([item]), FakeSummarizer()
+    fetcher = SimpleNamespace(fetch=lambda _: pytest.fail("must not fetch a self-post"))
+    repo.enqueue_image = lambda *a, **kw: pytest.fail("must not enqueue an unpublished story")
+    with caplog.at_level("INFO", logger="hacksnap"):
+        counts = refresh(repo, fetcher, model, image_enabled=True)
+    assert counts["unavailable"] == 1
+    assert counts["failed"] == counts["generated"] == 0
+    assert model.calls == model.sentiment_calls == 0
+    assert not model.discussion_calls
+    assert not repo.saved and not repo.failures
+    assert '"status": "no_source_content"' in caplog.text
+
+    # Later ingestion can make the same post eligible without clearing a failure marker.
+    item["full_raw_text_contents"] = json.dumps(payload())
+    assert process_story(item, repo, fetcher, model) == "generated"
+    assert 100 in repo.saved
+
+
+@pytest.mark.parametrize("source_kind", ["article", "story_text", "comments"])
+def test_one_usable_source_is_enough_for_initial_generation(source_kind):
+    item = story()
+    item["url"] = item["url"] if source_kind == "article" else None
+    item["full_raw_text_contents"] = json.dumps({
+        "story": {"id": 100, "text": "<p>My new inference prototype.</p>"
+                  if source_kind == "story_text" else ""},
+        "comments": payload()["comments"] if source_kind == "comments" else [],
+    })
+
+    class SourceSummarizer(FakeSummarizer):
+        def summarize(self, source):
+            self.calls += 1
+            assert bool(source["article"]) == (source_kind == "article")
+            assert bool(source["story_text"]) == (source_kind == "story_text")
+            assert bool(source["comments"]) == (source_kind == "comments")
+            result = output(source_kind == "article")
+            if not source["comments"]:
+                result.update(sentiment=None, discussion_points=[])
+                result["discussion_analysis"].update(status="no_comments", reference_claims=[])
+            return StorySummary.model_validate(result)
+
+    repo, model = FakeRepository([item]), SourceSummarizer()
+    fetcher = SimpleNamespace(fetch=lambda _: "A short article about inference.")
+    assert process_story(item, repo, fetcher, model) == "generated"
+    assert model.calls == 1
+    assert 100 in repo.saved
 
 
 def test_rejects_invented_comment_ids_and_article_claims_without_article():

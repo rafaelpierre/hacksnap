@@ -196,6 +196,9 @@ def process_story(
             "comments": comments,
             "sentiment_comments": sentiment_comments,
         }
+        if not article and not source["story_text"] and not comments:
+            log_event(story, "source_availability", "no_source_content")
+            return "unavailable"
         stage = "cache"
         fingerprint = source_fingerprint(source, summarizer.model, prompt_version)
         stage = "infer"
