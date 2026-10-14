@@ -121,7 +121,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
       - name: iPhone screenshots and traces
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-iphone-browser-results
           path: |
