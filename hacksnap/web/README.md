@@ -107,6 +107,14 @@ keyboard focus and blocked storage.
 
 ## Story URLs
 
+Published headlines prefer the editorial title stored alongside the summary, falling
+back to the original HN title for existing rows. The shared projection supplies the
+same headline to cards, readers, related/popular lists, metadata, sharing, RSS,
+Markdown and APIs. Migration `0023_editorial_titles` adds the nullable column and
+its reader grant; capability checks keep using source headlines until both are present.
+The source title and saved story slug remain unchanged, so generating a headline
+does not change the canonical URL. Existing summaries are not backfilled.
+
 External web links open in a new tab with `noopener noreferrer`, including the
 comments pill, original articles, HN threads and source-comment citations.
 Internal story, topic and feed navigation stays in the current tab.

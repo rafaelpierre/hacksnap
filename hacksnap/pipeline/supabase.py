@@ -506,12 +506,12 @@ class Repository:
             result = connection.execute(
                 """
                 INSERT INTO hacksnap_summaries
-                    (story_id, article_url, article_summary, article_key_points,
+                    (story_id, title, article_url, article_summary, article_key_points,
                      discussion_summary, discussion_points, sentiment, overall_takeaway,
                      source_fingerprint, model, prompt_version, source_coverage, summarized_content_hash,
                      discussion_analysis, discussion_analysis_metadata, discussion_analyzed_at,
                      discussion_content_hash)
-                VALUES (%(story_id)s, %(article_url)s, %(article_summary)s,
+                VALUES (%(story_id)s, %(title)s, %(article_url)s, %(article_summary)s,
                         %(article_key_points)s, %(discussion_summary)s, %(discussion_points)s,
                         %(sentiment)s, %(overall_takeaway)s, %(source_fingerprint)s, %(model)s,
                         %(prompt_version)s, %(source_coverage)s, %(content_hash)s,
@@ -524,6 +524,7 @@ class Repository:
                     discussion_content_hash = EXCLUDED.discussion_content_hash,
                     summarized_content_hash = EXCLUDED.summarized_content_hash,
                     article_url = EXCLUDED.article_url,
+                    title = EXCLUDED.title,
                     article_summary = EXCLUDED.article_summary,
                     article_key_points = EXCLUDED.article_key_points,
                     discussion_summary = EXCLUDED.discussion_summary,

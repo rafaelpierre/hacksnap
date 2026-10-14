@@ -21,7 +21,11 @@ export const weeklyPopularityAvailableSQL = `SELECT
   CROSS JOIN unnest(ARRAY['story_id', 'kind', 'received_at']) AS field
   WHERE c.oid = to_regclass('public.hacksnap_popularity_events')`;
 
-export function popularStoriesSQL(slug: string, period: PopularPeriod = "all-time"): string {
+export function popularStoriesSQL(
+  slug: string,
+  period: PopularPeriod = "all-time",
+  titleField = "t.title",
+): string {
   if (period === "last-7-days")
     return `WITH recent_views AS (
       SELECT story_id, count(*) AS views
@@ -31,7 +35,7 @@ export function popularStoriesSQL(slug: string, period: PopularPeriod = "all-tim
         AND received_at <= CURRENT_TIMESTAMP
       GROUP BY story_id
     )
-    SELECT t.hn_id::text AS hn_id, t.title, ${slug}, p.views::text AS views
+    SELECT t.hn_id::text AS hn_id, ${titleField}, ${slug}, p.views::text AS views
     FROM recent_views p
     JOIN public.hacker_news_threads t ON t.hn_id = p.story_id
     JOIN public.hacksnap_summaries s ON s.story_id = t.hn_id
@@ -40,7 +44,7 @@ export function popularStoriesSQL(slug: string, period: PopularPeriod = "all-tim
       AND t.date_added <= CURRENT_TIMESTAMP
     ORDER BY p.views DESC, t.hn_id DESC
     LIMIT 5`;
-  return `SELECT t.hn_id::text AS hn_id, t.title, ${slug},
+  return `SELECT t.hn_id::text AS hn_id, ${titleField}, ${slug},
     (p.historical_views::numeric + p.story_views::numeric)::text AS views
     FROM public.hacksnap_story_popularity p
     JOIN public.hacker_news_threads t ON t.hn_id = p.story_id

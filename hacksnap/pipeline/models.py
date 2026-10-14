@@ -188,12 +188,19 @@ class CommentSentiment(StrictModel):
 
 
 class SummaryContent(StrictModel):
+    title: Title
     discussion_analysis: DiscussionAnalysis
     article_summary: Text | None
     article_key_points: list[Text] = Field(max_length=6)
     discussion_points: list[DiscussionPoint] = Field(max_length=6)
     sentiment: Annotated[int, Field(strict=True, ge=-1, le=1)] | None
     overall_takeaway: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=220)]
+
+    @model_validator(mode="after")
+    def single_line_title(self) -> Self:
+        if "\r" in self.title or "\n" in self.title:
+            raise ValueError("Story title must be a single line")
+        return self
 
 
 ARTICLE_UNAVAILABLE_NOTICE = (

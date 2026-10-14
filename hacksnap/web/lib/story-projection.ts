@@ -1,5 +1,6 @@
 // Only columns granted to hacksnap_reader belong in these projections.
 // Cards retain a bounded excerpt, never the full discussion analysis JSON.
+import { storyTitleProjection } from "./story-title-projection";
 
 // Source type is used only to filter; provenance stays out of public results.
 const storedImageFields = [
@@ -27,7 +28,8 @@ const fields = (
   analyzedAt = "s.discussion_analyzed_at",
   coverage = "s.discussion_analysis_coverage",
   imageFields = storedImageFields,
-) => `t.hn_id, t.title, t.url, t.points, t.comment_count, t.date_added, t.category, ${imageFields},
+  titleField = "t.title",
+) => `t.hn_id, ${titleField}, t.url, t.points, t.comment_count, t.date_added, t.category, ${imageFields},
   CASE WHEN s.story_id IS NULL THEN NULL ELSE json_build_object(
     ${summaryFields}${
       analysis
@@ -63,30 +65,36 @@ const exportSummary = `'article_summary', s.article_summary,
     'discussion_summary', s.discussion_summary, 'overall_takeaway', s.overall_takeaway,
     'sentiment', s.sentiment, 'source_coverage', s.source_coverage`;
 
-export const feedFields = fields(cardSummary + cardDiscussion, null);
-export const feedFieldsWithoutImages = fields(
-  cardSummary + cardDiscussion,
-  null,
-  "NULL",
-  "NULL",
-  unavailableImageFields,
-);
-export const storyFields = fields(articleSummary, "'discussion_analysis', s.discussion_analysis");
-export const storyFieldsWithoutImages = fields(
-  articleSummary,
-  "'discussion_analysis', s.discussion_analysis",
-  "s.discussion_analyzed_at",
-  "s.discussion_analysis_coverage",
-  unavailableImageFields,
-);
-export const exportFields = fields(exportSummary, null);
-export const exportFieldsWithoutImages = fields(
-  exportSummary,
-  null,
-  "NULL",
-  "NULL",
-  unavailableImageFields,
-);
+export function storyProjection(
+  kind: "feed" | "story" | "export",
+  discussionAvailable: boolean,
+  imagesAvailable: boolean,
+  titleAvailable = false,
+): string {
+  const summary =
+    kind === "story"
+      ? articleSummary
+      : kind === "export"
+        ? exportSummary
+        : cardSummary + (discussionAvailable ? cardDiscussion : "");
+  return fields(
+    summary,
+    kind === "story"
+      ? `'discussion_analysis', ${discussionAvailable ? "s.discussion_analysis" : "NULL"}`
+      : null,
+    discussionAvailable ? "s.discussion_analyzed_at" : "NULL",
+    discussionAvailable ? "s.discussion_analysis_coverage" : "NULL",
+    imageProjection(imagesAvailable),
+    storyTitleProjection(titleAvailable),
+  );
+}
+
+export const feedFields = storyProjection("feed", true, true);
+export const feedFieldsWithoutImages = storyProjection("feed", true, false);
+export const storyFields = storyProjection("story", true, true);
+export const storyFieldsWithoutImages = storyProjection("story", true, false);
+export const exportFields = storyProjection("export", false, true);
+export const exportFieldsWithoutImages = storyProjection("export", false, false);
 
 // Resolve the same relation as the story queries and check SELECT specifically.
 // Column existence alone is insufficient during a partially applied rollout.
@@ -105,24 +113,7 @@ export const imageColumnsSQL = `SELECT count(*) = 6 AS available
     AND NOT attisdropped
     AND has_column_privilege(attrelid, attname, 'SELECT')`;
 
-export const legacyFeedFields = fields(cardSummary, null);
-export const legacyStoryFields = fields(
-  articleSummary,
-  "'discussion_analysis', NULL",
-  "NULL",
-  "NULL",
-);
-export const legacyFeedFieldsWithoutImages = fields(
-  cardSummary,
-  null,
-  "NULL",
-  "NULL",
-  unavailableImageFields,
-);
-export const legacyStoryFieldsWithoutImages = fields(
-  articleSummary,
-  "'discussion_analysis', NULL",
-  "NULL",
-  "NULL",
-  unavailableImageFields,
-);
+export const legacyFeedFields = storyProjection("feed", false, true);
+export const legacyStoryFields = storyProjection("story", false, true);
+export const legacyFeedFieldsWithoutImages = storyProjection("feed", false, false);
+export const legacyStoryFieldsWithoutImages = storyProjection("story", false, false);

@@ -19,6 +19,7 @@ import { cardRankHistorySQL, rankHistorySQL } from "../lib/rank-history.ts";
 import { latestRankChange } from "../lib/rank-history.ts";
 import { storyMetricsSQL } from "../lib/story-metrics.ts";
 import { storySlugColumnSQL } from "../lib/story-slug-projection.ts";
+import { storyIdentityColumnsSQL, storyTitleProjection } from "../lib/story-title-projection.ts";
 import { sitemapEntries } from "../lib/sitemap.ts";
 
 const queries = [];
@@ -27,6 +28,7 @@ let rows = [];
 let readyQuery;
 let available = true;
 let imagesAvailable = true;
+let titlesAvailable = false;
 let connectionError;
 let queryError;
 let rollbackError;
@@ -39,6 +41,8 @@ const client = {
     if (sql !== "ROLLBACK" && queryError) throw queryError;
     if (sql === discussionColumnsSQL) return { rows: [{ available }] };
     if (sql === imageColumnsSQL) return { rows: [{ available: imagesAvailable }] };
+    if (sql === storyIdentityColumnsSQL)
+      return { rows: [{ slug_available: false, title_available: titlesAvailable }] };
     if (sql === browseCapabilitiesSQL)
       return {
         rows: [
@@ -46,6 +50,7 @@ const client = {
             discussion_available: available,
             images_available: imagesAvailable,
             slug_available: false,
+            title_available: titlesAvailable,
           },
         ],
       };
@@ -72,9 +77,34 @@ const now = jest.spyOn(Date, "now").mockImplementation(() => clock);
 beforeEach(() => {
   clock += 1_800_001;
   readyQuery = undefined;
+  titlesAvailable = false;
 });
 afterAll(() => now.mockRestore());
 const data = await import("../lib/data.ts");
+
+test("readers select the generated headline when the title column and grant are available", async () => {
+  const previousURL = process.env.HACKSNAP_WEB_DATABASE_URL;
+  process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  titlesAvailable = true;
+  try {
+    for (const load of [
+      () => data.getFeedStories(),
+      () => data.getArchiveStories(null, 1),
+      () => data.getCategoryStories("agents_coding", 1),
+      () => data.getStory("123"),
+      () => data.getRssStories(),
+      () => data.getRelatedStories("agents_coding", "123"),
+    ]) {
+      queries.length = 0;
+      await load();
+      assert.ok(queries.some((sql) => sql.includes(storyTitleProjection(true))));
+    }
+  } finally {
+    titlesAvailable = false;
+    if (previousURL === undefined) delete process.env.HACKSNAP_WEB_DATABASE_URL;
+    else process.env.HACKSNAP_WEB_DATABASE_URL = previousURL;
+  }
+});
 
 test("each loader uses its intended projection; older cached fields remain optional", async () => {
   const previousURL = process.env.HACKSNAP_WEB_DATABASE_URL;

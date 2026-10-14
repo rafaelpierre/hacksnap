@@ -2,7 +2,7 @@ import "server-only";
 import { cachePolicy } from "./cache-policy";
 import { cache } from "react";
 import { read } from "./read";
-import { readBrowseStories, storySlugField } from "./capabilities";
+import { readBrowseStories, storyIdentityFields } from "./capabilities";
 import { boundedCache } from "../bounded-cache";
 import { DataUnavailableError } from "../data-availability";
 import { validStoryId } from "../public-story";
@@ -89,14 +89,14 @@ const cachedRelatedStories = boundedCache(async (key: string): Promise<RelatedSt
   const [categoryId, currentStoryId] = key.split(":");
   const category = categoryById(categoryId);
   if (!category) throw new RangeError("Invalid category");
-  return read(
-    async (client) =>
-      (
-        await client.query<RelatedStory>(
-          relatedStoriesQuery(category.id, currentStoryId, await storySlugField(client)),
-        )
-      ).rows,
-  );
+  return read(async (client) => {
+    const identity = await storyIdentityFields(client);
+    return (
+      await client.query<RelatedStory>(
+        relatedStoriesQuery(category.id, currentStoryId, identity.slug, identity.title),
+      )
+    ).rows;
+  });
 }, cachePolicy.related);
 
 export const getRelatedStories = cache(async (category: CategoryId, currentStoryId: string) => {

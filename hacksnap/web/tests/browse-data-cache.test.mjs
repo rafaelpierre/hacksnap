@@ -6,6 +6,7 @@ import { archiveMonthsSQL } from "../lib/archive.ts";
 import { browseCapabilitiesSQL } from "../lib/browse-capabilities.ts";
 import { categoryCountsSQL } from "../lib/categories.ts";
 import { storySlugColumnSQL } from "../lib/story-slug-projection.ts";
+import { storyIdentityColumnsSQL } from "../lib/story-title-projection.ts";
 
 const queries = [];
 const poolWaits = [];
@@ -19,7 +20,7 @@ function kind(sql) {
   if (sql === archiveMonthsSQL) return "months";
   if (sql === categoryCountsSQL) return "counts";
   if (sql === browseCapabilitiesSQL) return "capabilities";
-  if (sql === storySlugColumnSQL) return "slug";
+  if (sql === storySlugColumnSQL || sql === storyIdentityColumnsSQL) return "slug";
   if (sql.includes("AS takeaway")) return "related";
   if (sql.includes("WHERE t.category = $1")) return "category";
   if (sql.includes("INNER JOIN hacksnap_summaries")) return "archive";
@@ -195,6 +196,7 @@ test("combined capability query requires every reader grant and detects later ro
       discussion_available: false,
       images_available: false,
       slug_available: false,
+      title_available: false,
     });
     await db.exec(`
       RESET ROLE;
@@ -206,6 +208,7 @@ test("combined capability query requires every reader grant and detects later ro
       discussion_available: true,
       images_available: true,
       slug_available: true,
+      title_available: false,
     });
   } finally {
     await db.close();

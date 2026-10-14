@@ -38,6 +38,7 @@ def database(monkeypatch):
 def save(repo, analysis=None, metadata=None):
     repo.save_summary(
         200, "https://example.com", StorySummary(
+            title="A reported result with a qualification",
             article_summary="Article", article_key_points=["Claim"],
             discussion_summary="Discussion", discussion_points=[], sentiment=0,
             overall_takeaway="Takeaway",
