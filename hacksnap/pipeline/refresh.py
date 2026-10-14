@@ -6,12 +6,12 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import copy_context
 from datetime import UTC, datetime
-from time import perf_counter
+from time import monotonic, perf_counter
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
-from .config import MAX_STORIES_PER_RUN, Settings
+from .config import EDITORIAL_BATCH_TIMEOUT_SECONDS, MAX_STORIES_PER_RUN, Settings
 from .image_scope import BACKFILL_START
 from .kestrel import FetchError, KestrelFetcher, external_article_url
 from .models import (
@@ -320,6 +320,7 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = DEFAULT_COMME
 
 
 def run() -> dict:
+    editorial_deadline = monotonic() + EDITORIAL_BATCH_TIMEOUT_SECONDS
     settings = Settings.from_env()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     # Keep httpx request URLs out of logs: endpoints may contain sensitive routing data.
@@ -329,7 +330,7 @@ def run() -> dict:
         settings.kestrel_binary, settings.fetch_timeout, settings.article_chars
     )
     with httpx.Client(timeout=settings.llm_timeout) as client:
-        editorial = ReviewedSummarizer(settings)
+        editorial = ReviewedSummarizer(settings, deadline=editorial_deadline)
         sentiment = ModalSummarizer(
             client,
             settings.sentiment_base_url,

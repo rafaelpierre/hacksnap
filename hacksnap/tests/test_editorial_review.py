@@ -4,7 +4,9 @@ import json
 
 import pytest
 
+import pipeline.editorial_review as review_module
 from pipeline.editorial_review import (
+    EditorialDeadlineExceeded,
     EditorialReview,
     Evidence,
     InferenceOutputError,
@@ -72,6 +74,26 @@ class FakeInference:
         if isinstance(value, Exception):
             raise value
         return value
+
+
+@pytest.fixture
+def expire_editorial_deadline(monkeypatch):
+    timeouts = []
+    original_timeout = asyncio.timeout
+
+    def capture_timeout(delay):
+        timeout = original_timeout(delay)
+        timeouts.append((delay, timeout))
+        return timeout
+
+    monkeypatch.setattr(review_module.asyncio, "timeout", capture_timeout)
+
+    def expire():
+        delay, timeout = timeouts[-1]
+        timeout.reschedule(asyncio.get_running_loop().time())
+        return delay
+
+    return expire
 
 
 def test_accept_requires_review_of_original_sources(source, draft):
@@ -542,3 +564,89 @@ def test_untrusted_review_content_stays_out_of_logs(source, draft, caplog):
     assert asyncio.run(reviewed_generation(FakeInference([draft]), reviewer, source)).status == "accepted"
     assert source["article"] not in caplog.text
     assert json.loads(caplog.records[0].message)["validation_errors"]["unexpected_count"] == 1
+
+
+def test_total_deadline_spans_repairs_revision_and_final_review(monkeypatch, source, draft):
+    clock = [100.0]
+    monkeypatch.setattr(review_module, "monotonic", lambda: clock[0])
+    revised = draft.model_copy(update={"overall_takeaway": "Probe reports 5GB memory use."})
+    broken = verdict(draft)
+    broken.checks.pop()
+
+    class TimedInference(FakeInference):
+        async def infer(self, role, prompt, payload, schema):
+            clock[0] += 20 if role in {"writer", "revision"} else 55
+            return await super().infer(role, prompt, payload, schema)
+
+    writer = TimedInference([draft, revised])
+    reviewer = TimedInference([broken] * 5 + [verdict(draft, True)] + [broken] * 6)
+    result = asyncio.run(reviewed_generation(writer, reviewer, source))
+    assert result.status == "unreviewed" and result.fallback_reason == "deadline"
+    assert result.draft == revised.model_dump()
+    assert len(writer.calls) == 2
+    assert len(reviewer.calls) == 11  # The last repair cannot start with a fresh budget.
+    assert len(result.history) == 2
+
+
+def test_batch_deadline_caps_story_budget_and_prevents_late_writer_calls(monkeypatch, source, draft):
+    clock = [100.0]
+    monkeypatch.setattr(review_module, "monotonic", lambda: clock[0])
+
+    class SlowReviewer(FakeInference):
+        async def infer(self, *args):
+            clock[0] = 151
+            return await super().infer(*args)
+
+    result = asyncio.run(reviewed_generation(FakeInference([draft]),
+        SlowReviewer([verdict(draft)]), source, deadline=150))
+    assert result.status == "unreviewed" and result.fallback_reason == "deadline"
+    assert result.draft == draft.model_dump()
+    writer, reviewer = FakeInference([draft]), FakeInference([verdict(draft)])
+    with pytest.raises(EditorialDeadlineExceeded):
+        asyncio.run(reviewed_generation(writer, reviewer, source, deadline=150))
+    assert not writer.calls and not reviewer.calls
+
+
+@pytest.mark.parametrize("stage", ["writer", "reviewer", "repair", "revision", "final_review"])
+def test_deadline_cancels_active_call_and_returns_only_validated_draft(
+        stage, expire_editorial_deadline, source, draft):
+    cancelled = []
+    revised = draft.model_copy(update={"overall_takeaway": "Probe reports 5GB memory use."})
+    broken = verdict(draft)
+    broken.checks.pop()
+
+    class BlockingInference(FakeInference):
+        async def infer(self, role, prompt, payload, schema):
+            value = await super().infer(role, prompt, payload, schema)
+            if value is None:
+                try:
+                    expire_editorial_deadline()
+                    await asyncio.Event().wait()
+                finally:
+                    cancelled.append(role)
+            return value
+
+    writer = BlockingInference([None] if stage == "writer" else
+                               [draft, None if stage == "revision" else revised])
+    reviewer = BlockingInference(
+        [None] if stage == "reviewer" else [broken, None] if stage == "repair" else
+        [verdict(draft, True), None],
+    )
+    if stage == "writer":
+        with pytest.raises(EditorialDeadlineExceeded):
+            asyncio.run(reviewed_generation(writer, reviewer, source))
+        assert not reviewer.calls
+    else:
+        result = asyncio.run(reviewed_generation(writer, reviewer, source))
+        assert result.status == "unreviewed" and result.fallback_reason == "deadline"
+        assert result.draft == (revised if stage == "final_review" else draft).model_dump()
+    assert len(cancelled) == 1
+
+
+def test_external_cancellation_is_not_a_publishable_fallback(source, draft):
+    class CancelledReviewer(FakeInference):
+        async def infer(self, *args):
+            raise asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(reviewed_generation(FakeInference([draft]), CancelledReviewer([]), source))

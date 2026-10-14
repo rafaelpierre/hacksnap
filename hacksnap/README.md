@@ -182,20 +182,31 @@ approve or direct a draft revision. No fuzzy matching or quote normalization is 
 At most fourteen editorial calls run: write, review plus up to five repairs, one
 revision, then final review plus up to five repairs. The scheduled
 function allows 3,600 seconds for the bounded 50-story batch and sentiment calls.
+All editorial calls for one story share a 600-second deadline, including the initial
+writer, repairs, revision and final review. The scheduled run also shares one absolute
+editorial cutoff 2,700 seconds after `run()` begins, leaving 15 minutes of its function
+limit for sentiment, persistence and cleanup. The earlier deadline cancels active
+inference and prevents further editorial calls; increasing the per-call reviewer
+timeout cannot extend either budget. Late queued stories do not receive a fresh batch
+budget, and no new writer call starts after the cutoff.
 
 The reviewer covers every prose field with original-source quotes and reasoning.
 Code checks schema, citations, quote membership, required coverage and empty states.
 This verifies fidelity to the supplied material; it does not research external facts.
-If the five repairs are exhausted, the workflow fails open and publishes the latest
-draft that passed the existing schema, citation and empty-state checks. Invalid review
-findings never direct a revision. This fallback is recorded only in internal logs as
-`editorial_review_completed` with `status=unreviewed` and `fail_open=true`; published
+If the five repairs or the shared editorial time budget are exhausted, the workflow
+fails open and publishes the latest draft that passed the existing schema, citation
+and empty-state checks. Invalid review findings never direct a revision. This fallback
+is recorded only in internal logs as
+`editorial_review_completed` with `status=unreviewed`, `fail_open=true` and
+`fallback_reason=repair_limit` or `deadline`; published
 summaries and discussion text contain no review-status notice. Validation failures log
 the pass, repair attempt and safe error metadata, without quotes or raw model output.
+A deadline during revision retains the preceding validated draft. If no validated
+draft exists yet, deadline expiry fails that story instead of publishing partial output.
 A valid review that still rejects the draft after its one revision, an invalid draft,
-or an operational error (including a timeout) still fails the story and preserves
-stored content. Per-stage model, token and timing metrics exclude source text and
-credentials; SDK tracing remains disabled.
+or an operational error (including a per-call timeout before the overall deadline)
+still fails the story and preserves stored content. Per-stage model, token and timing
+metrics exclude source text and credentials; SDK tracing remains disabled.
 
 New summaries use the candidate journalistic prompts in `editorial_prompts.py`.
 Existing article summaries and subtitles are not regenerated. Their discussion

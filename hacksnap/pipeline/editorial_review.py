@@ -1,12 +1,15 @@
 """Bounded editorial review with source validation and no persistence."""
+import asyncio
 import json
 import logging
 import re
 from dataclasses import dataclass, field
+from time import monotonic
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
+from .config import EDITORIAL_TIMEOUT_SECONDS
 from .editorial_prompts import DISCUSSION_REFRESH_PROMPT, EDITORIAL_STYLE_PROMPT, SYSTEM_PROMPT
 from .models import (
     ARTICLE_UNAVAILABLE_NOTICE,
@@ -16,7 +19,7 @@ from .models import (
 )
 from .preprocess import sample_sentiment_comments
 
-REVIEW_VERSION = "v4-review-recovery-fail-open"
+REVIEW_VERSION = "v5-review-recovery-deadline"
 MAX_REVIEW_REPAIRS = 5
 logger = logging.getLogger("hacksnap")
 
@@ -146,6 +149,10 @@ class InferenceOutputError(ValueError):
     """The model completed, but its output was not valid structured data."""
 
 
+class EditorialDeadlineExceeded(TimeoutError):
+    """The total editorial budget expired, independently of per-call timeouts."""
+
+
 def validate_review(review: EditorialReview, draft: dict, source: dict) -> None:
     paths = prose_fields(draft)
     checked_fields = [check.path for check in review.checks]
@@ -271,18 +278,39 @@ class EditorialResult:
     status: Literal["accepted", "rejected", "unreviewed"]
     draft: dict | None
     history: list[dict] = field(default_factory=list)
+    fallback_reason: Literal["repair_limit", "deadline"] | None = None
 
 
 async def reviewed_generation(writer: Inference, reviewer: Inference, source: dict,
                               operation: Literal["summary", "refresh"] = "summary",
-                              initial: BaseModel | None = None) -> EditorialResult:
-    """One draft revision and five repairs per review; at most fourteen calls."""
+                              initial: BaseModel | None = None, *,
+                              deadline: float | None = None) -> EditorialResult:
+    """Up to fourteen calls within the story budget and optional batch deadline."""
+    story_deadline = monotonic() + EDITORIAL_TIMEOUT_SECONDS
+    deadline = min(story_deadline, deadline) if deadline is not None else story_deadline
+
+    async def infer(client, role, prompt, payload, schema):
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            raise EditorialDeadlineExceeded("Editorial deadline exceeded")
+        timeout = asyncio.timeout(remaining)
+        try:
+            async with timeout:
+                value = await client.infer(role, prompt, payload, schema)
+        except TimeoutError:
+            if timeout.expired():
+                raise EditorialDeadlineExceeded("Editorial deadline exceeded") from None
+            raise
+        if monotonic() >= deadline:
+            raise EditorialDeadlineExceeded("Editorial deadline exceeded")
+        return value
+
     source = ({**source, "sentiment_comments": sample_sentiment_comments(source["comments"])}
               if operation == "summary" else {"comments": source["comments"]})
     schema = GeneratedStorySummary if operation == "summary" else GeneratedDiscussionAnalysis
     prompt = SYSTEM_PROMPT if operation == "summary" else DISCUSSION_REFRESH_PROMPT
     history = []
-    draft = initial if initial is not None else await writer.infer("writer", prompt, source, schema)
+    draft = initial if initial is not None else await infer(writer, "writer", prompt, source, schema)
     for attempt in range(2):
         # Invalid schemas or evidence membership raise; they can never be approved by a reviewer.
         issues = validate_draft(draft, source, operation)
@@ -294,7 +322,7 @@ async def reviewed_generation(writer: Inference, reviewer: Inference, source: di
         for repair_attempt in range(MAX_REVIEW_REPAIRS + 1):
             review = None
             try:
-                review = await reviewer.infer(
+                review = await infer(reviewer,
                     "reviewer_repair" if repair_attempt else "reviewer",
                     REVIEW_PROMPT + (REVIEW_REPAIR_PROMPT if repair_attempt else ""),
                     review_payload, EditorialReview,
@@ -302,6 +330,11 @@ async def reviewed_generation(writer: Inference, reviewer: Inference, source: di
                 review = EditorialReview.model_validate(review.model_dump())
                 validate_review(review, draft.model_dump(), source)
                 break
+            except EditorialDeadlineExceeded:
+                history.append({"attempt": attempt, "draft": draft.model_dump(),
+                    "deterministic_findings": issues, "review": None,
+                    "repair_attempts": repair_attempt})
+                return EditorialResult("unreviewed", draft.model_dump(), history, "deadline")
             except (ReviewValidationError, InferenceOutputError, ValidationError) as error:
                 details = (error.details if isinstance(error, ReviewValidationError) else
                            {"kind": "invalid_output", "code": "invalid_json_or_schema"})
@@ -323,7 +356,7 @@ async def reviewed_generation(writer: Inference, reviewer: Inference, source: di
                     history.append({"attempt": attempt, "draft": draft.model_dump(),
                         "deterministic_findings": issues, "review": None,
                         "validation_errors": diagnostic, "repair_attempts": repair_attempt})
-                    return EditorialResult("unreviewed", draft.model_dump(), history)
+                    return EditorialResult("unreviewed", draft.model_dump(), history, "repair_limit")
                 review_payload = {**payload,
                     "previous_review": review.model_dump() if review is not None else None,
                     "validation_errors": details}
@@ -332,10 +365,13 @@ async def reviewed_generation(writer: Inference, reviewer: Inference, source: di
         if review.decision == "accept" and not issues:
             return EditorialResult("accepted", draft.model_dump(), history)
         if attempt == 0:
-            draft = await writer.infer("revision", prompt + REVISION_PROMPT, {
-                "sources": source, "draft": draft.model_dump(),
-                "review": review.model_dump(), "deterministic_findings": issues,
-            }, schema)
+            try:
+                draft = await infer(writer, "revision", prompt + REVISION_PROMPT, {
+                    "sources": source, "draft": draft.model_dump(),
+                    "review": review.model_dump(), "deterministic_findings": issues,
+                }, schema)
+            except EditorialDeadlineExceeded:
+                return EditorialResult("unreviewed", draft.model_dump(), history, "deadline")
     return EditorialResult("rejected", None, history)
 
 

@@ -528,7 +528,7 @@ def test_run_returns_isolated_story_failures_with_cache_hits(monkeypatch, caplog
     monkeypatch.setattr(module, "Repository", lambda _: repo)
     monkeypatch.setattr(module, "KestrelFetcher", lambda *args: fetcher)
     monkeypatch.setattr(module, "ModalSummarizer", lambda *args: RateLimited() if outcome == "inference_failure" else model)
-    monkeypatch.setattr(module, "ReviewedSummarizer", lambda *args: RateLimited() if outcome == "inference_failure" else model)
+    monkeypatch.setattr(module, "ReviewedSummarizer", lambda *args, **kwargs: RateLimited() if outcome == "inference_failure" else model)
     if outcome == "inference_failure":
         counts = module.run()
         assert counts["failed"] == 1

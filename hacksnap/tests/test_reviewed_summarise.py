@@ -5,14 +5,19 @@ import importlib
 import json
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from time import monotonic
 from types import SimpleNamespace
 
 import pytest
 from test_editorial_review import verdict
 from test_pipeline import FakeRepository, FakeSummarizer, story
 
-from pipeline.config import Settings
-from pipeline.editorial_review import EditorialReview, InferenceOutputError
+from pipeline.config import EDITORIAL_BATCH_TIMEOUT_SECONDS, Settings
+from pipeline.editorial_review import (
+    EditorialDeadlineExceeded,
+    EditorialReview,
+    InferenceOutputError,
+)
 from pipeline.models import CommentSentiment
 from pipeline.refresh import process_story
 from pipeline.reviewed_summarise import EditorialRejected, ReviewedSummarizer
@@ -83,7 +88,17 @@ def test_scheduled_run_uses_review_before_publication(monkeypatch, settings, inf
     monkeypatch.setattr(module, "Repository", lambda _: repo)
     monkeypatch.setattr(module, "KestrelFetcher", lambda *a: SimpleNamespace(fetch=lambda _: source["article"]))
     monkeypatch.setattr(module, "ModalSummarizer", lambda *a: FakeSummarizer())
+    deadlines = []
+    generate = ReviewedSummarizer._generate
+
+    async def observed_generate(self, *args):
+        deadlines.append(self.deadline)
+        return await generate(self, *args)
+
+    monkeypatch.setattr(ReviewedSummarizer, "_generate", observed_generate)
+    started = monotonic()
     assert module.run()["generated"] == 1
+    assert started + EDITORIAL_BATCH_TIMEOUT_SECONDS <= deadlines[0] <= monotonic() + EDITORIAL_BATCH_TIMEOUT_SECONDS
     assert [call["role"] for c in inference.clients for call in c.calls] == ["writer", "reviewer"]
     assert inference.clients[1].config["effort"] == "high"
     assert all(c.closed for c in inference.clients)
@@ -218,3 +233,52 @@ def test_reviewer_timeout_env_override(monkeypatch):
     assert Settings.from_env().reviewer_timeout == 420
     monkeypatch.delenv("HACKSNAP_REVIEWER_TIMEOUT_SECONDS")
     assert Settings.from_env().reviewer_timeout == 300
+
+
+@pytest.mark.parametrize("operation", ["summary", "refresh"])
+def test_deadline_fallback_stays_internal_and_closes_clients(
+        monkeypatch, operation, settings, inference, source, draft, caplog,
+        expire_editorial_deadline):
+    # Exercise the production adapter with a reviewer whose per-call timeout exceeds the budget.
+    configured = replace(settings, reviewer_timeout=10000)
+    module = importlib.import_module("pipeline.reviewed_summarise")
+    original_client = module.AgentInference
+    cancelled = []
+
+    class SlowReviewer(original_client):
+        async def infer(self, role, *args):
+            if role == "reviewer":
+                self.calls.append({"role": role, "model": self.config["model"]})
+                try:
+                    assert expire_editorial_deadline() <= 60
+                    await asyncio.Event().wait()
+                finally:
+                    cancelled.append(role)
+            return await super().infer(role, *args)
+
+    monkeypatch.setattr(module, "AgentInference", SlowReviewer)
+    adapter = ReviewedSummarizer(configured, deadline=monotonic() + 60)
+    with caplog.at_level("WARNING", logger="hacksnap"):
+        result = (adapter.summarize(source) if operation == "summary" else
+                  adapter.refresh_discussion(source))
+    assert result == (draft.to_summary() if operation == "summary" else
+                      draft.discussion_analysis.to_analysis())
+    assert cancelled == ["reviewer"]
+    assert all(client.closed for client in inference.clients)
+    event = json.loads(caplog.records[-1].message)
+    assert event["status"] == "unreviewed" and event["fallback_reason"] == "deadline"
+    assert event["fail_open"] is True
+
+
+def test_shared_batch_deadline_does_not_reset_for_later_stories(monkeypatch, settings, inference, source):
+    clock = [100.0]
+    monkeypatch.setattr("pipeline.editorial_review.monotonic", lambda: clock[0])
+    adapter = ReviewedSummarizer(settings, deadline=150)
+    adapter.summarize(source)
+    clock[0] = 151
+    for operation in [adapter.summarize, adapter.refresh_discussion]:
+        with pytest.raises(EditorialDeadlineExceeded):
+            operation(source)
+    assert len(inference.clients) == 6
+    assert all(not client.calls for client in inference.clients[2:])
+    assert all(client.closed for client in inference.clients)
