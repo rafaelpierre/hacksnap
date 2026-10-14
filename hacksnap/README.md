@@ -215,7 +215,8 @@ uv run modal secret create hacksnap --from-dotenv .env.local
 uv run modal deploy modal_app.py
 ```
 
-This deploys one function at `0 0,9-23 * * *` in `Europe/London`.
+This schedules summarization at `0 8,12,16,20 * * *` in `America/New_York`:
+8 AM, noon, 4 PM, and 8 PM, following EST/EDT automatically.
 It processes stories concurrently with a hard limit of **15 active story jobs**.
 Each run selects up to **50 stories** from the full ranking, including stories
 below the website’s top-ten display. This is a cap on all attempted stories,
@@ -569,8 +570,9 @@ variables or credentials and does not create or overwrite this secret.
 
 The `supabase-production` environment supplies the migration credentials.
 No database writes are performed by the web build or deployment preflight.
-The hourly daytime Modal enrichment and hourly HN ingestion schedules are unchanged
-by these deployment triggers. No frontend deployment is configured in these workflows.
+Modal enrichment runs at 8 AM, noon, 4 PM, and 8 PM in `America/New_York`;
+HN ingestion runs hourly at :17 from 08:17 through 23:17 UTC. Deployment triggers
+do not add scheduled runs. No frontend deployment is configured in these workflows.
 
 No production schema migration, persistent proxy token creation, scheduled
 deployment or public web deployment is performed by local tests.
@@ -644,11 +646,13 @@ by deploying this change.
 After each completed Modal summarization run, `refresh_hacksnap` asynchronously
 triggers `refresh_article_images` when images are enabled. Images require published
 summaries, so the handoff follows summarization rather than raw HN collection.
-The image worker has no separate schedule: automatic runs follow the hourly
-09:00-through-midnight `Europe/London` summary starts, including completion of the
-midnight run. Quiet summary runs also trigger a bounded sweep to recover pending
+The image worker has no separate schedule: automatic runs follow completion of the
+8 AM, noon, 4 PM, and 8 PM `America/New_York` summary runs, following EST/EDT.
+Quiet summary runs also trigger a bounded sweep to recover pending
 jobs, expired leases and eligible retries. A dispatch failure is logged without
-failing publication; recovery waits for the next completed summary run. Manual
+failing publication; recovery waits for the next completed summary run. Scheduled
+starts are four hours apart during the day, with a twelve-hour overnight gap
+from 8 PM to 8 AM (subject to daylight saving transitions). Manual
 image-worker and backfill invocations remain available.
 
 Apply migrations through `0016_image_queue` before deploying the updated worker.

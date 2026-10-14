@@ -1,7 +1,7 @@
 [project]
 name = "hacksnap"
 version = "0.1.0"
-description = "Hourly article and discussion enrichment for the Hacksnap leaderboard"
+description = "Scheduled article and discussion enrichment for the Hacksnap leaderboard"
 requires-python = ">=3.12"
 dependencies = [
   "httpx>=0.28,<1",
