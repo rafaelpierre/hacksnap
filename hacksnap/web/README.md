@@ -378,8 +378,8 @@ is no ranking chart on the story page.
 Peak and duration use retained `hacksnap_rank_history` observations, including
 those older than 24 hours. Current request-time ranks are
 not added to these historical statistics. Time in the Top 10 holds each rank
-until the next capture, excluding gaps over 13 hours (the scheduled overnight
-gap plus timing tolerance) and time after the final capture. It is a sampled
+until the next capture, excluding gaps over 14 hours (New York's 13-hour fall-back
+overnight gap plus one hour of runtime tolerance) and time after the final capture. It is a sampled
 estimate, not continuous tracking. Missing or insufficient history is shown
 explicitly. No schema change or additional collection job is required.
 

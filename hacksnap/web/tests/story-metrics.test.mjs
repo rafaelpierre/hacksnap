@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "@jest/globals";
-import { storyMetrics, storyMetricsText } from "../lib/story-metrics.ts";
+import { storyMetrics, storyMetricsText, storyMetricsSQL } from "../lib/story-metrics.ts";
+import { PGlite } from "@electric-sql/pglite";
 import { storyMarkdown } from "../lib/markdown.ts";
 
 const story = {
@@ -81,8 +82,38 @@ test("story Markdown includes the same persistent metrics and historical chart o
     "Peak rank: #3",
     "Time in Top 10: 7.9 hours",
     "2020-01-01T00:00Z: rank #3",
-    "gaps over 13 hours",
+    "gaps over 14 hours",
   ])
     assert.ok(plain.includes(value), value);
   assert.doesNotMatch(storyMetricsText(story).join("\n"), /Peak HN rank|\d+\/100/);
+});
+
+test("ranking duration includes fall-back runtime slack but rejects gaps over 14 hours", async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(`CREATE TABLE hacksnap_rank_history (
+      hn_id bigint, observed_at timestamptz, rank integer,
+      PRIMARY KEY (hn_id, observed_at)
+    )`);
+    // 8 PM EDT to 8 AM EST is 13 elapsed hours; the morning refresh ends later.
+    for (const [id, morning, hours] of [
+      [1, "2025-11-02T08:30:00-05:00", 13.5],
+      [2, "2025-11-02T09:00:00-05:00", 14],
+      [3, "2025-11-02T09:00:01-05:00", null],
+    ]) {
+      await db.query(
+        `INSERT INTO hacksnap_rank_history VALUES
+          ($1, '2025-11-01T20:00:00-04:00', 3), ($1, $2, 12)`,
+        [id, morning],
+      );
+      const { rows } = await db.query(
+        `SELECT ${storyMetricsSQL} AS metrics FROM (VALUES ($1::bigint)) AS t(hn_id)`,
+        [id],
+      );
+      assert.equal(rows[0].metrics.top_ten_hours, hours);
+      assert.equal(rows[0].metrics.observation_count, 2);
+    }
+  } finally {
+    await db.close();
+  }
 });

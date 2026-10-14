@@ -12,14 +12,14 @@ export type RankingMetrics = {
 };
 
 // All retained observations inform the totals; only the chart payload is capped.
-// The (hn_id, observed_at) primary key bounds the scan to this story. Thirteen
-// hours covers the scheduled overnight gap with an hour of timing tolerance.
+// The (hn_id, observed_at) primary key bounds the scan to this story. Fourteen
+// hours covers New York's 13-hour fall-back overnight gap plus one hour of runtime slack.
 export const storyMetricsSQL = `(WITH observations AS MATERIALIZED (
   SELECT observed_at, rank, lead(observed_at) OVER (ORDER BY observed_at) AS next_at
   FROM hacksnap_rank_history
   WHERE hn_id = t.hn_id AND observed_at <= CURRENT_TIMESTAMP
 ), intervals AS (
-  SELECT *, next_at - observed_at <= INTERVAL '13 hours' AS measured
+  SELECT *, next_at - observed_at <= INTERVAL '14 hours' AS measured
   FROM observations
 )
 SELECT json_build_object(
@@ -36,7 +36,7 @@ SELECT json_build_object(
 ) FROM intervals)`;
 
 export const RANKING_METHOD =
-  "Hacksnap ranks recent stories first, then orders each group by points. Peak rank uses all retained observations. Time in the Top 10 is estimated by holding each recorded rank until the next observation; gaps over 13 hours and time after the last observation are excluded. Movement between observations is unknown.";
+  "Hacksnap ranks recent stories first, then orders each group by points. Peak rank uses all retained observations. Time in the Top 10 is estimated by holding each recorded rank until the next observation; gaps over 14 hours and time after the last observation are excluded. Movement between observations is unknown.";
 
 type StoryWithMetrics = ArticleStory & { ranking_metrics?: RankingMetrics | null };
 
