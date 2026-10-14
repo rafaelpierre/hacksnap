@@ -6,6 +6,7 @@ import { readStories, storySlugField } from "./capabilities";
 import { boundedCache } from "../bounded-cache";
 import { DataUnavailableError } from "../data-availability";
 import { validStoryId } from "../public-story";
+import { availableSourceSQL } from "../ready-stories";
 import type { ArticleStory } from "../story-domain";
 import { storyMetricsSQL, type RankingMetrics } from "../story-metrics";
 import {
@@ -49,7 +50,7 @@ const cachedStory = boundedCache(async (id: string): Promise<ArticleStory | null
     const result = await client.query<ArticleStory>(
       `SELECT ${fields}
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
-      WHERE t.hn_id = $1`,
+      WHERE t.hn_id = $1 AND ${availableSourceSQL}`,
       [id],
     );
     return result.rows[0] ?? null;

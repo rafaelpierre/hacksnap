@@ -17,6 +17,7 @@ from pipeline.editorial_review import (
 )
 from pipeline.models import (
     ARTICLE_UNAVAILABLE_NOTICE,
+    ArticleUnavailableError,
     GeneratedDiscussionAnalysis,
     GeneratedStorySummary,
 )
@@ -143,7 +144,7 @@ def test_bad_citation_never_reaches_reviewer(source, draft):
     assert not reviewer.calls
 
 
-@pytest.mark.parametrize("stage", ["writer", "reviewer", "revision", "final_review"])
+@pytest.mark.parametrize("stage", ["writer", "revision"])
 def test_stage_failure_never_returns_accepted_result(stage, source, draft):
     failure = TimeoutError("test timeout")
     writer = FakeInference([failure] if stage == "writer" else
@@ -313,10 +314,10 @@ def test_unavailable_article_claim_cannot_escape_review(source, unavailable_draf
         check.evidence = []
     with pytest.raises(ValueError, match="cover every"):
         validate_review(review, unavailable_draft.model_dump(), source)
-    result = asyncio.run(reviewed_generation(FakeInference([unavailable_draft]),
-                                            FakeInference([review] * 6), source))
-    assert result.status == "unreviewed"
-    assert result.draft == unavailable_draft.model_dump()
+    reviewer = FakeInference([review] * 6)
+    with pytest.raises(ArticleUnavailableError):
+        asyncio.run(reviewed_generation(FakeInference([unavailable_draft]), reviewer, source))
+    assert not reviewer.calls
 
 
 def test_unavailable_article_claim_requires_page_evidence(source, unavailable_draft):
@@ -327,19 +328,19 @@ def test_unavailable_article_claim_requires_page_evidence(source, unavailable_dr
         validate_review(review, unavailable_draft.model_dump(), source)
 
 
-def test_reviewer_can_reject_discarded_usable_article(source, unavailable_draft):
+def test_writer_unavailable_marker_stops_before_review(source, unavailable_draft):
     review = verdict(unavailable_draft, revise=True)
     review.findings[0].path = "/article_summary"
     review.findings[0].explanation = "The supplied page contains a usable prototype announcement."
     review.findings[0].correction = "Summarize the announcement instead of marking it unavailable."
     reviewer = FakeInference([review, review])
-    result = asyncio.run(reviewed_generation(
-        FakeInference([unavailable_draft, unavailable_draft]), reviewer, source))
-    assert result.status == "rejected" and result.draft is None
-    assert "/article_summary" in reviewer.calls[0][2]["prose_fields"]
+    with pytest.raises(ArticleUnavailableError):
+        asyncio.run(reviewed_generation(
+            FakeInference([unavailable_draft, unavailable_draft]), reviewer, source))
+    assert not reviewer.calls
 
 
-def test_genuinely_unusable_page_can_be_accepted_after_evidence_review(source, unavailable_draft):
+def test_even_valid_review_cannot_publish_unusable_page(source, unavailable_draft):
     source["article"] = "Access denied. Please sign in to continue."
     review = verdict(unavailable_draft)
     for check in review.checks:
@@ -347,16 +348,26 @@ def test_genuinely_unusable_page_can_be_accepted_after_evidence_review(source, u
         if check.path in {"/article_summary", "/overall_takeaway"}:
             check.evidence = [Evidence(source="article", comment_id=None, quote=source["article"])]
     review = EditorialReview.model_validate(review.model_dump())
-    result = asyncio.run(reviewed_generation(FakeInference([unavailable_draft]),
-                                            FakeInference([review]), source))
-    assert result.status == "accepted"
+    reviewer = FakeInference([review])
+    with pytest.raises(ArticleUnavailableError):
+        asyncio.run(reviewed_generation(FakeInference([unavailable_draft]), reviewer, source))
+    assert not reviewer.calls
+
+
+def test_revision_unavailable_marker_cannot_fall_back_to_previous_draft(source, draft):
+    unavailable = draft.model_copy(deep=True)
+    unavailable.article_summary = ARTICLE_UNAVAILABLE_NOTICE
+    unavailable.article_key_points = []
+    reviewer = FakeInference([verdict(draft, revise=True), TimeoutError()])
+    with pytest.raises(ArticleUnavailableError):
+        asyncio.run(reviewed_generation(FakeInference([draft, unavailable]), reviewer, source))
+    assert len(reviewer.calls) == 1
 
 
 @pytest.mark.parametrize("path,notice", [
     ("/discussion_summary/opening", "No additional analysis available."),
     ("/discussion_summary/bullets/0", "No additional analysis available."),
     ("/discussion_points/0/title", "No additional analysis available."),
-    ("/overall_takeaway", "Source text unavailable."),
     ("/article_summary", "Source text unavailable."),
 ])
 def test_notices_cannot_bypass_review_with_present_sources(path, notice, source, draft):
@@ -377,14 +388,24 @@ def test_notices_cannot_bypass_review_with_present_sources(path, notice, source,
     assert result.status == "rejected" and result.draft is None
 
 
-def test_missing_source_notices_are_exempt_only_on_prescribed_paths(source, unavailable_draft):
+def test_self_post_takeaway_has_no_empty_state_evidence_exemption(source, unavailable_draft):
     source["article"] = None
     unavailable_draft.article_summary = None
     review = verdict(unavailable_draft)
     for check in review.checks:
         check.evidence = []
+    with pytest.raises(ValueError, match="no source evidence"):
+        validate_review(review, unavailable_draft.model_dump(), source)
+    # The legitimate no-comments opening keeps its exemption, while a self-post
+    # takeaway must be supported by the post itself.
+    source["story_text"] = "Probe reports memory use of 5GB."
+    unavailable_draft.overall_takeaway = source["story_text"]
+    review = verdict(unavailable_draft)
+    for check in review.checks:
+        check.evidence = ([Evidence(source="story_text", comment_id=None, quote=source["story_text"])]
+                          if check.path == "/overall_takeaway" else [])
     validate_review(review, unavailable_draft.model_dump(), source)
-    # An empty source does not allow the notices to swap fields.
+    # An empty discussion does not allow the notices to swap fields.
     unavailable_draft.overall_takeaway = "No additional analysis available."
     unavailable_draft.discussion_summary.opening = "Source text unavailable."
     review = verdict(unavailable_draft)
@@ -392,6 +413,28 @@ def test_missing_source_notices_are_exempt_only_on_prescribed_paths(source, unav
         check.evidence = []
     with pytest.raises(ValueError, match="no source evidence"):
         validate_review(review, unavailable_draft.model_dump(), source)
+
+
+@pytest.mark.parametrize("notice", [
+    "Source text unavailable.",
+    "Source text unavailable. One local test measured 6GB.",
+    "source text unavailable. One local test measured 6GB.",
+])
+@pytest.mark.parametrize("stage", ["writer", "revision"])
+def test_self_post_unavailable_prefix_cannot_pass_review_or_fail_open(stage, notice, source, draft):
+    source["article"] = None
+    draft.article_summary = None
+    draft.article_key_points = []
+    bad = draft.model_copy(update={"overall_takeaway": notice})
+    review = verdict(draft, revise=True)
+    for evidence in [e for check in review.checks for e in check.evidence] + review.findings[0].evidence:
+        evidence.source, evidence.comment_id = "comment", 10
+        evidence.quote = source["comments"][0]["text"]
+    writer = FakeInference([bad] if stage == "writer" else [draft, bad])
+    reviewer = FakeInference([review] + [TimeoutError()] * 6)
+    with pytest.raises(ValueError, match="not a publishable takeaway"):
+        asyncio.run(reviewed_generation(writer, reviewer, source))
+    assert len(reviewer.calls) == (0 if stage == "writer" else 1)
 
 
 def test_unusable_page_takeaway_still_requires_evidence(source, unavailable_draft):
@@ -547,7 +590,7 @@ def test_discussion_refresh_repairs_use_only_original_comments(recover, source, 
     assert all(call[2]["sources"] == {"comments": source["comments"]} for call in reviewer.calls)
 
 
-@pytest.mark.parametrize("failure", [TimeoutError("repair timeout"), ValueError("unrelated error")])
+@pytest.mark.parametrize("failure", [ValueError("unrelated error")])
 def test_operational_repair_failures_propagate_without_retry_or_fallback(failure, source, draft):
     broken = verdict(draft)
     broken.checks.pop()
@@ -650,3 +693,50 @@ def test_external_cancellation_is_not_a_publishable_fallback(source, draft):
 
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(reviewed_generation(FakeInference([draft]), CancelledReviewer([]), source))
+
+
+@pytest.mark.parametrize("recover", [True, False])
+def test_timeouts_share_the_evidence_and_output_repair_budget(recover, source, draft, caplog):
+    broken = verdict(draft)
+    broken.checks[0].evidence[0].quote = "altered wording"
+    reviewer = FakeInference([
+        broken, TimeoutError("sensitive request details"), InferenceOutputError("bad JSON"),
+        TimeoutError(), broken, verdict(draft) if recover else TimeoutError(),
+    ])
+    result = asyncio.run(reviewed_generation(FakeInference([draft]), reviewer, source))
+    assert result.status == ("accepted" if recover else "unreviewed")
+    assert result.draft == draft.model_dump()
+    assert len(reviewer.calls) == 6
+    repair_payload = reviewer.calls[2][2]
+    assert repair_payload["previous_review"] is None
+    assert repair_payload["validation_errors"] == {"kind": "timeout", "code": "reviewer_timeout"}
+    assert "sensitive request details" not in caplog.text
+
+
+def test_repair_timeout_keeps_remaining_overall_deadline(
+        monkeypatch, expire_editorial_deadline, source, draft):
+    clock = [0.0]
+    monkeypatch.setattr(review_module, "monotonic", lambda: clock[0])
+    broken = verdict(draft)
+    broken.checks.pop()
+
+    class Writer(FakeInference):
+        async def infer(self, *args):
+            clock[0] += 18.659
+            return await super().infer(*args)
+
+    class Reviewer(FakeInference):
+        async def infer(self, *args):
+            call = len(self.calls)
+            if call == 0:
+                clock[0] += 96.578
+            elif call == 1:
+                clock[0] += 300.003
+            else:
+                assert expire_editorial_deadline() == pytest.approx(184.760)
+                await asyncio.Event().wait()
+            return await super().infer(*args)
+
+    result = asyncio.run(reviewed_generation(Writer([draft]), Reviewer([broken, TimeoutError()]), source))
+    assert result.status == "unreviewed" and result.fallback_reason == "deadline"
+    assert result.draft == draft.model_dump()

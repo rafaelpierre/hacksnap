@@ -252,6 +252,8 @@ await db.exec(`
   CREATE TABLE hn_thread_contents (
     hn_id integer PRIMARY KEY, full_raw_text_contents text, content_hash text
   );
+  CREATE TABLE hacksnap_summaries (story_id integer PRIMARY KEY, source_coverage jsonb);
+  INSERT INTO hacksnap_summaries VALUES (59, '{"article_status":"unavailable"}');
   INSERT INTO hacksnap_ranked_stories
     SELECT id, 'Story ' || id, 'https://example.com/' || id, 61 - id
     FROM generate_series(1, 60) AS id;
@@ -259,7 +261,7 @@ await db.exec(`
 `);
 const { rows } = await db.query(sql.replace('%s', '$1'), params);
 assert.equal(rows.length, 50);
-assert.deepEqual(rows.map(row => row.hn_id), Array.from({length: 50}, (_, i) => 60 - i));
+assert.deepEqual(rows.map(row => row.hn_id), [60, ...Array.from({length: 49}, (_, i) => 58 - i)]);
 assert.equal(rows[0].full_raw_text_contents, 'retained');
 assert.equal(rows[0].content_hash, 'hash');
 assert.equal(rows[1].full_raw_text_contents, null);

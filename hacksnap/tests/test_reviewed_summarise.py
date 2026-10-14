@@ -18,7 +18,7 @@ from pipeline.editorial_review import (
     EditorialReview,
     InferenceOutputError,
 )
-from pipeline.models import CommentSentiment
+from pipeline.models import ARTICLE_UNAVAILABLE_NOTICE, CommentSentiment
 from pipeline.refresh import process_story
 from pipeline.reviewed_summarise import EditorialRejected, ReviewedSummarizer
 from pipeline.summarise import RoutedSummarizer
@@ -37,7 +37,7 @@ def settings():
 @pytest.fixture
 def inference(monkeypatch, draft, source):
     state = SimpleNamespace(clients=[], reject=False, fail=False,
-                            invalid_review=False, invalid_output=False)
+                            invalid_review=False, invalid_output=False, reviewer_timeout=False)
 
     class Client:
         def __init__(self, **config):
@@ -53,6 +53,8 @@ def inference(monkeypatch, draft, source):
                 return draft if schema.__name__ == "GeneratedStorySummary" else draft.discussion_analysis
             if state.invalid_output:
                 raise InferenceOutputError("Invalid JSON")
+            if state.reviewer_timeout:
+                raise TimeoutError("private transport error")
             value = payload["draft"]
             review = verdict(SimpleNamespace(model_dump=lambda: value), revise=state.reject)
             for check in review.checks:
@@ -106,6 +108,51 @@ def test_scheduled_run_uses_review_before_publication(monkeypatch, settings, inf
     assert repo.saved[100]["summary"].sentiment == -1
 
 
+def test_unavailable_article_never_reaches_reviewer_sentiment_or_publication(
+        settings, inference, source, draft):
+    draft.article_summary = ARTICLE_UNAVAILABLE_NOTICE
+    draft.article_key_points = []
+    inference.reviewer_timeout = True
+    repo = FakeRepository([item(source)])
+    sentiment = FakeSummarizer()
+    model = RoutedSummarizer(ReviewedSummarizer(settings), sentiment)
+    assert process_story(item(source), repo,
+        SimpleNamespace(fetch=lambda _: "Javascript is required"), model) == "fetch_skipped"
+    assert not repo.saved and repo.failures == {100: item(source)["url"]}
+    assert [call["role"] for c in inference.clients for call in c.calls] == ["writer"]
+    assert all(c.closed for c in inference.clients)
+    assert sentiment.sentiment_calls == 0
+
+
+@pytest.mark.parametrize("has_notice", [False, True])
+def test_self_post_publication_uses_post_text_and_cannot_fail_open_with_notice(
+        has_notice, settings, inference, source, draft):
+    post_text = source["article"]
+    source["article"] = None
+    draft.article_summary = None
+    draft.article_key_points = []
+    if has_notice:
+        draft.overall_takeaway = "Source text unavailable. One local test measured 6GB."
+    inference.reviewer_timeout = True
+    post = item(source)
+    post["url"] = "https://news.ycombinator.com/item?id=100"
+    payload = json.loads(post["full_raw_text_contents"])
+    payload["story"]["text"] = post_text
+    post["full_raw_text_contents"] = json.dumps(payload)
+    repo = FakeRepository([post])
+    model = RoutedSummarizer(ReviewedSummarizer(settings), SimpleNamespace(model="sentiment",
+        estimate_sentiment=lambda _: CommentSentiment(sentiment=0)))
+    assert process_story(post, repo, None, model) == ("failed" if has_notice else "generated")
+    assert not repo.failures  # A bad draft must not permanently exclude a valid HN post.
+    assert len(inference.clients[1].calls) == (0 if has_notice else 6)
+    assert all(c.closed for c in inference.clients)
+    if has_notice:
+        assert not repo.saved
+    else:
+        assert repo.saved[100]["summary"] == draft.to_summary()
+        assert repo.saved[100]["coverage"]["article_status"] == "not_applicable"
+
+
 @pytest.mark.parametrize("failure", ["reject", "fail"])
 def test_failed_review_never_publishes_or_overwrites(failure, settings, inference, source):
     repo = FakeRepository([item(source)])
@@ -140,7 +187,7 @@ def test_initial_result_primes_reviewed_refresh_cache(settings, inference, sourc
     assert process_story(item(source), repo, None, changed) == "unchanged"
 
 
-@pytest.mark.parametrize("failure", ["invalid_review", "invalid_output"])
+@pytest.mark.parametrize("failure", ["invalid_review", "invalid_output", "reviewer_timeout"])
 def test_exhausted_repairs_publish_without_any_public_notice(
         failure, settings, inference, source, draft, caplog):
     repo = FakeRepository([item(source)])

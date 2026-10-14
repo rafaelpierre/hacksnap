@@ -9,14 +9,16 @@ test("the six imported GA baselines rank by views, and a new reader can promote 
   const db = new PGlite();
   try {
     await db.exec(`CREATE TABLE hacker_news_threads(hn_id bigint PRIMARY KEY,title text,date_added timestamptz);
-      CREATE TABLE hacksnap_summaries(story_id bigint PRIMARY KEY,overall_takeaway text);
+      CREATE TABLE hacksnap_summaries(story_id bigint PRIMARY KEY,overall_takeaway text,source_coverage jsonb);
       CREATE TABLE hacksnap_story_popularity(story_id bigint PRIMARY KEY,historical_views bigint DEFAULT 0,story_views bigint DEFAULT 0,story_clicks bigint DEFAULT 0);
       CREATE TABLE hacksnap_popularity_events(visit_id uuid,story_id bigint,kind text,PRIMARY KEY(visit_id,story_id,kind));
       CREATE TABLE hacksnap_popularity_state(singleton boolean PRIMARY KEY,tracking_started_at timestamptz);
       INSERT INTO hacksnap_popularity_state VALUES(true,clock_timestamp());
       INSERT INTO hacker_news_threads SELECT n,'Story '||n,now() FROM generate_series(1,6) n;
-      INSERT INTO hacksnap_summaries SELECT n,'Ready' FROM generate_series(1,6) n;
-      INSERT INTO hacksnap_story_popularity(story_id,historical_views) VALUES (1,322),(2,20),(3,18),(4,12),(5,12),(6,8);`);
+      INSERT INTO hacksnap_summaries(story_id,overall_takeaway) SELECT n,'Ready' FROM generate_series(1,6) n;
+      INSERT INTO hacksnap_story_popularity(story_id,historical_views) VALUES (1,322),(2,20),(3,18),(4,12),(5,12),(6,8);
+      CREATE TABLE hacksnap_fetch_failures (story_id bigint PRIMARY KEY, article_url text);
+      ALTER TABLE hacker_news_threads ADD COLUMN url text;`);
     const ranking = async () =>
       (await db.query(popularStoriesSQL(storySlugProjection(false)))).rows;
     assert.deepEqual(
@@ -49,16 +51,21 @@ test("popular ranking includes archived ready stories, excludes invalid/pending/
   const db = new PGlite();
   try {
     await db.exec(`CREATE TABLE hacker_news_threads(hn_id bigint PRIMARY KEY,title text,story_slug text,date_added timestamptz);
-      CREATE TABLE hacksnap_summaries(story_id bigint PRIMARY KEY,overall_takeaway text);
+      CREATE TABLE hacksnap_summaries(story_id bigint PRIMARY KEY,overall_takeaway text,source_coverage jsonb);
       CREATE TABLE hacksnap_story_popularity(story_id bigint PRIMARY KEY,historical_views bigint,story_views bigint,story_clicks bigint);
       INSERT INTO hacker_news_threads VALUES
         (1,'Archived',NULL,now()-interval '1 year'),(2,'Tie lower',NULL,now()),(3,'Tie higher','tie-higher-3',now()),
         (4,'Fourth',NULL,now()),(5,'Fifth',NULL,now()),(6,'Sixth',NULL,now()),
         (7,'Pending',NULL,now()),(8,'Future',NULL,now()+interval '1 day'),(9,'Clicks only',NULL,now()),(0,'Invalid',NULL,now());
-      INSERT INTO hacksnap_summaries SELECT hn_id,CASE WHEN hn_id=7 THEN ' \n\t ' ELSE 'Ready' END FROM hacker_news_threads;
+      INSERT INTO hacksnap_summaries(story_id,overall_takeaway) SELECT hn_id,CASE WHEN hn_id=7 THEN ' \n\t ' ELSE 'Ready' END FROM hacker_news_threads;
       INSERT INTO hacksnap_story_popularity VALUES
         (1,9223372036854775807,1,0),(2,20,1,999999),(3,21,0,0),(4,12,0,0),(5,10,0,0),(6,5,0,0),
-        (7,500,0,0),(8,500,0,0),(9,0,0,1000000),(0,500,0,0);`);
+        (7,500,0,0),(8,500,0,0),(9,0,0,1000000),(0,500,0,0);
+      INSERT INTO hacker_news_threads VALUES (10,'Unavailable',NULL,now());
+      INSERT INTO hacksnap_summaries VALUES (10,'Source text unavailable.','{"article_status":"unavailable"}');
+      INSERT INTO hacksnap_story_popularity VALUES (10,1000000,0,0);
+      CREATE TABLE hacksnap_fetch_failures (story_id bigint PRIMARY KEY, article_url text);
+      ALTER TABLE hacker_news_threads ADD COLUMN url text;`);
     const rows = (await db.query(popularStoriesSQL(storySlugProjection(true)))).rows;
     assert.deepEqual(
       rows.map((row) => row.hn_id),
@@ -96,12 +103,12 @@ test("weekly ranking counts reads within 168 hours across old and new stories, e
     await db.exec(`BEGIN;
       SET TIME ZONE 'America/Los_Angeles';
       CREATE TABLE hacker_news_threads(hn_id bigint PRIMARY KEY,title text,story_slug text,date_added timestamptz);
-      CREATE TABLE hacksnap_summaries(story_id bigint PRIMARY KEY,overall_takeaway text);
+      CREATE TABLE hacksnap_summaries(story_id bigint PRIMARY KEY,overall_takeaway text,source_coverage jsonb);
       CREATE TABLE hacksnap_popularity_events(story_id bigint,kind text,received_at timestamptz);
       INSERT INTO hacker_news_threads SELECT n,'Story '||n,'story-'||n,
         CASE WHEN n=8 THEN now()+interval '1 day' ELSE now()-interval '1 year' END
         FROM generate_series(0,9) n;
-      INSERT INTO hacksnap_summaries SELECT hn_id,CASE WHEN hn_id=7 THEN ' ' ELSE 'Ready' END FROM hacker_news_threads;
+      INSERT INTO hacksnap_summaries(story_id,overall_takeaway) SELECT hn_id,CASE WHEN hn_id=7 THEN ' ' ELSE 'Ready' END FROM hacker_news_threads;
       INSERT INTO hacksnap_popularity_events SELECT n,'view',now()-interval '1 hour'
         FROM generate_series(1,6) n,generate_series(1,3) reads;
       INSERT INTO hacksnap_popularity_events VALUES
@@ -111,7 +118,12 @@ test("weekly ranking counts reads within 168 hours across old and new stories, e
       INSERT INTO hacksnap_popularity_events SELECT n,'view',now()
         FROM generate_series(7,8) n,generate_series(1,100) reads;
       INSERT INTO hacksnap_popularity_events SELECT 9,'click',now() FROM generate_series(1,100);
-      INSERT INTO hacksnap_popularity_events SELECT 0,'view',now() FROM generate_series(1,100);`);
+      INSERT INTO hacksnap_popularity_events SELECT 0,'view',now() FROM generate_series(1,100);
+      INSERT INTO hacker_news_threads VALUES (10,'Unavailable',NULL,now());
+      INSERT INTO hacksnap_summaries VALUES (10,'Source text unavailable.','{"article_status":"unavailable"}');
+      INSERT INTO hacksnap_popularity_events SELECT 10,'view',now() FROM generate_series(1,200);
+      CREATE TABLE hacksnap_fetch_failures (story_id bigint PRIMARY KEY, article_url text);
+      ALTER TABLE hacker_news_threads ADD COLUMN url text;`);
     const rows = (await db.query(popularStoriesSQL(storySlugProjection(true), "last-7-days"))).rows;
     assert.deepEqual(
       rows.map(({ hn_id, views }) => [hn_id, views]),

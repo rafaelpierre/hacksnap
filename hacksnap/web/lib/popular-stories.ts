@@ -1,4 +1,5 @@
 import type { StoryIdentity } from "./story-domain";
+import { readySummarySQL } from "./ready-stories";
 
 export type PopularStory = Pick<StoryIdentity, "hn_id" | "title" | "story_slug"> & {
   views: string;
@@ -34,7 +35,7 @@ export function popularStoriesSQL(slug: string, period: PopularPeriod = "all-tim
     FROM recent_views p
     JOIN public.hacker_news_threads t ON t.hn_id = p.story_id
     JOIN public.hacksnap_summaries s ON s.story_id = t.hn_id
-    WHERE s.overall_takeaway ~ '[^[:space:]]'
+    WHERE ${readySummarySQL}
       AND t.hn_id BETWEEN 1 AND 999999999999999
       AND t.date_added <= CURRENT_TIMESTAMP
     ORDER BY p.views DESC, t.hn_id DESC
@@ -44,7 +45,7 @@ export function popularStoriesSQL(slug: string, period: PopularPeriod = "all-tim
     FROM public.hacksnap_story_popularity p
     JOIN public.hacker_news_threads t ON t.hn_id = p.story_id
     JOIN public.hacksnap_summaries s ON s.story_id = t.hn_id
-    WHERE s.overall_takeaway ~ '[^[:space:]]'
+    WHERE ${readySummarySQL}
       AND t.hn_id BETWEEN 1 AND 999999999999999
       AND t.date_added <= CURRENT_TIMESTAMP
       AND p.historical_views::numeric + p.story_views::numeric > 0

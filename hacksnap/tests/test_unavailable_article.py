@@ -1,4 +1,4 @@
-"""Fallback contract tests; mocked inference does not measure model recognition accuracy."""
+"""Unusable source pages must never become discussion-only publications."""
 import json
 from types import SimpleNamespace
 
@@ -29,7 +29,7 @@ def unavailable_output():
 
 @pytest.mark.parametrize("article", PAGES)
 @pytest.mark.parametrize("has_comments", [True, False])
-def test_unavailable_page_can_publish_without_fabricated_article_claims(article, has_comments):
+def test_unavailable_page_is_excluded_instead_of_published(article, has_comments):
     item = story()
     result = unavailable_output()
     if not has_comments:
@@ -53,15 +53,28 @@ def test_unavailable_page_can_publish_without_fabricated_article_claims(article,
 
     with httpx.Client(transport=httpx.MockTransport(respond)) as client:
         summarizer = ModalSummarizer(client, "https://mock.invalid/v1", "test", "fake")
-        assert process_story(item, repo, SimpleNamespace(fetch=lambda _: article), summarizer) == "generated"
-    saved = repo.saved[100]
-    assert saved["summary"].article_summary is None
-    assert json.loads(saved["summary"].model_dump_json())["article_summary"] is None
-    assert ARTICLE_UNAVAILABLE_NOTICE not in saved["summary"].model_dump_json()
-    assert saved["summary"].article_key_points == []
-    assert saved["coverage"]["article_status"] == "unavailable"
-    assert saved["discussion_analysis"].reference_claims == []
-    assert not repo.failures
+        assert process_story(item, repo, SimpleNamespace(fetch=lambda _: article), summarizer) == "fetch_skipped"
+    assert not repo.saved
+    assert repo.failures == {100: item["url"]}
+    assert not repo.get_current_top_stories(50)
+
+
+@pytest.mark.parametrize("article", [None, "", " \n\t "])
+def test_empty_fetch_skips_all_inference(article):
+    item = story()
+    repo = FakeRepository([item])
+    summarizer = SimpleNamespace(model="unused")
+    assert process_story(item, repo, SimpleNamespace(fetch=lambda _: article), summarizer) == "fetch_skipped"
+    assert not repo.saved
+    assert repo.failures == {100: item["url"]}
+
+
+def test_stored_unavailable_source_skips_refresh_and_sentiment():
+    item = story()
+    repo = FakeRepository([item])
+    repo.saved[100] = {"source_coverage": {"article_status": "unavailable"}}
+    assert process_story(item, repo, None, SimpleNamespace(model="unused")) == "fetch_skipped"
+    assert repo.saved[100] == {"source_coverage": {"article_status": "unavailable"}}
 
 
 @pytest.mark.parametrize("field,value", [
@@ -111,3 +124,18 @@ def test_short_genuine_article_keeps_normal_validation():
     summary.article_key_points = []
     with pytest.raises(ValueError, match="omits the supplied article"):
         summary.validate_sources("Batching reduces costs.", [{"id": 1}, {"id": 2}])
+
+
+@pytest.mark.parametrize("notice", [
+    "Source text unavailable.",
+    "Source text unavailable. Batching reduces costs.",
+    ARTICLE_UNAVAILABLE_NOTICE,
+])
+@pytest.mark.parametrize("article", [None, "Batching reduces costs."])
+def test_unavailable_takeaway_is_rejected_at_shared_source_validation(notice, article):
+    result = output(article=article is not None)
+    result["overall_takeaway"] = notice
+    with pytest.raises(ValueError, match="not a publishable takeaway"):
+        StorySummary.model_validate(result).validate_sources(
+            article, [{"id": 1}, {"id": 2}], "Batching reduces costs.",
+        )

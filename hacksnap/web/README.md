@@ -1,5 +1,12 @@
 # Search metadata and RSS
 
+Stories whose stored source coverage says `article_status=unavailable`, or whose
+current URL has a matching fetch-failure record, are excluded
+from public story reads, feeds, browse counts, related stories, popularity lists,
+RSS and sitemaps. Direct URLs return the normal missing-story response. Browser
+feed snapshots containing these stories are rejected on restore. Existing data
+stays stored; pending summaries and HN self-posts keep their existing behavior.
+
 ## Typography
 
 Bricolage Grotesque is used for the wordmark, feed and reader headlines, section
