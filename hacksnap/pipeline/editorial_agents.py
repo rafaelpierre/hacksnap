@@ -7,10 +7,10 @@ import httpx
 from agents import Agent, ModelSettings, OpenAIChatCompletionsModel, RunConfig, Runner
 from agents.exceptions import ModelBehaviorError
 from agents.model_settings import ModelRetrySettings
-from openai import AsyncOpenAI
+from openai import APITimeoutError, AsyncOpenAI
 from pydantic import BaseModel, ValidationError
 
-from .editorial_review import InferenceOutputError, source_json
+from .editorial_review import InferenceOutputError, InferenceTimeoutError, source_json
 
 
 class AgentInference:
@@ -71,6 +71,9 @@ class AgentInference:
             if self.capture_outputs:
                 self.outputs.append({"role": role, "output": value.model_dump()})
             return value
+        except (TimeoutError, httpx.TimeoutException, APITimeoutError):
+            record["failure_kind"] = "timeout"
+            raise InferenceTimeoutError("Editorial inference timed out") from None
         except (ModelBehaviorError, ValidationError) as error:
             if isinstance(error, ModelBehaviorError) and not str(error).startswith(
                     "Invalid JSON when parsing"):

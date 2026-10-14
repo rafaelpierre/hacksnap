@@ -337,7 +337,7 @@ export function validFeedSnapshot(
           !Number.isSafeInteger(coverage.included_comments) ||
           coverage.included_comments < 0 ||
           typeof coverage.comments_truncated !== "boolean" ||
-          !["fetched", "unavailable", "not_applicable"].includes(coverage.article_status) ||
+          !["fetched", "not_applicable"].includes(coverage.article_status) ||
           (coverage.sentiment !== undefined &&
             (!coverage.sentiment ||
               !Number.isSafeInteger(coverage.sentiment.included_comments) ||

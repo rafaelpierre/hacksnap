@@ -365,6 +365,11 @@ class Repository:
                 """SELECT t.hn_id, t.title, t.url, c.full_raw_text_contents, c.content_hash
                    FROM hacksnap_ranked_stories t
                    LEFT JOIN hn_thread_contents c USING (hn_id)
+                   WHERE NOT EXISTS (
+                       SELECT 1 FROM hacksnap_summaries s
+                       WHERE s.story_id = t.hn_id
+                         AND s.source_coverage->>'article_status' = 'unavailable'
+                   )
                    ORDER BY t.rank LIMIT %s""",
                 (limit,),
             ).fetchall()

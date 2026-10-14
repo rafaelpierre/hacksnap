@@ -52,11 +52,11 @@ test("archive index preserves page boundaries, tie order and UTC month filters",
   try {
     await db.exec(`CREATE TABLE hacker_news_threads (
       hn_id bigint PRIMARY KEY, date_added timestamptz NOT NULL);
-      CREATE TABLE hacksnap_summaries (story_id bigint PRIMARY KEY, overall_takeaway text);
+      CREATE TABLE hacksnap_summaries (story_id bigint PRIMARY KEY, overall_takeaway text, source_coverage jsonb);
       INSERT INTO hacker_news_threads
       SELECT g, '2026-10-01T00:00:00Z'::timestamptz
         - (g / 3) * interval '1 hour' FROM generate_series(1, 3300) g;
-      INSERT INTO hacksnap_summaries SELECT hn_id, 'Published brief' FROM hacker_news_threads;`);
+      INSERT INTO hacksnap_summaries (story_id, overall_takeaway) SELECT hn_id, 'Published brief' FROM hacker_news_threads;`);
     const pages = [1, 2, 10, 50, 100];
     const read = async (month) => {
       const result = [];

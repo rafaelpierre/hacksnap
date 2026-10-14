@@ -172,6 +172,8 @@ test("browse readers filter pending briefs before 15-card limits, offsets, count
       INSERT INTO hacksnap_summaries (story_id, overall_takeaway)
         SELECT id, CASE id % 4 WHEN 0 THEN NULL WHEN 1 THEN '' WHEN 2 THEN ' ' ELSE E'\\n\\t\\r' END
         FROM generate_series(110, 140) AS id;
+      UPDATE hacksnap_summaries SET overall_takeaway = 'Source text unavailable.',
+        source_coverage = '{"article_status":"unavailable"}' WHERE story_id = 140;
     `);
     readyQuery = (statement, values) => {
       const sql = typeof statement === "string" ? statement : statement.text;
@@ -235,7 +237,7 @@ test("sitemap reader selects only published takeaways and retains canonical URLs
         hn_id bigint PRIMARY KEY, story_slug text, date_added timestamptz
       );
       CREATE TABLE hacksnap_summaries (
-        story_id bigint PRIMARY KEY, overall_takeaway text, updated_at timestamptz
+        story_id bigint PRIMARY KEY, overall_takeaway text, updated_at timestamptz, source_coverage jsonb
       );
       CREATE TABLE hn_thread_snapshots (hn_id bigint, observed_at timestamptz);
       CREATE TABLE hacksnap_rank_history (hn_id bigint, observed_at timestamptz);
@@ -250,6 +252,8 @@ test("sitemap reader selects only published takeaways and retains canonical URLs
         (6, 'Published takeaway', '2020-09-02T00:00:00Z'),
         (7, E' \\n Published takeaway. \\t ', '2020-09-02T00:00:00Z');
       INSERT INTO hn_thread_snapshots VALUES (6, '2020-09-03T00:00:00Z');
+      INSERT INTO hacksnap_summaries (story_id, overall_takeaway, source_coverage)
+        VALUES (1, 'Source text unavailable.', '{"article_status":"unavailable"}');
       INSERT INTO hacksnap_rank_history VALUES
         (6, '2020-09-04T00:00:00Z'), (6, '9999-09-01T00:00:00Z');
       INSERT INTO hacker_news_threads (hn_id, date_added) VALUES
@@ -555,6 +559,8 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
         SELECT hn_id, CASE hn_id WHEN 7 THEN NULL WHEN 6 THEN '' WHEN 5 THEN E' \t\n\r '
           ELSE 'Ready preview' END
         FROM hacker_news_threads WHERE hn_id <> 8;
+      INSERT INTO hacksnap_summaries (story_id, overall_takeaway, source_coverage)
+        VALUES (8, 'Source text unavailable.', '{"article_status":"unavailable"}');
     `);
     for (const ready of [false, true]) {
       clock += 1_800_001;
@@ -582,6 +588,25 @@ test("leaderboard fills ten preview-ready stories before limiting, including old
       );
     }
     const sql = queries.find((query) => query.includes("json_agg(story ORDER BY story.rank)"));
+    // Execute the actual detail/RSS/feed queries: the excluded article must not
+    // reappear through a direct URL or an export with its own query path.
+    for (const load of [
+      () => data.getStory("8"),
+      () => data.getFeedStories(),
+      () => data.getRssStories(),
+    ]) {
+      clock += 1_800_001;
+      queries.length = 0;
+      rows = [];
+      await load();
+      const query = queries.find((q) =>
+        q.includes("FROM hacker_news_threads t LEFT JOIN hacksnap_summaries"),
+      );
+      assert.ok(query);
+      const actual = await db.query(query, query.includes("$1") ? ["8"] : []);
+      assert.ok(actual.rows.every((row) => String(row.hn_id) !== "8"));
+      if (query.includes("$1")) assert.deepEqual(actual.rows, []);
+    }
     await db.exec("DELETE FROM hacksnap_summaries WHERE story_id > 2");
     assert.deepEqual(
       (await db.query(sql)).rows[0].stories.map((story) => story.hn_id),

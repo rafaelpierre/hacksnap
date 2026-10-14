@@ -176,7 +176,9 @@ calls use `Settings.llm_timeout` (120 seconds). Reviewer calls use
 `Settings.reviewer_timeout` (300 seconds), configurable with the positive integer
 `HACKSNAP_REVIEWER_TIMEOUT_SECONDS`. Each call uses one agent turn and no request retries.
 Each review can make up to five additional repair calls, sharing one budget across
-coverage errors, invalid source evidence and malformed JSON/schema output. Repairs
+coverage errors, invalid source evidence, malformed JSON/schema output and reviewer
+per-call timeouts (including SDK/HTTP timeouts). A timeout consumes an attempt and
+retries the full review within the remaining editorial deadline. Repairs
 receive the unchanged draft, original sources and precise validation feedback; parsed
 reviews include the rejected quote and its source/field when relevant. A complete
 replacement must pass all coverage and exact quote-matching checks before it can
@@ -206,8 +208,9 @@ the pass, repair attempt and safe error metadata, without quotes or raw model ou
 A deadline during revision retains the preceding validated draft. If no validated
 draft exists yet, deadline expiry fails that story instead of publishing partial output.
 A valid review that still rejects the draft after its one revision, an invalid draft,
-or an operational error (including a per-call timeout before the overall deadline)
-still fails the story and preserves stored content. Per-stage model, token and timing
+or another operational error (including a writer/revision per-call timeout)
+still fails the story and preserves stored content. Reviewer timeout retries never
+reset the story or batch deadline. Per-stage model, token and timing
 metrics exclude source text and credentials; SDK tracing remains disabled.
 
 New summaries use the candidate journalistic prompts in `editorial_prompts.py`.
@@ -853,19 +856,23 @@ The summary prompt distinguishes real article body text from navigation-only pag
 bot challenges, access/login/paywall notices, and JavaScript fallback pages. When a
 retrieved page is unusable, the structured output uses the fixed notice
 “Article unavailable: the retrieved page did not contain usable article text.”
-with no article key points. New discussion analysis does not generate reference
-claims. The notice is an inference-only marker: after validation, the pipeline persists
-`article_summary: null`
-and `article_status: unavailable`. Existing web consumers then show unavailable copy
-and the source link, and describe the page as discussion-only in preview metadata.
-Available comments (and substantive HN story text) can still be summarized. True
-fetch failures retain the existing `fetch_skipped` behavior.
+with no article key points. This is an internal skip signal: the worker discards
+the whole result, records the URL in `hacksnap_fetch_failures`, and returns
+`fetch_skipped`. It stops before reviewer repairs or separate sentiment inference.
+Review fail-open never overrides source availability, even after a writer revision.
+Fetch failures and empty fetched pages skip all model calls.
 
 This is a model judgment within the existing inference call, not a deterministic
-pre-inference content filter. Short genuine articles remain eligible. Normal
-summaries still require article content and key points. Existing saved summaries
-are not regenerated automatically, so the unavailable state is retained by later
-discussion-only refreshes; recovering the article requires explicit regeneration.
+page-quality filter. A nonempty shell page may need one writer call to identify
+it; short genuine articles remain eligible. HN self-posts still use their supplied
+post and discussion without requiring an external article.
+
+Previously saved summaries marked `article_status=unavailable` remain stored but
+are excluded from worker selection, feeds, archive/category/related results,
+popularity lists, sitemaps, RSS and direct story reads. They receive no discussion
+or sentiment refresh. The exclusion uses existing coverage metadata and needs no
+database migration or deletion. Cached public responses expire under the existing
+cache policy after deployment.
 
 ### Structured brief inference compatibility
 

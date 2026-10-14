@@ -9,13 +9,46 @@ from test_editorial_review import FakeInference, verdict
 
 pytest.importorskip("agents")
 from pipeline.editorial_agents import AgentInference
-from pipeline.editorial_review import InferenceOutputError, reviewed_generation
+from pipeline.editorial_review import (
+    InferenceOutputError,
+    InferenceTimeoutError,
+    reviewed_generation,
+)
 
 pytest_plugins = ["test_editorial_review"]
 
 
 class Answer(BaseModel):
     text: str
+
+
+@pytest.mark.parametrize("transport_timeout", [True, False])
+def test_timeout_is_classified_without_hidden_retry_or_sensitive_logs(
+        transport_timeout, expire_editorial_deadline):
+    requests = []
+
+    async def response(request):
+        requests.append(request)
+        if transport_timeout:
+            raise httpx.ReadTimeout("private request details", request=request)
+        expire_editorial_deadline()
+        await asyncio.Event().wait()
+
+    async def run():
+        client = AgentInference("https://example.invalid/v1", "secret-key", "test-model",
+                                transport=httpx.MockTransport(response))
+        try:
+            with pytest.raises(InferenceTimeoutError, match="timed out"):
+                await client.infer("reviewer_repair", "Review", {}, Answer)
+            assert len(requests) == 1
+            assert client.calls[0]["status"] == "failed"
+            assert client.calls[0]["failure_kind"] == "timeout"
+            assert "private request details" not in json.dumps(client.calls)
+            assert "secret-key" not in json.dumps(client.calls)
+        finally:
+            await client.close()
+
+    asyncio.run(run())
 
 
 @pytest.mark.parametrize("finish_reason", ["stop", "length", "content_filter"])

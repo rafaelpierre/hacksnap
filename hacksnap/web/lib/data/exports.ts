@@ -6,7 +6,7 @@ import { readStories, storySlugField } from "./capabilities";
 import { getLeaderboard } from "./ranked";
 import { boundedCache } from "../bounded-cache";
 import { DataUnavailableError } from "../data-availability";
-import { readySummarySQL } from "../ready-stories";
+import { availableSourceSQL, readySummarySQL } from "../ready-stories";
 import type { CardStory, ExportStory } from "../story-domain";
 import {
   cardRankHistorySQL,
@@ -67,7 +67,7 @@ const cachedFeedStories = boundedCache(async (): Promise<CardStory[]> => {
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
-      WHERE t.hn_id BETWEEN 1 AND 999999999999999
+      WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${availableSourceSQL}
       ORDER BY t.date_added DESC, t.hn_id DESC LIMIT 50`);
     return result.rows;
   });
@@ -90,7 +90,7 @@ const cachedRssStories = boundedCache(
         to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
         FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
         LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
-        WHERE t.hn_id BETWEEN 1 AND 999999999999999
+        WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${availableSourceSQL}
         ORDER BY t.date_added DESC, t.hn_id DESC LIMIT 50`)
         ).rows,
     ),

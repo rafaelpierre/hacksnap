@@ -201,6 +201,10 @@ ARTICLE_UNAVAILABLE_NOTICE = (
 )
 
 
+class ArticleUnavailableError(ValueError):
+    """The retrieved page has no usable article; never publish a discussion fallback."""
+
+
 class StorySummary(SummaryContent):
     discussion_summary: Text
 

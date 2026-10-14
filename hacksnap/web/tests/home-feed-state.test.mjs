@@ -81,6 +81,13 @@ test("untrusted API and browser records cannot render malformed nested cards", (
       ...good,
       summary: {
         ...good.summary,
+        source_coverage: { ...good.summary.source_coverage, article_status: "unavailable" },
+      },
+    },
+    {
+      ...good,
+      summary: {
+        ...good.summary,
         source_coverage: { ...good.summary.source_coverage, sentiment: null },
       },
     },

@@ -10,6 +10,7 @@ from uuid import uuid4
 import httpx
 
 from .models import (
+    ArticleUnavailableError,
     CommentSentiment,
     DiscussionAnalysis,
     GeneratedDiscussionAnalysis,
@@ -57,6 +58,8 @@ class RoutedSummarizer:
     @traced_operation("summarization_pipeline")
     def summarize(self, source: dict) -> StorySummary:
         summary = self.editorial.summarize(source)
+        if summary.article_unavailable:
+            raise ArticleUnavailableError("Retrieved page has no usable article text")
         score = self.estimate_sentiment(source["comments"])
         # Preserve the established editorial schema; replace only its score.
         return StorySummary.model_validate({**summary.model_dump(), "sentiment": score.sentiment})

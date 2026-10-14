@@ -16,6 +16,7 @@ from .image_scope import BACKFILL_START
 from .kestrel import FetchError, KestrelFetcher, external_article_url
 from .models import (
     DISCUSSION_ANALYSIS_SCHEMA_VERSION,
+    ArticleUnavailableError,
     CommentSentiment,
     DiscussionAnalysis,
     DiscussionAnalysisMetadata,
@@ -147,6 +148,9 @@ def process_story(
         }
         existing = repository.get_summary(story["hn_id"])
         if existing:
+            if (existing.get("source_coverage") or {}).get("article_status") == "unavailable":
+                log_event(story, "source_availability", "fetch_skipped")
+                return "fetch_skipped"
             analysis_updated = False
             if existing.get("discussion_analysis") is not None:
                 stage = "discussion_refresh"
@@ -176,6 +180,8 @@ def process_story(
         if article_url:
             try:
                 article = fetcher.fetch(article_url)
+                if not article or not article.strip():
+                    raise FetchError("Retrieved page has no article content")
             except FetchError as error:
                 log_event(story, stage, "fetch_skipped", error)
                 stage = "persist_fetch_failure"
@@ -193,19 +199,21 @@ def process_story(
         stage = "cache"
         fingerprint = source_fingerprint(source, summarizer.model, prompt_version)
         stage = "infer"
-        summary = summarizer.summarize(source)
+        try:
+            summary = summarizer.summarize(source)
+            if summary.article_unavailable:
+                raise ArticleUnavailableError("Retrieved page has no usable article text")
+        except ArticleUnavailableError:
+            if not article_url:
+                raise
+            log_event(story, "source_availability", "fetch_skipped")
+            stage = "persist_fetch_failure"
+            repository.save_fetch_failure(story["hn_id"], article_url)
+            return "fetch_skipped"
         stage = "validate"
         # Round-trip also revalidates nested models returned by custom summarizers.
         summary = StorySummary.model_validate_json(summary.model_dump_json())
         summary.validate_sources(article, comments, source["story_text"])
-        if summary.article_unavailable:
-            coverage["article_status"] = "unavailable"
-            # The notice is an inference marker only. Public consumers use null
-            # to select unavailable copy, source links, and discussion-only metadata.
-            summary = StorySummary.model_validate({
-                **summary.model_dump(), "article_summary": None,
-            })
-            summary.validate_sources(None, comments, source["story_text"])
         source_version = source_fingerprint(
             {"article": article, "story_text": source["story_text"]}, "", ""
         )
