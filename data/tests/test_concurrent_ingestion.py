@@ -173,6 +173,56 @@ def test_parallel_scan_accounts_for_skipped_filtered_and_matched_stories(scan, m
     assert state["finished"][0]["stories_examined"] == 4
 
 
+@pytest.mark.parametrize("concurrency", [1, 4])
+@pytest.mark.parametrize("error_type", [httpx.ReadTimeout, RuntimeError])
+def test_thresholds_skip_classifier_and_comments_before_eligible_story(
+    scan, monkeypatch, concurrency, error_type,
+):
+    HN, state = scan
+    item = HN.item
+    classified, fetched = [], []
+
+    def metadata(self, story_id):
+        story = item(self, story_id)
+        story["score"], story["descendants"] = {
+            1: (39, 40), 2: (40, 39), 3: (40, 40), 4: (20, 20),
+        }[story_id]
+        return story
+
+    def comments(self, story, *args, **kwargs):
+        fetched.append(story["id"])
+        return []
+
+    class Classifier:
+        model = topic_filter.MODAL_LLM_MODEL
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def classify(self, title):
+            classified.append(title)
+            if title != "AI story 3":
+                raise error_type("Excluded stories must never reach inference")
+            return topic_filter.TopicDecision(relevant=True, category="agents_coding")
+
+    monkeypatch.setattr(HN, "item", metadata)
+    monkeypatch.setattr(HN, "thread_comments", comments)
+    monkeypatch.setenv("MODAL_LLM_API_KEY", "offline-key")
+    monkeypatch.setattr(cli, "TitleTopicClassifier", Classifier)
+    monkeypatch.setattr(cli, "get_category_assignments", lambda *args: {})
+    result = CliRunner().invoke(cli.main, [
+        "--classify-topic", "--min-points", "40", "--min-comments", "40",
+        "--story-concurrency", str(concurrency),
+    ])
+
+    assert result.exit_code == 0, result.output
+    assert classified == ["AI story 3"]
+    assert fetched == [3]
+    assert [row["hn_id"] for row in state["rows"]] == [3]
+    assert "detected=4, filtered=3, skipped=0, matched=1" in result.output
+    assert state["finished"][0]["status"] == "succeeded"
+
+
 def test_empty_scan_finishes_without_workers(scan, monkeypatch):
     HN, state = scan
     monkeypatch.setattr(HN, "top_story_ids", lambda self: [])

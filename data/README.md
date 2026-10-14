@@ -161,10 +161,12 @@ connection URL to repository files or workflow logs.
 ## Scheduled ingestion on Modal
 
 [modal_app.py](modal_app.py) deploys the `hn-ingestion` app. Its `ingest` function
-runs hourly at :17 from 08:17 through 23:17 UTC. It preserves the previous filters:
-20 top stories, at least 20 points and 20 comments, comment depth 5, and at least
+runs hourly at :17 from 08:17 through 23:17 UTC. It uses these filters:
+20 top stories, at least 40 points and 40 comments, comment depth 5, and at least
 3 descendants per retained comment (plus ancestors). It processes up to four stories
 concurrently within the single scheduled invocation.
+Title, point, and comment-count filters run before topic classification or comment
+retrieval, so excluded stories spend no classifier inference calls.
 
 It reuses `SUPABASE_PASSWORD` and `MODAL_LLM_API_KEY` from the existing `hacksnap`
 Modal Secret. The scheduled function explicitly selects the GLM NVFP4 endpoint and

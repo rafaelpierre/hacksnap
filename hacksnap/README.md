@@ -1,8 +1,9 @@
 # Hacksnap
 
-An article + HN discussion digest refreshed hourly during the day on top of the existing collector.
-The Modal schedule runs on the hour from 09:00 through midnight, inclusive, in
-`Europe/London` (16 runs per day). It follows GMT/BST automatically.
+An article + HN discussion digest refreshed four times a day on top of the existing collector.
+The Modal schedule runs only at 08:00, 12:00, 16:00, and 20:00 in
+`America/New_York` (four runs per day). It follows EST/EDT automatically.
+The collector requires at least 40 points and 40 comments before topic classification.
 The worker never fetches Hacker News. Next.js renders structured summaries from
 Supabase over a server-only PostgreSQL connection.
 
@@ -42,7 +43,7 @@ ranks can have gaps. Ranked APIs return fewer than ten cards only when fewer tha
 stories have previews. Pending stories remain eligible for worker enrichment.
 At the end of every worker refresh, after fetch failures are excluded, one atomic
 insert records every eligible rank with a shared timestamp, including ranks below
-10 and unchanged positions. This follows the worker's hourly daytime schedule;
+10 and unchanged positions. This follows the worker's four-times-daily schedule;
 manual refreshes also record observations. These are sampled positions, not every
 intermediate change to the live view. Failed rank writes fail the refresh.
 
@@ -74,7 +75,7 @@ deduplicated observations; subsequent ingestion maintains it correctly.
 ## Files
 
 ```text
-modal_app.py             hourly London daytime schedule + pinned Linux Kestrel image
+modal_app.py             four-times-daily New York schedule + pinned Linux Kestrel image
 pipeline/config.py      all runtime environment configuration
 pipeline/supabase.py    existing PostgreSQL connection pattern + enrichment writes
 pipeline/kestrel.py     bounded JSON CLI adapter
@@ -250,7 +251,8 @@ uv run modal secret create hacksnap --from-dotenv .env.local
 uv run modal deploy modal_app.py
 ```
 
-This deploys one function at `0 0,9-23 * * *` in `Europe/London`.
+This schedules summarization at `0 8,12,16,20 * * *` in `America/New_York`:
+8 AM, noon, 4 PM, and 8 PM, following EST/EDT automatically.
 It processes stories concurrently with a hard limit of **15 active story jobs**.
 Each run selects up to **50 stories** from the full ranking, including stories
 below the website’s top-ten display. This is a cap on all attempted stories,
@@ -604,8 +606,9 @@ variables or credentials and does not create or overwrite this secret.
 
 The `supabase-production` environment supplies the migration credentials.
 No database writes are performed by the web build or deployment preflight.
-The hourly daytime Modal enrichment and hourly HN ingestion schedules are unchanged
-by these deployment triggers. No frontend deployment is configured in these workflows.
+Modal enrichment runs at 8 AM, noon, 4 PM, and 8 PM in `America/New_York`;
+HN ingestion runs hourly at :17 from 08:17 through 23:17 UTC. Deployment triggers
+do not add scheduled runs. No frontend deployment is configured in these workflows.
 
 No production schema migration, persistent proxy token creation, scheduled
 deployment or public web deployment is performed by local tests.
@@ -679,11 +682,13 @@ by deploying this change.
 After each completed Modal summarization run, `refresh_hacksnap` asynchronously
 triggers `refresh_article_images` when images are enabled. Images require published
 summaries, so the handoff follows summarization rather than raw HN collection.
-The image worker has no separate schedule: automatic runs follow the hourly
-09:00-through-midnight `Europe/London` summary starts, including completion of the
-midnight run. Quiet summary runs also trigger a bounded sweep to recover pending
+The image worker has no separate schedule: automatic runs follow completion of the
+8 AM, noon, 4 PM, and 8 PM `America/New_York` summary runs, following EST/EDT.
+Quiet summary runs also trigger a bounded sweep to recover pending
 jobs, expired leases and eligible retries. A dispatch failure is logged without
-failing publication; recovery waits for the next completed summary run. Manual
+failing publication; recovery waits for the next completed summary run. Scheduled
+starts are four hours apart during the day, with a twelve-hour overnight gap
+from 8 PM to 8 AM (subject to daylight saving transitions). Manual
 image-worker and backfill invocations remain available.
 
 Apply migrations through `0016_image_queue` before deploying the updated worker.

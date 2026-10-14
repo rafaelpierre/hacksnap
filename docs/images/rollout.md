@@ -55,10 +55,17 @@ Load credentials from the normal private environment file without printing them.
 The existing `refresh_article_images` Modal function is triggered after
 `refresh_hacksnap` completes, with one container and ten processed jobs per
 invocation by default (configurable up to 100). It has no separate schedule;
-automatic runs follow summary starts from 09:00 through midnight in Europe/London,
-including completion of the midnight run. Deploying removes the old image cron.
+automatic runs follow completion of the 8 AM, noon, 4 PM, and 8 PM summary runs
+in `America/New_York`, following EST/EDT automatically. There are four scheduled
+sweeps per day when summaries complete and images are enabled. Deploying removes
+the old image cron.
 Dispatch failures are logged without failing summary publication; recovery waits
-for the next completed summary run. Its disabled flag is checked before database
+for the next completed summary run. Scheduled starts are four hours apart during
+the day, with a twelve-hour overnight gap from 8 PM to 8 AM (subject to daylight
+saving transitions); actual recovery also depends on summary completion and
+successful dispatch. Quiet summary runs sweep pending jobs, expired leases, and
+eligible retries too. Manual image-worker and backfill invocations remain available.
+Its disabled flag is checked before database
 access. Enabling it without a Blob token raises a configuration error. Publishers
 are limited to one request every two seconds by default in that sweep; backfill uses the requested
 publisher interval, including image candidates and redirects.

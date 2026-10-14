@@ -35,7 +35,7 @@ def ingest():
         os.environ["MODAL_LLM_BASE_URL"] = MODAL_LLM_BASE_URL
         os.environ["MODAL_LLM_MODEL"] = MODAL_LLM_MODEL
         main(args=[
-            "--limit", "20", "--min-points", "20", "--min-comments", "20",
+            "--limit", "20", "--min-points", "40", "--min-comments", "40",
             "--max-comment-depth", "5", "--min-comment-descendants", "3",
             "--classify-topic", "--story-concurrency", "4",
         ], standalone_mode=False)

@@ -181,6 +181,19 @@ def main(
                 title = story.get("title", "")
                 score = story.get("score", 0)
                 descendants = story.get("descendants", 0)
+                filter_failures: list[str] = []
+                if not title_matches(title, title_words):
+                    filter_failures.append("title does not match")
+                if descendants < min_comments:
+                    filter_failures.append(f"comments={descendants} < {min_comments}")
+                if score < min_points:
+                    filter_failures.append(f"points={score} < {min_points}")
+                if filter_failures:
+                    with counter_lock:
+                        filtered += 1
+                    click.echo(f"{prefix} Filtered {title!r}: {', '.join(filter_failures)}.")
+                    return None
+
                 classification = None
                 if classifier is not None:
                     classification = reusable_category(saved_categories.get(story_id), title, classifier.model)
@@ -230,19 +243,6 @@ def main(
                         return None
                     if decision is not None:
                         classification = category_metadata(title, decision.category, classifier.model)
-
-                filter_failures: list[str] = []
-                if not title_matches(title, title_words):
-                    filter_failures.append("title does not match")
-                if descendants < min_comments:
-                    filter_failures.append(f"comments={descendants} < {min_comments}")
-                if score < min_points:
-                    filter_failures.append(f"points={score} < {min_points}")
-                if filter_failures:
-                    with counter_lock:
-                        filtered += 1
-                    click.echo(f"{prefix} Filtered {title!r}: {', '.join(filter_failures)}.")
-                    return None
 
                 click.echo(
                     f"{prefix} Matched {title!r} "

@@ -115,7 +115,7 @@ export function storyMarkdown(
     return [
       ...lines,
       "## Summary pending",
-      "Summaries update hourly. You can read the original sources above.",
+      "Summary runs start at 8 AM, noon, 4 PM, and 8 PM New York time. You can read the original sources above.",
       "",
     ].join("\n\n");
   lines.push(
@@ -193,7 +193,7 @@ export function leaderboardMarkdown({
     lines.push(text(story.summary.overall_takeaway));
   }
   lines.push(
-    "Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Summaries updated hourly",
+    "Added in the past 24 hours first · Older stories fill remaining places · Each group ranked by points · Summary runs start at 8 AM, noon, 4 PM, and 8 PM New York time",
   );
   return lines.join("\n\n") + "\n";
 }
