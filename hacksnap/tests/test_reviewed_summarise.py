@@ -100,7 +100,7 @@ def test_scheduled_run_uses_review_before_publication(monkeypatch, settings, inf
     assert module.run()["generated"] == 1
     assert started + EDITORIAL_BATCH_TIMEOUT_SECONDS <= deadlines[0] <= monotonic() + EDITORIAL_BATCH_TIMEOUT_SECONDS
     assert [call["role"] for c in inference.clients for call in c.calls] == ["writer", "reviewer"]
-    assert inference.clients[1].config["effort"] == "high"
+    assert [c.config["effort"] for c in inference.clients] == ["high", "high"]
     assert all(c.closed for c in inference.clients)
     assert repo.saved[100]["discussion_analysis_metadata"].prompt_version.startswith("reviewed-v1-")
     assert repo.saved[100]["summary"].sentiment == -1
@@ -202,6 +202,7 @@ def test_rejection_is_bounded_and_logs_no_sources_or_credentials(settings, infer
     with caplog.at_level("INFO", logger="hacksnap"), pytest.raises(EditorialRejected):
         ReviewedSummarizer(settings).summarize(source)
     assert sum(len(c.calls) for c in inference.clients) == 4
+    assert [c.config["effort"] for c in inference.clients] == ["high", "high"]
     for secret in [settings.llm_api_key, settings.sentiment_api_key, source["article"], settings.llm_base_url]:
         assert secret not in caplog.text
 
