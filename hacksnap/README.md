@@ -173,32 +173,52 @@ parallel stories do not share event loops or mutable review state. Writer and re
 calls use `Settings.llm_timeout` (120 seconds). Reviewer calls use
 `Settings.reviewer_timeout` (300 seconds), configurable with the positive integer
 `HACKSNAP_REVIEWER_TIMEOUT_SECONDS`. Each call uses one agent turn and no request retries.
-Each review can make one additional coverage repair call with the exact missing,
-unexpected and duplicate JSON pointers. The complete replacement review must pass
-all coverage and evidence checks before it can approve or direct a draft revision.
-At most six editorial calls run: write, review, optional review repair, one revision,
-final review and optional final review repair. The scheduled
+Each review can make up to five additional repair calls, sharing one budget across
+coverage errors, invalid source evidence and malformed JSON/schema output. Repairs
+receive the unchanged draft, original sources and precise validation feedback; parsed
+reviews include the rejected quote and its source/field when relevant. A complete
+replacement must pass all coverage and exact quote-matching checks before it can
+approve or direct a draft revision. No fuzzy matching or quote normalization is used.
+At most fourteen editorial calls run: write, review plus up to five repairs, one
+revision, then final review plus up to five repairs. The scheduled
 function allows 3,600 seconds for the bounded 50-story batch and sentiment calls.
+All editorial calls for one story share a 600-second deadline, including the initial
+writer, repairs, revision and final review. The scheduled run also shares one absolute
+editorial cutoff 2,700 seconds after `run()` begins, leaving 15 minutes of its function
+limit for sentiment, persistence and cleanup. The earlier deadline cancels active
+inference and prevents further editorial calls; increasing the per-call reviewer
+timeout cannot extend either budget. Late queued stories do not receive a fresh batch
+budget, and no new writer call starts after the cutoff.
 
 The reviewer covers every prose field with original-source quotes and reasoning.
 Code checks schema, citations, quote membership, required coverage and empty states.
 This verifies fidelity to the supplied material; it does not research external facts.
-Rejected or invalid results fail that story without publishing an unreviewed draft.
-Existing stored content remains unchanged on failure. Per-stage model, token and timing
-metrics are logged without source text, credentials or reviewer output; SDK tracing
-remains disabled.
+If the five repairs or the shared editorial time budget are exhausted, the workflow
+fails open and publishes the latest draft that passed the existing schema, citation
+and empty-state checks. Invalid review findings never direct a revision. This fallback
+is recorded only in internal logs as
+`editorial_review_completed` with `status=unreviewed`, `fail_open=true` and
+`fallback_reason=repair_limit` or `deadline`; published
+summaries and discussion text contain no review-status notice. Validation failures log
+the pass, repair attempt and safe error metadata, without quotes or raw model output.
+A deadline during revision retains the preceding validated draft. If no validated
+draft exists yet, deadline expiry fails that story instead of publishing partial output.
+A valid review that still rejects the draft after its one revision, an invalid draft,
+or an operational error (including a per-call timeout before the overall deadline)
+still fails the story and preserves stored content. Per-stage model, token and timing
+metrics exclude source text and credentials; SDK tracing remains disabled.
 
 New summaries use the candidate journalistic prompts in `editorial_prompts.py`.
 Existing article summaries and subtitles are not regenerated. Their discussion
 analyses refresh once when encountered because the reviewed prompt/model fingerprint
 changes, then reuse the existing cache when inputs are unchanged. Cache identity
-includes the writer, reviewer, coverage repair and revision prompts, review version, both model names and
+includes the writer, reviewer, repair and revision prompts, review version, both model names and
 reasoning settings. This is ordinary scheduled processing, with no bulk backfill.
 
 The [prototype evaluation](../docs/evaluations/editorial-prompts/agents-report.md)
 records remaining editorial weaknesses and measured overhead. Review approval does
 not guarantee publication quality; repetition and overbroad wording remain risks.
-The worker nevertheless requires review before every new editorial write.
+The worker attempts review before every new editorial write, with the bounded fallback above.
 
 Run a live inference-only check of the exact production adapter from `hacksnap/`:
 

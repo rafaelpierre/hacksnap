@@ -7,6 +7,9 @@ from urllib.parse import quote, urlsplit
 from .preprocess import DEFAULT_COMMENT_CHARS
 
 MAX_STORIES_PER_RUN = 50
+EDITORIAL_TIMEOUT_SECONDS = 600
+# Stop editorial work 15 minutes before the scheduled function's 3,600-second limit.
+EDITORIAL_BATCH_TIMEOUT_SECONDS = 2700
 SENTIMENT_BASE_URL = "https://rafaelpierre--ep-glm-5-3-flash-nvfp4-server.us-west.modal.direct/v1"
 SENTIMENT_MODEL = "nvidia/GLM-5.3-Flash-NVFP4"
 

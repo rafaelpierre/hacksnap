@@ -25,8 +25,9 @@ class EditorialRejected(ValueError):
 
 
 class ReviewedSummarizer:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, *, deadline: float | None = None):
         self.model = settings.llm_model
+        self.deadline = deadline
         self.writer_config = {
             "base_url": settings.llm_base_url, "api_key": settings.llm_api_key,
             "model": settings.llm_model, "effort": settings.llm_reasoning_effort,
@@ -67,11 +68,16 @@ class ReviewedSummarizer:
         try:
             reviewer = AgentInference(**self.reviewer_config)
             try:
-                result = await reviewed_generation(writer, reviewer, source, operation)
-                logger.info(json.dumps({"event": "editorial_review_completed",
+                result = await reviewed_generation(
+                    writer, reviewer, source, operation, deadline=self.deadline,
+                )
+                log = logger.warning if result.status == "unreviewed" else logger.info
+                log(json.dumps({"event": "editorial_review_completed",
                     "operation": operation, "status": result.status,
-                    "review_passes": len(result.history)}))
-                if result.status != "accepted" or result.draft is None:
+                    "review_passes": len(result.history),
+                    "fail_open": result.status == "unreviewed",
+                    "fallback_reason": result.fallback_reason}))
+                if result.status == "rejected" or result.draft is None:
                     raise EditorialRejected("Editorial review rejected the draft")
                 return result.draft
             finally:

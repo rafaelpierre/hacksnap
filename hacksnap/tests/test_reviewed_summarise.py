@@ -5,14 +5,19 @@ import importlib
 import json
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from time import monotonic
 from types import SimpleNamespace
 
 import pytest
 from test_editorial_review import verdict
 from test_pipeline import FakeRepository, FakeSummarizer, story
 
-from pipeline.config import Settings
-from pipeline.editorial_review import EditorialReview
+from pipeline.config import EDITORIAL_BATCH_TIMEOUT_SECONDS, Settings
+from pipeline.editorial_review import (
+    EditorialDeadlineExceeded,
+    EditorialReview,
+    InferenceOutputError,
+)
 from pipeline.models import CommentSentiment
 from pipeline.refresh import process_story
 from pipeline.reviewed_summarise import EditorialRejected, ReviewedSummarizer
@@ -31,7 +36,8 @@ def settings():
 
 @pytest.fixture
 def inference(monkeypatch, draft, source):
-    state = SimpleNamespace(clients=[], reject=False, fail=False)
+    state = SimpleNamespace(clients=[], reject=False, fail=False,
+                            invalid_review=False, invalid_output=False)
 
     class Client:
         def __init__(self, **config):
@@ -43,8 +49,10 @@ def inference(monkeypatch, draft, source):
             self.calls.append({"role": role, "model": self.config["model"]})
             if state.fail:
                 raise TimeoutError("inference timeout")
-            if role != "reviewer":
+            if role not in {"reviewer", "reviewer_repair"}:
                 return draft if schema.__name__ == "GeneratedStorySummary" else draft.discussion_analysis
+            if state.invalid_output:
+                raise InferenceOutputError("Invalid JSON")
             value = payload["draft"]
             review = verdict(SimpleNamespace(model_dump=lambda: value), revise=state.reject)
             for check in review.checks:
@@ -56,6 +64,8 @@ def inference(monkeypatch, draft, source):
                 evidence = review.findings[0].evidence[0]
                 evidence.source, evidence.comment_id = "comment", 10
                 evidence.quote = source["comments"][0]["text"]
+            if state.invalid_review:
+                review.checks[0].evidence[0].quote = "fabricated quote"
             return EditorialReview.model_validate(review.model_dump())
 
         async def close(self):
@@ -78,7 +88,17 @@ def test_scheduled_run_uses_review_before_publication(monkeypatch, settings, inf
     monkeypatch.setattr(module, "Repository", lambda _: repo)
     monkeypatch.setattr(module, "KestrelFetcher", lambda *a: SimpleNamespace(fetch=lambda _: source["article"]))
     monkeypatch.setattr(module, "ModalSummarizer", lambda *a: FakeSummarizer())
+    deadlines = []
+    generate = ReviewedSummarizer._generate
+
+    async def observed_generate(self, *args):
+        deadlines.append(self.deadline)
+        return await generate(self, *args)
+
+    monkeypatch.setattr(ReviewedSummarizer, "_generate", observed_generate)
+    started = monotonic()
     assert module.run()["generated"] == 1
+    assert started + EDITORIAL_BATCH_TIMEOUT_SECONDS <= deadlines[0] <= monotonic() + EDITORIAL_BATCH_TIMEOUT_SECONDS
     assert [call["role"] for c in inference.clients for call in c.calls] == ["writer", "reviewer"]
     assert inference.clients[1].config["effort"] == "high"
     assert all(c.closed for c in inference.clients)
@@ -118,6 +138,35 @@ def test_initial_result_primes_reviewed_refresh_cache(settings, inference, sourc
     assert process_story(item(source), repo, None, changed) == "analysis_updated"
     assert len(inference.clients) == 4
     assert process_story(item(source), repo, None, changed) == "unchanged"
+
+
+@pytest.mark.parametrize("failure", ["invalid_review", "invalid_output"])
+def test_exhausted_repairs_publish_without_any_public_notice(
+        failure, settings, inference, source, draft, caplog):
+    repo = FakeRepository([item(source)])
+    model = RoutedSummarizer(ReviewedSummarizer(settings), SimpleNamespace(model="sentiment",
+        estimate_sentiment=lambda _: CommentSentiment(sentiment=0)))
+    setattr(inference, failure, True)
+    with caplog.at_level("INFO", logger="hacksnap"):
+        assert process_story(item(source), repo,
+            SimpleNamespace(fetch=lambda _: source["article"]), model) == "generated"
+        assert repo.saved[100]["summary"] == draft.to_summary()
+        assert [call["role"] for call in inference.clients[1].calls] == ["reviewer"] + ["reviewer_repair"] * 5
+        before = copy.deepcopy(repo.saved[100]["summary"])
+        changed = RoutedSummarizer(ReviewedSummarizer(
+            replace(settings, sentiment_model="new-reviewer")), model.sentiment)
+        assert process_story(item(source), repo, None, changed) == "analysis_updated"
+    assert repo.saved[100]["summary"] == before
+    assert repo.saved[100]["discussion_analysis"] == draft.discussion_analysis.to_analysis()
+    assert len(inference.clients[3].calls) == 6
+    assert all(client.closed for client in inference.clients)
+    events = [json.loads(record.message) for record in caplog.records
+              if record.message.startswith('{"event": "editorial_review_completed"')]
+    assert len(events) == 2
+    assert all(event["status"] == "unreviewed" and event["fail_open"] for event in events)
+    for secret in [source["article"], source["comments"][0]["text"], "fabricated quote",
+                   settings.llm_api_key, settings.sentiment_api_key]:
+        assert secret not in caplog.text
 
 
 def test_concurrent_stories_get_separate_clients_and_event_loops(settings, inference, source):
@@ -184,3 +233,52 @@ def test_reviewer_timeout_env_override(monkeypatch):
     assert Settings.from_env().reviewer_timeout == 420
     monkeypatch.delenv("HACKSNAP_REVIEWER_TIMEOUT_SECONDS")
     assert Settings.from_env().reviewer_timeout == 300
+
+
+@pytest.mark.parametrize("operation", ["summary", "refresh"])
+def test_deadline_fallback_stays_internal_and_closes_clients(
+        monkeypatch, operation, settings, inference, source, draft, caplog,
+        expire_editorial_deadline):
+    # Exercise the production adapter with a reviewer whose per-call timeout exceeds the budget.
+    configured = replace(settings, reviewer_timeout=10000)
+    module = importlib.import_module("pipeline.reviewed_summarise")
+    original_client = module.AgentInference
+    cancelled = []
+
+    class SlowReviewer(original_client):
+        async def infer(self, role, *args):
+            if role == "reviewer":
+                self.calls.append({"role": role, "model": self.config["model"]})
+                try:
+                    assert expire_editorial_deadline() <= 60
+                    await asyncio.Event().wait()
+                finally:
+                    cancelled.append(role)
+            return await super().infer(role, *args)
+
+    monkeypatch.setattr(module, "AgentInference", SlowReviewer)
+    adapter = ReviewedSummarizer(configured, deadline=monotonic() + 60)
+    with caplog.at_level("WARNING", logger="hacksnap"):
+        result = (adapter.summarize(source) if operation == "summary" else
+                  adapter.refresh_discussion(source))
+    assert result == (draft.to_summary() if operation == "summary" else
+                      draft.discussion_analysis.to_analysis())
+    assert cancelled == ["reviewer"]
+    assert all(client.closed for client in inference.clients)
+    event = json.loads(caplog.records[-1].message)
+    assert event["status"] == "unreviewed" and event["fallback_reason"] == "deadline"
+    assert event["fail_open"] is True
+
+
+def test_shared_batch_deadline_does_not_reset_for_later_stories(monkeypatch, settings, inference, source):
+    clock = [100.0]
+    monkeypatch.setattr("pipeline.editorial_review.monotonic", lambda: clock[0])
+    adapter = ReviewedSummarizer(settings, deadline=150)
+    adapter.summarize(source)
+    clock[0] = 151
+    for operation in [adapter.summarize, adapter.refresh_discussion]:
+        with pytest.raises(EditorialDeadlineExceeded):
+            operation(source)
+    assert len(inference.clients) == 6
+    assert all(not client.calls for client in inference.clients[2:])
+    assert all(client.closed for client in inference.clients)
