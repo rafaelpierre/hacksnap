@@ -1,8 +1,9 @@
 # Hacksnap
 
-An article + HN discussion digest refreshed hourly during the day on top of the existing collector.
-The Modal schedule runs on the hour from 09:00 through midnight, inclusive, in
-`Europe/London` (16 runs per day). It follows GMT/BST automatically.
+An article + HN discussion digest refreshed four times a day on top of the existing collector.
+The Modal schedule runs only at 08:00, 12:00, 16:00, and 20:00 in
+`America/New_York` (four runs per day). It follows EST/EDT automatically.
+The collector requires at least 40 points and 40 comments before topic classification.
 The worker never fetches Hacker News. Next.js renders structured summaries from
 Supabase over a server-only PostgreSQL connection.
 
@@ -42,7 +43,7 @@ ranks can have gaps. Ranked APIs return fewer than ten cards only when fewer tha
 stories have previews. Pending stories remain eligible for worker enrichment.
 At the end of every worker refresh, after fetch failures are excluded, one atomic
 insert records every eligible rank with a shared timestamp, including ranks below
-10 and unchanged positions. This follows the worker's hourly daytime schedule;
+10 and unchanged positions. This follows the worker's four-times-daily schedule;
 manual refreshes also record observations. These are sampled positions, not every
 intermediate change to the live view. Failed rank writes fail the refresh.
 
@@ -74,7 +75,7 @@ deduplicated observations; subsequent ingestion maintains it correctly.
 ## Files
 
 ```text
-modal_app.py             hourly London daytime schedule + pinned Linux Kestrel image
+modal_app.py             four-times-daily New York schedule + pinned Linux Kestrel image
 pipeline/config.py      all runtime environment configuration
 pipeline/supabase.py    existing PostgreSQL connection pattern + enrichment writes
 pipeline/kestrel.py     bounded JSON CLI adapter
