@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "@jest/globals";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ArticleSummary, SummaryInline } from "../app/summary-text";
-import { summaryBlocks, summaryMarkdown, summaryPlainText } from "../lib/summary-format";
+import {
+  summaryBlocks,
+  summaryMarkdown,
+  summaryPlainText,
+  summaryInlineText,
+  summaryInlineMarkdown,
+  escapeMarkdownText,
+} from "../lib/summary-format";
 
 const brief =
   "Researchers report **lower latency**. Costs remain uncertain.\n\n## Test conditions\n\nThe test used **one workload**.\n\n### Memory cost\n\nMemory doubled.";
@@ -32,6 +39,29 @@ test("emphasis spanning sentences survives sentence spacing and opening links", 
   );
   assert.match(html, /A <strong>reported result<\/strong><\/a><strong>\. <\/strong>/);
   assert.match(html, /<strong>A caveat<\/strong> follows\./);
+});
+
+test("malformed bold pairs remain literal without consuming the following valid pair", () => {
+  for (const malformed of [
+    "**broken * phrase**",
+    "** padded **",
+    "***unsupported***",
+    "**line\nbreak**",
+    "\\**escaped**",
+  ]) {
+    for (const separator of [" and ", "and"]) {
+      const text = `${malformed}${separator}**valid**`;
+      assert.equal(
+        renderToStaticMarkup(<SummaryInline text={text} />),
+        `${malformed}${separator}<strong>valid</strong>`,
+      );
+      assert.equal(summaryInlineText(text), `${malformed}${separator}valid`);
+      assert.equal(
+        summaryInlineMarkdown(text),
+        `${escapeMarkdownText(malformed + separator)}**valid**`,
+      );
+    }
+  }
 });
 
 test("only H2 and H3 are parsed, with orphan H3 promoted and CRLF normalized", () => {

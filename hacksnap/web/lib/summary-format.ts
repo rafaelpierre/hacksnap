@@ -5,11 +5,29 @@ export type SummaryBlock = { kind: "paragraph" | "h2" | "h3"; text: string };
 export function summarySpans(value: string): SummarySpan[] {
   const spans: SummarySpan[] = [];
   let offset = 0;
-  for (const match of value.matchAll(/(?<![\\*])\*\*([^*\n]+)\*\*(?!\*)/g)) {
-    if (match[1] !== match[1].trim()) continue;
-    if (match.index > offset) spans.push({ text: value.slice(offset, match.index), strong: false });
-    spans.push({ text: match[1], strong: true });
-    offset = match.index + match[0].length;
+  let opening: { index: number; length: number } | null = null;
+  for (const delimiter of value.matchAll(/\*{2,}/g)) {
+    if (!opening) {
+      opening = { index: delimiter.index, length: delimiter[0].length };
+      continue;
+    }
+    const text = value.slice(opening.index + opening.length, delimiter.index);
+    if (
+      opening.length === 2 &&
+      delimiter[0].length === 2 &&
+      value[opening.index - 1] !== "\\" &&
+      value[delimiter.index - 1] !== "\\" &&
+      text.length > 0 &&
+      text === text.trim() &&
+      !/[*\r\n]/.test(text)
+    ) {
+      if (opening.index > offset)
+        spans.push({ text: value.slice(offset, opening.index), strong: false });
+      spans.push({ text, strong: true });
+      offset = delimiter.index + delimiter[0].length;
+    }
+    // Consume invalid pairs too: their closing marker must never open a later phrase.
+    opening = null;
   }
   if (offset < value.length) spans.push({ text: value.slice(offset), strong: false });
   return spans;

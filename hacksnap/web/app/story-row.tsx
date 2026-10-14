@@ -4,7 +4,7 @@ import { ShareLinks } from "./share-links";
 import type { CardStory } from "../lib/story-domain";
 import type { PublicFeedStory } from "../lib/stories-api";
 import { CategoryBadge } from "./categories";
-import { briefExcerpt } from "../lib/brief";
+import { briefExcerpt, discussionExcerpt } from "../lib/brief";
 import { BrowseStoryLink } from "./story-navigation";
 import { StoryAge } from "./story-age";
 import { ArticleImage } from "./article-image";
@@ -30,7 +30,7 @@ export function StoryRow({
   lead?: boolean;
 }) {
   const takeaway = story.summary?.overall_takeaway?.trim();
-  const discussionPreview = story.summary?.discussion_preview?.trim();
+  const discussionPreview = discussionExcerpt(story.summary?.discussion_preview);
   const image = canonicalArticleImage(story);
   const showArchive = variant === "ranked" && story.is_recent === false;
 
@@ -68,7 +68,7 @@ export function StoryRow({
             <Sparkles aria-hidden="true" />
             <span>Discussion summary</span>
           </h3>
-          <p>{briefExcerpt(discussionPreview)}</p>
+          <p>{discussionPreview}</p>
         </div>
       )}
       <ArticleImage

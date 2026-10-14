@@ -82,6 +82,25 @@ test("previews are bounded, escaped and omitted when absent", () => {
   assert.match(render(<StoryRow story={unsafe} />), /&lt;script&gt;/);
 });
 
+test("feed cards and API previews strip bold before truncating", () => {
+  for (const discussion_preview of [
+    "A **qualified result** needs replication.",
+    `**${"Measured workload ".repeat(30).trim()}**`,
+    `${"Evidence ".repeat(23)}**qualified result**.`,
+  ]) {
+    const raw = { ...story, summary: { ...story.summary!, discussion_preview } };
+    const card = publicFeedStory(raw);
+    assert.ok(card.summary!.discussion_preview!.length <= 220);
+    assert.doesNotMatch(card.summary!.discussion_preview!, /\*/);
+    for (const candidate of [raw, card]) {
+      const html = render(<StoryRow story={candidate} />);
+      const preview = html.match(/class="feed-discussion-preview"[\s\S]*?<p>(.*?)<\/p>/)![1];
+      assert.equal(preview, card.summary!.discussion_preview);
+      assert.doesNotMatch(preview, /\*|<strong>/);
+    }
+  }
+});
+
 test("appended and virtualized cards retain their own discussion previews", () => {
   const stories = Array.from({ length: 180 }, (_, index) =>
     publicFeedStory({
