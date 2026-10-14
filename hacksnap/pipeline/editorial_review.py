@@ -109,7 +109,7 @@ def prose_fields(value: dict) -> dict[str, str]:
         elif isinstance(item, list):
             for index, child in enumerate(item):
                 visit(child, f"{path}/{index}")
-        elif isinstance(item, str) and item != ARTICLE_UNAVAILABLE_NOTICE:
+        elif isinstance(item, str):
             fields[path] = item
 
     visit(value, "")
@@ -137,6 +137,9 @@ def validate_review(review: EditorialReview, draft: dict, source: dict) -> None:
 
     style_rejections = {f.path for f in review.findings if f.kind in {"style", "repetition"}}
     for check in review.checks:
+        if (check.path == "/article_summary" and paths[check.path] == ARTICLE_UNAVAILABLE_NOTICE
+                and not any(evidence.source == "article" for evidence in check.evidence)):
+            raise ValueError("Unavailable-article claim requires evidence from the retrieved page")
         is_notice = paths[check.path] in {
             "No additional analysis available.", "Source text unavailable.",
         }

@@ -5,12 +5,17 @@ import pytest
 
 from pipeline.editorial_review import (
     EditorialReview,
+    Evidence,
     prose_fields,
     reviewed_generation,
     validate_draft,
     validate_review,
 )
-from pipeline.models import GeneratedDiscussionAnalysis, GeneratedStorySummary
+from pipeline.models import (
+    ARTICLE_UNAVAILABLE_NOTICE,
+    GeneratedDiscussionAnalysis,
+    GeneratedStorySummary,
+)
 
 
 @pytest.fixture
@@ -261,3 +266,60 @@ def test_revision_cannot_introduce_unknown_citations(source, draft):
     with pytest.raises(ValueError):
         asyncio.run(reviewed_generation(FakeInference([draft, bad]), reviewer, source))
     assert len(reviewer.calls) == 1
+
+
+@pytest.fixture
+def unavailable_draft(source, draft):
+    source["comments"] = []
+    draft.article_summary = ARTICLE_UNAVAILABLE_NOTICE
+    draft.article_key_points = []
+    draft.overall_takeaway = "Source text unavailable."
+    draft.sentiment = None
+    draft.discussion_points = []
+    draft.discussion_analysis = GeneratedDiscussionAnalysis(status="no_comments", topics=[])
+    draft.discussion_summary.opening = "No additional analysis available."
+    draft.discussion_summary.bullets = []
+    return draft
+
+
+def test_unavailable_article_claim_cannot_escape_review(source, unavailable_draft):
+    review = verdict(unavailable_draft)
+    review.checks = [check for check in review.checks if check.path != "/article_summary"]
+    for check in review.checks:
+        check.evidence = []
+    with pytest.raises(ValueError, match="cover every"):
+        asyncio.run(reviewed_generation(FakeInference([unavailable_draft]),
+                                        FakeInference([review]), source))
+
+
+def test_unavailable_article_claim_requires_page_evidence(source, unavailable_draft):
+    review = verdict(unavailable_draft)
+    check = next(check for check in review.checks if check.path == "/article_summary")
+    check.evidence = []
+    with pytest.raises(ValueError, match="evidence from the retrieved page"):
+        validate_review(review, unavailable_draft.model_dump(), source)
+
+
+def test_reviewer_can_reject_discarded_usable_article(source, unavailable_draft):
+    review = verdict(unavailable_draft, revise=True)
+    review.findings[0].path = "/article_summary"
+    review.findings[0].explanation = "The supplied page contains a usable prototype announcement."
+    review.findings[0].correction = "Summarize the announcement instead of marking it unavailable."
+    reviewer = FakeInference([review, review])
+    result = asyncio.run(reviewed_generation(
+        FakeInference([unavailable_draft, unavailable_draft]), reviewer, source))
+    assert result.status == "rejected" and result.draft is None
+    assert "/article_summary" in reviewer.calls[0][2]["prose_fields"]
+
+
+def test_genuinely_unusable_page_can_be_accepted_after_evidence_review(source, unavailable_draft):
+    source["article"] = "Access denied. Please sign in to continue."
+    review = verdict(unavailable_draft)
+    for check in review.checks:
+        check.evidence = []
+        if check.path == "/article_summary":
+            check.evidence = [Evidence(source="article", comment_id=None, quote=source["article"])]
+    review = EditorialReview.model_validate(review.model_dump())
+    result = asyncio.run(reviewed_generation(FakeInference([unavailable_draft]),
+                                            FakeInference([review]), source))
+    assert result.status == "accepted"
