@@ -206,7 +206,7 @@ finding or tension. It should create curiosity while retaining material qualific
 avoiding clickbait and making only promises the summary delivers. The reviewer checks
 `/title` against both the summary and original evidence; revisions retain the field.
 The takeaway adds information beyond the headline. The reviewed prompt is
-`v15-editorial-titles`, with the same title contract in the legacy inference path.
+`v16-skip-title-only`, with the same title contract in the legacy inference path.
 Code checks schema, citations, quote membership, required coverage and empty states.
 This verifies fidelity to the supplied material; it does not research external facts.
 If the five repairs or the shared editorial time budget are exhausted, the workflow
@@ -287,7 +287,7 @@ The source and underlying technical questions lead the coverage.
   Both editorial stages keep high reasoning effort and a 32,000-token response
   limit per call, including reasoning. The 220-character takeaway stays compact.
 
-The reviewed prompts are `v15-editorial-titles` and `v6-fuller-topics`.
+The reviewed prompts are `v16-skip-title-only` and `v6-fuller-topics`.
 The legacy prompts in `pipeline/prompts.py` use the same length targets and no longer
 refer to the obsolete 8,000-token budget. Production cache identity hashes the full
 editorial prompts, so these changes invalidate the discussion-analysis fingerprint.
@@ -874,6 +874,14 @@ runs and Modal workers, including both Blob adapters. Blob storage operations
 continue normally. Existing workers need a deployment to pick up this change.
 
 ## Retrieved pages without article text
+
+Title-only HN self-posts with no article, normalized post text, or included usable
+comments are skipped before writer/reviewer inference and summary publication. They
+count as `unavailable`, with `no_source_content` in the per-story log. No fetch-failure
+marker is stored, so later ingestion of usable comments or post text can make them
+eligible. Empty HTML and dead/deleted comments do not count as source content.
+Self-posts with post text or usable comments, and short genuine articles, remain
+eligible. Existing saved summaries are not regenerated or removed by this guard.
 
 The summary prompt distinguishes real article body text from navigation-only pages,
 bot challenges, access/login/paywall notices, and JavaScript fallback pages. When a
