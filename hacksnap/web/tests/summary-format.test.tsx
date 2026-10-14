@@ -64,6 +64,21 @@ test("malformed bold pairs remain literal without consuming the following valid 
   }
 });
 
+test("unmatched bold openers do not consume later valid emphasis", () => {
+  for (const prefix of ["**unclosed and ", "**unclosed\n", "**first **second "]) {
+    const text = `${prefix}**valid** and **also valid**`;
+    assert.equal(
+      renderToStaticMarkup(<SummaryInline text={text} />),
+      `${prefix}<strong>valid</strong> and <strong>also valid</strong>`,
+    );
+    assert.equal(summaryInlineText(text), `${prefix}valid and also valid`);
+    assert.equal(
+      summaryInlineMarkdown(text),
+      `${escapeMarkdownText(prefix)}**valid** and **also valid**`,
+    );
+  }
+});
+
 test("only H2 and H3 are parsed, with orphan H3 promoted and CRLF normalized", () => {
   assert.deepEqual(
     summaryBlocks(

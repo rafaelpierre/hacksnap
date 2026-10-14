@@ -25,14 +25,16 @@ Validation:
   checks passed with no browser-console/hydration failures or axe WCAG A/AA violations.
 - PASS, content safety: generated HTML and links remain inert; Markdown exports
   escape unsupported syntax; RSS and structured data strip supported formatting.
-- PASS, implementation checks: 474 frontend tests, frontend lint, formatting,
-  TypeScript and production build; 608 worker tests (two optional database integration
+- PASS, implementation checks: 476 frontend tests, frontend lint, formatting,
+  TypeScript and production build; 623 worker tests (two optional database integration
   tests skipped) and Ruff. Prompt tests use mocked inference, not a live model run.
 
 Malformed emphasis is consumed as a literal delimiter pair, so a closing marker
 cannot open an unrelated later phrase. Regression coverage checks malformed,
 whitespace-padded, triple, escaped and multiline markers followed by valid bold,
 including adjacent phrases, across HTML, Markdown and plain-text exports.
+An opening-only delimiter can start a later valid phrase after an unmatched opener;
+regressions cover repeated unmatched openers, line breaks and plain-text feed cards.
 
 Feed projections preserve up to two complete topic summaries within the schema's
 600-character limit per topic. Cards and the public feed strip bold markers before

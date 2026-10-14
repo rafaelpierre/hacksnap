@@ -101,6 +101,18 @@ test("feed cards and API previews strip bold before truncating", () => {
   }
 });
 
+test("feed previews preserve unmatched markers while stripping later valid bold", () => {
+  const raw = {
+    ...story,
+    summary: { ...story.summary!, discussion_preview: "**unclosed and **valid**" },
+  };
+  const card = publicFeedStory(raw);
+  assert.equal(card.summary!.discussion_preview, "**unclosed and valid");
+  for (const candidate of [raw, card]) {
+    assert.match(render(<StoryRow story={candidate} />), /<p>\*\*unclosed and valid<\/p>/);
+  }
+});
+
 test("appended and virtualized cards retain their own discussion previews", () => {
   const stories = Array.from({ length: 180 }, (_, index) =>
     publicFeedStory({
