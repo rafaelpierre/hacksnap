@@ -17,6 +17,8 @@ class DeploymentChangesTests(unittest.TestCase):
         self.env = {"PATH": os.defpath, "GIT_CONFIG_NOSYSTEM": "1",
                     "GIT_CONFIG_GLOBAL": os.devnull}
         self.git("init", "--quiet")
+        # Background maintenance can write packfiles while temporary-directory cleanup runs.
+        self.git("config", "maintenance.auto", "false")
         self.write("hacksnap/pipeline/worker.py", "original")
         self.before = self.commit()
 
@@ -53,6 +55,15 @@ class DeploymentChangesTests(unittest.TestCase):
         result, output = self.selection(after, **kwargs)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(output, f"deploy={str(expected).lower()}\n")
+
+    def test_commits_do_not_trigger_automatic_repacking(self):
+        self.git("config", "maintenance.loose-objects.enabled", "true")
+        self.git("config", "maintenance.loose-objects.auto", "1")
+        self.git("config", "maintenance.autoDetach", "false")
+        self.git("config", "gc.autoDetach", "false")
+        self.write("hacksnap/pipeline/worker.py", "updated")
+        self.assert_selection(self.commit(), True)
+        self.assertEqual(list((self.root / ".git/objects/pack").glob("*.pack")), [])
 
     def test_test_docs_fixtures_and_frontend_changes_do_not_deploy(self):
         for path in ["hacksnap/tests/test_worker.py", "hacksnap/README.md",
