@@ -45,7 +45,7 @@
     "@playwright/test": "^1.64.0",
     "@swc/core": "^1.16.13",
     "@swc/jest": "^0.2.39",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "@types/pg": "^8.15.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
