@@ -232,6 +232,7 @@ def test_analysis_is_saved_before_run_cleanup(monkeypatch):
     monkeypatch.setattr(module, "Repository", lambda _: repo)
     monkeypatch.setattr(module, "KestrelFetcher", lambda *args: SimpleNamespace(fetch=lambda _: "article"))
     monkeypatch.setattr(module, "ModalSummarizer", lambda *args: FakeSummarizer())
+    monkeypatch.setattr(module, "ReviewedSummarizer", lambda *args: FakeSummarizer())
     assert module.run()["generated"] == 1
     assert cleaned == [True]
 

@@ -29,6 +29,7 @@ from .preprocess import (
     source_fingerprint,
 )
 from .prompts import DISCUSSION_REFRESH_PROMPT_VERSION, PROMPT_VERSION, SENTIMENT_PROMPT_VERSION
+from .reviewed_summarise import ReviewedSummarizer
 from .summarise import ModalSummarizer, RoutedSummarizer, Summarizer
 from .supabase import Repository
 from .telemetry import report_error, traced_operation
@@ -85,7 +86,8 @@ def refresh_discussion(story, existing, comments, coverage, repository, summariz
         json.dumps(existing["discussion_analysis_metadata"])
     )
     source = discussion_source(comments, coverage, previous.source_version)
-    fingerprint = source_fingerprint(source, summarizer.model, DISCUSSION_REFRESH_PROMPT_VERSION)
+    discussion_version = getattr(summarizer, "discussion_prompt_version", DISCUSSION_REFRESH_PROMPT_VERSION)
+    fingerprint = source_fingerprint(source, summarizer.model, discussion_version)
     if fingerprint == previous.input_fingerprint:
         # Normalization or sample limits can leave inference inputs unchanged even
         # when the retained raw payload changed. Acknowledge only that payload.
@@ -96,7 +98,7 @@ def refresh_discussion(story, existing, comments, coverage, repository, summariz
     result.validate_refresh(comments)
     metadata = DiscussionAnalysisMetadata(
         schema_version=DISCUSSION_ANALYSIS_SCHEMA_VERSION,
-        prompt_version=DISCUSSION_REFRESH_PROMPT_VERSION,
+        prompt_version=discussion_version,
         model=summarizer.model,
         source_version=previous.source_version,
         input_fingerprint=fingerprint,
@@ -119,9 +121,10 @@ def process_story(
     fetcher,
     summarizer: Summarizer,
     comment_budget: int = DEFAULT_COMMENT_CHARS,
-    prompt_version: str = PROMPT_VERSION,
+    prompt_version: str | None = None,
     image_enabled: bool = False,
 ) -> str:
+    prompt_version = prompt_version or getattr(summarizer, "prompt_version", PROMPT_VERSION)
     stage = "preprocess"
     try:
         if story.get("full_raw_text_contents") is None:
@@ -217,7 +220,7 @@ def process_story(
             input_fingerprint=source_fingerprint(
                 discussion_source(comments, coverage, source_version),
                 summarizer.model,
-                DISCUSSION_REFRESH_PROMPT_VERSION,
+                getattr(summarizer, "discussion_prompt_version", DISCUSSION_REFRESH_PROMPT_VERSION),
             ),
             analyzed_at=datetime.now(UTC),
             coverage={
@@ -326,13 +329,7 @@ def run() -> dict:
         settings.kestrel_binary, settings.fetch_timeout, settings.article_chars
     )
     with httpx.Client(timeout=settings.llm_timeout) as client:
-        editorial = ModalSummarizer(
-            client,
-            settings.llm_base_url,
-            settings.llm_model,
-            settings.llm_api_key,
-            settings.llm_reasoning_effort,
-        )
+        editorial = ReviewedSummarizer(settings)
         sentiment = ModalSummarizer(
             client,
             settings.sentiment_base_url,

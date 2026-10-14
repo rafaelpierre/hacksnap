@@ -160,45 +160,58 @@ analysis. The smoke test above predates this prompt. See
 [initial analysis validation and measurement status](../docs/evaluations/issue-36-initial-analysis.md)
 for the response budget, local checks, and metrics to collect during normal processing.
 
-### Experimental writer and reviewer
+### Writer and reviewer in the scheduled worker
 
-The optional OpenAI Agents SDK prototype lives in `pipeline/editorial_review.py`
-(workflow and evidence validation), `pipeline/editorial_agents.py` (Modal-compatible
-SDK adapter), and `pipeline/editorial_prompts.py` (candidate editorial instructions).
-The scheduled worker does not import these modules. Production prompts, schemas,
-model routing, persistence and deployment entrypoints are unchanged.
+`pipeline.refresh.run()` uses `ReviewedSummarizer` for new summaries and discussion
+refreshes. The configured DeepSeek endpoint writes; the configured GLM sentiment
+endpoint reviews at high reasoning effort. Sentiment remains a separate GLM call
+using its existing sentiment prompt and reasoning setting.
 
-Install and run the tests with `uv run --directory hacksnap --extra editorial pytest`.
-From `hacksnap/`, run a two-case live pilot:
+The workflow uses the OpenAI Agents SDK, installed as a runtime dependency by the
+Modal image's normal `uv_sync`. Each operation creates separate async clients so
+parallel stories do not share event loops or mutable review state. Each call uses
+`Settings.llm_timeout` (120 seconds), one agent turn and no request retries. At most
+four editorial calls run: write, review, one revision, final review. The scheduled
+function allows 3,600 seconds for the bounded 50-story batch and sentiment calls.
+
+The reviewer covers every prose field with original-source quotes and reasoning.
+Code checks schema, citations, quote membership, required coverage and empty states.
+This verifies fidelity to the supplied material; it does not research external facts.
+Rejected or invalid results fail that story without publishing an unreviewed draft.
+Existing stored content remains unchanged on failure. Per-stage model, token and timing
+metrics are logged without source text, credentials or reviewer output; SDK tracing
+remains disabled.
+
+New summaries use the candidate journalistic prompts in `editorial_prompts.py`.
+Existing article summaries and subtitles are not regenerated. Their discussion
+analyses refresh once when encountered because the reviewed prompt/model fingerprint
+changes, then reuse the existing cache when inputs are unchanged. Cache identity
+includes the writer, reviewer and revision prompts, review version, both model names and
+reasoning settings. This is ordinary scheduled processing, with no bulk backfill.
+
+The [prototype evaluation](../docs/evaluations/editorial-prompts/agents-report.md)
+records remaining editorial weaknesses and measured overhead. Review approval does
+not guarantee publication quality; repetition and overbroad wording remain risks.
+The worker nevertheless requires review before every new editorial write.
+
+Run a live inference-only check of the exact production adapter from `hacksnap/`:
 
 ```sh
-uv run --extra editorial modal run tests/modal_editorial_agents.py
+uv run modal run tests/modal_reviewed_worker_smoke.py
 ```
 
-Use `--suite full` for saved failures, four fresh synthetic cases and two topic
-refreshes. The experiment uses the existing `hacksnap` Modal secret: the configured
-DeepSeek endpoint writes, and the GLM sentiment endpoint independently reviews at
-high reasoning. A higher-reasoning DeepSeek single-pass control uses the same inputs.
-It performs no database access or production content writes.
-
-The reviewer must cover every prose field with original-source quotes and reasoning.
-Python validates quote membership, citation IDs, schema, empty states and obvious
-style violations. At most one revision is permitted, followed by mandatory re-review.
-Rejection returns no publishable draft; invalid output or endpoint errors raise.
-Each SDK call allows one turn with SDK/client retries disabled and a 240-second
-wall-time limit. Truncated responses are rejected even if their JSON parses.
-SDK cloud tracing is disabled; only the explicitly invoked synthetic evaluation
-captures intermediate prose locally. Token counts and stage latency are recorded;
-unavailable usage remains null rather than being treated as zero cost.
-
-The saved [evaluation report](../docs/evaluations/editorial-prompts/agents-report.md)
-includes comparison results and limitations. This prototype is not a publication gate
-until its reviewer accuracy and acceptance rate have been demonstrated. Existing
-published summaries remain unchanged; there is no backfill or rollout switch.
+It uses synthetic fixtures and the existing Modal secret, without database access
+or publication. The [saved production-adapter run](../docs/evaluations/editorial-prompts/production-adapter.json)
+completed two summaries and one topic refresh through the deployed endpoints on
+14 October 2026 (14.3, 36.2 and 62.1 seconds). These three reused fixtures verify
+integration, not production-wide editorial accuracy. The older three-arm experiment remains available via
+`uv run --extra editorial modal run tests/modal_editorial_agents.py --suite full`.
+Merging this integration into `main` triggers the normal validated Modal deployment;
+pushing its feature branch only runs CI. No separate activation flag is required.
 
 ### Summary writing style
 
-`pipeline/prompts.py` defines Hacksnap's editorial voice: Bloomberg-style specificity
+`pipeline/editorial_prompts.py` defines the reviewed generator's editorial voice: Bloomberg-style specificity
 and information density, with Financial Times-style clarity, restraint and skepticism.
 The source and underlying technical questions lead the coverage.
 

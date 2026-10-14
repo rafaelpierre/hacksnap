@@ -1,0 +1,105 @@
+{
+  "scope": "Synthetic sources; no database access or publication.",
+  "results": [
+    {
+      "case": "empty",
+      "operation": "summary",
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "prompt_version": "reviewed-v1-714ead0a5d7262419674",
+      "discussion_prompt_version": "reviewed-v1-87ce8e231a9f604f602c",
+      "status": "accepted",
+      "output": {
+        "discussion_analysis": {
+          "status": "no_comments",
+          "reference_claims": [],
+          "critical_comments": [],
+          "supportive_comments": [],
+          "topics": []
+        },
+        "article_summary": "Prism 1.2 adds a JSON output switch.",
+        "article_key_points": [
+          "The release is available for Linux and macOS."
+        ],
+        "discussion_points": [],
+        "sentiment": null,
+        "overall_takeaway": "Prism 1.2 adds a JSON output switch, with the release available for Linux and macOS.",
+        "discussion_summary": "No additional analysis available."
+      },
+      "elapsed_seconds": 14.347
+    },
+    {
+      "case": "missing",
+      "operation": "summary",
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "prompt_version": "reviewed-v1-714ead0a5d7262419674",
+      "discussion_prompt_version": "reviewed-v1-87ce8e231a9f604f602c",
+      "status": "accepted",
+      "output": {
+        "discussion_analysis": {
+          "status": "available",
+          "reference_claims": [],
+          "critical_comments": [],
+          "supportive_comments": [],
+          "topics": [
+            {
+              "key": "evidence",
+              "title": "Self-reported insert benchmark lacks durability and concurrency tests",
+              "summary": "A laptop test reports 12% lower insert time on a 2GB database, but durability and concurrent writers were not measured, leaving the result narrow.",
+              "comment_ids": [
+                901
+              ]
+            }
+          ]
+        },
+        "article_summary": null,
+        "article_key_points": [],
+        "discussion_points": [
+          {
+            "title": "Narrow self-reported insert benchmark",
+            "summary": "A self-reported 12% insert-time improvement on a 2GB database is the only performance evidence; durability and concurrent-writer behavior remain unmeasured.",
+            "comment_ids": [
+              901
+            ]
+          }
+        ],
+        "sentiment": 0,
+        "overall_takeaway": "Source text unavailable. A self-reported laptop test reports 12% lower insert time on a 2GB database, but durability and concurrent writers were not measured.",
+        "discussion_summary": "A single self-reported benchmark is available.\n\n- A 12% lower insert time on a 2GB database is reported, but durability and concurrent writers were not measured, so the result does not establish broader database performance."
+      },
+      "elapsed_seconds": 36.247
+    },
+    {
+      "case": "retention",
+      "operation": "refresh",
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "prompt_version": "reviewed-v1-714ead0a5d7262419674",
+      "discussion_prompt_version": "reviewed-v1-87ce8e231a9f604f602c",
+      "status": "accepted",
+      "output": {
+        "status": "available",
+        "reference_claims": [],
+        "critical_comments": [],
+        "supportive_comments": [],
+        "topics": [
+          {
+            "key": "privacy_security",
+            "title": "UI removal does not prove backup deletion",
+            "summary": "Backup retention details could not be located; removing a file from the interface does not establish that every stored copy has been deleted.",
+            "comment_ids": [
+              801
+            ]
+          },
+          {
+            "key": "technical_limitations",
+            "title": "Shorter retention default covers only new uploads",
+            "summary": "A shorter default may reduce accidental retention, but administrators still need an inventory of older files because the change applies only to new uploads.",
+            "comment_ids": [
+              802
+            ]
+          }
+        ]
+      },
+      "elapsed_seconds": 62.057
+    }
+  ]
+}
