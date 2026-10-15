@@ -317,6 +317,11 @@ async def reviewed_generation(writer: Inference, reviewer: Inference, source: di
               if operation == "summary" else {"comments": source["comments"]})
     schema = GeneratedStorySummary if operation == "summary" else GeneratedDiscussionAnalysis
     prompt = SYSTEM_PROMPT if operation == "summary" else DISCUSSION_REFRESH_PROMPT
+    prompt += "\nApply the following revision rules ONLY when a draft and review are supplied.\n" + REVISION_PROMPT
+    review_prompt = REVIEW_PROMPT + (
+        "\nApply the following repair rules ONLY when validation_errors are supplied.\n"
+        + REVIEW_REPAIR_PROMPT
+    )
     history = []
     draft = initial if initial is not None else await infer(writer, "writer", prompt, source, schema)
     for attempt in range(2):
@@ -332,7 +337,7 @@ async def reviewed_generation(writer: Inference, reviewer: Inference, source: di
             try:
                 review = await infer(reviewer,
                     "reviewer_repair" if repair_attempt else "reviewer",
-                    REVIEW_PROMPT + (REVIEW_REPAIR_PROMPT if repair_attempt else ""),
+                    review_prompt,
                     review_payload, EditorialReview,
                 )
                 review = EditorialReview.model_validate(review.model_dump())
@@ -378,7 +383,7 @@ async def reviewed_generation(writer: Inference, reviewer: Inference, source: di
             return EditorialResult("accepted", draft.model_dump(), history)
         if attempt == 0:
             try:
-                draft = await infer(writer, "revision", prompt + REVISION_PROMPT, {
+                draft = await infer(writer, "revision", prompt, {
                     "sources": source, "draft": draft.model_dump(),
                     "review": review.model_dump(), "deterministic_findings": issues,
                 }, schema)

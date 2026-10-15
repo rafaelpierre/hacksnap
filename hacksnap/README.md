@@ -338,21 +338,45 @@ It processes stories concurrently with a hard limit of **15 active story jobs**.
 Each run selects up to **50 stories** from the full ranking, including stories
 below the website’s top-ten display. This is a cap on all attempted stories,
 including cache hits, missing content and failures, rather than 50 guaranteed new
-summaries. Fetching and preprocessing can overlap immediately. The first
-actual model request for each prompt/schema combination completes before other
-requests using that combination begin. Summary, discussion-refresh and sentiment
-prompts have separate warm-ups: completing a discussion refresh does not warm the
-summary prefix. Cold warm-ups run one at a time. Same-prompt waiters are released
-by their own completion event, so they can run concurrently even while another
-prompt is warming. Each warm-up result is used normally, with no extra inference
-request. Cached stories and failed fetches do not consume a warm-up, and a failed
-warm-up releases the remaining requests for its prompt.
-Each model retains its own run-scoped `Modal-Session-Id`; cache reuse is best
-effort and depends on the endpoint's routing and prefix-cache configuration.
+summaries. Fetching and preprocessing can overlap immediately.
+
+The reviewed Agents SDK path shares one cache coordinator per scheduled batch,
+while keeping each story's HTTP clients and event loops isolated. The first real
+request for each endpoint/model/reasoning/system-prompt/schema combination completes
+before followers begin. Different combinations can warm concurrently; subsequent requests
+retain the 15-story concurrency limit. Warm-ups use real results, without extra calls.
+Failures and cancellation release the gate; a cancelled waiter cannot cancel it for
+other stories. Waiting counts against the existing story and batch editorial deadlines;
+the per-request timeout starts after the warm-up wait.
+
+Editorial requests send the documented `Modal-Routing-Affinity-Key`, unique to each
+story's writer or reviewer conversation and stable across its revisions or repairs.
+The shared prefix gate does not share routing keys between unrelated stories or
+guarantee that their requests reach a warmed container. Writer revisions keep the same
+system instructions and original-source message as the initial draft. Reviews put original sources before
+the changing draft; repair feedback is a separate trailing message. Revision and repair
+rules are fixed conditional sections of the system instructions. This preserves source
+prefixes through the loop, including the full draft prefix during review repairs.
+The request-format version participates in stored editorial provenance; existing article
+summaries stay intact and discussion analysis refreshes under the usual version policy.
+
+`editorial_inference` logs include `cached_input_tokens` (null when the endpoint omits
+it), `prefix_fingerprint`, `warmup_owner`, `warmup_wait_seconds`, and `request_seconds`.
+Counters support both `prompt_tokens_details.cached_tokens` and `prompt_cache_hit_tokens`.
+These logs exclude source text, credentials, and routing keys. Compare token-weighted
+cache reuse by model and role after deployment; cache hits are not guaranteed.
+[Modal affinity routing](https://modal.com/docs/guide/endpoints#affinity-routing)
+can move requests when containers scale, are replaced, or are overloaded.
+Unrelated stories can reuse fixed instructions, but their different source text cannot
+share a KV prefix beyond the first changed token.
+
+The separate sentiment classifier retains its existing prompt warm-up and run-scoped
+`Modal-Session-Id`. Its model, prompts and output behavior are unchanged.
 After each batch finishes, the worker re-reads the ranking for replacements,
 attempts each story at most once, and keeps the 50-story limit. Rank history and
 retention cleanup run after all story jobs finish. Database operations use separate
-connections and model requests share the HTTP client's connection pool.
+connections. Editorial clients are isolated per story; sentiment requests share a
+synchronous HTTP client's connection pool.
 One container prevents overlapping refresh executions. The 40-minute timeout
 bounds a run. Kestrel compilation happens while building the image, never per
 scheduled invocation. It installs the exact published crates.io source release
