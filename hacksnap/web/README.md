@@ -1096,7 +1096,7 @@ The exact installed `node_modules` tree is cached by runner image, architecture,
 Node version, both package manifests, npm configuration and the dependency action.
 There are no partial-key restores. Cache misses run `npm ci`; one Linux job and one
 macOS job save the cache before application code runs.
-macOS also caches the production fixture build together with WebKit. This cache
+Each OS also caches the production fixture build together with its browser. This cache
 matches every copied source/configuration file, fixture data, build script,
 dependency manifest and dependency action, plus the OS image, architecture and
 absolute workspace path. Runtime changes rebuild; browser-test-only edits and

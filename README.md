@@ -58,7 +58,8 @@ fail their aggregate check.
 Installed Node dependencies are cached by runner image, architecture, exact Node
 version, manifests and npm configuration. Exact hits skip `npm ci`; misses install
 from the lockfile. One job per OS populates the cache before running application code.
-Browser downloads overlap fixture builds. Chromium uses the Ubuntu 24.04 host and
+Exact fixture-build caches also reuse browser binaries on both platforms. Cache
+misses overlap browser downloads with fixture builds. Chromium uses the Ubuntu 24.04 host and
 installs only the headless shell; a launch check installs OS dependencies if needed.
 Local `npm test` remains serial.
 
