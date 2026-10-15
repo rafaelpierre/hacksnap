@@ -49,6 +49,8 @@ Frontend checks split Jest across two Linux runners with four processes each,
 Chromium across twelve Linux runners, and iPhone WebKit across three macOS runners.
 Playwright uses all CPU cores on each runner. The existing tests, production
 browser, and iPhone checks each require every corresponding shard to pass.
+Frontend jobs use a sparse checkout that excludes `docs/` and its image archive;
+application code, shared fixtures, migrations and configuration remain available.
 PRs containing only frontend unit tests or allowlisted documentation skip browser
 setup and tests; lint, formatting, build and Jest still run. Each browser runner
 classifies the complete PR diff independently, so application changes can begin

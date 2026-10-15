@@ -53,6 +53,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
           persist-credentials: false
+          # Documentation images dominate repository size and are not test inputs.
+          sparse-checkout: |
+            /*
+            !/docs/
+          sparse-checkout-cone-mode: false
       - uses: ./.github/actions/frontend-dependencies
         with:
           save-cache: ${{ matrix.check == 'build' }}
@@ -88,6 +93,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
           persist-credentials: false
+          # Documentation images dominate repository size and are not test inputs.
+          sparse-checkout: |
+            /*
+            !/docs/
+          sparse-checkout-cone-mode: false
       - uses: ./.github/actions/frontend-dependencies
       - name: Unit and component tests (Jest)
         run: npm run test:ci -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
@@ -118,6 +128,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
           persist-credentials: false
+          # Documentation images dominate repository size and are not test inputs.
+          sparse-checkout: |
+            /*
+            !/docs/
+          sparse-checkout-cone-mode: false
           fetch-depth: 2
       - name: Select browser checks
         id: changes
@@ -190,7 +205,7 @@ jobs:
   iphone-browser-shard:
     name: Frontend / iPhone WebKit shard ${{ matrix.shard }}/${{ strategy.job-total }}
     # Exercise Apple's WebKit port; Linux WebKit has different networking behavior.
-    runs-on: macos-26-intel
+    runs-on: macos-latest
     timeout-minutes: 12
     strategy:
       fail-fast: false
@@ -203,6 +218,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
           persist-credentials: false
+          # Documentation images dominate repository size and are not test inputs.
+          sparse-checkout: |
+            /*
+            !/docs/
+          sparse-checkout-cone-mode: false
           fetch-depth: 2
       - name: Select browser checks
         id: changes
