@@ -1,7 +1,10 @@
 // One catalog round trip per browse-list cache miss. Each check retains the
 // existing column-existence and reader SELECT-grant requirement, so partially
 // applied migrations keep using null/legacy projections until the next miss.
+import { initialMetricsColumnsSQL } from "./initial-metrics";
+
 export const browseCapabilitiesSQL = `SELECT
+  (${initialMetricsColumnsSQL}) AS initial_metrics_available,
   (SELECT EXISTS (SELECT 1 FROM pg_attribute
     WHERE attrelid = 'hacksnap_summaries'::regclass AND attname = 'title'
       AND NOT attisdropped AND has_column_privilege(attrelid, attname, 'SELECT'))) AS title_available,

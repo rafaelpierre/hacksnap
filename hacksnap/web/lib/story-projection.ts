@@ -1,6 +1,7 @@
 // Only columns granted to hacksnap_reader belong in these projections.
 // Cards retain a bounded excerpt, never the full discussion analysis JSON.
 import { storyTitleProjection } from "./story-title-projection";
+import { initialMetricsProjection } from "./initial-metrics";
 
 // Source type is used only to filter; provenance stays out of public results.
 const storedImageFields = [
@@ -29,7 +30,8 @@ const fields = (
   coverage = "s.discussion_analysis_coverage",
   imageFields = storedImageFields,
   titleField = "t.title",
-) => `t.hn_id, ${titleField}, t.url, t.points, t.comment_count, t.date_added, t.category, ${imageFields},
+  metricsAvailable = false,
+) => `t.hn_id, ${titleField}, t.url, ${initialMetricsProjection(metricsAvailable)}, t.date_added, t.category, ${imageFields},
   CASE WHEN s.story_id IS NULL THEN NULL ELSE json_build_object(
     ${summaryFields}${
       analysis
@@ -73,6 +75,7 @@ export function storyProjection(
   discussionAvailable: boolean,
   imagesAvailable: boolean,
   titleAvailable = false,
+  metricsAvailable = false,
 ): string {
   const summary =
     kind === "story"
@@ -89,6 +92,7 @@ export function storyProjection(
     discussionAvailable ? "s.discussion_analysis_coverage" : "NULL",
     imageProjection(imagesAvailable),
     storyTitleProjection(titleAvailable),
+    metricsAvailable,
   );
 }
 

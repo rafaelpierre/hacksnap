@@ -1,4 +1,5 @@
 import { withDataFallback } from "../with-data-fallback";
+import { connection } from "next/server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -12,8 +13,6 @@ import { BrowseLoading } from "../browse-loading";
 import { shouldStreamBrowse } from "../../lib/browse-streaming";
 import { BrowseLayout } from "../topic-sidebar";
 
-export const dynamic = "force-dynamic";
-
 type Props = {
   params: Promise<{ path?: string[] }>;
   searchParams: Promise<{
@@ -24,6 +23,7 @@ type Props = {
 };
 
 async function selection({ params, searchParams }: Props) {
+  await connection();
   const { path = [] } = await params;
   const month = path.length ? archiveMonth(path) : null;
   if (path.length && !month) notFound();

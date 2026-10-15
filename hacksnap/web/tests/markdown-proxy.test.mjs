@@ -1,7 +1,43 @@
 import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { test, afterEach } from "@jest/globals";
 import { NextRequest } from "next/server";
 import { proxy } from "../proxy.ts";
+
+afterEach(() => {
+  delete process.env.HACKSNAP_PUBLICATION_CACHE;
+  delete process.env.HACKSNAP_STORY_ISR;
+});
+
+test("ISR keeps canonical requests cached and preserves query/navigation headers on request-time rewrites", () => {
+  process.env.HACKSNAP_PUBLICATION_CACHE = "true";
+  process.env.HACKSNAP_STORY_ISR = "true";
+  for (const query of ["", "?_rsc=navigation"]) {
+    assert.equal(
+      proxy(new NextRequest("https://hacksnap.live/story/123" + query)).headers.get(
+        "x-middleware-rewrite",
+      ),
+      null,
+    );
+  }
+  const query = "?source=one&source=two&_rsc=navigation";
+  const response = proxy(
+    new NextRequest("https://hacksnap.live/story/123" + query, {
+      headers: { RSC: "1", "Next-Router-State-Tree": "router-state" },
+    }),
+  );
+  assert.equal(
+    response.headers.get("x-middleware-rewrite"),
+    "https://hacksnap.live/story-request/123" + query,
+  );
+  assert.equal(response.headers.get("x-middleware-request-rsc"), "1");
+  assert.equal(response.headers.get("x-middleware-request-next-router-state-tree"), "router-state");
+  const markdown = proxy(
+    new NextRequest("https://hacksnap.live/story/123" + query, {
+      headers: { Accept: "text/markdown" },
+    }),
+  );
+  assert.equal(new URL(markdown.headers.get("x-middleware-rewrite")).pathname, "/markdown");
+});
 
 test("AI agents receive Markdown without an explicit Accept preference", () => {
   for (const agent of [

@@ -8,32 +8,36 @@ export function StoryRail({
   children,
 }: {
   id: string;
-  points: number;
-  commentCount: number;
+  points: number | null;
+  commentCount: number | null;
   children?: ReactNode;
 }) {
   return (
     <div className="feed-story-rail">
-      <span className="feed-stat" title={`${points.toLocaleString("en-GB")} points`}>
-        <ArrowUp size={18} aria-hidden="true" />
-        <span>
-          {points.toLocaleString("en-GB")}
-          <span className="sr-only"> points</span>
+      {points !== null && (
+        <span className="feed-stat" title={`${points.toLocaleString("en-GB")} points`}>
+          <ArrowUp size={18} aria-hidden="true" />
+          <span>
+            {points.toLocaleString("en-GB")}
+            <span className="sr-only"> points</span>
+          </span>
         </span>
-      </span>
-      <a
-        className="feed-stat feed-comments"
-        href={`https://news.ycombinator.com/item?id=${id}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={`${commentCount.toLocaleString("en-GB")} comments`}
-      >
-        <MessageCircle size={18} aria-hidden="true" />
-        <span>
-          {commentCount.toLocaleString("en-GB")}
-          <span className="sr-only"> comments</span>
-        </span>
-      </a>
+      )}
+      {commentCount !== null && (
+        <a
+          className="feed-stat feed-comments"
+          href={`https://news.ycombinator.com/item?id=${id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`${commentCount.toLocaleString("en-GB")} comments`}
+        >
+          <MessageCircle size={18} aria-hidden="true" />
+          <span>
+            {commentCount.toLocaleString("en-GB")}
+            <span className="sr-only"> comments</span>
+          </span>
+        </a>
+      )}
       {children}
     </div>
   );

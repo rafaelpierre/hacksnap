@@ -1,4 +1,5 @@
 import { canonicalStoryUrl } from "./story-url";
+import { initialMetricsText } from "./initial-metrics";
 import type { ExportStory } from "./story-domain";
 import { storyIndicators } from "./story-indicators.ts";
 import { summaryPlainText } from "./summary-format";
@@ -47,7 +48,7 @@ ${stories
     const descriptionHtml = html(
       [
         description,
-        `${story.points} points · ${story.comment_count} comments`,
+        initialMetricsText(story),
         ...storyIndicators(story, story.observed_at ?? asOf),
       ].join("\n\n"),
     );

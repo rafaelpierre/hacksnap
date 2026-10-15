@@ -72,6 +72,7 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
   getArchiveMonths: async () => [],
   getPopularStories,
   getStory,
+  getFreshStory: getStory,
   getRelatedStories,
   getCategoryStories,
   getCategoryCounts,

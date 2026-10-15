@@ -5,8 +5,9 @@ import { read } from "./read";
 import { readStories, storySlugField } from "./capabilities";
 import { getLeaderboard } from "./ranked";
 import { boundedCache } from "../bounded-cache";
+import { publicationCache, publicationCachingEnabled } from "../publication-cache";
 import { DataUnavailableError } from "../data-availability";
-import { availableSourceSQL, readySummarySQL } from "../ready-stories";
+import { readySummarySQL } from "../ready-stories";
 import type { CardStory, ExportStory } from "../story-domain";
 import {
   cardRankHistorySQL,
@@ -15,20 +16,28 @@ import {
   type RankObservation,
 } from "../rank-history";
 
-export async function getSitemapPartitions() {
-  return read(async (client) => {
-    const { rows } = await client.query<{ id: string }>(`
+const cachedSitemapPartitions = publicationCache(
+  "sitemap-partitions",
+  async () => {
+    return read(async (client) => {
+      const { rows } = await client.query<{ id: string }>(`
     SELECT DISTINCT (t.hn_id / ${SITEMAP_RANGE_SIZE})::text AS id
     FROM hacker_news_threads t
     INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
     WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${readySummarySQL}
     ORDER BY id LIMIT 50000`);
-    if (rows.length >= 50000) throw new Error("Sitemap index capacity exceeded");
-    return rows;
-  });
+      if (rows.length >= 50000) throw new Error("Sitemap index capacity exceeded");
+      return rows;
+    });
+  },
+  { ttl: () => 0, maxEntries: 1, maxPending: 1 },
+);
+
+export function getSitemapPartitions() {
+  return cachedSitemapPartitions("all");
 }
 
-export async function getSitemapStories(
+async function readSitemapStories(
   id: string,
 ): Promise<{ hn_id: string; story_slug: string | null; modified_at: Date }[]> {
   const [start, end] = sitemapRange(id);
@@ -41,14 +50,7 @@ export async function getSitemapStories(
       modified_at: Date;
     }>(
       `
-      SELECT t.hn_id, ${await storySlugField(client)}, GREATEST(t.date_added, s.updated_at, (
-        SELECT observed_at FROM hn_thread_snapshots
-        WHERE hn_id = t.hn_id ORDER BY observed_at DESC LIMIT 1
-      ), (
-        SELECT observed_at FROM hacksnap_rank_history
-        WHERE hn_id = t.hn_id AND observed_at <= CURRENT_TIMESTAMP
-        ORDER BY observed_at DESC LIMIT 1
-      )) AS modified_at
+      SELECT t.hn_id, ${await storySlugField(client)}, GREATEST(t.date_added, s.updated_at) AS modified_at
       FROM hacker_news_threads t
       INNER JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       WHERE t.hn_id BETWEEN 1 AND 999999999999999
@@ -60,26 +62,41 @@ export async function getSitemapStories(
   });
 }
 
-const cachedFeedStories = boundedCache(async (): Promise<CardStory[]> => {
-  return readStories("feed", async (client, fields) => {
-    const result =
-      await client.query<CardStory>(`SELECT ${fields}, r.rank, ${cardRankHistorySQL} AS rank_history,
+const cachedSitemapStories = publicationCache("sitemap-stories", readSitemapStories, {
+  ttl: () => 0,
+  maxEntries: 16,
+  maxPending: 8,
+});
+
+export function getSitemapStories(id: string) {
+  sitemapRange(id);
+  return publicationCachingEnabled() ? cachedSitemapStories(id) : readSitemapStories(id);
+}
+
+const cachedFeedStories = publicationCache(
+  "feed",
+  async (): Promise<CardStory[]> => {
+    return readStories("feed", async (client, fields) => {
+      const result =
+        await client.query<CardStory>(`SELECT ${fields}, r.rank, ${cardRankHistorySQL} AS rank_history,
       to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
       FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
       LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
-      WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${availableSourceSQL}
+      WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${readySummarySQL}
       ORDER BY t.date_added DESC, t.hn_id DESC LIMIT 50`);
-    return result.rows;
-  });
-}, cachePolicy.feed);
+      return result.rows;
+    });
+  },
+  cachePolicy.feed,
+);
 
 export function getFeedStories(): Promise<CardStory[]> {
   return cachedFeedStories("feed");
 }
 
-// RSS keeps its documented article and discussion text without making cards
-// retain those bodies. Its existing five-minute cache remains independent.
-const cachedRssStories = boundedCache(
+// RSS keeps full export text separate from the smaller card projection.
+const cachedRssStories = publicationCache(
+  "rss",
   async (): Promise<ExportStory[]> =>
     readStories(
       "export",
@@ -90,7 +107,7 @@ const cachedRssStories = boundedCache(
         to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS observed_at
         FROM hacker_news_threads t LEFT JOIN hacksnap_summaries s ON s.story_id = t.hn_id
         LEFT JOIN hacksnap_ranked_stories r ON r.hn_id = t.hn_id
-        WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${availableSourceSQL}
+        WHERE t.hn_id BETWEEN 1 AND 999999999999999 AND ${readySummarySQL}
         ORDER BY t.date_added DESC, t.hn_id DESC LIMIT 50`)
         ).rows,
     ),

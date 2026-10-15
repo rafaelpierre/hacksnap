@@ -319,7 +319,7 @@ test("sitemap reader selects only published takeaways and retains canonical URLs
       stories.map((story) => String(story.hn_id)),
       ["6", "7", "9999"],
     );
-    assert.equal(stories[0].modified_at.toISOString(), "2020-09-04T00:00:00.000Z");
+    assert.equal(stories[0].modified_at.toISOString(), "2020-09-02T00:00:00.000Z");
     assert.equal(stories[1].modified_at.toISOString(), "2020-09-02T00:00:00.000Z");
     assert.equal(stories[0].story_slug, "published-story-6");
     assert.equal(stories[1].story_slug, null);

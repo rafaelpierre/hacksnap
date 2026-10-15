@@ -473,8 +473,8 @@ coverage, and zero-comment samples are identified explicitly. Each story also
 supplies its canonical URL and Twitter large-image card. Missing or blank published takeaways use a descriptive
 fallback and `noindex, follow`, and are excluded from the sitemap. Once a takeaway is
 published, the story enters the sitemap and becomes indexable on the page's next
-revalidation (the existing cache interval is 30 minutes). The metadata and page
-share a request-scoped read backed by the bounded per-instance story cache.
+revalidation. The metadata and page share a request-scoped read. Publication
+notifications refresh shared data and ISR when enabled (see Page cache configuration).
 
 Article Open Graph and Twitter previews use the 1200×630 card at the canonical
 `/story/:id/opengraph-image` URL, including stored slugs. The route passes the
@@ -494,10 +494,11 @@ stable GUIDs, publication dates, and the takeaway, article brief, and discussion
 summary when available. Descriptions are HTML-escaped plain text before XML
 serialization, so feed readers preserve literal markup without creating elements
 or loading embedded resources. XML values are escaped and invalid XML characters removed.
-The feed uses a five-minute per-instance data cache and declares
-`Cache-Control: public, max-age=0, s-maxage=300`. Data and HTTP caching can add up
-to ten minutes of delay for additions, summary edits, and removals. Failures return
-a sanitized 503 with `no-store` and `Retry-After: 60`. HTML alternate links and the footer advertise the feed.
+The feed uses shared publication caching when enabled, or the existing five-minute
+per-instance policy during rollout/rollback. Responses declare
+`Cache-Control: public, max-age=0, must-revalidate`. Cold failures return a
+sanitized 503 with `no-store` and `Retry-After: 60`; failed shared-cache refreshes
+retain the successful feed. HTML alternate links and the footer advertise the feed.
 
 Run `npm test -- tests/rss.test.mjs` and `npm run build` from this directory.
 
@@ -589,6 +590,84 @@ removed if nothing else relies on them. Workers deployments and Spamhaus updates
 use their own dedicated tokens.
 
 ### Page cache configuration
+
+Publication caching is opt-in during rollout. Set `HACKSNAP_PUBLICATION_CACHE=true`
+only after migration `0024_publication_cache` and a successful notification delivery.
+Published stories, Latest/category/month data, counts, related stories, RSS and
+sitemap data then use Next.js `unstable_cache` (Vercel Data Cache) for 24 hours.
+Keys include the application, data-contract version and rendering configuration.
+Completed per-instance copies are disabled; concurrent reads still coalesce and
+retain the existing connection/admission limits. Failed refreshes leave successful
+shared entries intact; cold failures keep the unavailable response. Null/pending
+story lookups retain a bounded 60-second local policy. Confirmed removals expire
+publication and popularity tags immediately. Trending and Most Read use separate
+15-minute shared data entries. Legacy ranked cursor caches are unchanged.
+
+Set `HACKSNAP_STORY_ISR=true` after validating notifications to enable on-demand
+story and OG generation. Builds return no story parameters and never query the
+database. ISR reads fresh story data through the guarded reader and React request
+memoization, avoiding another 24-hour data window beneath cached HTML. Its fallback
+interval is 24 hours; Next.js can shorten the HTML interval to 15 minutes when the
+page includes the popularity cache. Failed regeneration throws to Next so the last
+successful HTML remains usable. Pending/missing ISR responses use a 60-second
+fallback, never the publication's day-long interval. Cold outages remain uncached.
+Query-dependent story requests render dynamically through an internal rewrite,
+preserving the public URL and all canonical redirect query parameters.
+Latest, category and month pages
+render per request over shared data. No browser polling, update banners, navigation
+changes or feed-restoration changes are introduced.
+
+Displayed HN points/comment counts come from the earliest retained snapshot,
+ordered by `observed_at, snapshot_id`. Raw-payload cleanup retains those scalars.
+Missing snapshots or grants produce omitted metrics; current ingestion counters
+continue driving internal ranking. RSS and sitemaps serve only publications.
+
+`POST /api/revalidate-publication` accepts 1–32 changes of the form
+`{"storyId":"123","kind":"publication"}` inside `{"changes":[...]}`. Allowed kinds
+are `publication`, `correction`, `image`, and `removal`; requests are limited to 8 KiB.
+Tags and paths are derived internally. Ordinary changes mark tags stale so failed
+regeneration retains successful pages. Removals immediately expire tags and the
+story/OG route tree. Configure `HACKSNAP_PUBLICATION_SECRET`
+(at least 32 random characters, server-only) on Vercel and in Modal's `hacksnap`
+secret. The dispatcher invalidates caches, then sends a separate authenticated warm
+request with `X-Hacksnap-Publication-Phase: warm`. Warming covers changed stories,
+OG images, Latest and affected categories. `HACKSNAP_PUBLICATION_ORIGIN` optionally
+sets the HTTPS warm-up origin; previews default to `VERCEL_URL`, production to
+`https://hacksnap.live`. Protected previews need accessible warm-up origins.
+
+Rollout: apply the additive migration, deploy notification handling and configure
+Modal's `HACKSNAP_PUBLICATION_WEBHOOK_URL=https://hacksnap.live/api/revalidate-publication`.
+Verify delivery with the manual command in `../README.md`, then enable shared caching,
+then story ISR. Check `publication_delivered`, `publication_delivery_failed`,
+`publication_dispatch_failed`, `publication_revalidation_failed`, and
+`publication_warmed` logs. Delivery logs report pending count and oldest-event age;
+alert on repeated failures or pending age exceeding two minutes under healthy conditions.
+Compare reader-query volume and Vercel Data Cache/ISR hits before/after activation.
+Verify two independent preview requests reuse shared data, then publish/correct/remove
+fixture content and confirm invalidation. Preview checks require deployed credentials.
+
+Rollback: set `HACKSNAP_PUBLICATION_CACHE=false` and redeploy. This also disables
+story ISR and restores short per-instance policies; pending notifications remain
+intact. Do not downgrade the outbox migration to roll back the website.
+
+Browser HTML uses [Vercel's default revalidating document policy](https://vercel.com/docs/caching/cache-control-headers)
+(`public, max-age=0, must-revalidate`). Vercel consumes Next's shared-cache
+`s-maxage`/stale directives; local `next start` exposes those origin headers.
+Verify the browser-facing header in the preview before activation. Dynamic HTML,
+negotiated Markdown, internal APIs and errors remain uncached. RSS/sitemaps explicitly
+send `public, max-age=0, must-revalidate`. Hashed JS/CSS/fonts and immutable Blob images
+retain one-year asset caching. Cloudflare must respect origin browser-cache headers
+and bypass pages, navigation responses, Markdown, RSS/sitemaps and internal APIs.
+Preserve query strings and Next navigation headers. No additional HTML cache or daily
+zone purge is needed. Production deployment and Cloudflare edits are separate actions.
+
+`npm run test:cache` builds an isolated, credential-free production fixture and
+checks ISR reuse, publication refresh, outage retention, removals, short pending
+responses, canonical query redirects, HTML/Markdown/RSC separation and immutable
+assets. Run ordinary browser history tests as well; fixture builds never copy local
+environment files or connect to production.
+
+The following describes the short-cache rollback configuration:
 
 Latest and `/story/:id` render per request so outages cannot become cached
 HTML. The root catch-all accepts `/` and valid `/YYYY/MM` selections; unmatched paths

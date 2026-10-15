@@ -1,4 +1,5 @@
 import { storySlugColumnSQL } from "./story-slug-projection";
+import { initialMetricsColumnsSQL } from "./initial-metrics";
 
 export const storyTitleColumnSQL = `SELECT EXISTS (
   SELECT 1 FROM pg_attribute
@@ -8,7 +9,8 @@ export const storyTitleColumnSQL = `SELECT EXISTS (
 
 export const storyIdentityColumnsSQL = `SELECT
   (${storySlugColumnSQL}) AS slug_available,
-  (${storyTitleColumnSQL}) AS title_available`;
+  (${storyTitleColumnSQL}) AS title_available,
+  (${initialMetricsColumnsSQL}) AS initial_metrics_available`;
 
 export function storyTitleProjection(available: boolean): string {
   return available ? "COALESCE(NULLIF(BTRIM(s.title), ''), t.title) AS title" : "t.title";

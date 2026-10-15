@@ -22,9 +22,21 @@ export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-hacksnap-markdown-page", request.nextUrl.pathname);
   requestHeaders.set("x-hacksnap-markdown-query", request.nextUrl.search);
-  const response = markdown
-    ? NextResponse.rewrite(url, { request: { headers: requestHeaders } })
-    : NextResponse.next();
+  let response;
+  if (markdown) response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+  else if (
+    process.env.HACKSNAP_PUBLICATION_CACHE === "true" &&
+    process.env.HACKSNAP_STORY_ISR === "true" &&
+    /^\/story\/[^/]+$/.test(pathname) &&
+    [...request.nextUrl.searchParams.keys()].some((key) => key !== "_rsc")
+  ) {
+    // A request with user query parameters needs its own render so canonical
+    // redirects preserve them. Keep the public URL and navigation unchanged.
+    const dynamicURL = request.nextUrl.clone();
+    dynamicURL.pathname = pathname.replace("/story/", "/story-request/");
+    requestHeaders.set("x-hacksnap-story-request", "1");
+    response = NextResponse.rewrite(dynamicURL, { request: { headers: requestHeaders } });
+  } else response = NextResponse.next();
   // Temporary feed snapshots must stay out of search, including expired pages
   // and negotiated Markdown responses that have no HTML metadata.
   if (

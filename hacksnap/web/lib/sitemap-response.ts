@@ -1,4 +1,5 @@
 import "server-only";
+import { publicationCachingEnabled } from "./publication-cache";
 import { boundedCache } from "./bounded-cache";
 import { getSitemapPartitions, getSitemapStories, getArchiveMonths } from "./data";
 import { DataUnavailableError, unavailableResponse } from "./data-availability";
@@ -26,7 +27,7 @@ const generate = boundedCache(
     }
     return sitemapXML(sitemapEntries(await getSitemapStories(id)).slice(1));
   },
-  { ttl: () => 300_000, maxEntries: 10, maxPending: 2 },
+  { ttl: () => (publicationCachingEnabled() ? 0 : 300_000), maxEntries: 10, maxPending: 2 },
 );
 
 export async function sitemapResponse(id: string): Promise<Response> {

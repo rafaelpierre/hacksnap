@@ -18,8 +18,8 @@ export type StoryIdentity = StoryImageFields & {
   story_slug?: string | null;
   category: CategoryId | null;
   url: string;
-  points: number;
-  comment_count: number;
+  points: number | null;
+  comment_count: number | null;
   date_added: Date;
 };
 

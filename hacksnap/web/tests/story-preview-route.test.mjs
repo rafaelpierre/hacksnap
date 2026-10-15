@@ -7,7 +7,7 @@ const getStory = jest.fn();
 const ogImage = jest.fn(
   () => new Response("story card", { headers: { "content-type": "image/png" } }),
 );
-jest.unstable_mockModule("../lib/data.ts", () => ({ getStory }));
+jest.unstable_mockModule("../lib/data.ts", () => ({ getStory, getFreshStory: getStory }));
 jest.unstable_mockModule("next/cache", () => ({ unstable_noStore: () => {} }));
 jest.unstable_mockModule("../lib/og-image.tsx", () => ({ ogImage }));
 const { GET } = await import("../app/story/[id]/opengraph-image/route.ts");

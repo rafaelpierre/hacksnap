@@ -39,7 +39,7 @@ const markdown = await import("../app/markdown/route.ts");
 test("RSS caches successes and sanitizes uncacheable failures", async () => {
   const success = await rss.GET();
   assert.equal(success.status, 200);
-  assert.equal(success.headers.get("cache-control"), "public, max-age=0, s-maxage=300");
+  assert.equal(success.headers.get("cache-control"), "public, max-age=0, must-revalidate");
   assert.match(success.headers.get("content-type"), /application\/rss\+xml/);
   assert.match(await success.text(), /<rss/);
   fail = true;

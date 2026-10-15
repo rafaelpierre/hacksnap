@@ -1,7 +1,7 @@
 import { sitemapResponse } from "../../lib/sitemap-response";
+import { connection } from "next/server";
 
-export const dynamic = "force-dynamic";
-
-export function GET() {
+export async function GET() {
+  await connection();
   return sitemapResponse("index");
 }

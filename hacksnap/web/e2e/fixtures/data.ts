@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
+import { readFile } from "node:fs/promises";
 import type { ArticleStory, CardStory, ExportStory } from "../../lib/story-domain";
 import type { CategoryId, CategoryCounts } from "../../lib/categories";
 import type { RankingMetrics } from "../../lib/story-metrics";
@@ -207,6 +208,7 @@ async function primaryReadFixture(kind: string) {
   }
 }
 export async function getPopularStories(period: "last-7-days" | "all-time" = "all-time") {
+  if (process.env.HACKSNAP_CACHE_FIXTURE === "true") return [];
   const cookie = (await headers()).get("cookie") ?? "";
   if (cookie.includes("fixture-read-order=") && !requiredRead().complete)
     throw new Error("Popularity ran before the required route read completed");
@@ -238,6 +240,7 @@ export async function getRssStories(): Promise<ExportStory[]> {
   return stories;
 }
 export const getStory = cache(async (id: string): Promise<ArticleStory | null> => {
+  if (process.env.HACKSNAP_CACHE_FIXTURE === "true") return getFreshStory(id);
   await primaryReadFixture("story");
   if (id === "91999999") throw new DataUnavailableError();
   const story = stories.find((story) => story.hn_id === id) ?? null;
@@ -252,6 +255,22 @@ export const getStory = cache(async (id: string): Promise<ArticleStory | null> =
 export async function getStoryMetrics(_id: string): Promise<RankingMetrics | null> {
   return null;
 }
+
+export const getFreshStory = cache(async (id: string): Promise<ArticleStory | null> => {
+  if (process.env.HACKSNAP_CACHE_FIXTURE !== "true") return getStory(id);
+  const state = JSON.parse(await readFile("cache-fixture-state.json", "utf8"));
+  if (state.fail || id === "91999999") throw new DataUnavailableError();
+  if (state.removed) return null;
+  const story = stories.find((story) => story.hn_id === id);
+  return story
+    ? {
+        ...story,
+        title: state.title,
+        story_slug: state.slug ?? null,
+        summary: state.pending ? null : story.summary,
+      }
+    : null;
+});
 export async function getArchiveMonths() {
   return [{ month: "2026-01", count: stories.length }];
 }
