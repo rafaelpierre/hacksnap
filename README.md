@@ -49,6 +49,13 @@ Frontend checks split Jest across two Linux runners with four processes each,
 Chromium across six Linux runners, and iPhone WebKit across three macOS runners.
 Playwright uses all CPU cores on each runner. The existing tests, production
 browser, and iPhone checks each require every corresponding shard to pass.
+Chromium interleaves the discovered test list across runners to spread expensive
+layout and accessibility cases. PRs containing only frontend unit tests or
+allowlisted documentation skip browser jobs; lint, formatting, build and Jest
+still run. Application, browser-test, dependency, configuration and shared-fixture
+changes keep full browser coverage, as do main pushes and manual/deployment runs.
+Missing Git history defaults to full coverage. Aggregate browser checks accept
+skipped shards only after successful, explicit change classification.
 Chromium uses the official Playwright container with browsers already installed;
 WebKit installation overlaps the fixture build on macOS. Local `npm test` remains serial.
 

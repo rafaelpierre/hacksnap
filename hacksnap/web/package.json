@@ -25,6 +25,7 @@
     "browser:build": "node scripts/browser-app.mjs build",
     "browser:start": "node scripts/browser-app.mjs start",
     "test:browser": "playwright test",
+    "test:browser:shard": "node scripts/browser-shard.mjs",
     "test:browser:ci": "npm run browser:build && npm run test:browser"
   },
   "dependencies": {

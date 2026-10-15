@@ -1093,10 +1093,22 @@ reports are uploaded separately. Chromium uses the official Playwright container
 which includes browser binaries and system dependencies. Its image version in
 `frontend.yml` must match the locked `@playwright/test` version. On macOS, WebKit
 installation and the fixture build run concurrently.
+Chromium interleaves the complete discovered test list across its six runners,
+so expensive cases from one file do not all land on the same runner. New tests
+are included automatically. Pull requests changing only files under `web/tests/`
+or allowlisted documentation skip both browser matrices; lint, formatting, build
+and Jest remain enabled. Runtime code, browser tests/helpers, dependencies,
+configuration, shared fixtures and unknown paths require the full browser suite.
+Main pushes, manual runs and production validation also keep full browser coverage.
+The selector checks the complete PR diff, including deleted and renamed paths;
+missing history defaults to full coverage. Aggregate checks fail if selection
+fails or a required shard is missing, canceled or unsuccessful.
 Local runs default to four workers; use
 `npm run test:browser -- --workers=100%` to reproduce CI concurrency.
-Add `--project=chromium --shard=1/6` or `--project=iphone-webkit --shard=1/3` to run
-one browser shard locally; change the numerator to select another shard.
+Use `npm run test:browser:shard -- 1/6` for one Chromium CI shard, or
+`npm run test:browser -- --project=iphone-webkit --shard=1/3` for one iPhone shard;
+change the numerator to select another shard. Add `--list --reporter=list` to
+inspect a Chromium shard without running it.
 
 Fixtures replace the server-only data module only inside ignored `.browser-app`.
 The normal application has no fixture switch, import or endpoint. The runner

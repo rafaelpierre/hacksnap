@@ -10,6 +10,8 @@ on:
       - "data/migrations/versions/0019_story_popularity.py"
       - "data/migrations/versions/0020_story_popularity_activation.py"
       - ".github/workflows/frontend.yml"
+      - ".github/scripts/frontend-changes.py"
+      - ".github/tests/test_frontend_changes.py"
   push:
     branches: [main]
     paths:
@@ -20,6 +22,8 @@ on:
       - "data/migrations/versions/0019_story_popularity.py"
       - "data/migrations/versions/0020_story_popularity_activation.py"
       - ".github/workflows/frontend.yml"
+      - ".github/scripts/frontend-changes.py"
+      - ".github/tests/test_frontend_changes.py"
   workflow_dispatch:
   workflow_call:
 
@@ -33,6 +37,25 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Frontend / browser selection
+    runs-on: ubuntu-latest
+    outputs:
+      browser: ${{ steps.changes.outputs.browser }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
+        with:
+          persist-credentials: false
+          # Include the merge commit's base parent for a complete PR diff.
+          fetch-depth: 2
+      - name: Verify browser selection rules
+        run: python3 -m unittest discover -s .github/tests -p test_frontend_changes.py
+      - name: Select browser checks
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 .github/scripts/frontend-changes.py
+
   check:
     name: Frontend / ${{ matrix.check }}
     runs-on: ubuntu-latest
@@ -103,6 +126,8 @@ jobs:
 
   browser-shard:
     name: Frontend / Chromium shard ${{ matrix.shard }}/${{ strategy.job-total }}
+    needs: changes
+    if: needs.changes.outputs.browser == 'true'
     runs-on: ubuntu-latest
     container:
       # Keep this version aligned with @playwright/test in package-lock.json.
@@ -131,7 +156,7 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
       - name: Deterministic browser regression suite
-        run: npm run test:browser -- --project=chromium --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+        run: npm run test:browser:shard -- ${{ matrix.shard }}/${{ strategy.job-total }}
       - name: Browser screenshots, traces and route measurements
         if: always()
         uses: actions/upload-artifact@v7
@@ -144,17 +169,25 @@ jobs:
 
   browser:
     name: Frontend / production browser
-    needs: browser-shard
+    needs: [changes, browser-shard]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Require every Chromium shard to pass
+      - name: Require all Chromium shards or an explicit non-runtime change
         env:
+          SELECTION_RESULT: ${{ needs.changes.result }}
+          BROWSER_REQUIRED: ${{ needs.changes.outputs.browser }}
           SHARD_RESULT: ${{ needs.browser-shard.result }}
-        run: test "$SHARD_RESULT" = success
+        run: |
+          case "$SELECTION_RESULT:$BROWSER_REQUIRED:$SHARD_RESULT" in
+            success:true:success|success:false:skipped) exit 0 ;;
+            *) exit 1 ;;
+          esac
 
   iphone-browser-shard:
     name: Frontend / iPhone WebKit shard ${{ matrix.shard }}/${{ strategy.job-total }}
+    needs: changes
+    if: needs.changes.outputs.browser == 'true'
     # Exercise Apple's WebKit port; Linux WebKit has different networking behavior.
     runs-on: macos-latest
     timeout-minutes: 12
@@ -197,11 +230,17 @@ jobs:
 
   iphone-browser:
     name: Frontend / iPhone WebKit
-    needs: iphone-browser-shard
+    needs: [changes, iphone-browser-shard]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Require every iPhone WebKit shard to pass
+      - name: Require all iPhone shards or an explicit non-runtime change
         env:
+          SELECTION_RESULT: ${{ needs.changes.result }}
+          BROWSER_REQUIRED: ${{ needs.changes.outputs.browser }}
           SHARD_RESULT: ${{ needs.iphone-browser-shard.result }}
-        run: test "$SHARD_RESULT" = success
+        run: |
+          case "$SELECTION_RESULT:$BROWSER_REQUIRED:$SHARD_RESULT" in
+            success:true:success|success:false:skipped) exit 0 ;;
+            *) exit 1 ;;
+          esac
