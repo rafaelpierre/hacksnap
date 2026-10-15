@@ -10,7 +10,7 @@ const kinds = new Set(["publication", "correction", "image", "removal"]);
 const headers = { "Cache-Control": "no-store" };
 
 export function publicationWebhook(
-  notify: (changes: PublicationChange[], warm: boolean) => Promise<void>,
+  notify: (changes: PublicationChange[], warm: boolean, request: Request) => Promise<void>,
 ) {
   return async (request: Request): Promise<Response> => {
     const secret = process.env.HACKSNAP_PUBLICATION_SECRET;
@@ -69,7 +69,7 @@ export function publicationWebhook(
       reader.releaseLock();
     }
     try {
-      await notify(changes, phase === "warm");
+      await notify(changes, phase === "warm", request);
       return Response.json({ revalidated: true }, { headers });
     } catch {
       console.error("publication_revalidation_failed", { count: changes.length });

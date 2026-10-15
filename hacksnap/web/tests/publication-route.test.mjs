@@ -23,6 +23,8 @@ const originalFetch = globalThis.fetch;
 afterEach(() => {
   delete process.env.HACKSNAP_PUBLICATION_SECRET;
   delete process.env.HACKSNAP_PUBLICATION_ORIGIN;
+  delete process.env.VERCEL_ENV;
+  delete process.env.VERCEL_URL;
   globalThis.fetch = originalFetch;
   jest.clearAllMocks();
 });
@@ -86,3 +88,32 @@ test("warming derives bounded destinations and returns retryable failure", async
     log.mockRestore();
   }
 });
+test.each([
+  ["preview", undefined, true],
+  ["production", undefined, false],
+  ["preview", "https://different.example.test", false],
+])(
+  "warming forwards protection headers only to its own preview (%s, %s)",
+  async (env, origin, forward) => {
+    process.env.VERCEL_ENV = env;
+    process.env.VERCEL_URL = "preview.example.test";
+    if (origin) process.env.HACKSNAP_PUBLICATION_ORIGIN = origin;
+    globalThis.fetch = jest.fn(async () => new Response("ready"));
+    const req = request([{ storyId: "123", kind: "correction" }], true);
+    req.headers.set("x-origin-secret", "preview-origin");
+    req.headers.set("x-vercel-protection-bypass", "preview-protection");
+    req.headers.set("cookie", "private=session");
+    assert.equal((await POST(req)).status, 200);
+    assert.ok(globalThis.fetch.mock.calls.length > 0);
+    for (const [, options] of globalThis.fetch.mock.calls) {
+      const headers = new Headers(options.headers);
+      assert.equal(headers.get("x-origin-secret"), forward ? "preview-origin" : null);
+      assert.equal(
+        headers.get("x-vercel-protection-bypass"),
+        forward ? "preview-protection" : null,
+      );
+      assert.equal(headers.get("authorization"), null);
+      assert.equal(headers.get("cookie"), null);
+    }
+  },
+);

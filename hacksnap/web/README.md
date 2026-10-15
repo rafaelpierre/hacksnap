@@ -633,7 +633,9 @@ secret. The dispatcher invalidates caches, then sends a separate authenticated w
 request with `X-Hacksnap-Publication-Phase: warm`. Warming covers changed stories,
 OG images, Latest and affected categories. `HACKSNAP_PUBLICATION_ORIGIN` optionally
 sets the HTTPS warm-up origin; previews default to `VERCEL_URL`, production to
-`https://hacksnap.live`. Protected previews need accessible warm-up origins.
+`https://hacksnap.live`. For protected previews, authenticated webhook calls forward
+their `x-origin-secret` and `x-vercel-protection-bypass` headers only when warming
+that deployment's `VERCEL_URL`. Other origins and production never receive them.
 
 Rollout: apply the additive migration, deploy notification handling and configure
 Modal's `HACKSNAP_PUBLICATION_WEBHOOK_URL=https://hacksnap.live/api/revalidate-publication`.

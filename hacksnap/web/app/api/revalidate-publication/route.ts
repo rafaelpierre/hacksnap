@@ -9,7 +9,7 @@ import { getArchiveStories, getCategoryStories } from "../../../lib/data/browse"
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export const POST = publicationWebhook(async (changes, warm) => {
+export const POST = publicationWebhook(async (changes, warm, request) => {
   const removal = changes.some((change) => change.kind === "removal");
   const ids = [...new Set(changes.map((change) => change.storyId))];
   clearNegativeStories(ids);
@@ -52,6 +52,18 @@ export const POST = publicationWebhook(async (changes, warm) => {
     url.pathname !== "/"
   )
     throw new Error("Invalid publication origin");
+  const previewHeaders: Record<string, string> = {};
+  if (
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.VERCEL_URL &&
+    url.origin === `https://${process.env.VERCEL_URL}`
+  ) {
+    // Reuse the authenticated caller's protection headers only on this preview.
+    for (const name of ["x-origin-secret", "x-vercel-protection-bypass"]) {
+      const value = request.headers.get(name);
+      if (value) previewHeaders[name] = value;
+    }
+  }
   // Warm only internally derived paths. Bound concurrency below the DB read budget.
   const pending = [...paths];
   await Promise.all(
@@ -62,7 +74,10 @@ export const POST = publicationWebhook(async (changes, warm) => {
           cache: "no-store",
           redirect: "error",
           signal: AbortSignal.timeout(10_000),
-          headers: { Accept: path.endsWith("opengraph-image") ? "image/png" : "text/html" },
+          headers: {
+            ...previewHeaders,
+            Accept: path.endsWith("opengraph-image") ? "image/png" : "text/html",
+          },
         });
         await response.body?.cancel();
         if (!response.ok) throw new Error("Publication warm failed");
