@@ -242,6 +242,8 @@ def test_concurrent_stories_get_separate_clients_and_event_loops(settings, infer
     assert len(results) == 3 and len(inference.clients) == 6
     assert len({id(c.loop) for c in inference.clients}) == 3
     assert all(c.closed and len(c.calls) == 1 for c in inference.clients)
+    assert len({id(c.config["cache"]) for c in inference.clients}) == 1
+    assert ReviewedSummarizer(settings)._cache is not adapter._cache
 
 
 def test_revision_prompt_change_invalidates_both_versions_and_refresh_cache(
