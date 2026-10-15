@@ -268,7 +268,7 @@ def test_full_review_loop_preserves_wire_prefixes_and_separate_model_affinity(so
 
 
 @pytest.mark.parametrize("first_fails", [False, True])
-def test_shared_batch_warmup_spans_clients_and_event_loops(first_fails):
+def test_shared_batch_warmup_preserves_distinct_story_affinity_across_event_loops(first_fails):
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier, Event, Lock
 
@@ -284,7 +284,7 @@ def test_shared_batch_warmup_spans_clients_and_event_loops(first_fails):
     class ObservedCache(EditorialCache):
         def claim(self, *args):
             claim = super().claim(*args)
-            if not claim[2]:
+            if not claim[1]:
                 waiting.set()
             return claim
 
@@ -330,7 +330,8 @@ def test_shared_batch_warmup_spans_clients_and_event_loops(first_fails):
             release.set()
         for future in [first, *rest]:
             future.result(timeout=10)
-    assert len(keys) == 3 and len(set(keys)) == 1
+    assert len(keys) == 3 and len(set(keys)) == 3
+    assert len({record["prefix_fingerprint"] for record in completed}) == 1
     assert sum(record["warmup_owner"] for record in completed) == 1
 
 
@@ -390,11 +391,13 @@ def test_prefix_identity_isolates_different_models_schemas_settings_and_batches(
     base = ["https://example.invalid/v1", "model", "high", "Instructions", Answer.model_json_schema()]
     first = cache.claim(*base)
     again = cache.claim(*base)
-    assert first[0] == again[0] and first[3] is again[3]
-    assert first[2] and not again[2]
+    assert first[0] == again[0] and first[2] is again[2]
+    assert first[1] and not again[1]
     for index, value in enumerate(["https://other.invalid/v1", "other", "low", "New instructions", OtherAnswer.model_json_schema()]):
         changed = list(base)
         changed[index] = value
         claim = cache.claim(*changed)
-        assert claim[0] != first[0] and claim[2]
-    assert EditorialCache().claim(*base)[0] != first[0]
+        assert claim[0] != first[0] and claim[1]
+    other_batch = EditorialCache().claim(*base)
+    assert other_batch[0] == first[0] and other_batch[2] is not first[2]
+    assert other_batch[1]

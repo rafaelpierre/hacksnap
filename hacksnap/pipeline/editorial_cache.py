@@ -1,15 +1,13 @@
-"""Batch-scoped affinity and prefix warm-ups shared across story event loops."""
+"""Batch-scoped prefix warm-ups shared across story event loops."""
 import asyncio
 import hashlib
 import json
 from concurrent.futures import Future
 from threading import Lock
-from uuid import uuid4
 
 
 class EditorialCache:
     def __init__(self):
-        self._session = str(uuid4())
         self._lock = Lock()
         self._prefixes: dict[str, Future[None]] = {}
 
@@ -21,7 +19,7 @@ class EditorialCache:
             if owner:
                 self._prefixes[fingerprint] = Future()
             completion = self._prefixes[fingerprint]
-        return f"{self._session}-{fingerprint[:20]}", fingerprint, owner, completion
+        return fingerprint, owner, completion
 
     @staticmethod
     async def wait(completion: Future[None]):

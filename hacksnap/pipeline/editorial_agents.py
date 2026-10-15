@@ -1,6 +1,7 @@
 """OpenAI Agents SDK adapter for Modal-hosted editorial inference."""
 import asyncio
 from time import perf_counter
+from uuid import uuid4
 
 import httpx
 from agents import Agent, ModelSettings, OpenAIChatCompletionsModel, RunConfig, Runner
@@ -52,6 +53,8 @@ class AgentInference:
                                    http_client=self._http, timeout=timeout)
         self._model = OpenAIChatCompletionsModel(model=model, openai_client=self._client)
         self._cache = cache if cache is not None else EditorialCache()
+        # Each client belongs to one story's writer or reviewer conversation.
+        self._conversation_id = str(uuid4())
 
     async def _check_completion(self, response):
         if response.status_code < 400:
@@ -80,9 +83,10 @@ class AgentInference:
         record = {"role": role, "model": self.model, "reasoning_effort": self.effort,
                   "status": "failed", "input_tokens": None, "output_tokens": None,
                   "cached_input_tokens": None}
-        affinity, fingerprint, owner, completion = self._cache.claim(
+        fingerprint, owner, completion = self._cache.claim(
             self.base_url, self.model, self.effort, prompt, schema.model_json_schema(),
         )
+        affinity = f"{self._conversation_id}-{fingerprint[:20]}"
         record.update(prefix_fingerprint=fingerprint, warmup_owner=owner)
         request_started = None
         self._active_record = record

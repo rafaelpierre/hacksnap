@@ -343,15 +343,17 @@ summaries. Fetching and preprocessing can overlap immediately.
 The reviewed Agents SDK path shares one cache coordinator per scheduled batch,
 while keeping each story's HTTP clients and event loops isolated. The first real
 request for each endpoint/model/reasoning/system-prompt/schema combination completes
-before followers begin. Different combinations can warm concurrently; warmed requests
+before followers begin. Different combinations can warm concurrently; subsequent requests
 retain the 15-story concurrency limit. Warm-ups use real results, without extra calls.
 Failures and cancellation release the gate; a cancelled waiter cannot cancel it for
 other stories. Waiting counts against the existing story and batch editorial deadlines;
 the per-request timeout starts after the warm-up wait.
 
-Editorial requests send the documented `Modal-Routing-Affinity-Key`, stable within
-the batch for each prefix combination. Writer revisions keep the same system instructions
-and original-source message as the initial draft. Reviews put original sources before
+Editorial requests send the documented `Modal-Routing-Affinity-Key`, unique to each
+story's writer or reviewer conversation and stable across its revisions or repairs.
+The shared prefix gate does not share routing keys between unrelated stories or
+guarantee that their requests reach a warmed container. Writer revisions keep the same
+system instructions and original-source message as the initial draft. Reviews put original sources before
 the changing draft; repair feedback is a separate trailing message. Revision and repair
 rules are fixed conditional sections of the system instructions. This preserves source
 prefixes through the loop, including the full draft prefix during review repairs.
