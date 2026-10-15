@@ -104,6 +104,10 @@ jobs:
   browser-shard:
     name: Frontend / Chromium shard ${{ matrix.shard }}/${{ strategy.job-total }}
     runs-on: ubuntu-latest
+    container:
+      # Keep this version aligned with @playwright/test in package-lock.json.
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      options: --ipc=host --init
     timeout-minutes: 12
     strategy:
       fail-fast: false
@@ -122,12 +126,8 @@ jobs:
           cache: npm
           cache-dependency-path: hacksnap/web/package-lock.json
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Build fixture app while installing Chromium
-        run: |
-          npm run browser:build &
-          build_pid=$!
-          npx playwright install --with-deps --only-shell chromium
-          wait "$build_pid"
+      - name: Build fixture app
+        run: npm run browser:build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
       - name: Deterministic browser regression suite

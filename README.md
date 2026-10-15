@@ -49,7 +49,8 @@ Frontend checks split Jest across two Linux runners with four processes each,
 Chromium across six Linux runners, and iPhone WebKit across three macOS runners.
 Playwright uses all CPU cores on each runner. The existing tests, production
 browser, and iPhone checks each require every corresponding shard to pass.
-Browser installation overlaps the fixture build. Local `npm test` remains serial.
+Chromium uses the official Playwright container with browsers already installed;
+WebKit installation overlaps the fixture build on macOS. Local `npm test` remains serial.
 
 New commits cancel older PR runs for frontend, worker, ingestion, MCP, scanner-tax
 and dependency-audit checks. Main pushes and manual runs keep independent validation;

@@ -1089,8 +1089,10 @@ The suite uses port 3100; override `BROWSER_PORT` when another local app uses it
 CI splits Chromium tests across six Linux runners and iPhone WebKit across three
 macOS runners. Each runner uses one Playwright worker per logical CPU, including
 tests within the same file. Every shard must pass its browser's aggregate check;
-reports are uploaded separately. Browser installation and the fixture build run
-concurrently, and Chromium installs only the headless shell used by these tests.
+reports are uploaded separately. Chromium uses the official Playwright container,
+which includes browser binaries and system dependencies. Its image version in
+`frontend.yml` must match the locked `@playwright/test` version. On macOS, WebKit
+installation and the fixture build run concurrently.
 Local runs default to four workers; use
 `npm run test:browser -- --workers=100%` to reproduce CI concurrency.
 Add `--project=chromium --shard=1/6` or `--project=iphone-webkit --shard=1/3` to run
