@@ -45,6 +45,18 @@ before the reusable Supabase schema workflow applies pending migrations, followe
 by Modal deployment. Frontend and ingestion workflows are reusable so this deployment
 uses the same checks as pull requests.
 
+Frontend browser checks split the Chromium suite across two Linux runners, with
+all CPU cores available to Playwright on each runner. The existing production
+browser check succeeds only when both shards pass. iPhone WebKit runs separately
+on macOS. Jest CI uses two workers; local `npm test` remains serial.
+
+New commits cancel older PR runs for frontend, worker, ingestion, MCP, scanner-tax
+and dependency-audit checks. Main pushes and manual runs keep independent validation;
+the production deployment locks still serialize changes without interruption.
+Dependency audits run on manifest, lockfile, package-manager configuration and audit
+workflow changes, plus the weekly schedule and manual runs to catch newly disclosed
+vulnerabilities even when dependencies have not changed.
+
 If branch protection requires the former `test` check, update its required checks
 to match the new names. Path-filtered workflows do not report checks for unrelated
 changes; do not require every project check unconditionally.

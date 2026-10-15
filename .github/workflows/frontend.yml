@@ -26,6 +26,12 @@ on:
 permissions:
   contents: read
 
+# Called workflows inherit the caller's name; the prefix keeps their locks distinct.
+# Non-PR runs retain independent validation for each production revision.
+concurrency:
+  group: frontend-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check:
     name: Frontend / ${{ matrix.check }}
@@ -64,10 +70,14 @@ jobs:
           npm run typecheck
           npm run build
 
-  browser:
-    name: Frontend / production browser
+  browser-shard:
+    name: Frontend / Chromium shard ${{ matrix.shard }}/2
     runs-on: ubuntu-latest
     timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     defaults:
       run:
         working-directory: hacksnap/web
@@ -83,18 +93,29 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Production build and deterministic browser regression suite
-        run: npm run browser:build && npm run test:browser -- --project=chromium
+        run: npm run browser:build && npm run test:browser -- --project=chromium --shard=${{ matrix.shard }}/2
         env:
           NEXT_TELEMETRY_DISABLED: "1"
       - name: Browser screenshots, traces and route measurements
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-browser-results
+          name: frontend-browser-results-${{ matrix.shard }}
           path: |
             hacksnap/web/playwright-report/
             hacksnap/web/test-results/
           retention-days: 14
+
+  browser:
+    name: Frontend / production browser
+    needs: browser-shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every Chromium shard to pass
+        env:
+          SHARD_RESULT: ${{ needs.browser-shard.result }}
+        run: test "$SHARD_RESULT" = success
 
   iphone-browser:
     name: Frontend / iPhone WebKit

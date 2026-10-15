@@ -18,7 +18,7 @@
     "test:categories": "npm test -- tests/categories.test.mjs tests/navigation-context.test.mjs",
     "test:brief": "npm test -- tests/brief.test.mjs",
     "test": "TZ=America/Los_Angeles node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
-    "test:ci": "npm test -- --ci",
+    "test:ci": "TZ=America/Los_Angeles node --experimental-vm-modules node_modules/jest/bin/jest.js --ci --maxWorkers=2",
     "lint": "oxlint --deny-warnings .",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",

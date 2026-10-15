@@ -777,6 +777,7 @@ npm run build
 ```
 
 CI runs Oxlint, Oxfmt, and Jest on pull requests and pushes to `main`.
+`npm run test:ci` uses two Jest workers; `npm test` remains serial for local debugging.
 Run `npm run format` to apply formatting locally. Jest discovers all
 `tests/**/*.test.mjs` and `tests/**/*.test.tsx` files. Tests cover pure functions,
 handlers with injected data access, and React components in jsdom. Database and
@@ -1082,9 +1083,13 @@ CI runs Chromium on Linux and iPhone WebKit on macOS to exercise Apple's WebKit
 port. Linux WebKit can report canceled prefetches as access-control errors during
 document navigation; the macOS job keeps the strict browser-error checks enabled.
 The suite uses port 3100; override `BROWSER_PORT` when another local app uses it.
-CI runs tests in parallel with one Playwright worker per logical CPU, including
-tests within the same file. Local runs default to four workers; use
+CI splits Chromium tests across two Linux runners and runs iPhone WebKit separately
+on macOS. Each runner uses one Playwright worker per logical CPU, including tests
+within the same file. Both Chromium shards must pass the production browser check;
+their reports are uploaded separately. Local runs default to four workers; use
 `npm run test:browser -- --workers=100%` to reproduce CI concurrency.
+Add `--project=chromium --shard=1/2` or `--project=chromium --shard=2/2` to run one
+Chromium shard locally.
 
 Fixtures replace the server-only data module only inside ignored `.browser-app`.
 The normal application has no fixture switch, import or endpoint. The runner
