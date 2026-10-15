@@ -33,7 +33,7 @@ image_worker_image = (
 
 @app.function(
     image=hacksnap_image,
-    schedule=modal.Cron("0 8,12,16,20 * * *", timezone="America/New_York"),
+    schedule=modal.Cron("0 2 * * *", timezone="America/New_York"),
     secrets=[modal.Secret.from_name("hacksnap")],
     timeout=3600,
     max_containers=1,

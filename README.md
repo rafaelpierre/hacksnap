@@ -4,7 +4,7 @@ The top AI stories from Hacker News, with separate article and discussion briefs
 
 - `data/`: Modal HN ingestion with GLM Flash NVFP4 classification and Alembic migrations.
 - `mcp/`: existing read-only tools for stored HN threads.
-- `hacksnap/`: Modal enrichment at 8 AM, noon, 4 PM, and 8 PM New York time using Kestrel and a Modal-hosted model, plus a Next.js UI.
+- `hacksnap/`: Daily Modal enrichment at 2 AM New York time using Kestrel and a Modal-hosted model, plus a Next.js UI.
 
 The leaderboard prefers stories first added within the last 24 hours, fills
 remaining slots with older AI stories, and ranks the selected ten by points
