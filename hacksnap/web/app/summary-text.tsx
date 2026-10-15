@@ -1,69 +1,87 @@
-import { briefOpening, briefSentences } from "../lib/article-brief";
-import { summaryBlocks, summarySpans, type SummarySpan } from "../lib/summary-format";
+import { Fragment, type ReactNode } from "react";
+import type { Nodes } from "mdast";
+import { summaryTree } from "../lib/summary-format";
 
-function InlineSpans({
-  spans,
-  start = 0,
-  end = Infinity,
-}: {
-  spans: SummarySpan[];
-  start?: number;
-  end?: number;
-}) {
-  let offset = 0;
-  return spans.map((span, index) => {
-    const text = span.text.slice(Math.max(0, start - offset), Math.max(0, end - offset));
-    offset += span.text.length;
-    if (!text) return null;
-    return span.strong ? <strong key={index}>{text}</strong> : text;
-  });
+function renderNode(node: Nodes, inline: boolean): ReactNode {
+  const children =
+    "children" in node ? <SummaryNodes nodes={node.children} inline={inline} /> : null;
+  switch (node.type) {
+    case "text":
+      return node.value;
+    case "strong":
+      return <strong>{children}</strong>;
+    case "emphasis":
+      return <em>{children}</em>;
+    case "inlineCode":
+      return <code>{node.value}</code>;
+    case "break":
+      return <br />;
+    case "link":
+      return (
+        <a
+          href={node.url}
+          title={node.title ?? undefined}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {children}
+        </a>
+      );
+    case "paragraph":
+      return inline ? children : <p>{children}</p>;
+    case "heading": {
+      if (inline) return children;
+      const Heading = `h${node.depth}` as "h2" | "h3" | "h4" | "h5" | "h6";
+      return <Heading>{children}</Heading>;
+    }
+    case "list":
+      return inline ? (
+        children
+      ) : node.ordered ? (
+        <ol start={node.start ?? undefined}>{children}</ol>
+      ) : (
+        <ul>{children}</ul>
+      );
+    case "listItem":
+      return inline ? children : <li>{children}</li>;
+    case "blockquote":
+      return inline ? children : <blockquote>{children}</blockquote>;
+    case "code":
+      return inline ? (
+        <code>{node.value}</code>
+      ) : (
+        <pre>
+          <code>{node.value}</code>
+        </pre>
+      );
+    case "thematicBreak":
+      return inline ? null : <hr />;
+    default:
+      return children;
+  }
+}
+
+function SummaryNodes({ nodes, inline = false }: { nodes: Nodes[]; inline?: boolean }) {
+  return nodes.map((node, index) => (
+    <Fragment key={index}>
+      {inline &&
+      index > 0 &&
+      ["paragraph", "heading", "list", "listItem", "blockquote", "code"].includes(node.type)
+        ? " "
+        : null}
+      {renderNode(node, inline)}
+    </Fragment>
+  ));
 }
 
 export function SummaryInline({ text }: { text: string }) {
-  return <InlineSpans spans={summarySpans(text)} />;
+  return <SummaryNodes nodes={summaryTree(text).children} inline />;
 }
 
-export function ArticleSummary({ text, sourceUrl }: { text: string; sourceUrl: string | null }) {
-  const blocks = summaryBlocks(text);
-  const openingIndex = blocks.findIndex((block) => block.kind === "paragraph");
+export function ArticleSummary({ text }: { text: string }) {
   return (
     <div className="article-summary">
-      {blocks.map((block, blockIndex) => {
-        if (block.kind !== "paragraph") {
-          const Heading = block.kind;
-          return (
-            <Heading key={blockIndex}>
-              <SummaryInline text={block.text} />
-            </Heading>
-          );
-        }
-        const spans = summarySpans(block.text);
-        const plain = spans.map((span) => span.text).join("");
-        const opening = blockIndex === openingIndex && sourceUrl ? briefOpening(plain) : "";
-        let offset = 0;
-        return (
-          <p key={blockIndex}>
-            {briefSentences(plain).map((sentence, index) => {
-              const start = offset;
-              offset += sentence.length;
-              return (
-                <span className="article-brief-sentence" key={index}>
-                  {index === 0 && sourceUrl && opening ? (
-                    <>
-                      <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
-                        <InlineSpans spans={spans} end={opening.length} />
-                      </a>
-                      <InlineSpans spans={spans} start={opening.length} end={offset} />
-                    </>
-                  ) : (
-                    <InlineSpans spans={spans} start={start} end={offset} />
-                  )}
-                </span>
-              );
-            })}
-          </p>
-        );
-      })}
+      <SummaryNodes nodes={summaryTree(text).children} />
     </div>
   );
 }

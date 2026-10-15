@@ -22,6 +22,13 @@ for (const width of [320, 1280]) {
         "repeatable tasks",
       ]);
       const source = brief.getByRole("link");
+      await expect(brief.locator(".article-summary > p")).toHaveCount(3);
+      await expect(brief.locator(".article-summary > p").first()).toHaveText(
+        "Researchers compared small models on development tasks. Results depend on the workload.",
+      );
+      await expect(brief.locator(".article-summary > p").first().getByRole("link")).toHaveCount(0);
+      await expect(brief.locator(".article-brief-sentence, br")).toHaveCount(0);
+      await expect(source).toHaveText("source report");
       await expect(source).toHaveAttribute("href", "https://example.com/research");
       await source.focus();
       await expect(source).toHaveCSS("outline-style", "solid");

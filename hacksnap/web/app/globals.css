@@ -691,13 +691,15 @@ body:has(#browse-content) .skip-browse {
   margin-bottom: var(--space-4);
 }
 .editorial p {
-  white-space: pre-line;
   margin-bottom: var(--space-5);
 }
 .article-summary h2 {
   margin-top: var(--space-8);
 }
-.article-summary h3 {
+.article-summary h3,
+.article-summary h4,
+.article-summary h5,
+.article-summary h6 {
   font: 650 var(--text-body)/1.3 var(--heading);
   color: var(--ink);
   margin: var(--space-6) 0 var(--space-3);
@@ -705,11 +707,30 @@ body:has(#browse-content) .skip-browse {
 .editorial strong {
   font-weight: 700;
 }
-.article-brief-sentence {
-  display: block;
+.article-summary {
+  overflow-wrap: anywhere;
 }
-.article-brief-sentence + .article-brief-sentence {
-  margin-top: 1lh;
+.article-summary ul,
+.article-summary ol {
+  padding-left: var(--space-6);
+  margin-bottom: var(--space-5);
+}
+.article-summary li > p {
+  margin-bottom: var(--space-2);
+}
+.article-summary blockquote {
+  margin: var(--space-5) 0;
+  padding-left: var(--space-5);
+  border-left: 2px solid var(--line);
+}
+.article-summary pre {
+  white-space: pre-wrap;
+  margin-bottom: var(--space-5);
+}
+.article-summary hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: var(--space-6) 0;
 }
 .editorial .key-points-heading {
   font-size: var(--text-body);

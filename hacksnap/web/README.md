@@ -9,16 +9,21 @@ stays stored; pending summaries and HN self-posts keep their existing behavior.
 
 ## Typography
 
-Article summaries support a limited Markdown subset: `##` section headings, `###`
-subheadings and selective `**bold**` emphasis. Key points and discussion topic/point
-summaries support bold only. The server renders this subset as semantic React elements;
-HTML, links, images and other Markdown stay literal text. Plain-text saved summaries
-remain readable, including their linked opening and sentence spacing. An orphan H3
-is promoted to H2 to avoid skipping a heading level.
+Article summaries are parsed as CommonMark and rendered as semantic React elements
+on the server: paragraphs, headings, bold, italics, links, lists, blockquotes and code.
+Paragraphs and explicit hard breaks come from the stored Markdown. The renderer
+does not split sentences or add a source link to the opening. Plain URLs remain text;
+only Markdown links and autolinks create anchors. HTTP(S) links open in a new tab
+with `noopener noreferrer`; unsafe URLs and URLs with credentials become plain text.
+Raw HTML remains escaped text and Markdown images render their alt text without a
+remote request. Article headings start at H2 and cannot skip levels. Key points and
+discussion summaries use the same parser with inline rendering.
 
-Markdown exports preserve this formatting while escaping all other source syntax.
-RSS descriptions and structured-data text remove supported formatting markers.
+Markdown exports serialize the same safe tree. RSS descriptions and structured-data
+text remove formatting markers and retain link labels.
 Feed takeaways and titles remain plain text. No database migration is needed.
+Previously stored summaries with missing paragraph or heading line breaks need a
+content correction or regeneration; the renderer does not guess those boundaries.
 
 Bricolage Grotesque is used for the wordmark, feed and reader headlines, section
 headings and related stories. Source Sans 3 carries navigation, metadata, feed
@@ -28,20 +33,6 @@ staying larger at every viewport and enlarged text setting.
 Both page fonts remain local. Feed lead
 headlines use weight 750 and a larger scale; ordinary headlines use weight 700.
 Monospace is reserved for code.
-
-Article brief prose separates sentences with one empty line of CSS spacing
-(`margin-top: 1lh`), while wrapped lines keep the normal line height. It uses `sbd` sentence
-boundary detection during HTML rendering to handle abbreviations, initials,
-URLs and decimals. The tokenizer stays in the article renderer's server module
-graph. Sentence spacing is presentation-only; the formatting rules above determine
-how the stored summary appears in HTML, Markdown, RSS and structured data.
-
-The first article-summary excerpt links to the validated original source in the
-server-rendered HTML. The excerpt stops before the first punctuation mark (including
-commas, colons, question marks and semicolons), keeping the punctuation outside the
-link. Apostrophes and hyphens within words remain part of the excerpt. Without
-punctuation, the first paragraph is linked; a punctuation-led excerpt or missing
-valid article URL stays plain text. Sentence spacing and public exports are unchanged.
 
 Article key points appear under “The bits that matter”, a compact H2 between
 the article summary and its bullet list. The heading is omitted when there are

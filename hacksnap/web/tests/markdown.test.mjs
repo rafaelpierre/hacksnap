@@ -227,7 +227,10 @@ test("Markdown escapes theme text and excludes private metadata", () => {
   row.summary.discussion_analysis_meta = { model: "private-marker" };
   row.summary.discussion_analysis_coverage.comments_fingerprint = "private-marker";
   const body = storyMarkdown(row);
-  assert.doesNotMatch(body, /<script>|\[fake\]\(javascript:|\n# injected|private-marker/);
+  assert.doesNotMatch(
+    body,
+    /(?<!\\)<script>|(?<!\\)\[fake\]\(javascript:|\n# injected|private-marker/,
+  );
   assert.ok(body.includes("\\<script\\> \\[fake\\](javascript:alert(1))\n\\# injected \\*bold\\*"));
   assert.doesNotMatch(body, /Agrees with reservations|Claim addressed/);
   assert.match(body, /item\?id=106/);
@@ -238,7 +241,7 @@ test("Markdown escapes theme text and excludes private metadata", () => {
   assert.match(unknown, /Analyzed-comment count unavailable/);
 });
 
-test("Markdown preserves summary headings and bold without enabling source HTML or links", () => {
+test("Markdown preserves summary headings and bold without enabling source HTML or unsafe links", () => {
   const body = storyMarkdown({
     ...story,
     summary: {
@@ -255,8 +258,8 @@ test("Markdown preserves summary headings and bold without enabling source HTML 
   assert.match(body, /\n\n### Limits\n\n/);
   assert.match(body, /A \*\*reported result\*\*/);
   assert.match(body, /- A \*\*fixed baseline\*\*/);
-  assert.match(body, /A \*\*self\\-reported test\*\*/);
-  assert.doesNotMatch(body, /<script>|(?<!\\)\[bad\]\(javascript/);
+  assert.match(body, /A \*\*self-reported test\*\*/);
+  assert.doesNotMatch(body, /(?<!\\)<script>|(?<!\\)\[bad\]\(javascript/);
 });
 
 test("Discussion introductions are omitted from Markdown", () => {

@@ -1,77 +1,71 @@
-export type SummarySpan = { text: string; strong: boolean };
-export type SummaryBlock = { kind: "paragraph" | "h2" | "h3"; text: string };
+import { fromMarkdown } from "mdast-util-from-markdown";
+import { toMarkdown } from "mdast-util-to-markdown";
+import { visit } from "unist-util-visit";
+import type { Nodes, Definition } from "mdast";
 
-// A deliberately small Markdown subset. Everything else remains literal text.
-export function summarySpans(value: string): SummarySpan[] {
-  const spans: SummarySpan[] = [];
-  let offset = 0;
-  let opening: { index: number; length: number; startsWithText: boolean } | null = null;
-  for (const delimiter of value.matchAll(/\*{2,}/g)) {
-    const startsWithText = /\S/.test(value[delimiter.index + delimiter[0].length] ?? "");
-    const canOpen =
-      delimiter[0].length === 2 && value[delimiter.index - 1] !== "\\" && startsWithText;
-    const canClose = /\S/.test(value[delimiter.index - 1] ?? "");
-    // Recover after unclosed content even when its delimiter is escaped or unsupported.
-    // Reserve padded pairs so their malformed closing marker cannot start a bold span.
-    if (!opening || (opening.startsWithText && canOpen && !canClose)) {
-      opening = { index: delimiter.index, length: delimiter[0].length, startsWithText };
-      continue;
-    }
-    const text = value.slice(opening.index + opening.length, delimiter.index);
-    if (
-      opening.length === 2 &&
-      delimiter[0].length === 2 &&
-      value[opening.index - 1] !== "\\" &&
-      value[delimiter.index - 1] !== "\\" &&
-      text.length > 0 &&
-      text === text.trim() &&
-      !/[*\r\n]/.test(text)
-    ) {
-      if (opening.index > offset)
-        spans.push({ text: value.slice(offset, opening.index), strong: false });
-      spans.push({ text, strong: true });
-      offset = delimiter.index + delimiter[0].length;
-    }
-    // Consume invalid pairs too: their closing marker must never open a later phrase.
-    opening = null;
+function safeLink(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
+  } catch {
+    return false;
   }
-  if (offset < value.length) spans.push({ text: value.slice(offset), strong: false });
-  return spans;
 }
 
-export function summaryBlocks(value: string): SummaryBlock[] {
-  const blocks: SummaryBlock[] = [];
-  let paragraph: string[] = [];
-  let hasSection = false;
-  const flush = () => {
-    if (paragraph.length) blocks.push({ kind: "paragraph", text: paragraph.join(" ") });
-    paragraph = [];
-  };
-  for (const line of value.replace(/\r\n?/g, "\n").split("\n")) {
-    const heading = /^(#{2,3})[ \t]+(\S.*)$/.exec(line);
-    if (heading) {
-      flush();
-      // An orphan H3 becomes H2 so malformed output cannot skip a heading level.
-      const kind = heading[1] === "###" && hasSection ? "h3" : "h2";
-      blocks.push({ kind, text: heading[2].trim() });
-      hasSection = true;
-    } else if (!line.trim()) flush();
-    else paragraph.push(line.trim().replace(/\s+/g, " "));
+function nodeText(node: Nodes): string {
+  if (node.type === "break") return "\n";
+  if ("value" in node) return node.value;
+  if ("children" in node) {
+    const separator = ["root", "list", "listItem", "blockquote"].includes(node.type) ? "\n\n" : "";
+    return node.children.map(nodeText).join(separator);
   }
-  flush();
-  return blocks;
+  return "";
+}
+
+// Use the same safe CommonMark tree for HTML, Markdown exports and plain text.
+export function summaryTree(value: string) {
+  const tree = fromMarkdown(value);
+  const definitions = new Map<string, Definition>();
+  visit(tree, "definition", (node) => {
+    if (!definitions.has(node.identifier)) definitions.set(node.identifier, node);
+  });
+  let headingDepth = 1;
+  visit(tree, (node, index, parent) => {
+    if (!parent || index === undefined) return;
+    if (node.type === "heading") {
+      node.depth = Math.max(2, Math.min(node.depth, headingDepth + 1)) as typeof node.depth;
+      headingDepth = node.depth;
+    } else if (node.type === "html") {
+      const text = { type: "text" as const, value: node.value };
+      parent.children[index] = ["root", "blockquote", "listItem"].includes(parent.type)
+        ? { type: "paragraph", children: [text] }
+        : text;
+    } else if (node.type === "image" || node.type === "imageReference") {
+      parent.children[index] = { type: "text", value: node.alt ?? "" };
+    } else if (node.type === "linkReference") {
+      const definition = definitions.get(node.identifier);
+      parent.children[index] =
+        definition && safeLink(definition.url)
+          ? { type: "link", url: definition.url, title: definition.title, children: node.children }
+          : { type: "text", value: nodeText(node) };
+    } else if (node.type === "link" && !safeLink(node.url)) {
+      parent.children[index] = { type: "text", value: nodeText(node) };
+    }
+  });
+  // Definitions have been resolved, including those inside blockquotes and lists.
+  visit(tree, (node) => {
+    if ("children" in node)
+      node.children = node.children.filter((child) => child.type !== "definition");
+  });
+  return tree;
 }
 
 export function summaryInlineText(value: string): string {
-  return summarySpans(value)
-    .map((span) => span.text)
-    .join("");
+  return nodeText(summaryTree(value)).replace(/\s+/g, " ").trim();
 }
 
 export function summaryPlainText(value: string): string {
-  return summaryBlocks(value)
-    .map((block) => summaryInlineText(block.text))
-    .join("\n\n");
+  return nodeText(summaryTree(value));
 }
 
 export function escapeMarkdownText(value: string): string {
@@ -79,19 +73,16 @@ export function escapeMarkdownText(value: string): string {
 }
 
 export function summaryInlineMarkdown(value: string): string {
-  return summarySpans(value)
-    .map((span) => {
-      const escaped = escapeMarkdownText(span.text);
-      return span.strong ? `**${escaped}**` : escaped;
-    })
-    .join("");
+  return summaryTree(value)
+    .children.map((node) =>
+      node.type === "paragraph"
+        ? toMarkdown({ type: "root", children: [node] }, { emphasis: "*" }).trimEnd()
+        : escapeMarkdownText(nodeText(node)),
+    )
+    .join(" ")
+    .replace(/\n+/g, " ");
 }
 
 export function summaryMarkdown(value: string): string {
-  return summaryBlocks(value)
-    .map((block) => {
-      const prefix = block.kind === "h2" ? "## " : block.kind === "h3" ? "### " : "";
-      return prefix + summaryInlineMarkdown(block.text);
-    })
-    .join("\n\n");
+  return toMarkdown(summaryTree(value), { bullet: "-", emphasis: "*" }).trimEnd();
 }

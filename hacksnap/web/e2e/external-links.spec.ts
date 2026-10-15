@@ -29,7 +29,7 @@ for (const javaScriptEnabled of [true, false]) {
       await opensNewTab(page, page.locator(".feed-comments").first());
       await page.getByRole("link", { name: title, exact: true }).first().click();
       await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
-      await opensNewTab(page, page.locator(".article-brief-sentence a"), true);
+      await expect(page.locator(".article-summary a")).toHaveCount(0);
       await page
         .locator(".analysis-theme-details > summary")
         .filter({ hasText: "Measuring useful work" })
