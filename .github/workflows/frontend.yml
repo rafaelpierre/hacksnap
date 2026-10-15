@@ -190,7 +190,7 @@ jobs:
   iphone-browser-shard:
     name: Frontend / iPhone WebKit shard ${{ matrix.shard }}/${{ strategy.job-total }}
     # Exercise Apple's WebKit port; Linux WebKit has different networking behavior.
-    runs-on: macos-latest
+    runs-on: macos-26-intel
     timeout-minutes: 12
     strategy:
       fail-fast: false
