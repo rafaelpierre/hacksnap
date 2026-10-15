@@ -48,9 +48,9 @@ test.describe("mobile browser history", () => {
       browserName,
     }) => {
       const settleRequests = trackRequests(page);
-      // WebKit uses a fresh document request after the tap. Arm its slow response
-      // after viewport prefetches settle, so setup does not pay the delay too.
-      const delayAfterPrefetch = mode === "slow" && browserName === "webkit";
+      // Arm the slow response after viewport prefetches settle, so setup does not
+      // pay the delay too. Verify below that the navigation itself stays delayed.
+      const delayAfterPrefetch = mode === "slow";
       await context.addCookies([
         { name: "fixture-story", value: delayAfterPrefetch ? "direct" : mode, url: baseURL! },
       ]);
@@ -91,7 +91,7 @@ test.describe("mobile browser history", () => {
         });
         expect(
           Date.now() - tappedAt,
-          "The native navigation still includes the 11s delay",
+          "The navigation still includes the 11s delay",
         ).toBeGreaterThanOrEqual(11_000);
       }
       // Only the first article load needs to outlive the tap. Do not repeat the

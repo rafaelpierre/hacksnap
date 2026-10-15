@@ -46,7 +46,7 @@ by Modal deployment. Frontend and ingestion workflows are reusable so this deplo
 uses the same checks as pull requests.
 
 Frontend checks split Jest across two Linux runners with four processes each,
-Chromium across six Linux runners, and iPhone WebKit across three macOS runners.
+Chromium across twelve Linux runners, and iPhone WebKit across four macOS runners.
 Playwright uses all CPU cores on each runner. The existing tests, production
 browser, and iPhone checks each require every corresponding shard to pass.
 PRs containing only frontend unit tests or allowlisted documentation skip browser

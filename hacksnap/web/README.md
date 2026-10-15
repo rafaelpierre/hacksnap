@@ -1086,7 +1086,7 @@ CI runs Chromium on Linux and iPhone WebKit on macOS to exercise Apple's WebKit
 port. Linux WebKit can report canceled prefetches as access-control errors during
 document navigation; the macOS job keeps the strict browser-error checks enabled.
 The suite uses port 3100; override `BROWSER_PORT` when another local app uses it.
-CI splits Chromium tests across six Linux runners and iPhone WebKit across three
+CI splits Chromium tests across twelve Linux runners and iPhone WebKit across four
 macOS runners. Each runner uses one Playwright worker per logical CPU, including
 tests within the same file. Every shard must pass its browser's aggregate check;
 reports are uploaded separately. Browser downloads and fixture builds run concurrently.
@@ -1104,12 +1104,12 @@ Runtime code, browser tests/helpers, dependencies, configuration, shared fixture
 and unknown paths require the full browser suite. Missing history defaults to
 full coverage. Main pushes, manual runs and production validation also keep full
 browser coverage. Aggregate checks fail if any runner fails, is canceled or is skipped.
-The slow WebKit navigation regression arms its 11-second response after viewport
-prefetches finish, and explicitly verifies that the native navigation remains delayed.
+The slow navigation regressions arm their 11-second response after viewport
+prefetches finish, and explicitly verify that navigation remains delayed.
 Local runs default to four workers; use
 `npm run test:browser -- --workers=100%` to reproduce CI concurrency.
-Use `npm run test:browser -- --project=chromium --shard=1/6` for one Chromium CI shard,
-or `npm run test:browser -- --project=iphone-webkit --shard=1/3` for one iPhone shard;
+Use `npm run test:browser -- --project=chromium --shard=1/12` for one Chromium CI shard,
+or `npm run test:browser -- --project=iphone-webkit --shard=1/4` for one iPhone shard;
 change the numerator to select another shard. Add `--list --reporter=list` to inspect
 its selection without running it.
 
