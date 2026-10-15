@@ -48,7 +48,7 @@ const stories: ArticleStory[] = Array.from({ length: 40 }, (_, i) => ({
     sentiment: 0,
     article_summary:
       i === 38
-        ? "Researchers compared **small models** on development tasks.\n\n## Repeatable measurements\n\nThe evaluation used **a fixed task set**.\n\n### Reliability limits\n\nThe measured improvements depend on the workload."
+        ? "Researchers compared **small models** on development tasks. Results depend on the workload.\n\n## Repeatable measurements\n\nThe [source report](https://example.com/research) used **a fixed task set**.\n\n### Reliability limits\n\nThe measured improvements depend on the workload."
         : "Researchers compared small models on a repeatable set of development tasks. The results show useful improvements with clear limits on reliability.",
     article_key_points: [
       i === 38

@@ -4,15 +4,12 @@ import AxeBuilder from "@axe-core/playwright";
 test.describe("article source without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("the opening excerpt opens the source in a new tab", async ({ page, context }) => {
+  test("an explicit Markdown link opens the source in a new tab", async ({ page, context }) => {
     await context.route("https://example.com/research", (route) =>
       route.fulfill({ contentType: "text/html", body: "<h1>Original source fixture</h1>" }),
     );
-    await page.goto(storyPath);
-    const link = page.locator(".article-brief-sentence").first().getByRole("link");
-    await expect(link).toHaveText(
-      "Researchers compared small models on a repeatable set of development tasks",
-    );
+    await page.goto("/story/91000039");
+    const link = page.locator(".article-summary").getByRole("link", { name: "source report" });
     await link.focus();
     const popupPromise = page.waitForEvent("popup");
     await page.keyboard.press("Enter");
@@ -21,7 +18,7 @@ test.describe("article source without JavaScript", () => {
     await expect(popup.getByRole("heading")).toHaveText("Original source fixture");
     expect(await popup.evaluate(() => window.opener)).toBeNull();
     await popup.close();
-    await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
+    await expect(page).toHaveURL(/\/story\/91000039$/);
     await expect(link).toBeVisible();
   });
 });
@@ -68,23 +65,15 @@ for (const width of [320, 375, 768, 1280]) {
       expect(shareBounds!.width).toBeGreaterThanOrEqual(44);
 
       const brief = page.locator("#article-brief");
-      const sentences = brief.locator(".article-brief-sentence");
-      await expect(sentences).toHaveCount(2);
-      const sourceLink = sentences.first().getByRole("link");
-      await expect(sourceLink).toHaveText(
-        "Researchers compared small models on a repeatable set of development tasks",
+      const paragraphs = brief.locator(".article-summary > p");
+      await expect(paragraphs).toHaveCount(1);
+      await expect(paragraphs).toHaveText(
+        "Researchers compared small models on a repeatable set of development tasks. The results show useful improvements with clear limits on reliability.",
       );
-      await expect(sourceLink).toHaveAttribute("href", "https://example.com/research");
-      await expect(sentences.nth(1).getByRole("link")).toHaveCount(0);
-      await sourceLink.focus();
-      await expect(sourceLink).toBeFocused();
-      await expect(sourceLink).toHaveCSS("outline-style", "solid");
+      await expect(
+        brief.locator(".article-summary a, .article-brief-sentence, .article-summary br"),
+      ).toHaveCount(0);
       await page.evaluate(() => document.fonts.ready);
-      const spacing = await sentences.evaluateAll(([first, second]) => ({
-        gap: second.getBoundingClientRect().top - first.getBoundingClientRect().bottom,
-        lineHeight: parseFloat(getComputedStyle(first).lineHeight),
-      }));
-      expect(spacing.gap).toBeCloseTo(spacing.lineHeight, 0);
       await brief.screenshot({ path: testInfo.outputPath("article-brief.png") });
 
       const theme = page.locator(".analysis-theme-details").first();

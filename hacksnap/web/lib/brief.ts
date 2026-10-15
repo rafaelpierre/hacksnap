@@ -1,7 +1,7 @@
-import { summaryInlineText } from "./summary-format";
+import { summaryPreviewText } from "./summary-preview";
 
 export function discussionExcerpt(value: string | null | undefined): string {
-  return briefExcerpt(summaryInlineText(value ?? ""));
+  return briefExcerpt(summaryPreviewText(value ?? ""));
 }
 
 /** Legacy summaries remain available in full in TLDR; never CSS-clamp prose. */

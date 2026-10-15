@@ -180,11 +180,11 @@ test("available article with no key points keeps its brief without the heading o
       relatedStories: [],
     }),
   );
-  assert.match(html, /The mocked article brief<\/a>\./);
+  assert.match(html, /<p>The mocked article brief\.<\/p>/);
   assert.doesNotMatch(html, /The bits that matter|class="key-points-heading"|class="key-points"/);
 });
 
-test("article brief separates sentences while preserving punctuation and escaping text", () => {
+test("article brief preserves its paragraph without injecting links or sentence breaks", () => {
   const article_summary =
     'Dr. Smith says version 3.5 costs $2.50 per run. Does it help? Yes! <script>alert("unsafe")</script>';
   const html = render(
@@ -194,61 +194,20 @@ test("article brief separates sentences while preserving punctuation and escapin
   );
   assert.match(
     html,
-    /<p><span class="article-brief-sentence"><a href="https:\/\/example.com\/article"[^>]*>Dr<\/a>\. Smith says version 3\.5 costs \$2\.50 per run\. <\/span><span class="article-brief-sentence">Does it help\? <\/span><span class="article-brief-sentence">Yes! <\/span><span class="article-brief-sentence">&lt;script&gt;/,
+    /<p>Dr\. Smith says version 3\.5 costs \$2\.50 per run\. Does it help\? Yes! &lt;script&gt;/,
   );
+  assert.doesNotMatch(html, /article-brief-sentence/);
   assert.doesNotMatch(html, /<script>alert/);
 });
-
-test.each([":", "?", ".", ";", ",", "!", "…", "—", "–", "(", "/"])(
-  "article opening links up to %s in the server HTML",
-  (punctuation) => {
-    const opening = "The Quesma blog post describes a one-shot experiment";
-    const article_summary = `${opening}${punctuation} More details follow. Another sentence.`;
-    const html = render(
-      createElement(StoryContent, {
-        story: { ...story, summary: { ...story.summary!, article_summary } },
-      }),
-    );
-    assert.ok(
-      html.includes(
-        `<span class="article-brief-sentence"><a href="${story.url}" target="_blank" rel="noopener noreferrer">${opening}</a>${punctuation}`,
-      ),
-    );
-    assert.equal((html.match(/article-brief-sentence"><a /g) ?? []).length, 1);
-  },
-);
-
-test.each([
-  [
-    "It's the author's one-shot experiment: details.",
-    "It&#x27;s the author&#x27;s one-shot experiment",
-  ],
-  ["The author’s one‑shot experiment; details.", "The author’s one‑shot experiment"],
-  ["Research <results>", "Research &lt;results&gt;"],
-  ["First paragraph\n\nSecond paragraph: details.", "First paragraph"],
-])(
-  "article opening preserves words and limits the link to the first paragraph: %s",
-  (article_summary, opening) => {
-    const html = render(
-      createElement(StoryContent, {
-        story: { ...story, summary: { ...story.summary!, article_summary } },
-      }),
-    );
-    assert.ok(
-      html.includes(
-        `<span class="article-brief-sentence"><a href="${story.url}" target="_blank" rel="noopener noreferrer">${opening}</a>`,
-      ),
-    );
-  },
-);
-
-test.each(["javascript:alert(1)", "https://news.ycombinator.com/item?id=1", "invalid"])(
-  "article opening stays plain text without a valid source: %s",
+test.each([story.url, "javascript:alert(1)", "https://news.ycombinator.com/item?id=1", "invalid"])(
+  "article opening stays unlinked regardless of the source: %s",
   (url) => {
     const html = render(createElement(StoryContent, { story: { ...story, url } }));
-    assert.ok(
-      html.includes('<span class="article-brief-sentence">The mocked article brief.</span>'),
-    );
+    const dom = new JSDOM(html);
+    const brief = dom.window.document.querySelector(".article-summary");
+    assert.equal(brief.textContent, story.summary!.article_summary);
+    assert.equal(brief.querySelectorAll("a, span, br").length, 0);
+    dom.window.close();
   },
 );
 
@@ -261,7 +220,7 @@ test("punctuation-led summaries never create empty links", () => {
       },
     }),
   );
-  assert.doesNotMatch(html, /article-brief-sentence"><a /);
+  assert.doesNotMatch(html, /article-brief-sentence/);
   assert.match(html, /&quot;Quoted opening&quot;: details\./);
 });
 

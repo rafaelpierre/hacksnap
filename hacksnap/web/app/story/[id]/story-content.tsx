@@ -91,7 +91,7 @@ export function StoryContent({
             {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
             {source.brief === "available" ? (
               <>
-                <ArticleSummary text={summary.article_summary ?? ""} sourceUrl={article} />
+                <ArticleSummary text={summary.article_summary ?? ""} />
                 {summary.article_key_points.length > 0 && (
                   <>
                     <h2 className="key-points-heading">The bits that matter</h2>
