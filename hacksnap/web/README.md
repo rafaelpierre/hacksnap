@@ -1086,7 +1086,7 @@ CI runs Chromium on Linux and iPhone WebKit on macOS to exercise Apple's WebKit
 port. Linux WebKit can report canceled prefetches as access-control errors during
 document navigation; the macOS job keeps the strict browser-error checks enabled.
 The suite uses port 3100; override `BROWSER_PORT` when another local app uses it.
-CI splits Chromium tests across twelve Linux runners and iPhone WebKit across four
+CI splits Chromium tests across twelve Linux runners and iPhone WebKit across three
 macOS runners. Each runner uses one Playwright worker per logical CPU, including
 tests within the same file. Every shard must pass its browser's aggregate check;
 reports are uploaded separately. Browser downloads and fixture builds run concurrently.
@@ -1096,6 +1096,12 @@ The exact installed `node_modules` tree is cached by runner image, architecture,
 Node version, both package manifests, npm configuration and the dependency action.
 There are no partial-key restores. Cache misses run `npm ci`; one Linux job and one
 macOS job save the cache before application code runs.
+macOS also caches the production fixture build together with WebKit. This cache
+matches every copied source/configuration file, fixture data, build script,
+dependency manifest and dependency action, plus the OS image, architecture and
+absolute workspace path. Runtime changes rebuild; browser-test-only edits and
+reruns can reuse the same fixture. There are no fallback keys, and the normal
+production build still runs independently.
 Pull requests changing only files under `web/tests/` or allowlisted documentation
 skip browser setup and tests; lint, formatting, build and Jest remain enabled.
 Each browser runner checks the complete PR diff, including deleted and renamed
@@ -1109,7 +1115,7 @@ prefetches finish, and explicitly verify that navigation remains delayed.
 Local runs default to four workers; use
 `npm run test:browser -- --workers=100%` to reproduce CI concurrency.
 Use `npm run test:browser -- --project=chromium --shard=1/12` for one Chromium CI shard,
-or `npm run test:browser -- --project=iphone-webkit --shard=1/4` for one iPhone shard;
+or `npm run test:browser -- --project=iphone-webkit --shard=1/3` for one iPhone shard;
 change the numerator to select another shard. Add `--list --reporter=list` to inspect
 its selection without running it.
 
