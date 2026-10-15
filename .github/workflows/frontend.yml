@@ -10,6 +10,7 @@ on:
       - "data/migrations/versions/0019_story_popularity.py"
       - "data/migrations/versions/0020_story_popularity_activation.py"
       - ".github/workflows/frontend.yml"
+      - ".github/actions/frontend-dependencies/**"
       - ".github/scripts/frontend-changes.py"
       - ".github/tests/test_frontend_changes.py"
   push:
@@ -22,6 +23,7 @@ on:
       - "data/migrations/versions/0019_story_popularity.py"
       - "data/migrations/versions/0020_story_popularity_activation.py"
       - ".github/workflows/frontend.yml"
+      - ".github/actions/frontend-dependencies/**"
       - ".github/scripts/frontend-changes.py"
       - ".github/tests/test_frontend_changes.py"
   workflow_dispatch:
@@ -37,28 +39,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  changes:
-    name: Frontend / browser selection
-    runs-on: ubuntu-latest
-    outputs:
-      browser: ${{ steps.changes.outputs.browser }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
-        with:
-          persist-credentials: false
-          # Include the merge commit's base parent for a complete PR diff.
-          fetch-depth: 2
-      - name: Verify browser selection rules
-        run: python3 -m unittest discover -s .github/tests -p test_frontend_changes.py
-      - name: Select browser checks
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: python3 .github/scripts/frontend-changes.py
-
   check:
     name: Frontend / ${{ matrix.check }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -70,12 +53,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/frontend-dependencies
         with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: hacksnap/web/package-lock.json
-      - run: npm ci --prefer-offline --no-audit --no-fund
+          save-cache: ${{ matrix.check == 'build' }}
+      - name: Verify browser selection rules
+        if: matrix.check == 'lint'
+        working-directory: .
+        run: python3 -m unittest discover -s .github/tests -p test_frontend_changes.py
       - name: Lint (Oxlint)
         if: matrix.check == 'lint'
         run: npm run lint
@@ -92,7 +76,7 @@ jobs:
 
   test-shard:
     name: Frontend / Jest shard ${{ matrix.shard }}/${{ strategy.job-total }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -104,12 +88,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: hacksnap/web/package-lock.json
-      - run: npm ci --prefer-offline --no-audit --no-fund
+      - uses: ./.github/actions/frontend-dependencies
       - name: Unit and component tests (Jest)
         run: npm run test:ci -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
@@ -117,7 +96,7 @@ jobs:
     name: Frontend / tests
     needs: test-shard
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Require every Jest shard to pass
         env:
@@ -126,13 +105,7 @@ jobs:
 
   browser-shard:
     name: Frontend / Chromium shard ${{ matrix.shard }}/${{ strategy.job-total }}
-    needs: changes
-    if: needs.changes.outputs.browser == 'true'
-    runs-on: ubuntu-latest
-    container:
-      # Keep this version aligned with @playwright/test in package-lock.json.
-      image: mcr.microsoft.com/playwright:v1.64.0-noble
-      options: --ipc=host --init
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     strategy:
       fail-fast: false
@@ -145,20 +118,32 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: hacksnap/web/package-lock.json
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Build fixture app
-        run: npm run browser:build
+          fetch-depth: 2
+      - name: Select browser checks
+        id: changes
+        working-directory: .
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 .github/scripts/frontend-changes.py
+      - uses: ./.github/actions/frontend-dependencies
+        if: steps.changes.outputs.browser != 'false'
+      - name: Build fixture app while installing Chromium
+        if: steps.changes.outputs.browser != 'false'
+        run: |
+          npm run browser:build &
+          build_pid=$!
+          # Ubuntu's hosted image already supplies Chromium's runtime libraries.
+          npx playwright install --only-shell chromium
+          # Verify the actual binary; install OS dependencies if the image changes.
+          node --input-type=module -e 'import { chromium } from "playwright"; const browser = await chromium.launch(); await browser.close();' || npx playwright install-deps chromium
+          wait "$build_pid"
         env:
           NEXT_TELEMETRY_DISABLED: "1"
       - name: Deterministic browser regression suite
-        run: npm run test:browser:shard -- ${{ matrix.shard }}/${{ strategy.job-total }}
+        if: steps.changes.outputs.browser != 'false'
+        run: npm run test:browser -- --project=chromium --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - name: Browser screenshots, traces and route measurements
-        if: always()
+        if: always() && steps.changes.outputs.browser != 'false'
         uses: actions/upload-artifact@v7
         with:
           name: frontend-browser-results-${{ matrix.shard }}
@@ -169,25 +154,17 @@ jobs:
 
   browser:
     name: Frontend / production browser
-    needs: [changes, browser-shard]
+    needs: browser-shard
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - name: Require all Chromium shards or an explicit non-runtime change
+      - name: Require all Chromium shards to complete successfully
         env:
-          SELECTION_RESULT: ${{ needs.changes.result }}
-          BROWSER_REQUIRED: ${{ needs.changes.outputs.browser }}
           SHARD_RESULT: ${{ needs.browser-shard.result }}
-        run: |
-          case "$SELECTION_RESULT:$BROWSER_REQUIRED:$SHARD_RESULT" in
-            success:true:success|success:false:skipped) exit 0 ;;
-            *) exit 1 ;;
-          esac
+        run: test "$SHARD_RESULT" = success
 
   iphone-browser-shard:
     name: Frontend / iPhone WebKit shard ${{ matrix.shard }}/${{ strategy.job-total }}
-    needs: changes
-    if: needs.changes.outputs.browser == 'true'
     # Exercise Apple's WebKit port; Linux WebKit has different networking behavior.
     runs-on: macos-latest
     timeout-minutes: 12
@@ -202,13 +179,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+          fetch-depth: 2
+      - name: Select browser checks
+        id: changes
+        working-directory: .
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 .github/scripts/frontend-changes.py
+      - uses: ./.github/actions/frontend-dependencies
+        if: steps.changes.outputs.browser != 'false'
         with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: hacksnap/web/package-lock.json
-      - run: npm ci --prefer-offline --no-audit --no-fund
+          save-cache: ${{ matrix.shard == 1 }}
       - name: Build fixture app while installing WebKit
+        if: steps.changes.outputs.browser != 'false'
         run: |
           npm run browser:build &
           build_pid=$!
@@ -217,9 +200,10 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
       - name: iPhone history regressions
+        if: steps.changes.outputs.browser != 'false'
         run: npm run test:browser -- --project=iphone-webkit --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - name: iPhone screenshots and traces
-        if: always()
+        if: always() && steps.changes.outputs.browser != 'false'
         uses: actions/upload-artifact@v7
         with:
           name: frontend-iphone-browser-results-${{ matrix.shard }}
@@ -230,17 +214,11 @@ jobs:
 
   iphone-browser:
     name: Frontend / iPhone WebKit
-    needs: [changes, iphone-browser-shard]
+    needs: iphone-browser-shard
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - name: Require all iPhone shards or an explicit non-runtime change
+      - name: Require all iPhone shards to complete successfully
         env:
-          SELECTION_RESULT: ${{ needs.changes.result }}
-          BROWSER_REQUIRED: ${{ needs.changes.outputs.browser }}
           SHARD_RESULT: ${{ needs.iphone-browser-shard.result }}
-        run: |
-          case "$SELECTION_RESULT:$BROWSER_REQUIRED:$SHARD_RESULT" in
-            success:true:success|success:false:skipped) exit 0 ;;
-            *) exit 1 ;;
-          esac
+        run: test "$SHARD_RESULT" = success

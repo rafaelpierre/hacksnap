@@ -1,0 +1,36 @@
+name: Frontend dependencies
+description: Restore the exact installed dependency tree or install from the lockfile.
+inputs:
+  save-cache:
+    description: Whether this job should populate a missing cache.
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      id: node
+      with:
+        node-version: "22"
+        package-manager-cache: false
+    - name: Identify runner image
+      id: image
+      shell: bash
+      run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+    - name: Restore installed dependencies
+      id: dependencies
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: hacksnap/web/node_modules
+        # No fallback keys: native packages and the entire lockfile must match.
+        key: frontend-modules-${{ steps.image.outputs.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('hacksnap/web/package-lock.json', 'hacksnap/web/package.json', '**/.npmrc', '.github/actions/frontend-dependencies/action.yml') }}
+    - name: Install locked dependencies
+      if: steps.dependencies.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: hacksnap/web
+      run: npm ci --prefer-offline --no-audit --no-fund
+    - name: Save installed dependencies
+      if: inputs.save-cache == 'true' && steps.dependencies.outputs.cache-hit != 'true'
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: hacksnap/web/node_modules
+        key: ${{ steps.dependencies.outputs.cache-primary-key }}

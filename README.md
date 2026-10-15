@@ -49,15 +49,18 @@ Frontend checks split Jest across two Linux runners with four processes each,
 Chromium across six Linux runners, and iPhone WebKit across three macOS runners.
 Playwright uses all CPU cores on each runner. The existing tests, production
 browser, and iPhone checks each require every corresponding shard to pass.
-Chromium interleaves the discovered test list across runners to spread expensive
-layout and accessibility cases. PRs containing only frontend unit tests or
-allowlisted documentation skip browser jobs; lint, formatting, build and Jest
-still run. Application, browser-test, dependency, configuration and shared-fixture
-changes keep full browser coverage, as do main pushes and manual/deployment runs.
-Missing Git history defaults to full coverage. Aggregate browser checks accept
-skipped shards only after successful, explicit change classification.
-Chromium uses the official Playwright container with browsers already installed;
-WebKit installation overlaps the fixture build on macOS. Local `npm test` remains serial.
+PRs containing only frontend unit tests or allowlisted documentation skip browser
+setup and tests; lint, formatting, build and Jest still run. Each browser runner
+classifies the complete PR diff independently, so application changes can begin
+setup immediately. Unknown paths, missing Git history, main pushes and
+manual/deployment runs retain full browser coverage. Failed or canceled runners
+fail their aggregate check.
+Installed Node dependencies are cached by runner image, architecture, exact Node
+version, manifests and npm configuration. Exact hits skip `npm ci`; misses install
+from the lockfile. One job per OS populates the cache before running application code.
+Browser downloads overlap fixture builds. Chromium uses the Ubuntu 24.04 host and
+installs only the headless shell; a launch check installs OS dependencies if needed.
+Local `npm test` remains serial.
 
 New commits cancel older PR runs for frontend, worker, ingestion, MCP, scanner-tax
 and dependency-audit checks. Main pushes and manual runs keep independent validation;

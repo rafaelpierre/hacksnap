@@ -113,25 +113,18 @@ class FrontendChangesTests(unittest.TestCase):
             with self.subTest(before=before):
                 self.assert_selection(True, before=before)
 
-    def test_aggregate_checks_reject_failed_selection_and_unexpected_skips(self):
+    def test_aggregate_checks_reject_failed_cancelled_and_skipped_shards(self):
         workflow = SCRIPT.parents[1] / "workflows" / "frontend.yml"
-        gates = re.findall(r'case "\$SELECTION_RESULT:.*?esac', workflow.read_text(), re.DOTALL)
-        self.assertEqual(len(gates), 2)
+        gates = re.findall(r'run: (test "\$SHARD_RESULT" = success)', workflow.read_text())
+        self.assertEqual(len(gates), 3)
         for gate in gates:
-            for selection in ["success", "failure", "cancelled", "skipped"]:
-                for required in ["true", "false", ""]:
-                    for shards in ["success", "failure", "cancelled", "skipped"]:
-                        with self.subTest(selection=selection, required=required, shards=shards):
-                            result = subprocess.run(
-                                ["sh", "-c", gate], capture_output=True, check=False,
-                                env={**self.env, "SELECTION_RESULT": selection,
-                                     "BROWSER_REQUIRED": required, "SHARD_RESULT": shards},
-                            )
-                            expected = selection == "success" and (
-                                (required == "true" and shards == "success")
-                                or (required == "false" and shards == "skipped")
-                            )
-                            self.assertEqual(result.returncode == 0, expected)
+            for shards in ["success", "failure", "cancelled", "skipped", ""]:
+                with self.subTest(shards=shards):
+                    result = subprocess.run(
+                        ["sh", "-c", gate], capture_output=True, check=False,
+                        env={**self.env, "SHARD_RESULT": shards},
+                    )
+                    self.assertEqual(result.returncode == 0, shards == "success")
 
 
 if __name__ == "__main__":

@@ -48,7 +48,12 @@ test.describe("mobile browser history", () => {
       browserName,
     }) => {
       const settleRequests = trackRequests(page);
-      await context.addCookies([{ name: "fixture-story", value: mode, url: baseURL! }]);
+      // WebKit uses a fresh document request after the tap. Arm its slow response
+      // after viewport prefetches settle, so setup does not pay the delay too.
+      const delayAfterPrefetch = mode === "slow" && browserName === "webkit";
+      await context.addCookies([
+        { name: "fixture-story", value: delayAfterPrefetch ? "direct" : mode, url: baseURL! },
+      ]);
       const destination = mode === "redirect" ? "/story/canonical-story-91000001" : storyPath;
       await page.route("https://previous.example/", (route) =>
         route.fulfill({
@@ -64,6 +69,8 @@ test.describe("mobile browser history", () => {
       // document unload does not turn an intercepted prefetch into a WebKit error.
       await card.scrollIntoViewIfNeeded();
       await settleRequests();
+      if (delayAfterPrefetch)
+        await context.addCookies([{ name: "fixture-story", value: "slow", url: baseURL! }]);
       const historyLength = await page.evaluate(() => history.length);
       const documentRequest =
         browserName === "webkit"
@@ -72,11 +79,21 @@ test.describe("mobile browser history", () => {
                 request.isNavigationRequest() && new URL(request.url()).pathname === storyPath,
             )
           : null;
+      const tappedAt = Date.now();
       await card.tap();
       // Require native document navigation on iOS, even when the response is delayed.
       // Playwright goBack alone does not emulate every browser toolbar history policy.
       if (documentRequest) await documentRequest;
       await page.waitForURL(`${baseURL}${destination}`, { timeout: 20_000 });
+      if (delayAfterPrefetch) {
+        await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible({
+          timeout: 20_000,
+        });
+        expect(
+          Date.now() - tappedAt,
+          "The native navigation still includes the 11s delay",
+        ).toBeGreaterThanOrEqual(11_000);
+      }
       // Only the first article load needs to outlive the tap. Do not repeat the
       // artificial delay in prefetches or Forward while checking the same entry.
       if (mode === "slow")
