@@ -32,7 +32,7 @@ changed paths. Each workflow also runs when its own YAML file changes.
 | --- | --- | --- |
 | Hacksnap worker | `hacksnap/**`, excluding `hacksnap/web/**`, plus worker deployment helpers/tests | Ruff lint and pytest/import checks in parallel |
 | Ingestion | `data/**`, plus `hacksnap/web/lib/categories.ts` used by the category consistency test | pytest |
-| Frontend | `hacksnap/web/**`, shared `hacksnap/fixtures/**`, and migration `0012_discussion_analysis.py` used by the projection tests | Oxlint, Oxfmt, Jest, and typecheck/build in four parallel jobs |
+| Frontend | `hacksnap/web/**`, shared `hacksnap/fixtures/**`, and migration `0012_discussion_analysis.py` used by the projection tests | Oxlint, Oxfmt, typecheck/build, and sharded Jest/browser suites in parallel |
 | MCP | `mcp/**` | pytest |
 
 Schema validation, scanner-tax, and Spamhaus keep their existing scoped workflows.
@@ -45,10 +45,11 @@ before the reusable Supabase schema workflow applies pending migrations, followe
 by Modal deployment. Frontend and ingestion workflows are reusable so this deployment
 uses the same checks as pull requests.
 
-Frontend browser checks split the Chromium suite across two Linux runners, with
-all CPU cores available to Playwright on each runner. The existing production
-browser check succeeds only when both shards pass. iPhone WebKit runs separately
-on macOS. Jest CI uses two workers; local `npm test` remains serial.
+Frontend checks split Jest across two Linux runners with four processes each,
+Chromium across six Linux runners, and iPhone WebKit across three macOS runners.
+Playwright uses all CPU cores on each runner. The existing tests, production
+browser, and iPhone checks each require every corresponding shard to pass.
+Browser installation overlaps the fixture build. Local `npm test` remains serial.
 
 New commits cancel older PR runs for frontend, worker, ingestion, MCP, scanner-tax
 and dependency-audit checks. Main pushes and manual runs keep independent validation;

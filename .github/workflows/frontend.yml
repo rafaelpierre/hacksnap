@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [lint, format, tests, build]
+        check: [lint, format, build]
     defaults:
       run:
         working-directory: hacksnap/web
@@ -52,16 +52,13 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: hacksnap/web/package-lock.json
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Lint (Oxlint)
         if: matrix.check == 'lint'
         run: npm run lint
       - name: Formatting (Oxfmt)
         if: matrix.check == 'format'
         run: npm run format:check
-      - name: Unit and component tests (Jest)
-        if: matrix.check == 'tests'
-        run: npm run test:ci
       - name: Typecheck and production build
         if: matrix.check == 'build'
         env:
@@ -70,10 +67,9 @@ jobs:
           npm run typecheck
           npm run build
 
-  browser-shard:
-    name: Frontend / Chromium shard ${{ matrix.shard }}/2
+  test-shard:
+    name: Frontend / Jest shard ${{ matrix.shard }}/${{ strategy.job-total }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
@@ -90,12 +86,52 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: hacksnap/web/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Production build and deterministic browser regression suite
-        run: npm run browser:build && npm run test:browser -- --project=chromium --shard=${{ matrix.shard }}/2
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Unit and component tests (Jest)
+        run: npm run test:ci -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+
+  tests:
+    name: Frontend / tests
+    needs: test-shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every Jest shard to pass
+        env:
+          SHARD_RESULT: ${{ needs.test-shard.result }}
+        run: test "$SHARD_RESULT" = success
+
+  browser-shard:
+    name: Frontend / Chromium shard ${{ matrix.shard }}/${{ strategy.job-total }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    defaults:
+      run:
+        working-directory: hacksnap/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: hacksnap/web/package-lock.json
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Build fixture app while installing Chromium
+        run: |
+          npm run browser:build &
+          build_pid=$!
+          npx playwright install --with-deps --only-shell chromium
+          wait "$build_pid"
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+      - name: Deterministic browser regression suite
+        run: npm run test:browser -- --project=chromium --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - name: Browser screenshots, traces and route measurements
         if: always()
         uses: actions/upload-artifact@v7
@@ -117,11 +153,15 @@ jobs:
           SHARD_RESULT: ${{ needs.browser-shard.result }}
         run: test "$SHARD_RESULT" = success
 
-  iphone-browser:
-    name: Frontend / iPhone WebKit
+  iphone-browser-shard:
+    name: Frontend / iPhone WebKit shard ${{ matrix.shard }}/${{ strategy.job-total }}
     # Exercise Apple's WebKit port; Linux WebKit has different networking behavior.
     runs-on: macos-latest
     timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     defaults:
       run:
         working-directory: hacksnap/web
@@ -134,18 +174,34 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: hacksnap/web/package-lock.json
-      - run: npm ci
-      - run: npx playwright install webkit
-      - name: Production build and iPhone history regressions
-        run: npm run browser:build && npm run test:browser -- --project=iphone-webkit
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Build fixture app while installing WebKit
+        run: |
+          npm run browser:build &
+          build_pid=$!
+          npx playwright install webkit
+          wait "$build_pid"
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+      - name: iPhone history regressions
+        run: npm run test:browser -- --project=iphone-webkit --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - name: iPhone screenshots and traces
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-iphone-browser-results
+          name: frontend-iphone-browser-results-${{ matrix.shard }}
           path: |
             hacksnap/web/playwright-report/
             hacksnap/web/test-results/
           retention-days: 14
+
+  iphone-browser:
+    name: Frontend / iPhone WebKit
+    needs: iphone-browser-shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every iPhone WebKit shard to pass
+        env:
+          SHARD_RESULT: ${{ needs.iphone-browser-shard.result }}
+        run: test "$SHARD_RESULT" = success

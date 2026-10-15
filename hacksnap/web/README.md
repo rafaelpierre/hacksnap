@@ -777,7 +777,10 @@ npm run build
 ```
 
 CI runs Oxlint, Oxfmt, and Jest on pull requests and pushes to `main`.
-`npm run test:ci` uses two Jest workers; `npm test` remains serial for local debugging.
+`npm run test:ci` uses four Jest processes. GitHub Actions splits test files across
+two runners with `--shard=1/2` and `--shard=2/2`, so both levels run in parallel.
+The existing `Frontend / tests` check requires both shards to pass. `npm test`
+remains serial for local debugging.
 Run `npm run format` to apply formatting locally. Jest discovers all
 `tests/**/*.test.mjs` and `tests/**/*.test.tsx` files. Tests cover pure functions,
 handlers with injected data access, and React components in jsdom. Database and
@@ -1083,13 +1086,15 @@ CI runs Chromium on Linux and iPhone WebKit on macOS to exercise Apple's WebKit
 port. Linux WebKit can report canceled prefetches as access-control errors during
 document navigation; the macOS job keeps the strict browser-error checks enabled.
 The suite uses port 3100; override `BROWSER_PORT` when another local app uses it.
-CI splits Chromium tests across two Linux runners and runs iPhone WebKit separately
-on macOS. Each runner uses one Playwright worker per logical CPU, including tests
-within the same file. Both Chromium shards must pass the production browser check;
-their reports are uploaded separately. Local runs default to four workers; use
+CI splits Chromium tests across six Linux runners and iPhone WebKit across three
+macOS runners. Each runner uses one Playwright worker per logical CPU, including
+tests within the same file. Every shard must pass its browser's aggregate check;
+reports are uploaded separately. Browser installation and the fixture build run
+concurrently, and Chromium installs only the headless shell used by these tests.
+Local runs default to four workers; use
 `npm run test:browser -- --workers=100%` to reproduce CI concurrency.
-Add `--project=chromium --shard=1/2` or `--project=chromium --shard=2/2` to run one
-Chromium shard locally.
+Add `--project=chromium --shard=1/6` or `--project=iphone-webkit --shard=1/3` to run
+one browser shard locally; change the numerator to select another shard.
 
 Fixtures replace the server-only data module only inside ignored `.browser-app`.
 The normal application has no fixture switch, import or endpoint. The runner
