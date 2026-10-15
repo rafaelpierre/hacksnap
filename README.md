@@ -32,7 +32,7 @@ changed paths. Each workflow also runs when its own YAML file changes.
 | --- | --- | --- |
 | Hacksnap worker | `hacksnap/**`, excluding `hacksnap/web/**`, plus worker deployment helpers/tests | Ruff lint and pytest/import checks in parallel |
 | Ingestion | `data/**`, plus `hacksnap/web/lib/categories.ts` used by the category consistency test | pytest |
-| Frontend | `hacksnap/web/**`, shared `hacksnap/fixtures/**`, and migration `0012_discussion_analysis.py` used by the projection tests | Oxlint, Oxfmt, Jest, and typecheck/build in four parallel jobs |
+| Frontend | `hacksnap/web/**`, shared `hacksnap/fixtures/**`, and migration `0012_discussion_analysis.py` used by the projection tests | Oxlint, Oxfmt, typecheck/build, and sharded Jest/browser suites in parallel |
 | MCP | `mcp/**` | pytest |
 
 Schema validation, scanner-tax, and Spamhaus keep their existing scoped workflows.
@@ -44,6 +44,33 @@ Production-path changes additionally enable automatic Modal deployment; manual
 before the reusable Supabase schema workflow applies pending migrations, followed
 by Modal deployment. Frontend and ingestion workflows are reusable so this deployment
 uses the same checks as pull requests.
+
+Frontend checks split Jest across two Linux runners with four processes each,
+Chromium across twelve Linux runners, and iPhone WebKit across three macOS runners.
+Playwright uses all CPU cores on each runner. The existing tests, production
+browser, and iPhone checks each require every corresponding shard to pass.
+Frontend jobs use a sparse checkout that excludes `docs/` and its image archive;
+application code, shared fixtures, migrations and configuration remain available.
+PRs containing only frontend unit tests or allowlisted documentation skip browser
+setup and tests; lint, formatting, build and Jest still run. Each browser runner
+classifies the complete PR diff independently, so application changes can begin
+setup immediately. Unknown paths, missing Git history, main pushes and
+manual/deployment runs retain full browser coverage. Failed or canceled runners
+fail their aggregate check.
+Installed Node dependencies are cached by runner image, architecture, exact Node
+version, manifests and npm configuration. Exact hits skip `npm ci`; misses install
+from the lockfile. One job per OS populates the cache before running application code.
+Exact fixture-build caches also reuse browser binaries on both platforms. Cache
+misses overlap browser downloads with fixture builds. Chromium uses the Ubuntu 24.04 host and
+installs only the headless shell; a launch check installs OS dependencies if needed.
+Local `npm test` remains serial.
+
+New commits cancel older PR runs for frontend, worker, ingestion, MCP, scanner-tax
+and dependency-audit checks. Main pushes and manual runs keep independent validation;
+the production deployment locks still serialize changes without interruption.
+Dependency audits run on manifest, lockfile, package-manager configuration and audit
+workflow changes, plus the weekly schedule and manual runs to catch newly disclosed
+vulnerabilities even when dependencies have not changed.
 
 If branch protection requires the former `test` check, update its required checks
 to match the new names. Path-filtered workflows do not report checks for unrelated

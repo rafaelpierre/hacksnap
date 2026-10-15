@@ -777,6 +777,10 @@ npm run build
 ```
 
 CI runs Oxlint, Oxfmt, and Jest on pull requests and pushes to `main`.
+`npm run test:ci` uses four Jest processes. GitHub Actions splits test files across
+two runners with `--shard=1/2` and `--shard=2/2`, so both levels run in parallel.
+The existing `Frontend / tests` check requires both shards to pass. `npm test`
+remains serial for local debugging.
 Run `npm run format` to apply formatting locally. Jest discovers all
 `tests/**/*.test.mjs` and `tests/**/*.test.tsx` files. Tests cover pure functions,
 handlers with injected data access, and React components in jsdom. Database and
@@ -1082,9 +1086,38 @@ CI runs Chromium on Linux and iPhone WebKit on macOS to exercise Apple's WebKit
 port. Linux WebKit can report canceled prefetches as access-control errors during
 document navigation; the macOS job keeps the strict browser-error checks enabled.
 The suite uses port 3100; override `BROWSER_PORT` when another local app uses it.
-CI runs tests in parallel with one Playwright worker per logical CPU, including
-tests within the same file. Local runs default to four workers; use
+CI splits Chromium tests across twelve Linux runners and iPhone WebKit across three
+macOS runners. Each runner uses one Playwright worker per logical CPU, including
+tests within the same file. Every shard must pass its browser's aggregate check;
+reports are uploaded separately. Browser downloads and fixture builds run concurrently.
+Chromium installs only the headless shell on Ubuntu 24.04 and verifies it launches;
+missing OS dependencies trigger `playwright install-deps chromium`. WebKit uses macOS.
+The exact installed `node_modules` tree is cached by runner image, architecture,
+Node version, both package manifests, npm configuration and the dependency action.
+There are no partial-key restores. Cache misses run `npm ci`; one Linux job and one
+macOS job save the cache before application code runs.
+Each OS also caches the production fixture build together with its browser. This cache
+matches every copied source/configuration file, fixture data, build script,
+dependency manifest and dependency action, plus the OS image, architecture and
+absolute workspace path. Runtime changes rebuild; browser-test-only edits and
+reruns can reuse the same fixture. There are no fallback keys, and the normal
+production build still runs independently.
+Pull requests changing only files under `web/tests/` or allowlisted documentation
+skip browser setup and tests; lint, formatting, build and Jest remain enabled.
+Each browser runner checks the complete PR diff, including deleted and renamed
+paths, immediately after checkout. Selection adds no dependency between jobs.
+Runtime code, browser tests/helpers, dependencies, configuration, shared fixtures
+and unknown paths require the full browser suite. Missing history defaults to
+full coverage. Main pushes, manual runs and production validation also keep full
+browser coverage. Aggregate checks fail if any runner fails, is canceled or is skipped.
+The slow navigation regressions arm their 11-second response after viewport
+prefetches finish, and explicitly verify that navigation remains delayed.
+Local runs default to four workers; use
 `npm run test:browser -- --workers=100%` to reproduce CI concurrency.
+Use `npm run test:browser -- --project=chromium --shard=1/12` for one Chromium CI shard,
+or `npm run test:browser -- --project=iphone-webkit --shard=1/3` for one iPhone shard;
+change the numerator to select another shard. Add `--list --reporter=list` to inspect
+its selection without running it.
 
 Fixtures replace the server-only data module only inside ignored `.browser-app`.
 The normal application has no fixture switch, import or endpoint. The runner

@@ -2,20 +2,20 @@ import { test, expect, title, storyPath } from "./browser";
 import AxeBuilder from "@axe-core/playwright";
 
 for (const width of [320, 1280])
-  for (const textScale of [1, 2]) {
-    test(`${width}px ${textScale * 100}% text: layout and responsive image`, async ({
-      page,
-    }, testInfo) => {
-      await page.setViewportSize({ width, height: 900 });
-      for (const route of [
-        "/",
-        "/2026/01",
-        "/?category=models-products",
-        "/?category=safety-privacy",
-        "/topics",
-        "/about",
-        storyPath,
-      ]) {
+  for (const textScale of [1, 2])
+    for (const route of [
+      "/",
+      "/2026/01",
+      "/?category=models-products",
+      "/?category=safety-privacy",
+      "/topics",
+      "/about",
+      storyPath,
+    ]) {
+      test(`${width}px ${textScale * 100}% text: layout and responsive image on ${route}`, async ({
+        page,
+      }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
         await page.goto(route);
         await expect(page.locator(".menu-button")).toHaveAttribute("aria-expanded", "false");
         // Keep the simulated user stylesheet outside Next's managed head.
@@ -142,23 +142,24 @@ for (const width of [320, 1280])
           (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
             .violations,
         ).toEqual([]);
-      }
-      const share = page.getByRole("button", { name: `Share: ${title}`, exact: true }).first();
-      await share.click();
-      const panel = page.getByRole("dialog", { name: "Share this story", exact: true });
-      await expect(panel).toBeVisible();
-      await expect(
-        page.getByRole("textbox", { name: "Suggested post", exact: true }),
-      ).toBeVisible();
-      const bounds = await panel.boundingBox();
-      expect(bounds!.x).toBeGreaterThanOrEqual(0);
-      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
-      await page.screenshot({
-        path: testInfo.outputPath("share-open.png"),
-        animations: "disabled",
+        if (route === storyPath) {
+          const share = page.getByRole("button", { name: `Share: ${title}`, exact: true }).first();
+          await share.click();
+          const panel = page.getByRole("dialog", { name: "Share this story", exact: true });
+          await expect(panel).toBeVisible();
+          await expect(
+            page.getByRole("textbox", { name: "Suggested post", exact: true }),
+          ).toBeVisible();
+          const bounds = await panel.boundingBox();
+          expect(bounds!.x).toBeGreaterThanOrEqual(0);
+          expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
+          await page.screenshot({
+            path: testInfo.outputPath("share-open.png"),
+            animations: "disabled",
+          });
+        }
       });
-    });
-  }
+    }
 
 for (const touch of [false, true]) {
   test.describe(touch ? "touch background" : "mouse background", () => {

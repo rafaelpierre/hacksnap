@@ -10,6 +10,9 @@ on:
       - "data/migrations/versions/0019_story_popularity.py"
       - "data/migrations/versions/0020_story_popularity_activation.py"
       - ".github/workflows/frontend.yml"
+      - ".github/actions/frontend-dependencies/**"
+      - ".github/scripts/frontend-changes.py"
+      - ".github/tests/test_frontend_changes.py"
   push:
     branches: [main]
     paths:
@@ -20,20 +23,29 @@ on:
       - "data/migrations/versions/0019_story_popularity.py"
       - "data/migrations/versions/0020_story_popularity_activation.py"
       - ".github/workflows/frontend.yml"
+      - ".github/actions/frontend-dependencies/**"
+      - ".github/scripts/frontend-changes.py"
+      - ".github/tests/test_frontend_changes.py"
   workflow_dispatch:
   workflow_call:
 
 permissions:
   contents: read
 
+# Called workflows inherit the caller's name; the prefix keeps their locks distinct.
+# Non-PR runs retain independent validation for each production revision.
+concurrency:
+  group: frontend-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check:
     name: Frontend / ${{ matrix.check }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        check: [lint, format, tests, build]
+        check: [lint, format, build]
     defaults:
       run:
         working-directory: hacksnap/web
@@ -41,21 +53,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+          # Documentation images dominate repository size and are not test inputs.
+          sparse-checkout: |
+            /*
+            !/docs/
+          sparse-checkout-cone-mode: false
+      - uses: ./.github/actions/frontend-dependencies
         with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: hacksnap/web/package-lock.json
-      - run: npm ci
+          save-cache: ${{ matrix.check == 'build' }}
+      - name: Verify browser selection rules
+        if: matrix.check == 'lint'
+        working-directory: .
+        run: python3 -m unittest discover -s .github/tests -p test_frontend_changes.py
       - name: Lint (Oxlint)
         if: matrix.check == 'lint'
         run: npm run lint
       - name: Formatting (Oxfmt)
         if: matrix.check == 'format'
         run: npm run format:check
-      - name: Unit and component tests (Jest)
-        if: matrix.check == 'tests'
-        run: npm run test:ci
       - name: Typecheck and production build
         if: matrix.check == 'build'
         env:
@@ -64,10 +79,13 @@ jobs:
           npm run typecheck
           npm run build
 
-  browser:
-    name: Frontend / production browser
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
+  test-shard:
+    name: Frontend / Jest shard ${{ matrix.shard }}/${{ strategy.job-total }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     defaults:
       run:
         working-directory: hacksnap/web
@@ -75,22 +93,187 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+          # Documentation images dominate repository size and are not test inputs.
+          sparse-checkout: |
+            /*
+            !/docs/
+          sparse-checkout-cone-mode: false
+      - uses: ./.github/actions/frontend-dependencies
+      - name: Unit and component tests (Jest)
+        run: npm run test:ci -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+
+  tests:
+    name: Frontend / tests
+    needs: test-shard
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every Jest shard to pass
+        env:
+          SHARD_RESULT: ${{ needs.test-shard.result }}
+        run: test "$SHARD_RESULT" = success
+
+  browser-shard:
+    name: Frontend / Chromium shard ${{ matrix.shard }}/${{ strategy.job-total }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    defaults:
+      run:
+        working-directory: hacksnap/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
         with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: hacksnap/web/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Production build and deterministic browser regression suite
-        run: npm run browser:build && npm run test:browser -- --project=chromium
+          persist-credentials: false
+          # Documentation images dominate repository size and are not test inputs.
+          sparse-checkout: |
+            /*
+            !/docs/
+          sparse-checkout-cone-mode: false
+          fetch-depth: 2
+      - name: Select browser checks
+        id: changes
+        working-directory: .
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 .github/scripts/frontend-changes.py
+      - uses: ./.github/actions/frontend-dependencies
+        if: steps.changes.outputs.browser != 'false'
+      - name: Identify browser runner image
+        if: steps.changes.outputs.browser != 'false'
+        id: browser-image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+      - name: Restore fixture build and Chromium
+        if: steps.changes.outputs.browser != 'false'
+        id: browser-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            hacksnap/web/.browser-app
+            ~/.cache/ms-playwright
+          # The fixture contains absolute paths. Match its workspace and every build input.
+          # No fallback keys: runtime changes must rebuild the fixture application.
+          key: frontend-chromium-${{ steps.browser-image.outputs.os }}-${{ runner.arch }}-${{ github.workspace }}-${{ hashFiles('hacksnap/web/app/**', 'hacksnap/web/lib/**', 'hacksnap/web/certs/**', 'hacksnap/web/public/**', 'hacksnap/web/proxy.ts', 'hacksnap/web/next.config.ts', 'hacksnap/web/tsconfig.json', 'hacksnap/web/next-env.d.ts', 'hacksnap/web/package.json', 'hacksnap/web/package-lock.json', 'hacksnap/web/e2e/fixtures/**', 'hacksnap/web/scripts/browser-app.mjs', '**/.npmrc', '.github/actions/frontend-dependencies/action.yml') }}
+      - name: Build fixture app while installing Chromium
+        if: steps.changes.outputs.browser != 'false' && steps.browser-cache.outputs.cache-hit != 'true'
+        run: |
+          npm run browser:build &
+          build_pid=$!
+          npx playwright install --only-shell chromium
+          wait "$build_pid"
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+      - name: Verify Chromium runtime libraries
+        if: steps.changes.outputs.browser != 'false'
+        # Host libraries are not cached. Repair them if the Ubuntu image changes.
+        run: node --input-type=module -e 'import { chromium } from "playwright"; const browser = await chromium.launch(); await browser.close();' || npx playwright install-deps chromium
+      - name: Save fixture build and Chromium
+        if: steps.changes.outputs.browser != 'false' && matrix.shard == 1 && steps.browser-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            hacksnap/web/.browser-app
+            ~/.cache/ms-playwright
+          key: ${{ steps.browser-cache.outputs.cache-primary-key }}
+      - name: Deterministic browser regression suite
+        if: steps.changes.outputs.browser != 'false'
+        run: npm run test:browser -- --project=chromium --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - name: Browser screenshots, traces and route measurements
-        if: always()
+        if: always() && steps.changes.outputs.browser != 'false'
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-browser-results
+          name: frontend-browser-results-${{ matrix.shard }}
+          path: |
+            hacksnap/web/playwright-report/
+            hacksnap/web/test-results/
+          retention-days: 14
+
+  browser:
+    name: Frontend / production browser
+    needs: browser-shard
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require all Chromium shards to complete successfully
+        env:
+          SHARD_RESULT: ${{ needs.browser-shard.result }}
+        run: test "$SHARD_RESULT" = success
+
+  iphone-browser-shard:
+    name: Frontend / iPhone WebKit shard ${{ matrix.shard }}/${{ strategy.job-total }}
+    # Exercise Apple's WebKit port; Linux WebKit has different networking behavior.
+    runs-on: macos-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    defaults:
+      run:
+        working-directory: hacksnap/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
+        with:
+          persist-credentials: false
+          # Documentation images dominate repository size and are not test inputs.
+          sparse-checkout: |
+            /*
+            !/docs/
+          sparse-checkout-cone-mode: false
+          fetch-depth: 2
+      - name: Select browser checks
+        id: changes
+        working-directory: .
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 .github/scripts/frontend-changes.py
+      - uses: ./.github/actions/frontend-dependencies
+        if: steps.changes.outputs.browser != 'false'
+        with:
+          save-cache: ${{ matrix.shard == 1 }}
+      - name: Identify browser runner image
+        if: steps.changes.outputs.browser != 'false'
+        id: browser-image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+      - name: Restore fixture build and WebKit
+        if: steps.changes.outputs.browser != 'false'
+        id: browser-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            hacksnap/web/.browser-app
+            ~/Library/Caches/ms-playwright
+          # The fixture contains absolute paths. Match its workspace and every build input.
+          # No fallback keys: runtime changes must rebuild the fixture application.
+          key: frontend-webkit-${{ steps.browser-image.outputs.os }}-${{ runner.arch }}-${{ github.workspace }}-${{ hashFiles('hacksnap/web/app/**', 'hacksnap/web/lib/**', 'hacksnap/web/certs/**', 'hacksnap/web/public/**', 'hacksnap/web/proxy.ts', 'hacksnap/web/next.config.ts', 'hacksnap/web/tsconfig.json', 'hacksnap/web/next-env.d.ts', 'hacksnap/web/package.json', 'hacksnap/web/package-lock.json', 'hacksnap/web/e2e/fixtures/**', 'hacksnap/web/scripts/browser-app.mjs', '**/.npmrc', '.github/actions/frontend-dependencies/action.yml') }}
+      - name: Build fixture app while installing WebKit
+        if: steps.changes.outputs.browser != 'false' && steps.browser-cache.outputs.cache-hit != 'true'
+        run: |
+          npm run browser:build &
+          build_pid=$!
+          npx playwright install webkit
+          wait "$build_pid"
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Save fixture build and WebKit
+        if: steps.changes.outputs.browser != 'false' && matrix.shard == 1 && steps.browser-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            hacksnap/web/.browser-app
+            ~/Library/Caches/ms-playwright
+          key: ${{ steps.browser-cache.outputs.cache-primary-key }}
+      - name: iPhone history regressions
+        if: steps.changes.outputs.browser != 'false'
+        run: npm run test:browser -- --project=iphone-webkit --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+      - name: iPhone screenshots and traces
+        if: always() && steps.changes.outputs.browser != 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-iphone-browser-results-${{ matrix.shard }}
           path: |
             hacksnap/web/playwright-report/
             hacksnap/web/test-results/
@@ -98,33 +281,11 @@ jobs:
 
   iphone-browser:
     name: Frontend / iPhone WebKit
-    # Exercise Apple's WebKit port; Linux WebKit has different networking behavior.
-    runs-on: macos-latest
-    timeout-minutes: 12
-    defaults:
-      run:
-        working-directory: hacksnap/web
+    needs: iphone-browser-shard
+    if: always()
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.0
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: hacksnap/web/package-lock.json
-      - run: npm ci
-      - run: npx playwright install webkit
-      - name: Production build and iPhone history regressions
-        run: npm run browser:build && npm run test:browser -- --project=iphone-webkit
+      - name: Require all iPhone shards to complete successfully
         env:
-          NEXT_TELEMETRY_DISABLED: "1"
-      - name: iPhone screenshots and traces
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: frontend-iphone-browser-results
-          path: |
-            hacksnap/web/playwright-report/
-            hacksnap/web/test-results/
-          retention-days: 14
+          SHARD_RESULT: ${{ needs.iphone-browser-shard.result }}
+        run: test "$SHARD_RESULT" = success
