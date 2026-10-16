@@ -21,7 +21,7 @@ from .models import (
 from .preprocess import sample_sentiment_comments
 from .summary_format import SUMMARY_FORMAT_PROMPT
 
-REVIEW_VERSION = "v8-summary-formatting"
+REVIEW_VERSION = "v9-readable-summary-intros"
 MAX_REVIEW_REPAIRS = 5
 logger = logging.getLogger("hacksnap")
 
@@ -78,6 +78,17 @@ A reduction in latency with increased RAM must never become "RAM savings".
 A claimed result must stay claimed. A single personal test cannot establish a general
 result. Titles must carry necessary uncertainty, just like their accompanying prose.
 Use the plain, direct formulation that the evidence permits; never demand a joke.
+
+When /article_summary is present and substantive, explicitly check its opening and
+paragraph boundaries against the formatting rules below. Return a style finding at
+/article_summary if the opening exceeds two sentences or 60 words, any later paragraph
+exceeds 80 words, or a substantial multi-idea summary is one uninterrupted block.
+A heading followed by a wall of text still needs correction. Ask for a short lead,
+blank-line-separated paragraphs and relocation of secondary detail into the body
+or non-repeating key points. Preserve evidence and material qualifications while
+restructuring. Flag details repeated between the summary and key points as repetition.
+Do not demand extra paragraphs or headings for a brief source whose summary fits the
+opening limit, or apply these article rules to nulls, empty-state notices or topic-only refreshes.
 
 Return checks containing every supplied prose_fields path exactly once. For EACH
 field, quote the source evidence and explain whether that evidence supports the
