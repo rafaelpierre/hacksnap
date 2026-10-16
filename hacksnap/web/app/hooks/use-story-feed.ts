@@ -1,5 +1,15 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FocusEvent,
+} from "react";
+import { prepareFeedLoadOutcome, track } from "../../lib/analytics";
+import { analyticsAllowed, subscribeAnalyticsConsent } from "../../lib/analytics-consent";
 import type { PublicFeedStory } from "../../lib/stories-api";
 import { appendUniqueStories, type FeedPagination } from "../../lib/feed-state";
 import { fetchFeedPage } from "../../lib/fetch-feed-page";
@@ -23,6 +33,7 @@ export function useStoryFeed({
   leadStoryId: string | null;
 }) {
   const latest = listingPath.split("?")[0] === "/";
+  const analytics = useSyncExternalStore(subscribeAnalyticsConsent, analyticsAllowed, () => false);
   const [feed, setFeed] = useState<FeedState>({
     leadStoryId,
     stories: initialStories,
@@ -70,11 +81,44 @@ export function useStoryFeed({
     if (typeof IntersectionObserver === "undefined") setAutomaticLoadingAvailable(false);
   }, []);
 
+  useEffect(() => {
+    if (analytics && restored && !positionPending && !feed.pagination.hasMore) {
+      track(
+        "feed_end",
+        {
+          outcome: feed.pagination.selectionLimited ? "selection_limited" : "exhausted",
+          loaded_count: feed.stories.length,
+          feed_page: feed.pagination.page,
+        },
+        "feed-end",
+      );
+    }
+  }, [
+    analytics,
+    restored,
+    positionPending,
+    feed.pagination.hasMore,
+    feed.pagination.selectionLimited,
+    feed.pagination.page,
+    feed.stories.length,
+  ]);
+
   const load = useCallback(
     async (trigger: "auto" | "manual") => {
       const current = feedRef.current;
       if (activeRequest.current || !positionSettled.current || !current.pagination.hasMore) return;
       const controller = new AbortController();
+      const report = prepareFeedLoadOutcome();
+      const initial = {
+        trigger,
+        loaded_count: current.stories.length,
+        feed_page: current.pagination.page,
+      };
+      controller.signal.addEventListener(
+        "abort",
+        () => report({ ...initial, outcome: "cancelled" }),
+        { once: true },
+      );
       const id = ++requestId.current;
       activeRequest.current = controller;
       activeTrigger.current = trigger;
@@ -99,8 +143,15 @@ export function useStoryFeed({
             : "No new stories in this batch.",
         };
         feedRef.current = next;
+        report({
+          trigger,
+          outcome: added ? "success" : "empty",
+          loaded_count: stories.length,
+          feed_page: page.pagination.page,
+        });
         setFeed(next);
       } catch {
+        report({ ...initial, outcome: controller.signal.aborted ? "cancelled" : "failure" });
         if (id === requestId.current && !controller.signal.aborted) {
           setFeed((state) => ({ ...state, phase: "failed" }));
         }

@@ -1,9 +1,13 @@
 -- BigQuery Standard SQL. Replace YOUR_PROJECT.YOUR_DATASET with the GA4 export.
 -- Use completed daily tables. Set UTC boundaries; cohort_end is exclusive.
-DECLARE cohort_start DATE DEFAULT DATE '2026-09-27';
-DECLARE cohort_end DATE DEFAULT DATE '2026-10-11';
-DECLARE observation_end DATE DEFAULT DATE '2026-10-18';
+-- Dates are placeholders; set them from the verified production rollout.
+-- Keep v1, v2 and consent-gated v3 populations separate.
+DECLARE contract_version INT64 DEFAULT 3;
+DECLARE cohort_start DATE DEFAULT DATE '2026-10-17';
+DECLARE cohort_end DATE DEFAULT DATE '2026-10-31';
+DECLARE observation_end DATE DEFAULT DATE '2026-11-07';
 ASSERT observation_end >= DATE_ADD(cohort_end, INTERVAL 7 DAY) AS 'Return cohorts need seven days follow-up';
+ASSERT contract_version IN (2, 3) AS 'Select exactly one supported contract';
 CREATE TEMP TABLE events AS
 SELECT event_name, TIMESTAMP_MICROS(event_timestamp) AS ts, user_pseudo_id AS reader,
   (SELECT value.int_value FROM UNNEST(event_params) WHERE key='ga_session_id') AS session_id,
@@ -17,7 +21,7 @@ SELECT event_name, TIMESTAMP_MICROS(event_timestamp) AS ts, user_pseudo_id AS re
 FROM `YOUR_PROJECT.YOUR_DATASET.events_*`
 WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(cohort_start, INTERVAL 1 DAY))
   AND _TABLE_SUFFIX <= FORMAT_DATE('%Y%m%d', observation_end)
-  AND (SELECT value.int_value FROM UNNEST(event_params) WHERE key='contract_version') = 2;
+  AND (SELECT value.int_value FROM UNNEST(event_params) WHERE key='contract_version') = contract_version;
 
 -- Export lag and consent/identity exclusions: retain these counts with every report.
 SELECT MIN(ts) first_event, MAX(ts) last_event, COUNT(*) events,

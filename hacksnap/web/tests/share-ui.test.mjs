@@ -6,6 +6,7 @@ import React, { act } from "react";
 const dom = new JSDOM('<div id="root"></div><button id="outside">Outside</button>', {
   url: "https://hacksnap.live/",
 });
+dom.window.localStorage.setItem("hacksnap:analytics-consent:v1", "accepted");
 for (const key of [
   "window",
   "document",

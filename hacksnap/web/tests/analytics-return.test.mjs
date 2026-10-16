@@ -1,29 +1,18 @@
 import assert from "node:assert/strict";
-import { afterEach, test } from "@jest/globals";
+import { afterEach, beforeEach, test } from "@jest/globals";
 import { copyShareText, recordVisit, track, trackOnce } from "../lib/analytics.ts";
 import { observeRecommendationExposure } from "../lib/recommendation-exposure.ts";
 
-function storage() {
-  const values = new Map();
-  return {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, value),
-  };
-}
-
-afterEach(() => {
-  delete globalThis.window;
-  delete globalThis.localStorage;
-  delete globalThis.sessionStorage;
+import { analyticsBrowser } from "./analytics-browser.mjs";
+let close;
+beforeEach(() => {
+  close = analyticsBrowser();
 });
+afterEach(() => close());
 
 test("story events deduplicate within a tracking session and remain nonblocking without GA", () => {
   const calls = [];
-  globalThis.window = {
-    location: { pathname: `/test/${Math.random()}` },
-    gtag: (...args) => calls.push(args),
-  };
-  globalThis.sessionStorage = storage();
+  window.gtag = (...args) => calls.push(args);
   trackOnce("story:1", { name: "story_view", story_id: "1" });
   trackOnce("story:1", { name: "story_view", story_id: "1" });
   trackOnce("story:2", { name: "story_view", story_id: "2" });
@@ -33,18 +22,13 @@ test("story events deduplicate within a tracking session and remain nonblocking 
   );
   delete window.gtag;
   assert.doesNotThrow(() => track({ name: "story_view", story_id: "3" }));
-  assert.equal(window.dataLayer[0][1], "story_view");
-  assert.equal(window.dataLayer[0][2].story_id, "3");
+  assert.equal(window.dataLayer.at(-1)[1], "story_view");
+  assert.equal(window.dataLayer.at(-1)[2].story_id, "3");
 });
 
 test("intervening same-day loads do not move the return-visit anchor", () => {
   const calls = [];
-  globalThis.window = {
-    location: { pathname: `/test/${Math.random()}` },
-    gtag: (...args) => calls.push(args),
-  };
-  globalThis.localStorage = storage();
-  globalThis.sessionStorage = storage();
+  window.gtag = (...args) => calls.push(args);
   const day = 86_400_000;
   const start = Date.now() - 3 * day;
   recordVisit(start);
@@ -82,10 +66,7 @@ test("blocked storage and analytics do not interrupt site actions", () => {
 
 test("copy reports success only after a resolved clipboard write and failure offers fallback", async () => {
   const calls = [];
-  globalThis.window = {
-    location: { pathname: `/test/${Math.random()}` },
-    gtag: (...args) => calls.push(args),
-  };
+  window.gtag = (...args) => calls.push(args);
   const success = await copyShareText(
     "editable suggestion",
     "42",
@@ -107,7 +88,7 @@ test("copy reports success only after a resolved clipboard write and failure off
   assert.equal(success, true);
   assert.equal(failure, false);
   assert.deepEqual(
-    calls.filter((call) => call[1] !== "reader_visit").map((call) => call[1]),
+    calls.filter((call) => !["reader_visit", "page_view"].includes(call[1])).map((call) => call[1]),
     [
       "share_copy_attempt",
       "share_copy_success",

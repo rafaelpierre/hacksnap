@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { Recommendation } from "./journey-analytics";
+import { Recommendation, SectionExposure } from "./journey-analytics";
 import Link from "next/link";
 import { categoryURL, type Category } from "../lib/categories";
 import type { RelatedStory } from "../lib/data";
@@ -30,6 +30,7 @@ export function RelatedStories({
       aria-busy={pending || undefined}
       {...(!pending && !unavailable && next.length > 0 ? readingSection("related") : {})}
     >
+      {!pending && <SectionExposure storyId={currentId} section="read_next" />}
       <h2 id="related-stories-heading">Related stories</h2>
       {pending ? (
         <p className="related-stories-state" role="status">

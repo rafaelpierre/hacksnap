@@ -1,10 +1,19 @@
 "use client";
 
-import { Suspense, useEffect, useRef, type ReactNode, type RefObject } from "react";
+import {
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { analyticsRouteIdentity, captureReadingVisit } from "../lib/analytics";
 import { createArticleReader } from "../lib/article-reading";
 import type { ReadingContext, ReadingFields } from "../lib/reading-contract";
+import { analyticsAllowed, subscribeAnalyticsConsent } from "../lib/analytics-consent";
 
 export function ArticleReading({
   context,
@@ -17,7 +26,7 @@ export function ArticleReading({
 }) {
   const root = useRef<HTMLElement>(null);
   return (
-    <article className="detail" ref={root}>
+    <article className="detail" ref={root} data-story-id={context.story_id}>
       {children}
       <Suspense fallback={null}>
         <ReadingObserver root={root} context={context} sourceURL={sourceURL} />
@@ -42,10 +51,12 @@ function ReadingObserver({
   const path = usePathname();
   const search = useSearchParams();
   const route = analyticsRouteIdentity(path ?? "", search?.toString() ?? "");
+  const allowed = useSyncExternalStore(subscribeAnalyticsConsent, analyticsAllowed, () => false);
+  const [restored, setRestored] = useState(0);
 
   useEffect(() => {
     const element = root.current;
-    if (!element) return;
+    if (!element || !allowed) return;
     const visit = captureReadingVisit(context);
     if (!visit) return;
     const key = visit.visitId + ":" + context.content_revision;
@@ -67,6 +78,10 @@ function ReadingObserver({
     function pagehide() {
       reader.flush("pagehide");
       reader.stop();
+    }
+    function pageshow(event: PageTransitionEvent) {
+      if (event.persisted) setRestored((value) => value + 1);
+      else reader.activity();
     }
     function toggle(event: Event) {
       const target = event.target;
@@ -94,7 +109,7 @@ function ReadingObserver({
         return;
       if (!(event.target instanceof Element)) return;
       const link = event.target.closest<HTMLAnchorElement>("a[href]");
-      if (!link) return;
+      if (!link || link.closest(".share-panel")) return;
       let kind: ReadingFields["source_kind"];
       try {
         const url = new URL(link.href, window.location.href);
@@ -111,7 +126,7 @@ function ReadingObserver({
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("blur", blur);
     window.addEventListener("focus", reader.activity);
-    window.addEventListener("pageshow", reader.activity);
+    window.addEventListener("pageshow", pageshow);
     window.addEventListener("pagehide", pagehide);
     window.addEventListener("scroll", reader.activity, { passive: true });
     element.addEventListener("pointerdown", reader.activity, { passive: true });
@@ -124,7 +139,7 @@ function ReadingObserver({
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("blur", blur);
       window.removeEventListener("focus", reader.activity);
-      window.removeEventListener("pageshow", reader.activity);
+      window.removeEventListener("pageshow", pageshow);
       window.removeEventListener("pagehide", pagehide);
       window.removeEventListener("scroll", reader.activity);
       element.removeEventListener("pointerdown", reader.activity);
@@ -135,7 +150,7 @@ function ReadingObserver({
       reader.flush("route");
       reader.stop();
     };
-  }, [context, route, sourceURL, root]);
+  }, [context, route, sourceURL, root, allowed, restored]);
 
   return null;
 }

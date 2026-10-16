@@ -1,5 +1,5 @@
 import { ArrowUpRight, ChevronDown } from "lucide-react";
-import { StoryVisit } from "../../journey-analytics";
+import { StoryVisit, SectionExposure } from "../../journey-analytics";
 import { ArticleReading } from "../../article-reading";
 import { readingContext, readingSection } from "../../../lib/reading-metadata";
 import type { RelatedStory, Story } from "../../../lib/data";
@@ -56,7 +56,7 @@ export function StoryContent({
   return (
     <ArticleReading context={readingContext(story)} sourceURL={article}>
       <StructuredData data={storyStructuredData(story)} />
-      <StoryVisit id={story.hn_id} />
+      <StoryVisit id={story.hn_id} category={category?.id} ready={!!summary} />
       <StoryJourney />
       <header
         className="story-header"
@@ -101,6 +101,7 @@ export function StoryContent({
               ].join(" "),
             )}
           >
+            <SectionExposure storyId={story.hn_id} section="summary" />
             {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
             {source.brief === "available" ? (
               <>
@@ -137,6 +138,7 @@ export function StoryContent({
             tabIndex={-1}
             aria-labelledby="discussion-themes-heading"
           >
+            <SectionExposure storyId={story.hn_id} section="discussion" />
             {discussion.kind === "analysis" ? (
               <DiscussionAnalysis
                 analysis={discussion.analysis}

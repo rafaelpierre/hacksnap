@@ -87,12 +87,35 @@ test("slow popularity below the phone feed leaves stories available without layo
   await page.setViewportSize({ width: 320, height: 900 });
   await context.addCookies([{ name: "fixture-popularity", value: "slow", url: baseURL! }]);
   await page.addInitScript(() => {
-    const state = window as unknown as Window & { popularityCLS: number };
+    const state = window as unknown as Window & {
+      popularityCLS: number;
+      popularityShifts: unknown[];
+    };
     state.popularityCLS = 0;
+    state.popularityShifts = [];
     new PerformanceObserver((list) => {
-      for (const entry of list.getEntries())
-        if (!(entry as PerformanceEntry & { hadRecentInput: boolean }).hadRecentInput)
+      for (const entry of list.getEntries()) {
+        if (!(entry as PerformanceEntry & { hadRecentInput: boolean }).hadRecentInput) {
           state.popularityCLS += (entry as PerformanceEntry & { value: number }).value;
+          const shift = entry as PerformanceEntry & {
+            value: number;
+            sources: Array<{
+              node?: Element;
+              previousRect: DOMRectReadOnly;
+              currentRect: DOMRectReadOnly;
+            }>;
+          };
+          state.popularityShifts.push({
+            time: entry.startTime,
+            value: shift.value,
+            sources: shift.sources.map((source) => ({
+              node: source.node?.outerHTML.slice(0, 200),
+              before: source.previousRect,
+              after: source.currentRect,
+            })),
+          });
+        }
+      }
     }).observe({ type: "layout-shift", buffered: true });
   });
   await page.goto("/", { waitUntil: "commit" });
@@ -104,6 +127,11 @@ test("slow popularity below the phone feed leaves stories available without layo
   expect(
     await page.evaluate(
       () => (window as unknown as Window & { popularityCLS: number }).popularityCLS,
+    ),
+    JSON.stringify(
+      await page.evaluate(
+        () => (window as unknown as { popularityShifts: unknown[] }).popularityShifts,
+      ),
     ),
   ).toBeLessThanOrEqual(0.1);
 });
@@ -148,6 +176,11 @@ test("keyboard activation records a click separately from the mounted story view
   page,
   context,
 }) => {
+  await context.addInitScript(() => {
+    window.addEventListener("hacksnap:analytics-ready", () => {
+      (window as unknown as { fixtureHydrated: boolean }).fixtureHydrated = true;
+    });
+  });
   const events: Array<{ kind: string; story_id: string; visit_id: string }> = [];
   let releaseRuntime!: () => void;
   const runtimeGate = new Promise<void>((resolve) => {
@@ -169,7 +202,12 @@ test("keyboard activation records a click separately from the mounted story view
   } finally {
     releaseRuntime();
   }
-  await page.waitForFunction(() => Number(localStorage.getItem("hacksnap:visit-anchor")) > 0);
+  // Wait for lifecycle installation without requiring consent or scrolling the
+  // growing feed to its footer. Popularity is independent of vendor analytics.
+  await page.waitForFunction(
+    () => (window as unknown as { fixtureHydrated: boolean }).fixtureHydrated,
+  );
+  expect(await page.evaluate(() => localStorage.getItem("hacksnap:visit-anchor"))).toBeNull();
   await first.focus();
   await first.press("Enter");
   await expect(page).toHaveURL(/\/story\/91000001/);

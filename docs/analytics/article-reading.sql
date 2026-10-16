@@ -1,5 +1,6 @@
 -- BigQuery Standard SQL. Replace YOUR_PROJECT.YOUR_DATASET; dates are examples.
 -- Run on settled daily exports (allow 72 hours). cohort_end is exclusive, UTC.
+DECLARE contract_version INT64 DEFAULT 3; -- select 2 for the pre-consent rollout only
 DECLARE cohort_start DATE DEFAULT DATE '2026-10-17';
 DECLARE cohort_end DATE DEFAULT DATE '2026-10-24';
 CREATE TEMP FUNCTION str(params ANY TYPE, field STRING) AS
@@ -27,7 +28,7 @@ SELECT event_name, TIMESTAMP_MICROS(event_timestamp) ts,
 FROM `YOUR_PROJECT.YOUR_DATASET.events_*`
 WHERE _TABLE_SUFFIX BETWEEN FORMAT_DATE('%Y%m%d', cohort_start)
   AND FORMAT_DATE('%Y%m%d', DATE_ADD(cohort_end, INTERVAL 1 DAY))
-  AND num(event_params, 'contract_version') = 2;
+  AND num(event_params, 'contract_version') = contract_version;
 
 CREATE TEMP TABLE visits AS
 SELECT * FROM events

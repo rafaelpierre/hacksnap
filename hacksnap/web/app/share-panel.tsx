@@ -207,7 +207,8 @@ export function SharePanel({
   return (
     open && (
       <dialog
-        className="share-panel"
+        className="share-panel ph-no-capture"
+        data-analytics-private
         id={panelId}
         ref={dialog}
         aria-labelledby={`${panelId}-heading`}

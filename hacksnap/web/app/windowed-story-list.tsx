@@ -13,6 +13,7 @@ import {
 import type { PublicFeedStory } from "../lib/stories-api";
 import { canonicalArticleImage } from "../lib/article-image";
 import { StoryRow } from "./story-row";
+import { useFeedExposure } from "./journey-analytics";
 
 const ESTIMATED_STORY_HEIGHT = 390;
 const ESTIMATED_MEDIA_WIDTH = 560;
@@ -59,6 +60,7 @@ function StoryItem({
   showCategory,
 }: StoryItemProps) {
   const ref = useRef<HTMLLIElement>(null);
+  useFeedExposure(ref, story.hn_id, listPosition, story.category);
 
   useLayoutEffect(() => {
     if (!measure) return;
@@ -79,6 +81,7 @@ function StoryItem({
     <li
       ref={ref}
       data-home-story-id={story.hn_id}
+      data-category-id={story.category ?? undefined}
       aria-posinset={listPosition}
       aria-setsize={listSize}
       onFocusCapture={() => onFocus(index)}

@@ -1,6 +1,12 @@
 import { test, expect, storyPath } from "./browser";
 import type { Page } from "@playwright/test";
 
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript(() =>
+    localStorage.setItem("hacksnap:analytics-consent:v1", "accepted"),
+  );
+});
+
 type ReadingEvent = {
   name: string;
   visit_id?: string;
@@ -24,7 +30,7 @@ for (const width of [320, 1280]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(storyPath);
-    await expect(page.locator("#google-analytics-library")).toHaveCount(1);
+    await expect(page.locator("#hacksnap-google-analytics")).toHaveCount(1);
     await expect
       .poll(async () =>
         (await events(page)).some(
