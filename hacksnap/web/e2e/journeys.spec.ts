@@ -223,19 +223,31 @@ test("HTML and Markdown negotiation keep route semantics", async ({ request }) =
   }
 });
 
-test("AI user agents receive Markdown with the public URL heading", async ({ request }) => {
+test("AI user agents honor HTML and Markdown preferences for GET and HEAD", async ({ request }) => {
   for (const route of ["/", "/archive", storyPath]) {
     const publicPath = route === "/archive" ? "/" : route;
     for (const agent of ["ChatGPT-User", "OAI-SearchBot", "Claude-User", "Claude-SearchBot"]) {
-      const headers = { Accept: "text/html", "User-Agent": `${agent}/1.0` };
+      for (const accept of ["*/*", "text/html", "text/markdown;q=0,*/*"]) {
+        const headers = { Accept: accept, "User-Agent": `${agent}/1.0` };
+        const html = await request.get(route, { headers });
+        expect(html.status()).toBe(200);
+        expect(html.headers()["content-type"]).toContain("text/html");
+        expect(html.headers()["vary"]).toContain("Accept");
+        const head = await request.head(route, { headers });
+        expect(head.status()).toBe(200);
+        expect(head.headers()["content-type"]).toContain("text/html");
+        expect(await head.body()).toHaveLength(0);
+      }
+      const headers = { Accept: "text/markdown", "User-Agent": `${agent}/1.0` };
       const response = await request.get(route, { headers });
       expect(response.status()).toBe(200);
       expect(response.headers()["content-type"]).toContain("text/markdown");
-      expect(response.headers()["vary"]).toContain("User-Agent");
+      expect(response.headers()["vary"]).toContain("Accept");
+      expect(response.headers()["vary"]).not.toContain("User-Agent");
       expect(response.headers()["cache-control"]).toContain("no-store");
       expect(
         (await response.text()).startsWith(
-          `# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live${publicPath}\n\n# `,
+          `Canonical URL: <https://hacksnap.live${publicPath}>\n\n# `,
         ),
       ).toBe(true);
       const head = await request.head(route, { headers });
