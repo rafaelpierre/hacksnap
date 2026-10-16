@@ -561,6 +561,8 @@ def test_missing_kestrel_does_not_permanently_exclude_articles(monkeypatch):
 def test_run_returns_isolated_story_failures_with_cache_hits(monkeypatch, caplog, outcome):
     import importlib
     module = importlib.import_module("pipeline.refresh")
+    # SEO has its own storage/inference isolation tests. Keep this summary test offline.
+    monkeypatch.setattr("pipeline.seo.refresh_seo", lambda *args, **kwargs: {"generated": 0})
     repo = FakeRepository([story(), story(101)])
     fetcher = SimpleNamespace(fetch=lambda url: "article")
     model = FakeSummarizer()
@@ -606,7 +608,7 @@ def test_run_returns_isolated_story_failures_with_cache_hits(monkeypatch, caplog
         assert completed["status"] == "succeeded"
         assert repo.failures == {101: story(101)["url"]}
     else:
-        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0}
+        assert module.run() == {"generated": 1, "unchanged": 1, "failed": 0, "fetch_skipped": 0, "unavailable": 0, "sentiment_updated": 0, "analysis_updated": 0, "seo": {"generated": 0}}
 
 
 def test_refresh_records_all_ranks_after_fetch_failures_even_when_unchanged():

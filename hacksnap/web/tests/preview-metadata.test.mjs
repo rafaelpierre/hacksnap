@@ -22,7 +22,7 @@ function summary(overrides = {}) {
   };
 }
 
-test("long stories get compact previews without changing the source title or image alt", () => {
+test("fallback headlines preserve qualifications without changing the source title or image alt", () => {
   const title = "Kev: Tiny Jev-like family of decision models built on top of Qwen3.5";
   const story = {
     hn_id: "49783999",
@@ -36,10 +36,8 @@ test("long stories get compact previews without changing the source title or ima
     }),
   };
   const metadata = storyPreviewMetadata(story);
-  assert.ok(Array.from(metadata.title.absolute).length <= 71);
-  assert.ok(Array.from(metadata.openGraph.title).length <= 60);
-  assert.match(metadata.title.absolute, /… \| Hacksnap$/);
-  assert.match(metadata.openGraph.title, /…$/);
+  assert.equal(metadata.title.absolute, `${title} | Hacksnap`);
+  assert.equal(metadata.openGraph.title, title);
   assert.equal(metadata.twitter.title, metadata.openGraph.title);
   assert.ok(Array.from(metadata.description).length <= 155);
   assert.ok(Array.from(metadata.openGraph.description).length <= 125);
@@ -58,6 +56,55 @@ test("long stories get compact previews without changing the source title or ima
     },
   ]);
   assert.deepEqual(metadata.twitter.images, metadata.openGraph.images);
+});
+
+test("generated SEO copy reaches search and social tags without clipping or changing the headline", () => {
+  const seo_title =
+    "A qualified model result whose essential limitation appears after sixty characters";
+  const seo_description =
+    "The authors report an improvement on a narrow benchmark. The result does not establish a general improvement across tasks or independent production deployments.";
+  const story = {
+    hn_id: "1",
+    title: "Visible headline",
+    story_slug: "fixed-slug-1",
+    summary: summary({ seo_title, seo_description }),
+  };
+  const metadata = storyPreviewMetadata(story);
+  assert.equal(metadata.title.absolute, `${seo_title} | Hacksnap`);
+  assert.equal(metadata.description, seo_description);
+  assert.equal(metadata.openGraph.title, seo_title);
+  assert.equal(metadata.twitter.description, seo_description);
+  assert.equal(metadata.alternates.canonical, "https://hacksnap.live/story/fixed-slug-1");
+  assert.equal(story.title, "Visible headline");
+  assert.equal(metadata.robots.index, true);
+});
+
+test.each([null, "", "  ", "<script>bad</script>", "First\nSecond", "x".repeat(301), "Clipped…"])(
+  "malformed or missing generated descriptions %j use the existing fallback",
+  (seo_description) => {
+    const story = { hn_id: "1", title: "Headline", summary: summary() };
+    assert.deepEqual(
+      storyPreviewMetadata({
+        ...story,
+        summary: summary({ seo_title: "Generated headline", seo_description }),
+      }),
+      storyPreviewMetadata(story),
+    );
+  },
+);
+
+test("SEO fields cannot make an unpublished story indexable", () => {
+  const metadata = storyPreviewMetadata({
+    hn_id: "1",
+    title: "Pending headline",
+    summary: summary({
+      overall_takeaway: "",
+      seo_title: "Generated headline",
+      seo_description: "Generated description.",
+    }),
+  });
+  assert.equal(metadata.robots.index, false);
+  assert.equal(metadata.title.absolute, "Pending headline | Hacksnap");
 });
 
 test("search descriptions lead with the takeaway while social previews retain sample and topics", () => {

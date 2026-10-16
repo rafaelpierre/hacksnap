@@ -43,6 +43,8 @@ export type CardStory = StoryIdentity & {
 
 export type ArticleSummary = CardSummary &
   DiscussionFields & {
+    seo_title?: string | null;
+    seo_description?: string | null;
     article_summary: string | null;
     article_key_points: string[];
     discussion_summary: string;

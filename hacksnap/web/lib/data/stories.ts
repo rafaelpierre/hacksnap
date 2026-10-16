@@ -76,7 +76,7 @@ class UnpublishedStory extends Error {
 }
 const negativeStories = new Map<string, { story: ArticleStory | null; until: number }>();
 const cachedStory = publicationCache(
-  "story",
+  "story-seo-v1",
   async (id: string) => {
     const story = await readStory(id);
     if (publicationCachingEnabled() && (!story || !hasReadySummary(story))) {

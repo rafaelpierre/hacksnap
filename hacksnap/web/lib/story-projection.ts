@@ -76,10 +76,12 @@ export function storyProjection(
   imagesAvailable: boolean,
   titleAvailable = false,
   metricsAvailable = false,
+  seoAvailable = false,
 ): string {
   const summary =
     kind === "story"
-      ? articleSummary
+      ? articleSummary +
+        (seoAvailable ? ", 'seo_title', s.seo_title, 'seo_description', s.seo_description" : "")
       : kind === "export"
         ? exportSummary
         : cardSummary + (discussionAvailable ? cardDiscussion : "");
