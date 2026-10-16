@@ -1,5 +1,6 @@
 export default {
   testEnvironment: "node",
+  setupFilesAfterEnv: ["<rootDir>/tests/server-context.setup.mjs"],
   testMatch: ["<rootDir>/tests/**/*.test.mjs", "<rootDir>/tests/**/*.test.tsx"],
   extensionsToTreatAsEsm: [".ts", ".tsx"],
   moduleNameMapper: {

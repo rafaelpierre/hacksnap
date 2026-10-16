@@ -5,7 +5,8 @@ import sharp from "sharp";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const target = path.join(root, ".browser-app");
+const cacheFixture = process.env.BROWSER_CACHE_TEST === "1";
+const target = path.join(root, cacheFixture ? ".browser-cache-app" : ".browser-app");
 const command = process.argv[2];
 if (!["build", "start"].includes(command)) throw new Error("Expected build or start");
 // An allowlist prevents local .env files, credentials and database configuration
@@ -43,6 +44,11 @@ if (command === "build") {
       .toFile(path.join(target, `public/browser-images/${width}.webp`));
   const fixture = await readFile(path.join(root, "e2e/fixtures/data.ts"), "utf8");
   await writeFile(path.join(target, "lib/data.ts"), fixture.replaceAll("../../lib/", "./"));
+  if (cacheFixture)
+    await writeFile(
+      path.join(target, "cache-fixture-state.json"),
+      JSON.stringify({ title: "Cache fixture A" }),
+    );
   const config = await readFile(path.join(target, "next.config.ts"), "utf8");
   await writeFile(
     path.join(target, "next.config.ts"),
@@ -59,6 +65,12 @@ const env = Object.fromEntries(
   inheritedKeys.flatMap((key) => (process.env[key] === undefined ? [] : [[key, process.env[key]]])),
 );
 env.NEXT_TELEMETRY_DISABLED = "1";
+if (cacheFixture) {
+  env.HACKSNAP_CACHE_FIXTURE = "true";
+  env.HACKSNAP_PUBLICATION_CACHE = "true";
+  env.HACKSNAP_STORY_ISR = "true";
+  env.HACKSNAP_PUBLICATION_SECRET = "cache-fixture-secret-not-for-production";
+}
 const child = spawn(
   process.execPath,
   [

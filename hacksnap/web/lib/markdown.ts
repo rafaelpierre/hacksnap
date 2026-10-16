@@ -1,5 +1,6 @@
 import { archiveURL, monthLabel } from "./archive.ts";
 import { canonicalStoryUrl } from "./story-url";
+import { initialMetricsText } from "./initial-metrics";
 import type { ArticleStory, CardStory } from "./story-domain";
 import type { RankingMetrics } from "./story-metrics";
 import type { DiscussionFields } from "./discussion-analysis";
@@ -97,7 +98,7 @@ export function storyMarkdown(
   const category = categoryById(story.category);
   const lines = [
     `# ${text(story.title)}`,
-    `${story.points} points · ${story.comment_count} comments`,
+    initialMetricsText(story),
     link("Full discussion", `https://news.ycombinator.com/item?id=${story.hn_id}`),
   ];
   if (article) lines.push(link("Read original", article));
@@ -185,7 +186,7 @@ export function leaderboardMarkdown({
     const category = categoryById(story.category);
     lines.push(
       `### ${story.rank ?? ""}. ${link(story.title, canonicalStoryUrl(story.hn_id, story.story_slug))}`,
-      `${story.points} points · ${link(`${story.comment_count} comments`, `https://news.ycombinator.com/item?id=${story.hn_id}`)}${!story.is_recent ? " · Archive" : ""}`,
+      `${[story.points === null ? null : `${story.points} points`, story.comment_count === null ? null : link(`${story.comment_count} comments`, `https://news.ycombinator.com/item?id=${story.hn_id}`)].filter(Boolean).join(" · ")}${!story.is_recent ? " · Archive" : ""}`,
     );
     lines.push(storyIndicators(story, observed_at).map(text).join("\n\n"));
     if (category)
@@ -232,7 +233,17 @@ export function latestMarkdown({
     lines.push(
       `## ${link(story.title, canonicalStoryUrl(story.hn_id, story.story_slug))}`,
       `Added ${text(new Date(story.date_added).toISOString())}`,
-      `${story.points} points · ${link(`${story.comment_count} comments`, `https://news.ycombinator.com/item?id=${story.hn_id}`)}`,
+      [
+        story.points === null ? null : `${story.points} points`,
+        story.comment_count === null
+          ? null
+          : link(
+              `${story.comment_count} comments`,
+              `https://news.ycombinator.com/item?id=${story.hn_id}`,
+            ),
+      ]
+        .filter(Boolean)
+        .join(" · "),
     );
     if (category)
       lines.push(

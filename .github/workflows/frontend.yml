@@ -78,6 +78,7 @@ jobs:
         run: |
           npm run typecheck
           npm run build
+          npm run test:cache
 
   test-shard:
     name: Frontend / Jest shard ${{ matrix.shard }}/${{ strategy.job-total }}

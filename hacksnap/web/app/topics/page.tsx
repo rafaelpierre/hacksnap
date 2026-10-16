@@ -1,12 +1,11 @@
 import styles from "./page.module.css";
+import { connection } from "next/server";
 import { availableData } from "../../lib/data-availability";
 import { ArrowUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import { CATEGORIES, categoryURL } from "../../lib/categories";
 import { getCategoryCounts } from "../../lib/data";
 import { NavigationPendingLink } from "../navigation-pending-link";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Topics",
@@ -15,6 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TopicsPage() {
+  await connection();
   const result = await availableData(getCategoryCounts);
   const counts = result.available ? result.value : null;
   return (

@@ -23,6 +23,7 @@ jest.unstable_mockModule("../lib/data.ts", () => ({
   getReadyStoryPage: fail,
   getPopularStories: fail,
   getStory,
+  getFreshStory: getStory,
   getRelatedStories,
   getFeedStories: fail,
   getRssStories: fail,

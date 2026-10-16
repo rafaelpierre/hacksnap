@@ -1,4 +1,5 @@
 import { storyIdFromSlug, storyPath } from "../../lib/story-url";
+import { connection } from "next/server";
 import {
   getArchiveMonths,
   getArchiveStories,
@@ -10,9 +11,8 @@ import { isAiAgent, latestMarkdown, markdownResponse, storyMarkdown } from "../.
 import { archiveMonth, archivePage, archiveURL } from "../../lib/archive";
 import { categoryBySlug, categoryURL } from "../../lib/categories";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(request: Request) {
+  await connection();
   const requestURL = new URL(request.url);
   const page =
     request.headers.get("x-hacksnap-markdown-page") ?? requestURL.searchParams.get("page");

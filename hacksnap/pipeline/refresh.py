@@ -314,6 +314,9 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = DEFAULT_COMME
                 ))
             for future in as_completed(futures):
                 counts[future.result()] += 1
+                from .publication import try_dispatch
+
+                try_dispatch()
     if len(attempted) == MAX_STORIES_PER_RUN:
         logger.info(json.dumps({"event": "refresh_attempt_limit", "limit": MAX_STORIES_PER_RUN}))
     # Capture the final ordering after failed articles have been excluded.

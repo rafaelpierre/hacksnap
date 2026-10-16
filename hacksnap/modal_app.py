@@ -30,6 +30,27 @@ image_worker_image = (
     .add_local_python_source("pipeline")
 )
 
+publication_image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .uv_sync(uv_project_dir=ROOT)
+    .add_local_python_source("pipeline")
+)
+
+
+@app.function(
+    image=publication_image,
+    schedule=modal.Cron("* * * * *"),
+    secrets=[modal.Secret.from_name("hacksnap")],
+    timeout=90,
+    max_containers=1,
+)
+def dispatch_publication_cache():
+    from pipeline.publication import dispatch_from_env
+    from pipeline.telemetry import telemetry_run
+
+    with telemetry_run("hacksnap", "dispatch_publication_cache"):
+        return dispatch_from_env()
+
 
 @app.function(
     image=hacksnap_image,

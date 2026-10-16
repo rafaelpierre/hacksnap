@@ -23,7 +23,7 @@ export {
   getRssStories,
   getMarkdownLeaderboard,
 } from "./data/exports";
-export { getPopularStories, getStory, getStoryMetrics } from "./data/stories";
+export { getPopularStories, getStory, getFreshStory, getStoryMetrics } from "./data/stories";
 export {
   getArchiveMonths,
   getCategoryCounts,

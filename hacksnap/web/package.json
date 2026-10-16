@@ -24,6 +24,7 @@
     "format:check": "oxfmt --check .",
     "browser:build": "node scripts/browser-app.mjs build",
     "browser:start": "node scripts/browser-app.mjs start",
+    "test:cache": "BROWSER_CACHE_TEST=1 node scripts/browser-app.mjs build && node scripts/cache-smoke.mjs",
     "test:browser": "playwright test",
     "test:browser:ci": "npm run browser:build && npm run test:browser"
   },

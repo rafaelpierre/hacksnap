@@ -34,6 +34,7 @@ test("all headline projections use generated titles and preserve source titles a
       LEFT JOIN hacksnap_summaries s ON s.story_id=t.hn_id ORDER BY t.hn_id`);
     assert.equal((await db.query(storyTitleColumnSQL)).rows[0].available, false);
     assert.deepEqual((await db.query(storyIdentityColumnsSQL)).rows[0], {
+      initial_metrics_available: false,
       slug_available: true,
       title_available: false,
     });

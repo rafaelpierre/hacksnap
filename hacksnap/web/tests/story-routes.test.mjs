@@ -18,6 +18,7 @@ jest.unstable_mockModule("../lib/browse-streaming.ts", () => ({
 }));
 jest.unstable_mockModule("../lib/data.ts", () => ({
   getStory,
+  getFreshStory: getStory,
   getPopularStories: async () => [],
   getRelatedStories: async () => [],
   getLeaderboard: async () => ({ stories: [], ingestion: null }),

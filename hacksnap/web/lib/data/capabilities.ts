@@ -35,13 +35,16 @@ export async function storySlugField(client: PoolClient): Promise<string> {
 }
 
 export async function storyIdentityFields(client: PoolClient) {
-  const { rows } = await client.query<{ slug_available: boolean; title_available: boolean }>(
-    storyIdentityColumnsSQL,
-  );
+  const { rows } = await client.query<{
+    slug_available: boolean;
+    title_available: boolean;
+    initial_metrics_available: boolean;
+  }>(storyIdentityColumnsSQL);
   return {
     slug: storySlugProjection(rows[0]?.slug_available === true),
     title: storyTitleProjection(rows[0]?.title_available === true),
     titleAvailable: rows[0]?.title_available === true,
+    metricsAvailable: rows[0]?.initial_metrics_available === true,
   };
 }
 
@@ -61,6 +64,7 @@ export function readStories<T>(
       discussionAvailable,
       imagesAvailable,
       identity.titleAvailable,
+      identity.metricsAvailable,
     );
     return query(client, `${fields}, ${identity.slug}`);
   });
@@ -77,6 +81,7 @@ export function readBrowseStories<T>(
       images_available: boolean;
       slug_available: boolean;
       title_available: boolean;
+      initial_metrics_available: boolean;
     }>(browseCapabilitiesSQL);
     const capabilities = rows[0];
     if (!capabilities) throw new Error("Story capabilities unavailable");
@@ -92,7 +97,7 @@ export function readBrowseStories<T>(
       );
     return query(
       client,
-      `${storyProjection("feed", discussionAvailable, capabilities.images_available, capabilities.title_available)}, ${storySlugProjection(capabilities.slug_available)}`,
+      `${storyProjection("feed", discussionAvailable, capabilities.images_available, capabilities.title_available, capabilities.initial_metrics_available === true)}, ${storySlugProjection(capabilities.slug_available)}`,
     );
   });
 }

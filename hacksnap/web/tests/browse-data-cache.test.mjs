@@ -193,6 +193,7 @@ test("combined capability query requires every reader grant and detects later ro
       SET ROLE hacksnap_reader;
     `);
     assert.deepEqual((await db.query(browseCapabilitiesSQL)).rows[0], {
+      initial_metrics_available: false,
       discussion_available: false,
       images_available: false,
       slug_available: false,
@@ -205,6 +206,7 @@ test("combined capability query requires every reader grant and detects later ro
       SET ROLE hacksnap_reader;
     `);
     assert.deepEqual((await db.query(browseCapabilitiesSQL)).rows[0], {
+      initial_metrics_available: false,
       discussion_available: true,
       images_available: true,
       slug_available: true,

@@ -298,10 +298,9 @@ export function validFeedSnapshot(
       !/^[1-9][0-9]{0,14}$/.test(story.hn_id) ||
       ids.has(story.hn_id) ||
       typeof story.title !== "string" ||
-      !Number.isSafeInteger(story.points) ||
-      story.points < 0 ||
-      !Number.isSafeInteger(story.comment_count) ||
-      story.comment_count < 0 ||
+      (story.points !== null && (!Number.isSafeInteger(story.points) || story.points < 0)) ||
+      (story.comment_count !== null &&
+        (!Number.isSafeInteger(story.comment_count) || story.comment_count < 0)) ||
       (story.story_slug !== null && typeof story.story_slug !== "string") ||
       (story.category !== null && !categoryById(story.category)) ||
       typeof story.url !== "string" ||

@@ -447,9 +447,41 @@ The leaderboard APIs use a bounded 60-second per-instance data cache shared
 within each instance. Latest uses the bounded browse-page cache. Expired reads wait for fresh
 data; failed reads show the existing unavailable state instead of retaining stale
 rankings. Concurrent callers share one load. Separate instances may differ within
-that one-minute window. Homepage and story HTML render per request; story data keeps
-its existing 30-minute cache. Builds do not connect to the database.
-See `web/README.md` for Cloudflare caching.
+that one-minute window. With publication caching disabled, homepage and story HTML
+render per request and story data keeps its existing 30-minute cache.
+Builds do not connect to the database.
+See `web/README.md` for publication caching, ISR, rollback and Cloudflare policy.
+
+Migration `0024_publication_cache` adds transactional cache notifications for
+summary publication/correction/withdrawal, public images, story removals and
+fetch-failure changes. Hourly score/comment and readership updates do not enqueue
+notifications. The RLS-protected outbox is inaccessible to the website reader.
+The existing pipeline owner connection claims at most 32 events with
+`FOR UPDATE SKIP LOCKED` and a two-minute lease, committing before HTTP delivery.
+It acknowledges successful invalidate-and-warm delivery and backs failures off
+to at most 15 minutes. A terminated worker leaves recoverable rows. Duplicate
+delivery is harmless. Summarization and image workers attempt delivery after
+each completed item; `dispatch_publication_cache` retries every minute. Ingestion
+and the daily 02:00 America/New_York summarization schedules are unchanged.
+
+Set `HACKSNAP_PUBLICATION_WEBHOOK_URL` to the deployed HTTPS
+`/api/revalidate-publication` URL and the same `HACKSNAP_PUBLICATION_SECRET`
+(at least 32 random characters) in Modal and Vercel server environments. Notifications
+are disabled when either is absent, allowing additive rollout before long caching.
+Delivery failure never rolls back committed summaries. Logs report sanitized
+error types, delivery count, backlog and oldest pending age without credentials.
+
+Retry a bounded batch manually with the configured server environment:
+
+```sh
+uv run --directory hacksnap python -m pipeline.publication
+```
+
+Repeat while the backlog remains; failed or terminated deliveries remain durable.
+To use the deployed Modal secret, invoke
+`uv run --directory hacksnap modal run modal_app.py::dispatch_publication_cache`.
+Production invocation is separate from local validation. Enable the website cache
+switches only after a successful delivery; leave outbox records intact for rollback.
 On a cache miss, the stories and ingestion timestamp use one SQL query; including
 the read-only transaction setup and commit, this takes three database round trips.
 For Vercel, configure the function region close to the Supabase database

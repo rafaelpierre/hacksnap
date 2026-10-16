@@ -2,13 +2,14 @@ import { Suspense, type ReactNode } from "react";
 import { waitForPrimaryContent } from "../lib/primary-content";
 import { shouldStreamBrowse } from "../lib/browse-streaming";
 import { PopularStories, PopularStoriesLoading } from "./popular-stories";
+import { storyISREnabled } from "../lib/publication-cache";
 
 async function PopularityContent({ content }: { content: Promise<ReactNode> }) {
   return await content;
 }
 
 async function SitePopularity() {
-  const stream = await shouldStreamBrowse();
+  const stream = storyISREnabled() ? false : await shouldStreamBrowse();
   await waitForPrimaryContent();
   // Release the single reader connection before starting the weekly aggregate.
   // PopularStories handles failures, so Trending still runs if Most read fails.
