@@ -60,7 +60,7 @@ test("long stories get compact previews without changing the source title or ima
   assert.deepEqual(metadata.twitter.images, metadata.openGraph.images);
 });
 
-test("search and social titles use the headline while descriptions retain the actual sample and topics", () => {
+test("search descriptions lead with the takeaway while social previews retain sample and topics", () => {
   const metadata = storyPreviewMetadata({
     hn_id: "1",
     title: "Claude Code AGENTS.md issue",
@@ -70,10 +70,7 @@ test("search and social titles use the headline while descriptions retain the ac
   assert.equal(metadata.title.absolute, "Claude Code AGENTS.md issue | Hacksnap");
   assert.equal(metadata.openGraph.title, "Claude Code AGENTS.md issue");
   assert.equal(metadata.twitter.title, "Claude Code AGENTS.md issue");
-  assert.equal(
-    metadata.description,
-    "Article summary and Hacker News reactions from 17 sampled comments. Topics: Anthropic's response; Feature-flag debate; Criticism",
-  );
+  assert.equal(metadata.description, "The discussion examines the behavior and its rollout.");
   assert.equal(
     metadata.twitter.description,
     "Article summary and Hacker News reactions from 17 sampled comments. Topics: Anthropic's response; Feature-flag debate…",
@@ -103,7 +100,14 @@ test.each([null, undefined, "", " ", "\n\t\r "])(
     const published = storyPreviewMetadata(story);
     const pending = storyPreviewMetadata({ ...story, summary: summary({ overall_takeaway }) });
     assert.deepEqual(pending.robots, { index: false, follow: true });
-    assert.deepEqual({ ...pending, robots: published.robots }, published);
+    assert.equal(
+      pending.description,
+      "Article summary and Hacker News reactions from 17 sampled comments. Topics: Anthropic's response; Feature-flag debate; Criticism",
+    );
+    assert.deepEqual(
+      { ...pending, description: published.description, robots: published.robots },
+      published,
+    );
     assert.equal(pending.alternates.canonical, "https://hacksnap.live/story/small-models-1");
     assert.equal(
       pending.openGraph.images[0].url,
@@ -137,7 +141,11 @@ test("discussion-only pages do not promise an article summary", () => {
         },
       }),
     });
-    assert.match(metadata.description, /^Hacker News reactions from 1 sampled comment\. Topics:/);
+    assert.equal(metadata.description, "The discussion examines the behavior and its rollout.");
+    assert.match(
+      metadata.openGraph.description,
+      /^Hacker News reactions from 1 sampled comment\. Topics:/,
+    );
     for (const description of [
       metadata.description,
       metadata.openGraph.description,
@@ -165,13 +173,10 @@ test("zero-comment samples do not imply a discussion was summarized or that the 
       overall_takeaway: "A practical model.",
     }),
   });
-  assert.equal(
-    metadata.description,
-    "Article summary. No Hacker News comments were included in this summary. A practical model.",
-  );
+  assert.equal(metadata.description, "A practical model.");
 });
 
-test("missing discussion topics fall back to the takeaway while retaining reaction coverage", () => {
+test("search takeaways normalize whitespace independently of discussion topics", () => {
   const metadata = storyPreviewMetadata({
     hn_id: "1",
     title: "Small models",
@@ -180,10 +185,7 @@ test("missing discussion topics fall back to the takeaway while retaining reacti
       overall_takeaway: "  A practical\n model. ",
     }),
   });
-  assert.equal(
-    metadata.description,
-    "Article summary and Hacker News reactions from 17 sampled comments. A practical model.",
-  );
+  assert.equal(metadata.description, "A practical model.");
 });
 
 test("preview clipping normalizes whitespace, respects words and preserves Unicode code points", () => {
@@ -192,4 +194,19 @@ test("preview clipping normalizes whitespace, respects words and preserves Unico
   assert.equal(previewText("Alpha beta gamma", 9), "Alpha…");
   assert.equal(previewText("😀".repeat(20), 5), "😀😀😀😀…");
   assert.equal(previewText("A".repeat(20), 5), "AAAA…");
+});
+
+test("long takeaways fill the search snippet without a sampling prefix or broken words", () => {
+  const takeaway = "A coding agent can run tests locally. ".repeat(8);
+  const metadata = storyPreviewMetadata({
+    hn_id: "1",
+    title: "Coding agents",
+    summary: summary({ overall_takeaway: takeaway }),
+  });
+  assert.equal(
+    metadata.description,
+    "A coding agent can run tests locally. A coding agent can run tests locally. A coding agent can run tests locally. A coding agent can run tests locally. A…",
+  );
+  assert.ok(Array.from(metadata.description).length <= 155);
+  assert.equal(metadata.twitter.description, metadata.openGraph.description);
 });
