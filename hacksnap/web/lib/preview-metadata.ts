@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import type { Summary } from "./data";
 import { storyDiscussion } from "./story-presentation";
 import { hasPublishedTakeaway } from "./ready-stories";
+import { validSeoText } from "./seo-metadata";
 
 type PreviewSummary = Pick<
   Summary,
@@ -13,6 +14,8 @@ type PreviewSummary = Pick<
   | "discussion_analysis_coverage"
   | "overall_takeaway"
   | "source_coverage"
+  | "seo_title"
+  | "seo_description"
 >;
 
 /** Editorial length targets, not platform limits. Keep complete words where possible. */
@@ -86,14 +89,23 @@ export function storyPreviewMetadata(story: {
   story_slug?: string | null;
   summary: PreviewSummary | null;
 }): Metadata {
-  // Keep preview headlines compact while retaining the brand in the SEO title.
-  const title = previewText(story.title, 60);
+  const savedTitle = story.summary?.seo_title;
+  const savedDescription = story.summary?.seo_description;
+  const useSeo =
+    hasPublishedTakeaway(story.summary?.overall_takeaway) &&
+    validSeoText(savedTitle, 160) &&
+    validSeoText(savedDescription, 300) &&
+    !/\s[|–—-]\s*Hacksnap$/iu.test(savedTitle);
+  // Preserve complete generated copy and meaningful qualifications in fallback headlines.
+  const title = useSeo ? savedTitle.trim() : story.title.replace(/\s+/gu, " ").trim();
   const pageTitle = `${title} | Hacksnap`;
   const reaction = reactionDescription(story.summary);
   // Lead search snippets with the story; coverage details remain in the body.
   const takeaway = story.summary?.overall_takeaway;
-  const description = previewText(hasPublishedTakeaway(takeaway) ? takeaway : reaction, 155);
-  const socialDescription = previewText(reaction, 125);
+  const description = useSeo
+    ? savedDescription.trim()
+    : previewText(hasPublishedTakeaway(takeaway) ? takeaway : reaction, 155);
+  const socialDescription = useSeo ? description : previewText(reaction, 125);
   const url = canonicalStoryUrl(story.hn_id, story.story_slug);
   const image = {
     url: `${url}/opengraph-image`,

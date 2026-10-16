@@ -361,6 +361,21 @@ def run() -> dict:
             repository, fetcher, summarizer, settings.comment_chars,
             image_enabled=image_enabled,
         )
+        # Summaries have committed. SEO consumes the durable publication/correction
+        # queue and never changes this daily workflow's schedule or success status.
+        from .seo import SeoAgent, refresh_seo
+        from .seo_repository import SeoRepository
+
+        try:
+            counts["seo"] = refresh_seo(
+                SeoRepository(settings.database_url), SeoAgent(settings),
+                deadline=min(monotonic() + 300, editorial_deadline + 300),
+            )
+        except Exception as exc:  # noqa: BLE001 - optional enrichment is failure-isolated
+            logger.warning(json.dumps({"event": "seo_batch_failed", "error_type": type(exc).__name__}))
+            counts["seo"] = {"status": "failed"}
+        from .publication import try_dispatch
+        try_dispatch()
         cleanup = repository.cleanup_contents()
         logger.info(json.dumps({"event": "contents_cleanup", **cleanup}))
     # Individual stories are failure-isolated. Return their count for monitoring without

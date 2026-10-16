@@ -1,5 +1,64 @@
 # Hacksnap
 
+## Article SEO enrichment
+
+The existing daily summarization job (02:00 America/New_York) drains a bounded SEO
+queue after summaries have committed. It has no separate schedule. New summary
+inserts and substantive corrections enqueue work; ingestion dates, scores,
+sentiment, and routine discussion-analysis refreshes do not. Migration
+`0025_article_seo` leaves existing articles unqueued. A prompt/model update also
+does not automatically rewrite the archive.
+
+`pipeline/seo_prompts.py` contains the SEO agent's versioned instructions.
+`pipeline/seo.py` uses the existing Agents SDK adapter and configured editorial
+model with low reasoning effort, a 3,000-token response budget and no tools.
+Its inputs are the original and visible headlines, published article brief,
+key points, takeaway, source availability and initial discussion points. It does
+not fetch articles or require retained raw comments. Initial discussion points
+remain stable across routine analysis refreshes, keeping search copy stable.
+Editorial targets are 45–65 title characters and 140–160 description characters;
+safety bounds are 160 and 300, respectively. These are not Google display limits.
+Single-line plain text, complete copy, and schema validity are checked before save;
+factual accuracy remains a model-quality concern requiring sample review.
+
+Each daily pass attempts at most 50 eligible stories with four concurrent jobs
+and a five-minute SEO budget, bounded by the summarization invocation's remaining
+time. Each inference is limited to 60 seconds (65 including prefix waiting).
+Deferred jobs remain pending. Failed jobs keep fallback/previous copy, wait at
+least one hour before another claim, and retry on a subsequent daily run.
+Never-attempted work comes first, followed by oldest attempts. A database version
+check prevents stale results from committing after a correction; changed source
+content clears old SEO copy immediately. No SEO error rolls back publication.
+`seo_metadata` records model, prompt/version fingerprint, content fingerprint,
+and generation time. Only the title and description are granted to the web reader.
+Saved copy and invalidations emit the existing durable publication cache events.
+
+Apply the migration before deploying the updated worker. The website detects
+missing columns/grants and keeps working with its existing fallback description.
+Do not run production migrations or backfills as part of local validation.
+
+Historical backfills are explicit, at most 50 articles per invocation. From
+`hacksnap/`, preview a batch using database credentials only:
+
+```sh
+uv run python -m pipeline.backfill_seo --limit 20 --after-id 0
+```
+
+Add `--execute` to generate and persist copy with the configured inference
+credentials. Continue with the returned `last_id`; do not loop automatically.
+The default preview lists a superset because it does not load the model identity;
+execution skips matching saved versions. Active retry cooldowns are respected.
+Failed/deferred historical articles can be retried by revisiting that cursor
+window; successful manual generations are not queued for daily reprocessing.
+
+Before broad backfill, review a small executed batch for preserved qualifications,
+correct entities and versions, natural descriptions, unsupported claims, and
+misleading discussion promises. Include article-only, HN self-post, sparse
+discussion, long qualified headline and adversarial source-text examples.
+Automated tests verify routing, storage, retries and fallbacks, not ranking gains
+or live model quality. Track `seo_inference`, `seo_failed`, `seo_batch_completed`
+and the daily result's `seo` counts; assess search clicks/impressions after recrawl.
+
 Generated article briefs begin with 1–2 sentences and at most 60 words.
 The overview uses one or two short paragraphs without headings.
 The 80-120-word target for substantial sources applies to the whole summary, split

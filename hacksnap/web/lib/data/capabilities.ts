@@ -5,6 +5,7 @@ import { storySlugColumnSQL, storySlugProjection } from "../story-slug-projectio
 import { browseCapabilitiesSQL } from "../browse-capabilities";
 import { storyIdentityColumnsSQL, storyTitleProjection } from "../story-title-projection";
 import { storyProjection, discussionColumnsSQL, imageColumnsSQL } from "../story-projection";
+import { seoColumnsSQL } from "../seo-metadata";
 
 async function hasDiscussionColumns(client: PoolClient): Promise<boolean> {
   if (process.env.HACKSNAP_DISCUSSION_RENDERING === "false") return false;
@@ -65,6 +66,8 @@ export function readStories<T>(
       imagesAvailable,
       identity.titleAvailable,
       identity.metricsAvailable,
+      kind === "story" &&
+        (await client.query<{ available: boolean }>(seoColumnsSQL)).rows[0]?.available === true,
     );
     return query(client, `${fields}, ${identity.slug}`);
   });

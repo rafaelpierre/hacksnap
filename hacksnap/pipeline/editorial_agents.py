@@ -38,11 +38,12 @@ def input_messages(role: str, payload: dict) -> list[dict]:
 class AgentInference:
     def __init__(self, base_url: str, api_key: str, model: str, effort: str = "low",
                  timeout: float = 240, transport=None, capture_outputs: bool = False,
-                 cache: EditorialCache | None = None):
+                 cache: EditorialCache | None = None, max_tokens: int = 32000):
         self.base_url = base_url
         self.model = model
         self.effort = effort
         self.timeout = timeout
+        self.max_tokens = max_tokens
         self.calls = []
         self.outputs = []
         self.capture_outputs = capture_outputs
@@ -95,7 +96,7 @@ class AgentInference:
                 name=f"editorial_{role}", instructions=prompt, model=self._model,
                 output_type=schema,
                 model_settings=ModelSettings(
-                    temperature=0.2, max_tokens=32000, retry=ModelRetrySettings(max_retries=0),
+                    temperature=0.2, max_tokens=self.max_tokens, retry=ModelRetrySettings(max_retries=0),
                     extra_body={"reasoning_effort": self.effort},
                     extra_headers={"Modal-Routing-Affinity-Key": affinity},
                 ),
