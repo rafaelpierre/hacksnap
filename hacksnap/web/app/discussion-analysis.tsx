@@ -1,6 +1,7 @@
 import styles from "./discussion-analysis.module.css";
 import { SummaryInline } from "./summary-text";
 import { DiscussionTopics } from "./discussion-topics";
+import { readingSection } from "../lib/reading-metadata";
 import { ArrowUpRight, ChevronDown, Info, X } from "lucide-react";
 import type {
   DiscussionAnalysis as Analysis,
@@ -45,6 +46,7 @@ function SourceComments({
         id={id}
         className="analysis-source-popup"
         popover="auto"
+        data-reading-sources
         role="dialog"
         aria-labelledby={`${id}-title`}
       >
@@ -86,7 +88,10 @@ export function DiscussionAnalysis({
   const validDate = date && Number.isFinite(date.getTime()) ? date : null;
   return (
     <div className={`discussion-analysis ${styles.root}`}>
-      <div className="discussion-heading analysis-heading">
+      <div
+        className="discussion-heading analysis-heading"
+        {...readingSection("discussion", "Discussion analysis")}
+      >
         <h2 id="discussion-themes-heading" className="discussion-title">
           <span>Discussion analysis</span>
         </h2>
@@ -167,12 +172,15 @@ export function DiscussionAnalysis({
                   id={`discussion-topic-${topic.key}-${topicIndex}`}
                   key={`${topic.key}-${topicIndex}`}
                 >
-                  <details className="analysis-theme-details">
-                    <summary>
+                  <details className="analysis-theme-details" data-reading-theme>
+                    <summary {...readingSection("theme_heading", topic.title, topicIndex + 1)}>
                       <span>{topic.title}</span>
                       <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
                     </summary>
-                    <div className="analysis-theme-body">
+                    <div
+                      className="analysis-theme-body"
+                      {...readingSection("theme_body", topic.summary, topicIndex + 1)}
+                    >
                       <p>
                         <SummaryInline text={topic.summary} />
                       </p>

@@ -1,7 +1,9 @@
 import { sendStoryEvent } from "./popularity-transport";
+import type { ReadingContext, ReadingEvent, ReadingFields } from "./reading-contract";
 
 /** Versioned, content-free engagement events. GA supplies user/session/device identity. */
 export type JourneyEvent =
+  | ReadingEvent
   | "reader_visit"
   | "story_view"
   | "story_click"
@@ -18,25 +20,26 @@ export type JourneyEvent =
   | "home_story_open"
   | "home_feed_load"
   | "home_feed_end";
-type Params = {
-  placement?: string;
-  observation_window_days?: 30;
-  days_since_visit_anchor?: number;
-  story_id?: string;
-  target_story_id?: string;
-  position?: number;
-  destination?: string;
-  copy_kind?: "link" | "post";
-  outcome?:
-    | "success"
-    | "empty"
-    | "failure"
-    | "expired"
-    | "cancelled"
-    | "exhausted"
-    | "selection_limited";
-  trigger?: "auto" | "manual";
-};
+type Params = Partial<ReadingContext> &
+  ReadingFields & {
+    placement?: string;
+    observation_window_days?: 30;
+    days_since_visit_anchor?: number;
+    story_id?: string;
+    target_story_id?: string;
+    position?: number;
+    destination?: string;
+    copy_kind?: "link" | "post";
+    outcome?:
+      | "success"
+      | "empty"
+      | "failure"
+      | "expired"
+      | "cancelled"
+      | "exhausted"
+      | "selection_limited";
+    trigger?: "auto" | "manual";
+  };
 type Sink = (name: JourneyEvent, params: Record<string, string | number>) => void;
 
 /** Injectable state machine lets controlled journeys exercise deduplication without GA. */
@@ -44,11 +47,17 @@ export function createJourney(sink: Sink, makeId: () => string, firstPartySink?:
   let path: string | undefined;
   let visitId = "";
   let seen = new Set<string>();
-  function emit(name: JourneyEvent, params: Params = {}, once?: string) {
-    if (once && seen.has(once)) return;
-    if (once) seen.add(once);
+  function emitTo(
+    id: string,
+    deduplication: Set<string>,
+    name: JourneyEvent,
+    params: Params = {},
+    once?: string,
+  ) {
+    if (once && deduplication.has(once)) return;
+    if (once) deduplication.add(once);
     // Runtime allowlist: never forward drafts, titles, URLs or arbitrary caller fields.
-    const safe: Record<string, string | number> = { contract_version: 2, visit_id: visitId };
+    const safe: Record<string, string | number> = { contract_version: 2, visit_id: id };
     for (const key of [
       "story_id",
       "target_story_id",
@@ -60,6 +69,24 @@ export function createJourney(sink: Sink, makeId: () => string, firstPartySink?:
       "days_since_visit_anchor",
       "outcome",
       "trigger",
+      "reading_version",
+      "content_revision",
+      "layout_variant",
+      "copy_variant",
+      "category",
+      "summary_status",
+      "section_id",
+      "section_type",
+      "section_position",
+      "section_words",
+      "visible_ms",
+      "active_ms",
+      "last_section",
+      "furthest_section",
+      "checkpoint_reason",
+      "checkpoint_sequence",
+      "source_kind",
+      "action",
     ] as const) {
       const value = params[key];
       if (value !== undefined) safe[key] = value;
@@ -75,21 +102,34 @@ export function createJourney(sink: Sink, makeId: () => string, firstPartySink?:
       /* Analytics never interrupts an interaction. */
     }
   }
+  function emit(name: JourneyEvent, params: Params = {}, once?: string) {
+    emitTo(visitId, seen, name, params, once);
+  }
+  function capture() {
+    const id = visitId;
+    const deduplication = seen;
+    return {
+      visitId: id,
+      emit: (name: JourneyEvent, params: Params = {}, once?: string) =>
+        emitTo(id, deduplication, name, params, once),
+    };
+  }
   function route(nextPath: string) {
     if (path === nextPath) return;
+    const nextId = makeId();
     path = nextPath;
-    visitId = makeId();
+    visitId = nextId;
     seen = new Set();
     emit("reader_visit", {}, "visit");
   }
-  return { route, emit };
+  return { route, emit, capture };
 }
 
 type AnalyticsWindow = Window & { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void };
 const journey = createJourney(
   (name, params) => {
     const win = window as AnalyticsWindow;
-    // Preserve early events until the existing lazy GA script starts. No retry loop.
+    // Preserve early events until the asynchronous GA script starts. No retry loop.
     if (typeof win.gtag === "function") win.gtag("event", name, params);
     else {
       win.dataLayer ??= [];
@@ -151,6 +191,27 @@ export function trackOnce(key: string, event: Event): void {
     // Storage is optional. An extra event is preferable to breaking the site.
   }
   track(event);
+}
+
+// Cleanup can happen after the URL changes. Bind reading events to their original visit.
+export function captureReadingVisit(context: ReadingContext) {
+  try {
+    journey.route(analyticsRouteIdentity(window.location.pathname, window.location.search));
+    const captured = journey.capture();
+    return {
+      visitId: captured.visitId,
+      emit(name: ReadingEvent, fields: ReadingFields = {}, once?: string) {
+        captured.emit(
+          name,
+          { ...fields, ...context },
+          once ? `reading:${context.content_revision}:${once}` : undefined,
+        );
+      },
+    };
+  } catch {
+    // Missing browser APIs must not prevent the article from rendering.
+    return null;
+  }
 }
 
 export function recordVisit(now = Date.now()): void {

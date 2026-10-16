@@ -66,7 +66,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <StructuredData data={siteStructuredData} />
       </head>
       <body>
-        {/* Queue visits early; fetch GA only after the reader interacts. */}
+        {/* Queue visits early and load GA asynchronously, including passive visits. */}
         <Script id="google-analytics" strategy="beforeInteractive">
           {analyticsBootstrap}
         </Script>

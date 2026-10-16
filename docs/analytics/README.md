@@ -1,5 +1,11 @@
 # Engagement measurement (issue #15)
 
+For section reach, dwell, theme interactions and observed stopping points, see
+[article reading measurement](article-reading.md) and its BigQuery report.
+Reading events extend the existing journey contract without changing its v2 rates.
+The new asynchronous GA loader changes passive-visit coverage; mark its rollout
+when comparing historical engagement and bounce metrics.
+
 ## Contract v2
 
 This extends the event names and share placements merged in PR #21. Version 2

@@ -1,5 +1,7 @@
 import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { StoryVisit } from "../../journey-analytics";
+import { ArticleReading } from "../../article-reading";
+import { readingContext, readingSection } from "../../../lib/reading-metadata";
 import type { RelatedStory, Story } from "../../../lib/data";
 import { categoryById } from "../../../lib/categories";
 import { storyDiscussion, storySource } from "../../../lib/story-presentation";
@@ -52,11 +54,14 @@ export function StoryContent({
   const image = canonicalArticleImage(story);
 
   return (
-    <article className="detail">
+    <ArticleReading context={readingContext(story)} sourceURL={article}>
       <StructuredData data={storyStructuredData(story)} />
       <StoryVisit id={story.hn_id} />
       <StoryJourney />
-      <header className="story-header">
+      <header
+        className="story-header"
+        {...readingSection("opening", story.title + " " + (deck ?? ""))}
+      >
         <div className="story-context">
           {category && <CategoryBadge id={category.id} />}
           {category && (
@@ -87,6 +92,14 @@ export function StoryContent({
             className="tldr-section detail-section"
             aria-label="Article summary"
             tabIndex={-1}
+            {...readingSection(
+              "brief",
+              [
+                fullTakeaway && deck !== fullTakeaway ? fullTakeaway : "",
+                source.brief === "available" ? summary.article_summary : "",
+                ...summary.article_key_points,
+              ].join(" "),
+            )}
           >
             {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
             {source.brief === "available" ? (
@@ -95,7 +108,10 @@ export function StoryContent({
                 {summary.article_key_points.length > 0 && (
                   <>
                     <h2 className="key-points-heading">The bits that matter</h2>
-                    <ul className="key-points">
+                    <ul
+                      className="key-points"
+                      {...readingSection("key_points", summary.article_key_points.join(" "))}
+                    >
                       {summary.article_key_points.map((point, i) => (
                         <li key={i}>
                           <SummaryInline text={point} />
@@ -129,7 +145,10 @@ export function StoryContent({
               />
             ) : (
               <>
-                <div className="discussion-heading">
+                <div
+                  className="discussion-heading"
+                  {...readingSection("discussion", "Discussion analysis")}
+                >
                   <h2 id="discussion-themes-heading" className="discussion-title">
                     <span>Discussion analysis</span>
                   </h2>
@@ -139,12 +158,15 @@ export function StoryContent({
                     <div className="analysis-themes">
                       {discussion.topics.map((point, i) => (
                         <div className="analysis-theme" key={i}>
-                          <details className="analysis-theme-details">
-                            <summary>
+                          <details className="analysis-theme-details" data-reading-theme>
+                            <summary {...readingSection("theme_heading", point.title, i + 1)}>
                               <span>{point.title}</span>
                               <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
                             </summary>
-                            <div className="analysis-theme-body">
+                            <div
+                              className="analysis-theme-body"
+                              {...readingSection("theme_body", point.summary, i + 1)}
+                            >
                               <p>
                                 <SummaryInline text={point.summary} />
                               </p>
@@ -190,7 +212,11 @@ export function StoryContent({
           </section>
         </div>
       ) : (
-        <section className="story-pending" aria-labelledby="pending-heading">
+        <section
+          className="story-pending"
+          aria-labelledby="pending-heading"
+          {...readingSection("pending")}
+        >
           <h2 id="pending-heading">Summary pending</h2>
           <p>
             This story has not been summarized yet.{" "}
@@ -225,6 +251,6 @@ export function StoryContent({
           currentId={story.hn_id}
         />
       )}
-    </article>
+    </ArticleReading>
   );
 }

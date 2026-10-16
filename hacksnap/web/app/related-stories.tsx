@@ -7,6 +7,7 @@ import type { RelatedStory } from "../lib/data";
 import { domain } from "../lib/format";
 import { NextStoryLink } from "./story-navigation";
 import { briefExcerpt } from "../lib/brief";
+import { readingSection } from "../lib/reading-metadata";
 
 export function RelatedStories({
   category,
@@ -27,6 +28,7 @@ export function RelatedStories({
       className={`related-stories detail-section${pending ? " related-stories-pending" : ""}`}
       aria-labelledby="related-stories-heading"
       aria-busy={pending || undefined}
+      {...(!pending && !unavailable && next.length > 0 ? readingSection("related") : {})}
     >
       <h2 id="related-stories-heading">Related stories</h2>
       {pending ? (
