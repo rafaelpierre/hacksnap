@@ -27,9 +27,9 @@ SEO_JOB_RESERVE_SECONDS = 125
 
 
 class SearchMetadata(StrictModel):
-    # Generous safety bounds, not Google's display limits.
+    # Editorial bounds, not Google's display limits. Never truncate generated copy.
     seo_title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)]
-    seo_description: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
+    seo_description: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)]
 
     @field_validator("seo_title", "seo_description", mode="before")
     @classmethod
@@ -70,7 +70,8 @@ class SeoAgent:
         self.config = {
             "base_url": settings.llm_base_url, "api_key": settings.llm_api_key,
             "model": self.model, "effort": "low", "timeout": 60,
-            "cache": EditorialCache(), "max_tokens": 3000,
+            # Completion tokens include reasoning, even for two short output fields.
+            "cache": EditorialCache(), "max_tokens": 10000,
         }
         identity = [SEO_PROMPT_VERSION, SEO_PROMPT, SearchMetadata.model_json_schema(),
                     REQUEST_FORMAT_VERSION, self.model, self.config["effort"],
