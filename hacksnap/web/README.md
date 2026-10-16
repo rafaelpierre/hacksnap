@@ -545,11 +545,14 @@ files. Route performance tests include font bytes and request counts, with a
 See the [PageSpeed follow-up](../../docs/performance/pagespeed-2026-10-09.md)
 for measurements and the framework-JavaScript findings.
 Google Analytics queues its configuration and early journey events in a small
-inline script. The 175 KiB Google tag downloads only after the first pointer,
-keyboard, or scroll input. An untouched visit sends no data to GA; an external
-navigation immediately after the first input can also interrupt the download.
-This reduces bytes on passive visits, not the Google script's size or the shared
-Next.js/React client runtime.
+inline script and loads its library asynchronously without waiting for input.
+This includes passive visits in collection, at the cost of downloading the Google
+tag on those visits too. Very early departures can still interrupt loading.
+Article reading events measure section exposure, foreground dwell, theme toggles,
+source actions and last observed position. See the
+[event contract, GA setup and reporting queries](../../docs/analytics/article-reading.md).
+The local browser performance suite stubs GA; its budgets measure application
+assets and do not measure the real Google library's transfer or execution cost.
 
 In Cloudflare, disable **Email Address Obfuscation** for `hacksnap.live` (use a
 hostname-scoped configuration rule if the zone serves other sites). Cloudflare

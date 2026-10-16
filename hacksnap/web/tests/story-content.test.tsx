@@ -11,6 +11,7 @@ import { StoryContent } from "../app/story/[id]/story-content";
 import { StoryRow } from "../app/story-row";
 import { BrowseLayout } from "../app/topic-sidebar";
 import type { Story, RelatedStory } from "../lib/data";
+import { readingContext } from "../lib/reading-metadata";
 
 const story: Story = {
   hn_id: "90000001",
@@ -48,6 +49,38 @@ const relatedStories: RelatedStory[] = [
     date_added: new Date("2026-09-26T09:00:00Z"),
   },
 ];
+
+test("reading metadata identifies copy revisions without treating popularity as a new version", () => {
+  const initial = readingContext(story);
+  assert.equal(
+    readingContext({ ...story, points: 999 }).content_revision,
+    initial.content_revision,
+  );
+  assert.equal(
+    readingContext({
+      ...story,
+      summary: { ...story.summary!, generated_at: "2026-10-16T00:00:00Z" },
+    }).content_revision,
+    initial.content_revision,
+  );
+  assert.notEqual(
+    readingContext({
+      ...story,
+      summary: { ...story.summary!, article_summary: "Revised article." },
+    }).content_revision,
+    initial.content_revision,
+  );
+  assert.equal(readingContext({ ...story, summary: null }).summary_status, "pending");
+  const dom = new JSDOM(render(createElement(StoryContent, { story, relatedStories })));
+  const markers = [...dom.window.document.querySelectorAll("[data-reading-id]")];
+  const ids = markers.map((element) => element.getAttribute("data-reading-id"));
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(ids.includes("opening_1"));
+  assert.ok(ids.includes("brief_1"));
+  assert.ok(ids.includes("key_points_1"));
+  assert.ok(ids.includes("related_1"));
+  dom.window.close();
+});
 
 test("formatted article and legacy discussion render safely and export plain structured data", () => {
   const formatted: Story = {
@@ -169,7 +202,7 @@ test("article key points render the exact heading before a nonempty list", () =>
   const html = render(createElement(StoryContent, { story, relatedStories: [] }));
   assert.match(
     html,
-    /<h2[^>]*>The bits that matter<\/h2><ul class="key-points"><li>A concrete point\.<\/li><\/ul>/,
+    /<h2[^>]*>The bits that matter<\/h2><ul class="key-points"[^>]*><li>A concrete point\.<\/li><\/ul>/,
   );
 });
 
@@ -327,7 +360,7 @@ test("cards and detail use a ready canonical image while invalid states keep the
 
 test("compact header and recommendations preserve the new story component and tracking", () => {
   const html = render(createElement(StoryContent, { story, relatedStories }));
-  const header = html.match(/<header class="story-header">([\s\S]*?)<\/header>/)?.[1] ?? "";
+  const header = html.match(/<header class="story-header"[^>]*>([\s\S]*?)<\/header>/)?.[1] ?? "";
   assert.ok(header.indexOf("story-context") < header.indexOf("<h1>"));
   assert.doesNotMatch(header, /skepticism-pill/);
   assert.match(header, /42 points/);

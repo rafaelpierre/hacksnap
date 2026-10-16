@@ -4,7 +4,7 @@ import { JSDOM } from "jsdom";
 import { analyticsBootstrap } from "../lib/analytics-bootstrap.ts";
 
 for (const eventName of ["pointerdown", "keydown", "scroll"]) {
-  test(`Google tag waits for ${eventName} and loads only once`, () => {
+  test(`Google tag loads before ${eventName} and loads only once`, () => {
     const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
       url: "https://hacksnap.live/",
       runScripts: "outside-only",
@@ -16,7 +16,8 @@ for (const eventName of ["pointerdown", "keydown", "scroll"]) {
         window.document.querySelectorAll(
           'script[src="https://www.googletagmanager.com/gtag/js?id=G-059PVYBN82"]',
         );
-      assert.equal(scripts().length, 0);
+      assert.equal(scripts().length, 1);
+      assert.equal(scripts()[0].async, true);
       assert.deepEqual(
         Array.from(window.dataLayer, (args) => args[0]),
         ["js", "config"],
