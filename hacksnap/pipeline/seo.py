@@ -21,7 +21,7 @@ from .seo_prompts import SEO_PROMPT, SEO_PROMPT_VERSION
 from .telemetry import traced_operation
 
 logger = logging.getLogger("hacksnap.seo")
-# Two database transactions (10s connect + 15s statement each), 65s inference,
+# Selection and save (10s connect + 15s statement each), 65s inference,
 # and a small margin. Do not start a job that cannot fit the remaining budget.
 SEO_JOB_RESERVE_SECONDS = 125
 
@@ -104,9 +104,6 @@ def process_seo(row, repository, agent, *, deadline=None):
         previous = row.get("seo_metadata") or {}
         if previous.get("input_fingerprint") == fingerprint:
             return "unchanged"
-        # Commit the retry timestamp before inference, with a version check.
-        if not repository.claim_seo(row):
-            return "stale"
         result = agent.generate(source)
         result = SearchMetadata.model_validate_json(result.model_dump_json())
         provenance = {
@@ -121,7 +118,7 @@ def process_seo(row, repository, agent, *, deadline=None):
 
 
 def refresh_seo(repository, agent, *, limit=50, after_id=None, deadline=None):
-    rows = repository.seo_candidates(agent.version, limit=limit, after_id=after_id)
+    rows = repository.seo_candidates(limit=limit, after_id=after_id)
     counts = dict.fromkeys(("generated", "unchanged", "failed", "stale", "deferred"), 0)
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = [executor.submit(copy_context().run, process_seo, row, repository, agent,

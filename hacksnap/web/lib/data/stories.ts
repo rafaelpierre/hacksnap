@@ -4,7 +4,7 @@ import { cache } from "react";
 import { read } from "./read";
 import { readStories, storyIdentityFields } from "./capabilities";
 import { boundedCache } from "../bounded-cache";
-import { publicationCache, publicationCachingEnabled, POPULARITY_TAG } from "../publication-cache";
+import { publicationCache, publicationCachingEnabled } from "../publication-cache";
 import { DataUnavailableError } from "../data-availability";
 import { validStoryId } from "../public-story";
 import { availableSourceSQL, hasReadySummary } from "../ready-stories";
@@ -41,7 +41,7 @@ const cachedPopularStories = publicationCache(
     );
   },
   cachePolicy.popular,
-  { seconds: 900, tags: [POPULARITY_TAG] },
+  { seconds: 900 },
 );
 
 export async function getPopularStories(
@@ -63,7 +63,7 @@ async function readStory(id: string): Promise<ArticleStory | null> {
   });
 }
 
-// ISR regeneration must read the database, not a second 24-hour freshness window.
+// ISR regeneration must read the database, not a second cache freshness window.
 export const getFreshStory = cache(async (id: string): Promise<ArticleStory | null> => {
   if (!validStoryId(id)) return null;
   return readStory(id);
@@ -102,10 +102,6 @@ export const getStory = cache(async (id: string): Promise<ArticleStory | null> =
     throw new DataUnavailableError();
   }
 });
-
-export function clearNegativeStories(ids: string[]) {
-  for (const id of ids) negativeStories.delete(id);
-}
 
 const cachedStoryMetrics = boundedCache(
   async (id: string): Promise<RankingMetrics | null> =>

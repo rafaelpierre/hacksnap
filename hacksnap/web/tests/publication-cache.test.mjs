@@ -13,7 +13,7 @@ jest.unstable_mockModule("../lib/data/capabilities.ts", () => ({
   },
   storyIdentityFields: async () => ({}),
 }));
-const { getStory, clearNegativeStories } = await import("../lib/data/stories.ts");
+const { getStory } = await import("../lib/data/stories.ts");
 const entries = new Map();
 let clock = 0;
 const incrementalCache = {
@@ -37,7 +37,6 @@ afterEach(() => {
   delete process.env.HACKSNAP_PUBLICATION_CACHE;
   entries.clear();
   clock = 0;
-  clearNegativeStories(["123", "456"]);
   jest.restoreAllMocks();
 });
 test("independent loader instances reuse Next's shared cache and restore Dates", async () => {
@@ -56,9 +55,12 @@ test("independent loader instances reuse Next's shared cache and restore Dates",
   assert.ok(b.date_added instanceof Date);
   assert.equal(b.summary.generated_at, "2026-10-15");
   assert.deepEqual(decodeCacheValue(encodeCacheValue([a])), [a]);
-  entries.clear(); // Simulate immediate expiry after a removal.
+  clock = 299_999;
   await request(() => second("all"));
-  assert.equal(reads, 2, "no completed per-instance copy survives shared invalidation");
+  assert.equal(reads, 1);
+  clock = 300_001;
+  await request(() => second("all"));
+  assert.equal(reads, 2, "normal expiry refreshes shared data without notifications");
 });
 test("failed refresh retains successful data, while a cold failure remains unavailable", async () => {
   process.env.HACKSNAP_PUBLICATION_CACHE = "true";
@@ -75,7 +77,7 @@ test("failed refresh retains successful data, while a cold failure remains unava
   );
   await request(() => cached("all"));
   fail = true;
-  clock = 86_400_001;
+  clock = 300_001;
   const log = jest.spyOn(console, "error").mockImplementation(() => {});
   try {
     assert.deepEqual(await request(() => cached("all")), ["published"]);
@@ -118,7 +120,7 @@ test("concurrent misses share bounded work; rollback restores the short local po
   assert.equal(reads, 2);
 });
 
-test("missing and pending stories expire after sixty seconds and never enter the day-long cache", async () => {
+test("missing and pending stories expire after sixty seconds and never enter the published-story cache", async () => {
   process.env.HACKSNAP_PUBLICATION_CACHE = "true";
   jest.spyOn(Date, "now").mockImplementation(() => clock);
   for (const [id, initial] of [
@@ -135,10 +137,9 @@ test("missing and pending stories expire after sixty seconds and never enter the
     assert.deepEqual(await request(() => getStory(id)), storyValue);
     assert.equal(storyReads, before + 2);
   }
-  // A delivered withdrawal expires the shared entry and clears the local negative entry.
-  entries.clear();
-  clearNegativeStories(["123"]);
+  // A withdrawal is observed on normal expiry, without a notification.
+  clock += 300_001;
   storyValue = null;
+  await request(() => getStory("123")); // stale-while-revalidate starts the read
   assert.equal(await request(() => getStory("123")), null);
-  assert.equal(entries.size, 0);
 });

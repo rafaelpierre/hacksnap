@@ -443,9 +443,6 @@ def process_pending_images(
                 completed, pending = wait(pending, return_when=FIRST_COMPLETED)
                 for future in completed:
                     counts[future.result()] += 1
-                    from ..publication import try_dispatch
-
-                    try_dispatch()
     elapsed = perf_counter() - started
     logger.info(json.dumps({
         "event": "image_batch_completed", "processed": processed,

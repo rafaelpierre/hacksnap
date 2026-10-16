@@ -2,12 +2,12 @@
 
 ## Article SEO enrichment
 
-The existing daily summarization job (02:00 America/New_York) drains a bounded SEO
-queue after summaries have committed. It has no separate schedule. New summary
-inserts and substantive corrections enqueue work; ingestion dates, scores,
-sentiment, and routine discussion-analysis refreshes do not. Migration
-`0025_article_seo` leaves existing articles unqueued. A prompt/model update also
-does not automatically rewrite the archive.
+The existing daily summarization job (02:00 America/New_York) selects the 50
+most recently generated published article summaries after summarization commits.
+It compares their stored content/model fingerprints and generates only missing or
+changed metadata. There is no separate SEO schedule, trigger, queue, claim or retry
+timestamp. The next daily pass can retry failures while those articles remain in
+the latest 50; older articles require an explicit backfill.
 
 `pipeline/seo_prompts.py` contains the SEO agent's versioned instructions.
 `pipeline/seo.py` uses the existing Agents SDK adapter and configured editorial
@@ -28,14 +28,14 @@ factual accuracy remains a model-quality concern requiring sample review.
 Each daily pass attempts at most 50 eligible stories with four concurrent jobs
 and a five-minute SEO budget, bounded by the summarization invocation's remaining
 time. Each inference is limited to 60 seconds (65 including prefix waiting).
-Deferred jobs remain pending. Failed jobs keep fallback/previous copy, wait at
-least one hour before another claim, and retry on a subsequent daily run.
-Never-attempted work comes first, followed by oldest attempts. A database version
-check prevents stale results from committing after a correction; changed source
-content clears old SEO copy immediately. No SEO error rolls back publication.
+Deferred or failed articles keep their existing metadata/fallback. Saving compares
+the original source fields with the current database row, rejecting results if
+the source changed during inference. Existing copy is refreshed on the next daily
+selection, not immediately when content changes. No SEO error rolls back publication.
 `seo_metadata` records model, prompt/version fingerprint, content fingerprint,
 and generation time. Only the title and description are granted to the web reader.
-Saved copy and invalidations emit the existing durable publication cache events.
+Saved copy is picked up by the website through normal cache expiry. No webhook
+or notification dispatcher is required.
 
 Apply the migration before deploying the updated worker. The website detects
 missing columns/grants and keeps working with its existing fallback description.
@@ -50,10 +50,9 @@ uv run python -m pipeline.backfill_seo --limit 20 --after-id 0
 
 Add `--execute` to generate and persist copy with the configured inference
 credentials. Continue with the returned `last_id`; do not loop automatically.
-The default preview lists a superset because it does not load the model identity;
-execution skips matching saved versions. Active retry cooldowns are respected.
-Failed/deferred historical articles can be retried by revisiting that cursor
-window; successful manual generations are not queued for daily reprocessing.
+Preview lists eligible rows without calling the model; execution skips matching
+content/model fingerprints. Failed/deferred historical articles can be retried
+by revisiting that cursor window.
 
 Before broad backfill, review a small executed batch for preserved qualifications,
 correct entities and versions, natural descriptions, unsupported claims, and
@@ -517,40 +516,17 @@ within each instance. Latest uses the bounded browse-page cache. Expired reads w
 data; failed reads show the existing unavailable state instead of retaining stale
 rankings. Concurrent callers share one load. Separate instances may differ within
 that one-minute window. With publication caching disabled, homepage and story HTML
-render per request and story data keeps its existing 30-minute cache.
+render per request and story data uses a five-minute cache.
 Builds do not connect to the database.
 See `web/README.md` for publication caching, ISR, rollback and Cloudflare policy.
 
-Migration `0024_publication_cache` adds transactional cache notifications for
-summary publication/correction/withdrawal, public images, story removals and
-fetch-failure changes. Hourly score/comment and readership updates do not enqueue
-notifications. The RLS-protected outbox is inaccessible to the website reader.
-The existing pipeline owner connection claims at most 32 events with
-`FOR UPDATE SKIP LOCKED` and a two-minute lease, committing before HTTP delivery.
-It acknowledges successful invalidate-and-warm delivery and backs failures off
-to at most 15 minutes. A terminated worker leaves recoverable rows. Duplicate
-delivery is harmless. Summarization and image workers attempt delivery after
-each completed item; `dispatch_publication_cache` retries every minute. Ingestion
-and the daily 02:00 America/New_York summarization schedules are unchanged.
+The daily worker saves article and SEO fields directly to the database. The
+website picks up changes through cache expiry. There is no publication webhook,
+notification dispatcher, or notification secret to configure.
+Migration `0026_retire_webhook` removes all six SEO/publication triggers and
+their functions, the notification outbox, and SEO queue/attempt columns. Article
+data and generated SEO copy remain intact. The daily schedule is unchanged.
 
-Set `HACKSNAP_PUBLICATION_WEBHOOK_URL` to the deployed HTTPS
-`/api/revalidate-publication` URL and the same `HACKSNAP_PUBLICATION_SECRET`
-(at least 32 random characters) in Modal and Vercel server environments. Notifications
-are disabled when either is absent, allowing additive rollout before long caching.
-Delivery failure never rolls back committed summaries. Logs report sanitized
-error types, delivery count, backlog and oldest pending age without credentials.
-
-Retry a bounded batch manually with the configured server environment:
-
-```sh
-uv run --directory hacksnap python -m pipeline.publication
-```
-
-Repeat while the backlog remains; failed or terminated deliveries remain durable.
-To use the deployed Modal secret, invoke
-`uv run --directory hacksnap modal run modal_app.py::dispatch_publication_cache`.
-Production invocation is separate from local validation. Enable the website cache
-switches only after a successful delivery; leave outbox records intact for rollback.
 On a cache miss, the stories and ingestion timestamp use one SQL query; including
 the read-only transaction setup and commit, this takes three database round trips.
 For Vercel, configure the function region close to the Supabase database
@@ -569,7 +545,7 @@ redeploy and check both the homepage and a story detail page against real data.
 URLs for Latest at `/`, dated feeds at `/YYYY/MM`, topics, and `/story/[id]` pages
 with published takeaways, including older stories. Retired archive paths are not
 advertised. Missing, NULL, empty or whitespace-only takeaways are excluded and
-serve `noindex, follow` until their takeaway is published and the page revalidates (a 30-minute cache interval).
+serve `noindex, follow` until their takeaway is published and the page revalidates (a five-minute cache interval).
 The sitemap reads story IDs in a server-only, read-only transaction on every request,
 so additions and deletions appear without a rebuild or cache purge. Builds do not
 require database access. `/robots.txt` advertises

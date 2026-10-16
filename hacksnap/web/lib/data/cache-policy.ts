@@ -13,7 +13,7 @@ export const cachePolicy = {
   feed: { ttl: () => 300_000, maxEntries: 1, maxPending: 1 },
   markdownHistory: { ttl: () => 60_000, maxEntries: 2, maxPending: 1 },
   popular: { ttl: () => 300_000, maxEntries: 2, maxPending: 2 },
-  story: { ttl: (story: unknown) => (story ? 1_800_000 : 60_000), maxEntries: 128, maxPending: 4 },
+  story: { ttl: (story: unknown) => (story ? 300_000 : 60_000), maxEntries: 128, maxPending: 4 },
   metrics: {
     ttl: (metrics: unknown) => (metrics ? 1_800_000 : 60_000),
     maxEntries: 128,
