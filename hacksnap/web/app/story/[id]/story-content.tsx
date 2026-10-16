@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { StoryVisit, SectionExposure } from "../../journey-analytics";
 import { ArticleReading } from "../../article-reading";
 import { readingContext, readingSection } from "../../../lib/reading-metadata";
@@ -160,11 +160,10 @@ export function StoryContent({
                     <div className="analysis-themes">
                       {discussion.topics.map((point, i) => (
                         <div className="analysis-theme" key={i}>
-                          <details className="analysis-theme-details" data-reading-theme>
-                            <summary {...readingSection("theme_heading", point.title, i + 1)}>
+                          <section className="analysis-theme-section">
+                            <h3 {...readingSection("theme_heading", point.title, i + 1)}>
                               <span>{point.title}</span>
-                              <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
-                            </summary>
+                            </h3>
                             <div
                               className="analysis-theme-body"
                               {...readingSection("theme_body", point.summary, i + 1)}
@@ -172,25 +171,8 @@ export function StoryContent({
                               <p>
                                 <SummaryInline text={point.summary} />
                               </p>
-                              {point.comment_ids.length > 0 && (
-                                <div className="comment-links">
-                                  <span>Source comments</span>
-                                  {point.comment_ids.map((comment, index) => (
-                                    <a
-                                      key={comment}
-                                      href={`https://news.ycombinator.com/item?id=${comment}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      aria-label={`Source comment ${comment} for ${point.title}`}
-                                    >
-                                      [{index + 1}]{" "}
-                                      <ArrowUpRight className="inline-icon" aria-hidden="true" />
-                                    </a>
-                                  ))}
-                                </div>
-                              )}
                             </div>
-                          </details>
+                          </section>
                         </div>
                       ))}
                     </div>
@@ -201,7 +183,7 @@ export function StoryContent({
                       ? "No distinct themes were identified in this summary."
                       : "No usable discussion was available for this summary."}{" "}
                     <a href={hnURL} target="_blank" rel="noopener noreferrer">
-                      Read the HN thread <ArrowUpRight className="inline-icon" aria-hidden="true" />
+                      Read the HN thread <ArrowRight className="inline-icon" aria-hidden="true" />
                     </a>
                   </p>
                 )}
@@ -226,11 +208,11 @@ export function StoryContent({
               <>
                 Read the{" "}
                 <a href={article} target="_blank" rel="noopener noreferrer">
-                  original source <ArrowUpRight className="inline-icon" aria-hidden="true" />
+                  original source <ArrowRight className="inline-icon" aria-hidden="true" />
                 </a>{" "}
                 or the{" "}
                 <a href={hnURL} target="_blank" rel="noopener noreferrer">
-                  HN discussion <ArrowUpRight className="inline-icon" aria-hidden="true" />
+                  HN discussion <ArrowRight className="inline-icon" aria-hidden="true" />
                 </a>
                 .
               </>
@@ -238,7 +220,7 @@ export function StoryContent({
               <>
                 Read the{" "}
                 <a href={hnURL} target="_blank" rel="noopener noreferrer">
-                  HN post and discussion <ArrowUpRight className="inline-icon" aria-hidden="true" />
+                  HN post and discussion <ArrowRight className="inline-icon" aria-hidden="true" />
                 </a>
                 .
               </>

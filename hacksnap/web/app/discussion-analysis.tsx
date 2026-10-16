@@ -2,78 +2,11 @@ import styles from "./discussion-analysis.module.css";
 import { SummaryInline } from "./summary-text";
 import { DiscussionTopics } from "./discussion-topics";
 import { readingSection } from "../lib/reading-metadata";
-import { ArrowUpRight, ChevronDown, Info, X } from "lucide-react";
+import { Info, X } from "lucide-react";
 import type {
   DiscussionAnalysis as Analysis,
   DiscussionAnalysisCoverage,
 } from "../lib/discussion-analysis";
-
-function SourceComment({ id, context }: { id: number; context: string }) {
-  return (
-    <a
-      className="analysis-source"
-      href={`https://news.ycombinator.com/item?id=${id}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`Read HN comment ${id}: ${context}`}
-    >
-      HN comment {id} <ArrowUpRight className="inline-icon" aria-hidden="true" />
-    </a>
-  );
-}
-
-function SourceComments({
-  id,
-  context,
-  commentIds,
-}: {
-  id: string;
-  context: string;
-  commentIds: number[];
-}) {
-  return (
-    <>
-      <button
-        type="button"
-        className="analysis-source-info analysis-source-action"
-        popoverTarget={id}
-        aria-label={`Source comments for ${context}`}
-      >
-        <Info size={16} strokeWidth={1.5} aria-hidden="true" />
-        <span>Source comments ({commentIds.length})</span>
-      </button>
-      <div
-        id={id}
-        className="analysis-source-popup"
-        popover="auto"
-        data-reading-sources
-        role="dialog"
-        aria-labelledby={`${id}-title`}
-      >
-        <div className="analysis-source-header">
-          <p id={`${id}-title`}>Source comments</p>
-          <button
-            type="button"
-            className="analysis-source-close"
-            popoverTarget={id}
-            popoverTargetAction="hide"
-            aria-label="Close source comments"
-            autoFocus
-          >
-            <X size={16} strokeWidth={1.5} aria-hidden="true" />
-          </button>
-        </div>
-        <ul className="analysis-sources" aria-label={`Source comments for ${context}`}>
-          {commentIds.map((commentId) => (
-            <li key={commentId}>
-              <SourceComment id={commentId} context={context} />
-            </li>
-          ))}
-        </ul>
-      </div>
-    </>
-  );
-}
 
 export function DiscussionAnalysis({
   analysis,
@@ -172,11 +105,10 @@ export function DiscussionAnalysis({
                   id={`discussion-topic-${topic.key}-${topicIndex}`}
                   key={`${topic.key}-${topicIndex}`}
                 >
-                  <details className="analysis-theme-details" data-reading-theme>
-                    <summary {...readingSection("theme_heading", topic.title, topicIndex + 1)}>
+                  <section className="analysis-theme-section">
+                    <h3 {...readingSection("theme_heading", topic.title, topicIndex + 1)}>
                       <span>{topic.title}</span>
-                      <ChevronDown className="analysis-theme-chevron" aria-hidden="true" />
-                    </summary>
+                    </h3>
                     <div
                       className="analysis-theme-body"
                       {...readingSection("theme_body", topic.summary, topicIndex + 1)}
@@ -184,13 +116,8 @@ export function DiscussionAnalysis({
                       <p>
                         <SummaryInline text={topic.summary} />
                       </p>
-                      <SourceComments
-                        id={`theme-sources-${topic.key}-${topicIndex}`}
-                        context={topic.title}
-                        commentIds={topic.comment_ids}
-                      />
                     </div>
-                  </details>
+                  </section>
                 </div>
               ))}
             </DiscussionTopics>

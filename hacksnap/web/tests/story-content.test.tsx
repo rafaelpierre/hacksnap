@@ -412,7 +412,7 @@ test("reader rail replaces section navigation while keeping section anchors", ()
     assert.ok(!html.includes(`href="#${id}"`));
     assert.match(html, new RegExp(`<section[^>]*id="${id}"[^>]*tabindex="-1"`));
   }
-  assert.match(html, /id="related-stories-heading">Related stories/);
+  assert.match(html, /id="related-stories-heading">Continue reading/);
 });
 
 test("ranked card footer shows points and comments without rank movement", () => {
@@ -477,7 +477,7 @@ test("new discussion replaces old points and shows only themes at the stable anc
   assert.doesNotMatch(html, /Old duplicate theme|Repeated content|skepticism-pill/);
 });
 
-test("legacy null and missing analysis keep cited discussion points without pending labels", () => {
+test("legacy null and missing analysis keep visible discussion points without source controls", () => {
   for (const discussion_analysis of [null, undefined]) {
     const legacy: Story = {
       ...story,
@@ -492,7 +492,8 @@ test("legacy null and missing analysis keep cited discussion points without pend
     };
     const html = render(createElement(StoryContent, { story: legacy, relatedStories: [] }));
     assert.match(html, /Preserved discussion/);
-    assert.match(html, /Source comment 123 for Legacy evidence/);
+    assert.doesNotMatch(html, /Source comment 123 for Legacy evidence|analysis-theme-details/);
+    assert.match(html, /<h3[^>]*><span>Legacy evidence/);
     assert.match(html, /Skepticism unavailable/);
     assert.doesNotMatch(html.replace(/<[^>]*>/g, ""), /pending|Most supportive|Most critical/i);
   }

@@ -152,12 +152,12 @@ overall_takeaway is the subtitle: one informative sentence, or two naturally con
 sentences, at most 220 characters. Add the most consequential fact beyond the headline,
 with a qualification when supported. Avoid a slogan, teaser or list of every caveat.
 
-article_summary: aim for 160-240 words when the source has enough substance. Use only
+article_summary: aim for 80-120 words when the source has enough substance. Use only
 article-body facts. Lead with who did what and the most important result, then explain
 how it works, the strongest evidence and relevant limitations supplied by the source.
 Keep test conditions and numerical comparisons precise. Distinguish proposals from
 demonstrated results and attribute company or research claims. Reserve additional
-supporting details for article_key_points: 1-6 non-repeating facts, normally 30-60 words
+supporting details for article_key_points: 3-5 non-repeating facts (fewer for sparse sources), normally 20-40 words
 each when explanation is useful. Preserve distinct details instead of compressing them
 into a headline. These are targets, not minimums. A very short
 source needs just one sentence and one key point. For a release adding streaming

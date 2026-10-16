@@ -17,9 +17,6 @@ export function DiscussionTopics({ children }: { children: ReactNode }) {
       }
       const topic = document.getElementById(id);
       if (!topic?.matches(".analysis-theme") || !container.current?.contains(topic)) return;
-      const details = topic.querySelector("details");
-      if (!details) return;
-      details.open = true;
       frame = requestAnimationFrame(() => topic.scrollIntoView({ block: "start" }));
     }
 

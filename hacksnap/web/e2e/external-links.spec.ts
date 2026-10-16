@@ -30,12 +30,8 @@ for (const javaScriptEnabled of [true, false]) {
       await page.getByRole("link", { name: title, exact: true }).first().click();
       await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
       await expect(page.locator(".article-summary a")).toHaveCount(0);
-      await page
-        .locator(".analysis-theme-details > summary")
-        .filter({ hasText: "Measuring useful work" })
-        .click();
-      await page.getByRole("button", { name: "Source comments for Measuring useful work" }).click();
-      await opensNewTab(page, page.locator(".analysis-source-popup:popover-open a").first());
+      await expect(page.locator(".analysis-source-action")).toHaveCount(0);
+      await opensNewTab(page, page.locator(".feed-story-rail a").first());
       await page.goBack();
       await expect(page).toHaveURL("/");
     });

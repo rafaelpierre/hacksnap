@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Recommendation, SectionExposure } from "./journey-analytics";
 import Link from "next/link";
 import { categoryURL, type Category } from "../lib/categories";
@@ -31,17 +31,17 @@ export function RelatedStories({
       {...(!pending && !unavailable && next.length > 0 ? readingSection("related") : {})}
     >
       {!pending && <SectionExposure storyId={currentId} section="read_next" />}
-      <h2 id="related-stories-heading">Related stories</h2>
+      <h2 id="related-stories-heading">Continue reading</h2>
       {pending ? (
         <p className="related-stories-state" role="status">
-          Loading related stories…
+          Finding more to read…
         </p>
       ) : unavailable ? (
         <p className="related-stories-state" role="status">
-          Related stories are temporarily unavailable. Browse the topic for more stories.
+          Reading suggestions are temporarily unavailable. Browse the topic for more stories.
         </p>
       ) : next.length === 0 ? (
-        <p className="related-stories-state">No related stories yet.</p>
+        <p className="related-stories-state">No further stories yet.</p>
       ) : (
         <ul className="related-story-list">
           {next.map((story, index) => (
@@ -51,7 +51,7 @@ export function RelatedStories({
                   {category && <span className="related-topic">{category.label}</span>}
                   <h3>
                     <NextStoryLink id={story.hn_id} slug={story.story_slug}>
-                      {story.title}
+                      {story.title} <ArrowRight className="inline-icon" aria-hidden="true" />
                     </NextStoryLink>
                   </h3>
                   {story.takeaway?.trim() && (
@@ -66,7 +66,7 @@ export function RelatedStories({
       )}
       <Link className="browse-latest-link" href={category ? categoryURL(category) : "/"}>
         {category ? `More in ${category.label}` : "Browse latest stories"}{" "}
-        <ChevronRight className="inline-icon" aria-hidden="true" />
+        <ArrowRight className="inline-icon" aria-hidden="true" />
       </Link>
     </section>
   );
