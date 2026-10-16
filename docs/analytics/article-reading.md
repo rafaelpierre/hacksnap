@@ -1,13 +1,18 @@
 # Article reading measurement
 
-This adds `reading_version=1` events to the existing journey contract v2. It
-measures visible content and interactions, not comprehension or exact exits.
+This adds `reading_version=1` events to the consent-gated journey contract v3
+(the original rollout used v2). It measures visible content and interactions, not comprehension or exact exits.
 The initial implementation is a single published layout, not an A/B experiment.
 
 ## Collection
 
-GA loads asynchronously on page load, including passive visits. The previous
-interaction-only loader omitted untouched visits. Do not compare bounce/engagement
+GA and PostHog start after hydration and explicit analytics consent, including
+passive visits by returning consenting readers. No section history is backfilled
+when a reader accepts mid-page. Withdrawal stops observation and discards pending
+vendor events. See [consent, privacy and release status](README.md).
+
+The earlier GA rollout loaded asynchronously on page load, including passive
+visits. The previous interaction-only loader omitted untouched visits. Do not compare bounce/engagement
 rates across this rollout without marking the collection change. An immediate
 departure before the tag loads can still be lost. Blocked scripts, disabled
 JavaScript, consent decisions and missing identity also limit coverage.
@@ -88,8 +93,8 @@ After deployment, an analytics editor should:
    reports. Do not mark automatic exposure, dwell or checkpoint events as key
    events: key events affect GA engagement/bounce classification.
 4. Verify the site's consent configuration and retain its collection choices.
-   This change adds no consent UI or override. Keep automatic form-interaction
-   collection disabled for editable share drafts.
+   The observer follows the shared Analytics preferences control. Keep automatic
+   form-interaction collection disabled for editable share drafts.
 5. Enable/verify GA4 BigQuery daily export, retention and the session timeout.
    Record the rollout time/commit and first verified production events. Configure
    local/internal-traffic exclusions; do not use synthetic traffic as a baseline.

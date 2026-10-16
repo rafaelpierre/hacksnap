@@ -169,7 +169,16 @@ test("slow and failed optional recommendations preserve the article", async ({ p
 
 test.describe("controlled continuation failure", () => {
   test.use({ expectedNetworkErrors: true });
-  test("retry keeps loaded cards and restores continuation", async ({ page }) => {
+  test("retry keeps loaded cards and restores continuation", async ({ page, context }) => {
+    await context.addInitScript(() =>
+      localStorage.setItem("hacksnap:analytics-consent:v1", "accepted"),
+    );
+    const outcomes = () =>
+      page.evaluate(() =>
+        ((window as unknown as { dataLayer: Array<ArrayLike<unknown>> }).dataLayer ?? [])
+          .filter((row) => row[0] === "event" && row[1] === "feed_load")
+          .map((row) => (row[2] as { outcome: string }).outcome),
+      );
     let fail = true;
     await page.route("**/api/browse-stories?**", async (route) => {
       if (fail)
@@ -184,6 +193,7 @@ test.describe("controlled continuation failure", () => {
     await page.locator(".home-feed-continuation").scrollIntoViewIfNeeded();
     const retry = page.getByRole("button", { name: "Try loading again", exact: true });
     await expect(retry).toBeVisible();
+    await expect.poll(outcomes).toContain("failure");
     await expect(
       page.locator(".story-list").getByRole("link", { name: title, exact: true }),
     ).toHaveCount(1);
@@ -192,6 +202,7 @@ test.describe("controlled continuation failure", () => {
     await expect(
       page.getByRole("link", { name: "Practical AI research update 20", exact: true }),
     ).toBeAttached();
+    await expect.poll(outcomes).toContain("success");
   });
 });
 
@@ -504,7 +515,13 @@ test("topic filters reuse Latest and retain selection through paging and history
   expect(legacy.headers().location).toBe("/?category=models-products&page=2");
 });
 
-test("category-only navigation and history create distinct analytics visits", async ({ page }) => {
+test("category-only navigation and history create distinct analytics visits", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() =>
+    localStorage.setItem("hacksnap:analytics-consent:v1", "accepted"),
+  );
   const visits = () =>
     page.evaluate(() => {
       const layer = (window as Window & { dataLayer?: Array<ArrayLike<unknown>> }).dataLayer ?? [];

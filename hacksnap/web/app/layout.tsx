@@ -7,7 +7,7 @@ import { SiteHeader } from "./sticky-header";
 import { MainNavigation, MobileNavigation } from "./main-navigation";
 import { TopicSidebar } from "./topic-sidebar";
 import { SiteContent } from "./site-content";
-import { analyticsBootstrap } from "../lib/analytics-bootstrap";
+import { AnalyticsPreferences } from "./analytics-preferences";
 import "./globals.css";
 import { ReaderVisit } from "./journey-analytics";
 import { StructuredData } from "./structured-data";
@@ -66,9 +66,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <StructuredData data={siteStructuredData} />
       </head>
       <body>
-        {/* Queue visits early and load GA asynchronously, including passive visits. */}
-        <Script id="google-analytics" strategy="beforeInteractive">
-          {analyticsBootstrap}
+        {/* Default-deny GA before hydration. Keep a beforeInteractive entry so
+            Next emits its stylesheet prelude before delayed streamed content. */}
+        <Script id="analytics-consent-default" strategy="beforeInteractive">
+          {'window["ga-disable-G-059PVYBN82"]=true;'}
         </Script>
         <Suspense fallback={null}>
           <ReaderVisit />
@@ -94,6 +95,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <SiteContent>{children}</SiteContent>
           </main>
         </div>
+        <AnalyticsPreferences />
       </body>
     </html>
   );

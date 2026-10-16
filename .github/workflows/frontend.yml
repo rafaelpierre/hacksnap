@@ -157,7 +157,7 @@ jobs:
             ~/.cache/ms-playwright
           # The fixture contains absolute paths. Match its workspace and every build input.
           # No fallback keys: runtime changes must rebuild the fixture application.
-          key: frontend-chromium-${{ steps.browser-image.outputs.os }}-${{ runner.arch }}-${{ github.workspace }}-${{ hashFiles('hacksnap/web/app/**', 'hacksnap/web/lib/**', 'hacksnap/web/certs/**', 'hacksnap/web/public/**', 'hacksnap/web/proxy.ts', 'hacksnap/web/next.config.ts', 'hacksnap/web/tsconfig.json', 'hacksnap/web/next-env.d.ts', 'hacksnap/web/package.json', 'hacksnap/web/package-lock.json', 'hacksnap/web/e2e/fixtures/**', 'hacksnap/web/scripts/browser-app.mjs', '**/.npmrc', '.github/actions/frontend-dependencies/action.yml') }}
+          key: frontend-chromium-${{ steps.browser-image.outputs.os }}-${{ runner.arch }}-${{ github.workspace }}-${{ hashFiles('hacksnap/web/app/**', 'hacksnap/web/lib/**', 'hacksnap/web/certs/**', 'hacksnap/web/public/**', 'hacksnap/web/proxy.ts', 'hacksnap/web/instrumentation-client.ts', 'hacksnap/web/next.config.ts', 'hacksnap/web/tsconfig.json', 'hacksnap/web/next-env.d.ts', 'hacksnap/web/package.json', 'hacksnap/web/package-lock.json', 'hacksnap/web/e2e/fixtures/**', 'hacksnap/web/scripts/browser-app.mjs', '**/.npmrc', '.github/actions/frontend-dependencies/action.yml') }}
       - name: Build fixture app while installing Chromium
         if: steps.changes.outputs.browser != 'false' && steps.browser-cache.outputs.cache-hit != 'true'
         run: |
@@ -249,7 +249,7 @@ jobs:
             ~/Library/Caches/ms-playwright
           # The fixture contains absolute paths. Match its workspace and every build input.
           # No fallback keys: runtime changes must rebuild the fixture application.
-          key: frontend-webkit-${{ steps.browser-image.outputs.os }}-${{ runner.arch }}-${{ github.workspace }}-${{ hashFiles('hacksnap/web/app/**', 'hacksnap/web/lib/**', 'hacksnap/web/certs/**', 'hacksnap/web/public/**', 'hacksnap/web/proxy.ts', 'hacksnap/web/next.config.ts', 'hacksnap/web/tsconfig.json', 'hacksnap/web/next-env.d.ts', 'hacksnap/web/package.json', 'hacksnap/web/package-lock.json', 'hacksnap/web/e2e/fixtures/**', 'hacksnap/web/scripts/browser-app.mjs', '**/.npmrc', '.github/actions/frontend-dependencies/action.yml') }}
+          key: frontend-webkit-${{ steps.browser-image.outputs.os }}-${{ runner.arch }}-${{ github.workspace }}-${{ hashFiles('hacksnap/web/app/**', 'hacksnap/web/lib/**', 'hacksnap/web/certs/**', 'hacksnap/web/public/**', 'hacksnap/web/proxy.ts', 'hacksnap/web/instrumentation-client.ts', 'hacksnap/web/next.config.ts', 'hacksnap/web/tsconfig.json', 'hacksnap/web/next-env.d.ts', 'hacksnap/web/package.json', 'hacksnap/web/package-lock.json', 'hacksnap/web/e2e/fixtures/**', 'hacksnap/web/scripts/browser-app.mjs', '**/.npmrc', '.github/actions/frontend-dependencies/action.yml') }}
       - name: Build fixture app while installing WebKit
         if: steps.changes.outputs.browser != 'false' && steps.browser-cache.outputs.cache-hit != 'true'
         run: |

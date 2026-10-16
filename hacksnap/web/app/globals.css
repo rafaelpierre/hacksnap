@@ -1442,3 +1442,58 @@ dialog.share-panel::backdrop {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Consent UI is part of the initial stylesheet, including streamed pages. */
+.analytics-preferences-footer {
+  width: min(100% - 2 * var(--page-gutter), var(--page-width));
+  margin: var(--space-6) auto;
+  font-size: var(--text-sm);
+}
+.analytics-preferences-settings {
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  text-decoration: underline;
+}
+.analytics-preferences-panel {
+  position: fixed;
+  inset-inline-end: min(var(--page-gutter), 16px);
+  bottom: var(--space-4);
+  z-index: 60;
+  width: min(36rem, calc(100vw - 2 * min(var(--page-gutter), 16px)));
+  max-height: 75dvh;
+  overflow-y: auto;
+  max-width: var(--reading-width);
+  margin-top: var(--space-3);
+  padding: min(var(--space-5), 20px);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.analytics-preferences-panel h2 {
+  font-size: var(--text-body);
+  margin-bottom: var(--space-3);
+}
+.analytics-preferences-panel p + p {
+  margin-top: var(--space-3);
+}
+.analytics-preferences-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.analytics-preferences-actions button {
+  flex: 1 1 10rem;
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--accent);
+}
+.analytics-preferences-actions button:hover {
+  background: var(--accent-soft);
+}

@@ -1,190 +1,311 @@
-# Engagement measurement (issue #15)
+# Hacksnap journey analytics
 
-For section reach, dwell, theme interactions and observed stopping points, see
-[article reading measurement](article-reading.md) and its BigQuery report.
-Reading events extend the existing journey contract without changing its v2 rates.
-The new asynchronous GA loader changes passive-visit coverage; mark its rollout
-when comparing historical engagement and bounce metrics.
+## Release status
 
-## Contract v2
+The v3 client integration adds opt-in PostHog alongside GA4. Production delivery,
+replay masking, heatmap rendering and baseline values are **unverified** until an
+authorized release is checked. Local fixture results are not production measurements.
 
-This extends the event names and share placements merged in PR #21. Version 2
-changes story/recommendation deduplication from tab sessions to route occurrences and
-adds explicit visit IDs, copy attempts and recommendation positions. Do not pool
-v1 and v2 rates. [The v1 contract](engagement-baseline.md) remains a historical reference.
+On 2026-10-16, EU project **308138** was matched to the supplied public project token.
+Replay was enabled for 10% of consenting sessions, minimum duration was set to zero,
+and project-level console/performance recording was disabled. Heatmaps were enabled
+with these three saved capture rules:
 
-Custom GA4 events contain `contract_version=2` and a random `visit_id` for each
-pathname occurrence. Re-rendering, Strict Mode effect replay, and query-only changes
-do not create visits. A → B → A and a hard reload each create a fresh visit. Browser
-Back counts as a visit. The existing optional 30-day return anchor in local storage is retained.
-GA supplies pseudonymous reader/session IDs and device/acquisition dimensions.
+- `https://hacksnap.live/`
+- `https://hacksnap.live/story/*`
+- `https://hacksnap.live/topics`
 
-| Event | Trigger | Additional parameters |
-| --- | --- | --- |
-| reader_visit | Hydrated route occurrence | none |
-| story_view | Existing story page mounts | story_id |
-| story_click | Local story link activated by primary/keyboard/modified/middle click, once per visit and target story | story_id |
-| recommendation_exposure | At least 50% of a recommendation is visible, once per visit/source/target/position | story_id, target_story_id, position (1-based) |
-| recommendation_click | Recommendation link activated by primary/keyboard/middle click, once per opportunity | same as exposure |
-| share_menu_open | Closed menu opens | story_id |
-| share_destination_select | Network/email destination selected | story_id, destination |
-| share_copy_attempt | Copy link/post requested | story_id, copy_kind (link/post) |
-| share_copy_success | Clipboard write resolves | same as attempt |
-| share_copy_failure | Clipboard unavailable or write rejected | same as attempt |
-| share_manual_fallback | Failed attempt offers selectable text | same as attempt |
-| return_visit | Existing anchor qualifies after 24 hours through 30 days; same-day loads preserve it | observation_window_days=30, days_since_visit_anchor |
-| story_return | Contextual return link activated | none |
-| home_story_open | Homepage story after the first ten activated by primary, keyboard, or middle click; modified clicks count when the link opens | story_id, position (1-based), placement=home_feed |
-| home_feed_load | A continuation request settles; fetched cards alone are not story opens | trigger (auto/manual), outcome (success/empty/failure/expired), position (loaded card count after success, prior count otherwise) |
-| home_feed_end | The rendered selection has no next page, once per route occurrence | outcome (exhausted/selection_limited), position (loaded card count) |
+The three dashboards exist and their queries execute against the currently empty
+production dataset:
 
-Clicks establish exposure if the observer has not fired. Without IntersectionObserver,
-only clicked recommendations are observed; exclude unsupported browsers from CTR
-comparisons where identifiable. Exposure requires no dwell time. Right-click context
-menu opening is not a click; context-menu navigation cannot be measured reliably.
-Repeated intentional share/copy actions count independently. Destination selection
-is not evidence of publication. Manual fallback is not evidence of a completed copy.
-Pending-summary story pages count; missing/404 stories do not.
-Homepage continuation events distinguish actual deeper-story opens from background
-batch requests. `home_story_open` measures link activation in the feed; `story_view`
-measures a mounted story page, so navigation failures and new-tab blocking can
-produce different counts. An `empty` load means a successful page contained no
-cards. `selection_limited` means the frozen 400-story cap was reached; it does not
-claim that all archived content is exhausted. Loading events are absent when
-JavaScript is disabled, even though ordinary page links remain available.
+- [Acquisition and exits](https://eu.posthog.com/project/308138/dashboard/1028900)
+- [Reading journeys](https://eu.posthog.com/project/308138/dashboard/1028901)
+- [Retention and quality](https://eu.posthog.com/project/308138/dashboard/1028902)
 
-Share events preserve placement=feed/story_top/story_end; recommendation events
-preserve placement=read_next. Destination values remain lowercase.
+[posthog-dashboards.json](posthog-dashboards.json) preserves their query definitions
+and IDs. These are derived project definitions, not certified Data Catalog metrics.
+The starter dashboard was left unchanged. Do not interpret pre-release zeros as a baseline.
 
-The helper allowlists fields. Never pass editable drafts, titles, URLs, emails, or
-query strings. Destination controls open URLs on activation without putting edited
-text into anchor URLs, avoiding GA automatic outbound-link collection of drafts.
-Do not enable GA form-interaction collection or DOM/text scraping for share drafts.
-Analytics calls are best effort, queue before GA loads, and catch failures. Navigation
-and copying must remain functional with blocked scripts, storage, and analytics.
+## Configuration and consent
 
-## Measures and reproducible analysis
+Install dependencies with Node 22 and `npm ci` in `hacksnap/web`. Set these public
+build-time variables in an ignored `.env.local` and the hosting provider:
 
-Homepage “Most read” ranks eligible story pages by historical GA page views
-plus first-party story-page views. Clicks are collected separately and never
-added to the view ranking. This feature does not change the GA engagement
-denominators below.
+```dotenv
+NEXT_PUBLIC_POSTHOG_ENABLED=true
+NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=<the supplied phc_ project token>
+NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
+```
 
-The initial supplied GA report contains six story paths, totalling 392 **Views**:
-49802871 (322), 49849985 (20), 49849820 (18), 49765348 (12), 49891290 (12),
-and 49771110 (8). Ignore the report's homepage, archive, category and preview
-rows, Active users and Event count columns. This is a `ga_page_views` baseline,
-not a historical custom `story_view` event count. The supplied date range is
-“since website deployment”; exact start and cutoff timestamps were not supplied.
-The seed retains all six stories so the current sixth can compete with the top
-five.
+The three production variables were saved in Vercel on 2026-10-16 for the next
+authorized build; no deployment was triggered. Preview has no PostHog configuration.
+The ignored local configuration uses the supplied token with the switch off to keep
+development traffic out of this project. `.env.example` documents the same default.
 
-Import with `--apply --activate-tracking` before enabling the first-party writer
-connection. The baseline and activation marker are committed together; the writer
-accepts no events without that marker. After activation, only an identical
-reimport is allowed. A GA cutoff compared with database receipt time cannot prove
-that delayed events are absent from the baseline. Before activation, replacement
-imports preserve first-party totals and reject evidence of earlier collection.
-Refresh the export before activation when possible: activity between the supplied
-snapshot and collection activation is unmeasured.
+Only the public project token belongs in the browser. Never use a personal or
+secret API key. Missing configuration, a host other than the EU ingestion host,
+or `NEXT_PUBLIC_POSTHOG_ENABLED` other than `true` disables PostHog. GA4 remains
+independently consent-gated. Changing a public variable requires rebuilding.
 
-First-party delivery is best effort and independent of the lazy GA download.
-Client-side measurements miss JavaScript-disabled or blocked collection and
-are not unique-reader counts. See [web configuration](../../hacksnap/web/README.md)
-and the [historical import](../../data/seeds/README.md) for setup and rollout.
+The small `instrumentation-client.ts` entry installs a consent-aware runtime.
+After hydration and acceptance it dynamically imports the pinned `posthog-js`
+SDK. Returning consenting readers need no further interaction. GA4 also loads
+asynchronously after consent, preserving passive-visit coverage
+from the article-reading rollout on main. Neither provider waits for another input
+from a returning consenting reader; very early exits can still interrupt loading.
+No server SDK, proxy or database change is included. A tiny inline bootstrap sets
+GA to disabled before hydration; it emits nothing and preserves Next's early
+stylesheet prelude on delayed streamed pages.
 
-Run [engagement.sql](engagement.sql) against completed GA4 BigQuery daily exports.
-Replace the dataset and example dates; dates in the SQL are placeholders, not recorded
-collection dates. Use UTC for window boundaries. Export may lag up to 72 hours; wait
-for daily tables to settle and save query text, job ID, export range, and results.
+The nonmodal preference offers equally prominent Allow and Decline controls,
+explains masked replay, supports Escape, and stays available through the footer's
+Analytics preferences button. Unknown, declined or unavailable storage means no
+vendor events, identifiers, SDK download or buffered replay. Acceptance starts a
+fresh visit on the current page; earlier activity is not backfilled. Repeated
+acceptance does not duplicate it. Withdrawal stops capture/recording, drops pending
+events and clears analytics storage/cookies. Storage events synchronize tabs.
+Requests already transmitted before withdrawal cannot be recalled.
 
-1. **Second-story visit rate:** sessions with at least two distinct story IDs / sessions
-   with at least one story. Reloading the same story cannot satisfy the numerator.
-   Session identity is `(user_pseudo_id, ga_session_id)`; configure/verify GA's 30-minute
-   inactivity timeout. The query scans a one-day lead-in and seven-day tail, excludes
-   sessions first seen reading before the cohort window, and includes later story
-   visits in the same session. Very long sessions beyond these bounds are a limitation.
-2. **Recommendation CTR:** exposed opportunities with a click / exposed opportunities,
-   keyed by visit, source story, target story and position. Never use page loads as
-   the exposure denominator. The query reports each position separately.
-3. **Sharing:** visits with both a menu open and destination selection / visits with a
-   menu open. Also report raw menu/destination counts and copy successes / copy attempts
-   separately for link/post, with failure and fallback counts. A copy pending at the
-   collection boundary can leave an unmatched attempt; allow completion time and
-   report mismatches. No claimed publication or manual-copy completion rate.
-4. **Seven-day return rate:** readers with a visit in a different GA session within
-   seven elapsed days after their first observed visit in the cohort / identifiable
-   readers first observed in the cohort. This is first observed in this collection,
-   not first-ever or GA's new-user classification. Compute the first visit across
-   the entire scanned range, including the lead-in day, before applying cohort
-   boundaries. Readers first seen on that lead-in day are excluded; activity
-   before the scanned range remains unknown. Allow seven full days of follow-up
-   for every reader. Same-session repeat visits are not returns.
+First-party `/api/story-events` popularity collection and functional story/scroll
+history remain independent. Acceptance and withdrawal never replay their story
+views. Most read still uses historical GA page-view seeds plus first-party views;
+clicks do not enter its ranking. See [the web README](../../hacksnap/web/README.md)
+and [seed documentation](../../data/seeds/README.md).
 
-Split results by device and GA first-user acquisition source, as in the SQL; that
-source is not session traffic attribution. Compare the same weekdays, campaign mix,
-contract version, eligibility and device cohorts. Keep unknown attribution separate.
-Readers can clear cookies/change devices; consent, blockers, missing GA IDs and bots
-limit coverage. The report includes missing-ID counts; reading and return measures
-exclude them. Custom events are not a census. Avoid high-cardinality GA UI custom
-dimensions for visit IDs; BigQuery event_params suffice. Do not infer targets from
-synthetic test traffic.
+## Privacy boundaries
 
-## Baseline register — pending
+SDK defaults are pinned to `2026-05-30`, with explicit pageview, pageleave,
+autocapture and recording options. Person profiles are disabled; no account
+identification, aliasing or server identity is used. Anonymous browser/session IDs
+can change after withdrawal, cookie clearing or browser/device changes.
 
-As of 2026-09-26 this branch has instrumentation, not deployed measurements.
+- The route lifecycle owns pageviews and pageleaves. Automatic pageviews are off.
+- Click autocapture masks text and attributes. Copied-text/form capture is off.
+- Replay masks every input and blocks the share editor, manual-copy fallback and
+  elements marked `data-analytics-private`. Console, headers, response/request
+  bodies and cross-origin iframe recording are off.
+- Event sanitization strips raw queries, hashes, campaign fields, element text,
+  element attributes and titles, including nested SDK properties. Referrers retain
+  only origins/domains. Replay metadata and URL attributes have separate masking.
+- Custom actions use IDs, enums, positions and destination types; never pass draft
+  content, emails, source comment text or raw outbound URLs.
 
-| Item | Status |
+The pinned SDK has no discard-only shutdown. Its normal shutdown flushes pending
+batches. Withdrawal closes its dispatch gate after disabling collection and
+persistence; the browser regression test must keep proving that queued batches,
+late retries and unload cannot send after withdrawal. Revalidate this behavior
+before upgrading the SDK.
+
+In GA4 property settings, keep enhanced automatic history pageviews and form/
+outbound collection disabled: the app owns route and onward-action events.
+Confirm those settings and actual GA requests during production verification.
+
+## Contract v3
+
+A route identity is **pathname plus sorted query parameters, excluding `journey`**.
+Filter and pagination changes create visits. Reordered parameters, transient
+journey tokens, rerenders and Strict Mode effect replay do not. A → B → A,
+Back/Forward, a restored document and a reload create new vendor visits.
+Raw query values are used only in memory for deduplication. Valid category IDs
+and bounded pagination numbers may be emitted as structured fields.
+
+Custom events retain their names and carry `contract_version=3` plus a random
+`visit_id`. PostHog adds anonymous session/device fields. `route_type`, category,
+layout version and sanitized referrer support segmentation. PostHog also records
+`landing_page_type` for the session and `reader_type=first_observed|returning`.
+“First observed” is browser-scoped, not first-ever or an account signup.
+
+| Event | Meaning and fields |
 | --- | --- |
-| Production deployment time / commit | Pending deployment |
-| GA property access, BigQuery export and retention | Pending verification by analytics owner |
-| Session timeout and draft/form collection settings | Pending property verification |
-| Collection start/end and mature follow-up end | Pending first production event verification |
-| Reading sessions / second-story sessions / rate | Pending observations |
-| Exposures / clicked exposures / CTR by position | Pending observations |
-| Menu visits / destination visits, copy attempts / outcomes | Pending observations |
-| Eligible readers / seven-day returns / rate | Pending mature observations |
-| Device/source counts and exclusions | Pending report |
-| Improvement targets and justification | Pending measured baseline |
+| `$pageview` / GA `page_view` | One per consenting route occurrence; canonical public URL |
+| `$pageleave` / GA `page_leave` | Navigation or document exit; duration and maximum scroll/content percentage |
+| `reader_visit` | Hydrated consenting route occurrence |
+| `story_view` | Existing story mounts or is current at acceptance; story_id, category_id, summary_state ready/pending |
+| `story_click` | Internal story activation, once per target/visit; story_id, placement, category_id and feed position when available |
+| `feed_story_exposure` | At least 50% of a feed card visible; deduplicated across virtual remounts by story/position/visit |
+| `feed_load` | Current-feed request settles; trigger auto/manual, outcome success/empty/failure/cancelled, cumulative loaded_count and feed_page |
+| `feed_end` | Current feed has no next page; exhausted/selection_limited, cumulative loaded_count and feed_page |
+| `story_section_view` | Visible summary, discussion or read_next marker, once per visit/section |
+| `story_engagement` | Cumulative active_seconds; maximum per visit is the measure, never sum snapshots |
+| `outbound_click` | Destination article, hn_thread or hn_comment; story_id and placement, no destination URL/text |
+| `recommendation_exposure` | At least half a recommendation visible; story_id, target_story_id, position and placement=read_next |
+| `recommendation_click` | Activation of the same visible opportunity; click also establishes exposure |
+| `share_menu_open` | Share menu opens; story_id and placement |
+| `share_destination_select` | Destination selected; lowercase destination; intent only, not publication |
+| `share_copy_attempt/success/failure` | Requested clipboard write and its resolved/rejected outcome; copy_kind link/post |
+| `share_manual_fallback` | Selectable text offered after failure; not evidence of completed copy |
+| `story_return` | Contextual return activation |
+| `return_visit` | Retained 24-hour-to-30-day anchor diagnostic; not the seven-day cohort metric |
 
-No pre-release baseline was available during implementation. Label the first collected
-window **first observed post-release baseline**, not a before/after UX improvement.
-Start with two complete weeks, plus seven days return follow-up and export lag. Report
-counts and 95% Wilson intervals for each proportion. Extend collection if cohorts
-remain too sparse for the intended decision; choose a meaningful detectable change
-and calculate required sample sizes before setting targets. Record the chosen target,
-interval, sample size, cohort and rationale here. Do not close #15 until property
-access, deployment, measured counts/rates and justified targets are recorded, or
-remaining work is explicitly assigned and tracked in a follow-up issue.
+The current Latest feed does **not** emit the legacy ranked-feed
+`home_story_open`, `home_feed_load` or `home_feed_end` contract. Those names remain
+supported for historical code/report compatibility; do not mix them with the
+current `feed_*` events. Pending stories count as views; missing stories do not.
 
-## Controlled checks
+Active reading accumulates only while the document is visible, focused and within
+60 seconds of reader activity. Navigation/acceptance starts the initial window;
+pointer, keyboard, focus and scroll input renew it. Cumulative snapshots occur every
+15 seconds and at visibility/exit boundaries. Unchanged idle snapshots are skipped.
+Exposure has a 50% visibility threshold and no dwell requirement. Without
+IntersectionObserver, only clicked opportunities are proven visible. Context-menu
+navigation cannot be measured reliably; keyboard, modified and middle clicks are
+covered. Intentional repeated sharing actions remain separate events.
 
-Run `npm run test:analytics`, `npm run test:share`, `npm run test:categories` and
-`npm run typecheck` in hacksnap/web. The analytics tests cover route recurrence,
-deduplication, exposure/click counting, content allowlisting, queued events and failed
-sinks. The DOM test renders the production components under React Strict Mode and
-checks visibility thresholds, repeated renders, query-only changes, navigation,
-middle clicks without IntersectionObserver, destination selection, copy resolution,
-denied/missing clipboard and a throwing analytics sink. Copy helper tests also
-verify asynchronous clipboard success/rejection.
+The detailed `reading_version=1` article events added on main are preserved under
+contract v3 and share the consent gate. See [article reading](article-reading.md)
+for section dwell, theme toggles, source actions and checkpoints. Their observer
+starts fresh on acceptance, stops on withdrawal, and binds late checkpoints to
+the original route and consent epoch. Use `story_engagement` for the headline
+active-seconds measure; do not add the two cumulative clocks together.
 
-Before deployment, capture `dataLayer` or use GA DebugView on desktop and phone:
+## Measures and dashboards
 
-- Browse → story A → visible recommendation → story B → contextual return → Back.
-  Expect distinct route visit IDs, one story event per story occurrence, and one
-  exposure/click per recommendation opportunity. Re-render and scroll away/back;
-  there must be no extra exposure. Test keyboard and middle-click as well.
-- Open/close/reopen Share: two opens. Select each destination: selection only.
-  Copy link and an edited post: attempt then success only after write resolves.
-  Deny clipboard: attempt, failure, manual fallback, and no success.
-- Inspect all GA requests: no draft contents or destination URLs containing drafts.
-  Block GA and deny storage; repeat navigation and successful/failed copy journeys.
-- Wait out the configured session timeout and return; verify a different GA session
-  ID under the same reader. Validate the report against a separately marked test
-  property before production collection. Do not include test traffic in the baseline.
+1. **Second-story rate:** sessions with two or more distinct story IDs divided by
+   sessions with at least one. Reloading one story cannot qualify. The dashboard
+   uses complete UTC days and splits by device. Boundary sessions can span the
+   selected period; retain this limitation when comparing windows.
+2. **Seven-day return:** consenting browser identities with a pageview in another
+   session within seven elapsed days of their first observed pageview. First
+   observation is searched from the rollout collection floor, then only cohorts
+   at least seven days old are admitted. Never treat an immature cohort as zero.
+3. **Recommendation CTR:** clicked visible opportunities / visible opportunities,
+   split by position. One opportunity is visit/source/target/position. Keep counts
+   alongside rates; page loads are not the exposure denominator.
+4. **Active reading:** median of each story visit's maximum active seconds, and
+   share reaching 30 seconds. Include story views without a snapshot as zero.
+5. **Native bounce:** PostHog's definition is one pageview, no autocapture events,
+   and less than 10 seconds (subject to the project's configurable threshold).
+   The native dashboard is displayed separately from the custom measure below.
+6. **Low-engagement exit:** a closed session with one pageview, under 30 active
+   seconds and no story/recommendation click, source click, confirmed copy or
+   contextual return. Closed means no events for 30 minutes. Heartbeats,
+   exposures and generic autocapture are not useful actions for this measure.
+   Destination selections remain visible separately as unconfirmed intent.
 
-Browser/DebugView checks and live BigQuery execution remain pending; local helper
-checks do not establish production delivery or replace the release checklist above.
+Segment by device, landing-page type, referrer domain, category and first-observed/
+returning reader. Native insight filters can be changed in PostHog. SQL-backed
+headline tiles contain explicit windows and grouping; edit their saved query when
+changing those segments/windows rather than assuming dashboard filters rewrite SQL.
+
+The consent rollout changes who is measured. Do not compare its rates directly
+with the previous unrestricted GA4 population or pool contract versions.
+[engagement.sql](engagement.sql) defaults to v3 and accepts exactly one version;
+[engagement-v2.md](engagement-v2.md), [engagement-baseline.md](engagement-baseline.md)
+and its v1 query preserve historical definitions and dated evidence.
+
+## Free allowances and heatmaps
+
+Billing UI checked 2026-10-16: the organization is on the free plan, with no paid
+upgrade, a 1-million product-event limit and 5,000 web replays per billing cycle.
+The current cycle runs October 16–November 15. Heatmap ingestion is free and the
+free plan supports three capture rules. Product events are unsampled; replay
+starts at 10% of consenting sessions, with no short-session filter.
+
+The free plan has no editable dollar caps until a payment card is added. Do not
+add a card or upgrade for this release. Its free allowances enforce the zero-spend
+intent. If billing is enabled later, set each used product's limit to **$0 before
+collecting more**, preserve free-allowance alerts and verify the limits in the UI.
+PostHog documents owner alerts at 80% and 100% of free allowances/limits. Hitting a
+limit loses subsequent data: annotate collection gaps and extend the baseline;
+there is no later backfill.
+
+Use the in-app Heatmaps tool with screenshots or recording snapshots. Toolbar
+heatmaps require a paid plan. Preserve the site's iframe protection; do not loosen
+CSP or frame headers. Saved screenshot heatmaps require an exact page URL, so pick
+representative stories under the `/story/*` capture rule after release. Verify a
+mobile and desktop background before declaring heatmaps ready.
+
+Compare mobile and desktop separately. Feed contents change and story lengths
+vary, so coordinate maps across those pages are exploratory. Section markers and
+story-position events are the reliable comparison units. The current UI notes
+capture-rule enforcement is being rolled out. The client also drops heatmap points
+outside these three rules and strips query/hash text from heatmap URL keys.
+
+## Validation and release
+
+Run Node 22 `npm ci`, `npm run lint`, `npm run format:check`, `npm run test:ci`,
+`npm run typecheck`, `npm run build` and `npm run test:browser:ci` from `hacksnap/web`.
+The browser fixture explicitly copies instrumentation-client.ts, substitutes a
+dummy public token and serves all PostHog/GA requests locally. No test traffic
+should reach the production project. Other external requests still fail tests.
+
+Before release, verify:
+
+- Unknown, decline, accept, withdraw, reaccept, cross-tab and blocked storage.
+  Acceptance mid-story produces one vendor pageview/story view and no extra
+  first-party popularity view. No pre-consent replay buffering.
+- Filter/pagination changes, reordered queries, Strict Mode, new tabs, Back/Forward,
+  document exit and restored documents. One pageview per occurrence.
+- Foreground/idle reading time, virtualized exposure deduplication, recommendation
+  denominators, clipboard outcomes, empty/failed/cancelled feed loads.
+- Actual event requests and decoded replay snapshots containing test query/hash/
+  draft markers. They must be absent. Check analytics-blocked reading/navigation.
+- Consent controls at 320px, desktop and 200% text, with keyboard navigation;
+  existing route asset, image, font and layout budgets remain passing.
+
+After an authorized production release, record deployed commit/time, confirm both
+providers' event delivery, inspect replay input/share/URL masking, render the three
+heatmap rules, reconcile a small controlled journey against dashboard counts,
+and recheck billing/free allowances and GA automatic-collection settings. Only
+then record the baseline start. Production verification is still outstanding.
+
+## Improvement cycle and rollback
+
+Collect two complete weeks after verified production delivery, then allow seven
+more days for return cohorts to mature. Extend collection when traffic is too low.
+Record numerator/denominator, device and acquisition mix, exclusions, collection
+gaps and confidence intervals. No improvement targets are justified yet.
+
+Review funnel drop-offs, heatmaps and representative short and long replays together.
+The initial investigation backlog is:
+
+1. Whether readers reach Related stories (the read_next section) below discussion
+   and sharing, and whether visible recommendations lead to a second distinct story.
+2. Whether mobile readers discover topic navigation and return to the feed.
+3. Whether load failures or scroll restoration interrupt continued reading.
+
+For each later change, record evidence, hypothesis, primary metric, guardrails,
+required sample and stopping rule; implement one change behind a feature flag.
+Use second-story rate or seven-day return as primary outcomes, with reading time,
+useful onward actions and bounce as supporting evidence. Report insufficient
+samples as inconclusive. Longer sessions alone do not establish improvement.
+
+Rollback PostHog by setting `NEXT_PUBLIC_POSTHOG_ENABLED=false` and rebuilding.
+For immediate collection control, disable replay/heatmaps in the project as needed.
+To withdraw both providers, use Analytics preferences. A code rollback must retain
+the consent gate; do not restore unconditional GA loading. Keep historical data and
+queries versioned instead of deleting them.
+
+## References
+
+- [Next.js integration](https://posthog.com/docs/libraries/next-js)
+- [Replay privacy controls](https://posthog.com/docs/session-replay/privacy)
+- [Native bounce definition](https://posthog.com/docs/web-analytics/dashboard)
+- [Heatmaps and free-plan URL rules](https://posthog.com/docs/toolbar/heatmaps)
+- [Billing limits and alerts](https://posthog.com/docs/billing/limits-alerts)
+
+## Local validation — 2026-10-16
+
+Node 22 validation passed after integration with the current main branch:
+`npm ci`, lint, formatting, all **482 Jest tests (87 suites)**, typechecking,
+production build, cache smoke and all **198 browser checks** (Chromium and iPhone
+WebKit). Existing asset/rendering budgets were unchanged. The delayed-content
+layout check also passed four parallel reproductions after preserving the early
+stylesheet prelude.
+
+Real SDK requests were intercepted locally and decoded, including flags, events,
+heatmap URL keys and replay snapshots. Synthetic query/hash/input/draft markers
+were absent. Withdrawal stopped later requests and removed identifiers. Tests
+covered consent transitions, cross-tab changes, blocked storage/vendors, missing
+configuration, route/query/history deduplication, first-party counts, active-time
+boundaries, late callbacks, clipboard outcomes and feed failures. Cached server
+rendering and browser-restored visits were included.
+
+Consent controls passed keyboard and Axe checks at 320px/1280px and 100%/200% text.
+Reviewed screenshots: [mobile](ui/consent-320.png), [desktop](ui/consent-desktop.png).
+These are synthetic fixtures, not production evidence. Live GA delivery/settings,
+PostHog delivery, replay rendering/masking and heatmap backgrounds still require
+post-release verification before the baseline starts.
 
 ## Original branch validation — 2026-09-26
 

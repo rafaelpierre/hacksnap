@@ -9,14 +9,24 @@ export const test = base.extend<{ browserErrors: string[]; expectedNetworkErrors
   browserErrors: [
     async ({ page, context, baseURL, expectedNetworkErrors }, use) => {
       const errors: string[] = [];
+      await context.addInitScript(() => {
+        try {
+          if (!localStorage.getItem("hacksnap:analytics-consent:v1"))
+            localStorage.setItem("hacksnap:analytics-consent:v1", "declined");
+        } catch {
+          /* Some tests deliberately block storage. */
+        }
+      });
       page.on("pageerror", (error) => errors.push(error.message));
       page.on("console", (message) => {
         if (
           message.type() === "error" &&
           !(
             expectedNetworkErrors &&
-            /Failed to load resource.*503/.test(message.text()) &&
-            message.location().url.includes("/api/browse-stories")
+            ((/Failed to load resource.*503/.test(message.text()) &&
+              message.location().url.includes("/api/browse-stories")) ||
+              (/ERR_BLOCKED_BY_CLIENT/.test(message.text()) &&
+                /^https:\/\/(eu|eu-assets)\.i\.posthog\.com\//.test(message.location().url)))
           )
         )
           errors.push(message.text());
@@ -44,7 +54,42 @@ export const test = base.extend<{ browserErrors: string[]; expectedNetworkErrors
         } else if (url.origin === baseURL) await route.continue();
         else if (url.hostname === "www.googletagmanager.com")
           await route.fulfill({ contentType: "application/javascript", body: "" });
-        else {
+        else if (["eu.i.posthog.com", "eu-assets.i.posthog.com"].includes(url.hostname)) {
+          // All PostHog endpoints are local responses, including replay assets.
+          // Never forward fixture traffic or its dummy project token to a vendor.
+          if (
+            [
+              "recorder.js",
+              "lazy-recorder.js",
+              "web-vitals-with-attribution.js",
+              "dead-clicks-autocapture.js",
+            ].includes(path.basename(url.pathname))
+          ) {
+            await route.fulfill({
+              contentType: "application/javascript",
+              body: await readFile(
+                path.resolve("node_modules/posthog-js/dist", path.basename(url.pathname)),
+              ),
+            });
+          } else if (url.pathname.endsWith(".js")) {
+            await route.fulfill({ contentType: "application/javascript", body: "" });
+          } else if (url.pathname.startsWith("/flags") || url.pathname.includes("/config")) {
+            await route.fulfill({
+              json: {
+                featureFlags: {},
+                autocapture: true,
+                heatmaps: true,
+                sessionRecording: {
+                  endpoint: "/s/",
+                  sampleRate: 1,
+                  minimumDurationMilliseconds: 0,
+                  consoleLogRecordingEnabled: false,
+                  networkPayloadCapture: { recordBody: false, recordHeaders: false },
+                },
+              },
+            });
+          } else await route.fulfill({ json: { status: 1 } });
+        } else {
           errors.push(`Unexpected external request: ${url.origin}${url.pathname}`);
           await route.abort();
         }

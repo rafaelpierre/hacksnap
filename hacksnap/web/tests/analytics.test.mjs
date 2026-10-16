@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "@jest/globals";
 import { analyticsRouteIdentity, createJourney, track } from "../lib/analytics.ts";
 
+import { analyticsBrowser } from "./analytics-browser.mjs";
+
 function fixture() {
   const events = [];
   let id = 0;
@@ -82,13 +84,13 @@ test("missing browser and throwing analytics do not interrupt user actions", () 
   });
 });
 test("browser calls queue before GA, dispatch to GA when available, and tolerate failure", () => {
-  const previous = globalThis.window;
+  const close = analyticsBrowser();
   try {
-    globalThis.window = { location: { pathname: "/story/3" } };
+    window.history.replaceState({}, "", "/story/3");
     track("story_view", { story_id: "3" }, "story:3");
     assert.deepEqual(
-      window.dataLayer.map((args) => args[1]),
-      ["reader_visit", "story_view"],
+      window.dataLayer.filter((args) => args[0] === "event").map((args) => args[1]),
+      ["page_view", "reader_visit", "story_view"],
     );
     const sent = [];
     window.gtag = (...args) => sent.push(args);
@@ -99,19 +101,15 @@ test("browser calls queue before GA, dispatch to GA when available, and tolerate
     };
     assert.doesNotThrow(() => track("share_copy_failure", { copy_kind: "post" }));
   } finally {
-    if (previous === undefined) delete globalThis.window;
-    else globalThis.window = previous;
+    close();
   }
 });
 
 test("track uses the same query-aware route identity for actions and reader visits", () => {
-  const previous = globalThis.window;
+  const close = analyticsBrowser();
   const events = [];
   try {
-    globalThis.window = {
-      location: { pathname: "/", search: "" },
-      gtag: (_command, name, params) => events.push({ name, ...params }),
-    };
+    window.gtag = (_command, name, params) => events.push({ name, ...params });
     for (const search of [
       "",
       "?category=agents-coding",
@@ -121,7 +119,7 @@ test("track uses the same query-aware route identity for actions and reader visi
       "?category=models-products&page=2&journey=temporary",
       "",
     ]) {
-      window.location.search = search;
+      window.history.replaceState({}, "", `/${search}`);
       track("home_feed_end", { outcome: "exhausted" }, "end");
     }
     const visits = events.filter((event) => event.name === "reader_visit");
@@ -136,7 +134,6 @@ test("track uses the same query-aware route identity for actions and reader visi
     assert.equal(JSON.stringify(events).includes("models-products"), false);
     assert.equal(analyticsRouteIdentity("/story/42", "?journey=temporary"), "/story/42");
   } finally {
-    if (previous === undefined) delete globalThis.window;
-    else globalThis.window = previous;
+    close();
   }
 });

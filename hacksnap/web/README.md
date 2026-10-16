@@ -330,7 +330,7 @@ expired, cancelled) and resulting `position`; `home_feed_end` records exhausted 
 selections once per route occurrence. These are client events and do not fire
 without JavaScript. A cancelled request records its original trigger and the
 number of loaded stories at request start exactly once, whether its aborted fetch
-rejects or later resolves; it does not also record success or failure. Latest uses the existing browse journey events; the ranked-only events above
+rejects or later resolves; it does not also record success or failure. Latest emits v3 `feed_load` and `feed_end` outcomes and visible card exposures; the ranked-only events above
 do not fire on Latest. `story_view` still records a rendered story page.
 
 Run `npm test -- tests/home-feed-state.test.mjs tests/story-navigation.test.tsx
@@ -544,15 +544,16 @@ files. Route performance tests include font bytes and request counts, with a
 115,000-byte limit and at most two font URLs per cold route.
 See the [PageSpeed follow-up](../../docs/performance/pagespeed-2026-10-09.md)
 for measurements and the framework-JavaScript findings.
-Google Analytics queues its configuration and early journey events in a small
-inline script and loads its library asynchronously without waiting for input.
-This includes passive visits in collection, at the cost of downloading the Google
-tag on those visits too. Very early departures can still interrupt loading.
-Article reading events measure section exposure, foreground dwell, theme toggles,
-source actions and last observed position. See the
-[event contract, GA setup and reporting queries](../../docs/analytics/article-reading.md).
-The local browser performance suite stubs GA; its budgets measure application
-assets and do not measure the real Google library's transfer or execution cost.
+GA4 and PostHog require explicit analytics consent. Before acceptance, neither
+provider loads or buffers activity. After acceptance, GA loads asynchronously and
+PostHog dynamically loads after hydration, including for returning consenting readers. Detailed article-section
+measurement from [the reading contract](../../docs/analytics/article-reading.md)
+is retained behind the same consent gate. Automatic pageviews are disabled and
+the route lifecycle owns one pageview per occurrence. The consent panel adds no server-rendered content
+replacement. See [analytics configuration and release checks](../../docs/analytics/README.md).
+The cold-route budgets exercise declined consent. The browser suite serves vendor
+requests locally; it does not measure real GA transfer/execution or PostHog service
+latency. Opt-in readers download the SDK and sampled replay assets after hydration.
 
 In Cloudflare, disable **Email Address Obfuscation** for `hacksnap.live` (use a
 hostname-scoped configuration rule if the zone serves other sites). Cloudflare
@@ -1222,6 +1223,37 @@ production TTFB measurements or PageSpeed savings estimates.
 Category-only and paginated navigations use pathname plus sorted search parameters
 as the analytics route identity, shared by ReaderVisit and event tracking. Each
 route occurrence gets a new visit ID and reader_visit; rerenders and reordered
-query parameters deduplicate. Transient journey tokens are excluded, and query
+query parameters deduplicate. Transient journey tokens are excluded, and raw query
 values are never added to engagement event fields. Category labels appear on all
 feed cards, including selected topic feeds.
+
+## Consent-gated journey analytics
+
+PostHog uses the EU project and the following build-time public configuration:
+
+```dotenv
+NEXT_PUBLIC_POSTHOG_ENABLED=true
+NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=<public project token>
+NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
+```
+
+Keep `.env.local` out of Git. Missing values or the disabled kill switch make
+PostHog a no-op. GA4 is independently gated by the same preference. Accept/decline
+are equally available; the footer's Analytics preferences control supports later
+withdrawal. Acceptance includes masked session replay. Blocked storage defaults
+to no tracking. Consent changes synchronize across tabs, discard queued vendor
+events on withdrawal, and preserve functional reading history and first-party
+Most read collection.
+
+Contract v3 preserves existing event names and adds current-feed exposures/load
+outcomes, story-section markers, cumulative active reading and typed source links.
+The route identity remains pathname plus sorted query parameters excluding
+`journey`. Raw query/hash values are removed from vendor payloads; validated
+category IDs and pagination numbers are separate fields. Do not pool v3 with older
+GA populations. Replay samples 10% of consenting sessions, masks all inputs and
+blocks share drafts/manual-copy content. There are no person profiles, server SDK,
+ingestion proxy or schema changes.
+
+See [the analytics README](../../docs/analytics/README.md) for event definitions,
+dashboards, free allowances, privacy checks, rollback and the post-release
+baseline cycle. Production delivery and engagement baseline remain unverified.

@@ -1,0 +1,448 @@
+{
+  "project_id": 308138,
+  "verified_at": "2026-10-16",
+  "production_delivery": "unverified",
+  "dashboards": {
+    "Acquisition and exits": 1028900,
+    "Reading journeys": 1028901,
+    "Retention and quality": 1028902
+  },
+  "tiles": [
+    {
+      "board": "Acquisition and exits",
+      "name": "Visits by landing page",
+      "description": "Consenting readers only, v3. Landing type is fixed at the start of the PostHog session.",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "$pageview",
+            "math": "total"
+          }
+        ],
+        "properties": [
+          {
+            "key": "app",
+            "type": "event",
+            "operator": "exact",
+            "value": "hacksnap"
+          },
+          {
+            "key": "contract_version",
+            "type": "event",
+            "operator": "exact",
+            "value": 3
+          }
+        ],
+        "dateRange": {
+          "date_from": "-14d"
+        },
+        "interval": "day",
+        "breakdownFilter": {
+          "breakdowns": [
+            {
+              "property": "landing_page_type",
+              "type": "event"
+            }
+          ]
+        }
+      },
+      "insight_id": 6613643,
+      "short_id": "IVihPj2b"
+    },
+    {
+      "board": "Acquisition and exits",
+      "name": "Visits by referrer domain",
+      "description": "Referrer domains only; query strings and referrer paths are removed.",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "$pageview",
+            "math": "total"
+          }
+        ],
+        "properties": [
+          {
+            "key": "app",
+            "type": "event",
+            "operator": "exact",
+            "value": "hacksnap"
+          },
+          {
+            "key": "contract_version",
+            "type": "event",
+            "operator": "exact",
+            "value": 3
+          }
+        ],
+        "dateRange": {
+          "date_from": "-14d"
+        },
+        "interval": "day",
+        "breakdownFilter": {
+          "breakdowns": [
+            {
+              "property": "$referring_domain",
+              "type": "event"
+            }
+          ]
+        }
+      },
+      "insight_id": 6613644,
+      "short_id": "en2mZLC0"
+    },
+    {
+      "board": "Acquisition and exits",
+      "name": "Native web analytics and bounce",
+      "description": "PostHog native bounce definition; separate from the custom low-engagement exit measure. Consenting v3 population.",
+      "query": {
+        "kind": "WebOverviewQuery",
+        "properties": [
+          {
+            "key": "app",
+            "type": "event",
+            "operator": "exact",
+            "value": "hacksnap"
+          },
+          {
+            "key": "contract_version",
+            "type": "event",
+            "operator": "exact",
+            "value": 3
+          }
+        ],
+        "dateRange": {
+          "date_from": "-14d"
+        }
+      },
+      "insight_id": 6613645,
+      "short_id": "B8lkaKdt"
+    },
+    {
+      "board": "Reading journeys",
+      "name": "Visible story sections",
+      "description": "One visible marker per section and route occurrence. Read next corresponds to the Related stories section.",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "story_section_view",
+            "math": "total"
+          }
+        ],
+        "properties": [
+          {
+            "key": "app",
+            "type": "event",
+            "operator": "exact",
+            "value": "hacksnap"
+          },
+          {
+            "key": "contract_version",
+            "type": "event",
+            "operator": "exact",
+            "value": 3
+          }
+        ],
+        "dateRange": {
+          "date_from": "-14d"
+        },
+        "interval": "day",
+        "breakdownFilter": {
+          "breakdowns": [
+            {
+              "property": "section",
+              "type": "event"
+            }
+          ]
+        }
+      },
+      "insight_id": 6613647,
+      "short_id": "3NvsTLF1"
+    },
+    {
+      "board": "Reading journeys",
+      "name": "Recommendation opportunities and clicks",
+      "description": "One exposure and one click per source, target, position and visit. Clicks establish exposure if the observer has not fired. CTR is clicks / exposures at each position.",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "recommendation_exposure",
+            "math": "total"
+          },
+          {
+            "kind": "EventsNode",
+            "event": "recommendation_click",
+            "math": "total"
+          }
+        ],
+        "properties": [
+          {
+            "key": "app",
+            "type": "event",
+            "operator": "exact",
+            "value": "hacksnap"
+          },
+          {
+            "key": "contract_version",
+            "type": "event",
+            "operator": "exact",
+            "value": 3
+          }
+        ],
+        "dateRange": {
+          "date_from": "-14d"
+        },
+        "interval": "day",
+        "breakdownFilter": {
+          "breakdowns": [
+            {
+              "property": "position",
+              "type": "event"
+            }
+          ]
+        }
+      },
+      "insight_id": 6613650,
+      "short_id": "vHbLTNkd"
+    },
+    {
+      "board": "Reading journeys",
+      "name": "Feed continuation outcomes",
+      "description": "Current Latest feed. Successful, empty, failed and cancelled requests are separate; legacy home_feed_load is excluded.",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "feed_load",
+            "math": "total"
+          }
+        ],
+        "properties": [
+          {
+            "key": "app",
+            "type": "event",
+            "operator": "exact",
+            "value": "hacksnap"
+          },
+          {
+            "key": "contract_version",
+            "type": "event",
+            "operator": "exact",
+            "value": 3
+          }
+        ],
+        "dateRange": {
+          "date_from": "-14d"
+        },
+        "interval": "day",
+        "breakdownFilter": {
+          "breakdowns": [
+            {
+              "property": "outcome",
+              "type": "event"
+            }
+          ]
+        }
+      },
+      "insight_id": 6613651,
+      "short_id": "wLht6Lli"
+    },
+    {
+      "board": "Retention and quality",
+      "name": "Useful onward actions",
+      "description": "Source navigation and confirmed copy outcomes. A destination selection is intent, not a confirmed social post.",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "outbound_click",
+            "math": "total"
+          },
+          {
+            "kind": "EventsNode",
+            "event": "share_copy_success",
+            "math": "total"
+          },
+          {
+            "kind": "EventsNode",
+            "event": "share_destination_select",
+            "math": "total"
+          }
+        ],
+        "properties": [
+          {
+            "key": "app",
+            "type": "event",
+            "operator": "exact",
+            "value": "hacksnap"
+          },
+          {
+            "key": "contract_version",
+            "type": "event",
+            "operator": "exact",
+            "value": 3
+          }
+        ],
+        "dateRange": {
+          "date_from": "-14d"
+        },
+        "interval": "day"
+      },
+      "insight_id": 6613652,
+      "short_id": "bg75kBs5"
+    },
+    {
+      "board": "Retention and quality",
+      "name": "First-observed and returning sessions",
+      "description": "Reader type uses anonymous first observed session, not account identity. Compare only within the consent rollout population.",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "reader_visit",
+            "math": "unique_session"
+          }
+        ],
+        "properties": [
+          {
+            "key": "app",
+            "type": "event",
+            "operator": "exact",
+            "value": "hacksnap"
+          },
+          {
+            "key": "contract_version",
+            "type": "event",
+            "operator": "exact",
+            "value": 3
+          }
+        ],
+        "dateRange": {
+          "date_from": "-14d"
+        },
+        "interval": "day",
+        "breakdownFilter": {
+          "breakdowns": [
+            {
+              "property": "reader_type",
+              "type": "event"
+            }
+          ]
+        }
+      },
+      "insight_id": 6613653,
+      "short_id": "CPu3w4N7"
+    },
+    {
+      "board": "Reading journeys",
+      "name": "Second-story rate by device",
+      "description": "Sessions with at least two distinct stories / sessions with at least one, over 14 complete days. Reloads do not qualify. Derived v3 definition.",
+      "query": {
+        "kind": "HogQLQuery",
+        "query": "SELECT device, count() AS story_sessions,\n    countIf(stories >= 2) AS second_story_sessions,\n    countIf(stories >= 2) / nullIf(count(), 0) AS second_story_rate\nFROM (\n    SELECT distinct_id, properties.$session_id AS session_id,\n        argMin(properties.$device_type, timestamp) AS device,\n        count(DISTINCT properties.story_id) AS stories\n    FROM events\n    WHERE event = 'story_view' AND properties.app = 'hacksnap'\n      AND toInt(properties.contract_version) = 3\n      AND timestamp >= toStartOfDay(now()) - INTERVAL 14 DAY\n      AND timestamp < toStartOfDay(now())\n    GROUP BY distinct_id, session_id\n)\nGROUP BY device"
+      },
+      "insight_id": 6613654,
+      "short_id": "BR2iQanQ"
+    },
+    {
+      "board": "Retention and quality",
+      "name": "Active reading by category and device",
+      "description": "Max cumulative seconds per story visit, including visits without a snapshot as zero. Median and share reaching 30 seconds. Derived v3 definition.",
+      "query": {
+        "kind": "HogQLQuery",
+        "query": "SELECT device, category, count() AS story_visits,\n    quantile(0.5)(active_seconds) AS median_active_seconds,\n    countIf(active_seconds >= 30) / nullIf(count(), 0) AS share_reaching_30_seconds\nFROM (\n    SELECT distinct_id, properties.visit_id AS visit_id, properties.story_id AS story_id,\n        argMin(properties.$device_type, timestamp) AS device,\n        argMin(properties.category_id, timestamp) AS category,\n        max(toFloatOrZero(properties.active_seconds)) AS active_seconds\n    FROM events\n    WHERE event IN ('story_view', 'story_engagement') AND properties.app = 'hacksnap'\n      AND toInt(properties.contract_version) = 3\n      AND timestamp >= toStartOfDay(now()) - INTERVAL 14 DAY\n      AND timestamp < toStartOfDay(now())\n    GROUP BY distinct_id, visit_id, story_id\n    HAVING countIf(event = 'story_view') > 0\n)\nGROUP BY device, category"
+      },
+      "insight_id": 6613655,
+      "short_id": "2f2pEgVl"
+    },
+    {
+      "board": "Retention and quality",
+      "name": "Seven-day return — matured cohorts",
+      "description": "Anonymous browsers returning in another session within seven elapsed days of first observed pageview. Only cohorts aged at least seven days. Derived v3 definition; no account identity.",
+      "query": {
+        "kind": "HogQLQuery",
+        "query": "WITH first_visits AS (\n    SELECT distinct_id, min(timestamp) AS first_at,\n        argMin(properties.$session_id, timestamp) AS first_session,\n        argMin(properties.$device_type, timestamp) AS device\n    FROM events\n    WHERE event = '$pageview' AND properties.app = 'hacksnap'\n      AND toInt(properties.contract_version) = 3\n      AND timestamp >= toDateTime('2026-10-16 00:00:00')\n    GROUP BY distinct_id\n    HAVING first_at >= toStartOfDay(now()) - INTERVAL 21 DAY\n       AND first_at < now() - INTERVAL 7 DAY\n), readers AS (\n    SELECT f.distinct_id AS reader, f.first_at AS first_at, f.device AS device,\n        max(e.timestamp > f.first_at\n            AND e.timestamp <= f.first_at + INTERVAL 7 DAY\n            AND e.properties.$session_id != f.first_session) AS returned\n    FROM first_visits AS f\n    JOIN events AS e ON e.distinct_id = f.distinct_id\n    WHERE e.event = '$pageview' AND e.properties.app = 'hacksnap'\n      AND toInt(e.properties.contract_version) = 3\n      AND e.timestamp >= toStartOfDay(now()) - INTERVAL 21 DAY\n    GROUP BY reader, first_at, device\n)\nSELECT toDate(first_at) AS cohort, device, count() AS matured_readers,\n    sum(returned) AS returning_readers,\n    sum(returned) / nullIf(count(), 0) AS seven_day_return\nFROM readers\nGROUP BY cohort, device\nORDER BY cohort"
+      },
+      "insight_id": 6613659,
+      "short_id": "flpDQz68"
+    },
+    {
+      "board": "Acquisition and exits",
+      "name": "Low-engagement exits by device",
+      "description": "Closed sessions with one pageview, under 30 active seconds and no useful onward action. Heartbeats and autocapture never qualify as useful actions. Derived v3 measure, not native bounce.",
+      "query": {
+        "kind": "HogQLQuery",
+        "query": "SELECT device, count() AS closed_sessions,\n    countIf(pageviews = 1 AND active_seconds < 30 AND useful_actions = 0) AS low_engagement_exits,\n    countIf(pageviews = 1 AND active_seconds < 30 AND useful_actions = 0) / nullIf(count(), 0) AS low_engagement_exit_rate\nFROM (\n    SELECT distinct_id, properties.$session_id AS session_id,\n        argMin(properties.$device_type, timestamp) AS device,\n        countIf(event = '$pageview') AS pageviews,\n        max(toFloatOrZero(properties.active_seconds)) AS active_seconds,\n        countIf(event IN ('story_click', 'recommendation_click', 'outbound_click', 'share_copy_success', 'story_return')) AS useful_actions\n    FROM events\n    WHERE properties.app = 'hacksnap'\n      AND toInt(properties.contract_version) = 3\n      AND timestamp >= toStartOfDay(now()) - INTERVAL 14 DAY\n    GROUP BY distinct_id, session_id\n    HAVING max(timestamp) < now() - INTERVAL 30 MINUTE AND pageviews > 0\n)\nGROUP BY device"
+      },
+      "insight_id": 6613661,
+      "short_id": "tLUCUQui"
+    },
+    {
+      "board": "Reading journeys",
+      "name": "Recommendation CTR by position",
+      "description": "One exposure and one click per source, target, position and visit. Clicks establish exposure if the observer has not fired. CTR is clicks / exposures at each position.",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "recommendation_exposure",
+            "math": "total"
+          },
+          {
+            "kind": "EventsNode",
+            "event": "recommendation_click",
+            "math": "total"
+          }
+        ],
+        "properties": [
+          {
+            "key": "app",
+            "type": "event",
+            "operator": "exact",
+            "value": "hacksnap"
+          },
+          {
+            "key": "contract_version",
+            "type": "event",
+            "operator": "exact",
+            "value": 3
+          }
+        ],
+        "dateRange": {
+          "date_from": "-14d"
+        },
+        "interval": "day",
+        "breakdownFilter": {
+          "breakdowns": [
+            {
+              "property": "position",
+              "type": "event"
+            }
+          ]
+        },
+        "trendsFilter": {
+          "display": "ActionsTable",
+          "formulaNodes": [
+            {
+              "formula": "B/A"
+            }
+          ],
+          "aggregationAxisFormat": "percentage_scaled"
+        }
+      },
+      "insight_id": 6613701,
+      "short_id": "NkDfhREW"
+    }
+  ]
+}

@@ -27,6 +27,7 @@ const { readStoryHistory } = await import("../lib/story-history.ts");
 const { ShareLinks } = await import("../app/share-links.tsx");
 
 test("production components emit truthful, deduplicated events through a complete controlled journey", async () => {
+  window.localStorage.setItem("hacksnap:analytics-consent:v1", "accepted");
   const events = [];
   window.gtag = (_command, name, params) => events.push({ name, ...params });
   const observers = [];
@@ -140,7 +141,7 @@ test("production components emit truthful, deduplicated events through a complet
     const selected = events.find((event) => event.name === "share_destination_select");
     assert.equal(selected.destination, "x");
     assert.equal(selected.placement, "story_end");
-    assert.equal(selected.contract_version, 2);
+    assert.equal(selected.contract_version, 3);
     assert.ok(
       events
         .filter((event) => event.name.startsWith("share_"))
@@ -173,6 +174,23 @@ test("production components emit truthful, deduplicated events through a complet
     navigator.clipboard.writeText = async () => {};
     await click(button("Copy link"));
     assert.match(document.querySelector(".share-feedback").textContent, /Link copied/);
+    window.gtag = (_command, name, params) => events.push({ name, ...params });
+    window.history.pushState({}, "", "/story/3?page=2&category=models-products");
+    await render("3");
+    assert.equal(count("story_view"), 5);
+    assert.equal(count("page_view"), 5);
+    await act(async () => {
+      window.dispatchEvent(new window.PageTransitionEvent("pagehide", { persisted: true }));
+      window.dispatchEvent(new window.PageTransitionEvent("pageshow", { persisted: true }));
+    });
+    assert.equal(count("story_view"), 6);
+    assert.equal(count("page_view"), 6);
+    await click(document.querySelector("a"));
+    assert.equal(count("recommendation_exposure"), 3);
+    window.history.replaceState({}, "", "/story/3?category=models-products&page=2&journey=temp");
+    await render("3");
+    assert.equal(count("story_view"), 6);
+    assert.equal(count("page_view"), 6);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
@@ -192,6 +210,7 @@ test("ReaderVisit reacts to filter-only navigation and separates visit IDs witho
     "MouseEvent",
   ])
     Object.defineProperty(globalThis, key, { value: browser.window[key], configurable: true });
+  window.localStorage.setItem("hacksnap:analytics-consent:v1", "accepted");
   const events = [];
   window.gtag = (_command, name, params) => events.push({ name, ...params });
   const root = createRoot(document.getElementById("root"));
