@@ -375,7 +375,7 @@ test("compact header and recommendations preserve the new story component and tr
   assert.match(html, /class="skepticism"/);
   const next = html.match(/<ul class="related-story-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
   assert.match(next, /related-topic/);
-  assert.match(next, /example.org/);
+  assert.doesNotMatch(next, /example.org|related-story-meta|<svg/);
   assert.match(next, /A related takeaway/);
   assert.doesNotMatch(next, /Added |<time /);
 });

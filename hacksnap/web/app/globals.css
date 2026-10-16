@@ -866,8 +866,7 @@ body:has(#browse-content) .skip-browse {
 .related-story-list h3 a:focus-visible {
   outline: none; /* The complete card receives the focus ring above. */
 }
-.related-topic,
-.related-story-meta {
+.related-topic {
   font: var(--text-sm)/1.4 var(--sans);
   color: var(--muted);
 }
@@ -878,7 +877,7 @@ body:has(#browse-content) .skip-browse {
 .related-stories .feed-excerpt {
   font: var(--text-base)/1.5 var(--sans);
   color: var(--prose);
-  margin: 0 0 var(--space-4);
+  margin: 0;
 }
 .breadcrumb-link,
 .back-link {
