@@ -1,12 +1,23 @@
 import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { jest, test } from "@jest/globals";
 import React, { act } from "react";
 import { createRequire } from "node:module";
-import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
-import { WindowedStoryList } from "../app/windowed-story-list";
+import type { Root } from "react-dom/client";
+import type { PublicFeedStory } from "../lib/stories-api";
 import { publicFeedStory } from "../lib/stories-api";
 
 const { JSDOM } = createRequire(import.meta.url)("jsdom");
+
+// Exercise real windowing and measurement with small cards. Full StoryRow markup,
+// age intervals, routing and analytics are covered in their own suites and add
+// hundreds of unrelated nodes/effects to every resize in this geometry test.
+jest.unstable_mockModule("../app/story-row", () => ({
+  StoryRow: ({ story, lead }: { story: PublicFeedStory; lead?: boolean }) => (
+    <article className={`feed-story${lead ? " feed-story-lead" : ""}`}>{story.title}</article>
+  ),
+}));
+jest.unstable_mockModule("../app/journey-analytics", () => ({ useFeedExposure: () => {} }));
+const { WindowedStoryList } = await import("../app/windowed-story-list");
 
 test("rotation invalidates offscreen heights and re-estimates proportional images at the observed width", async () => {
   const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
@@ -60,11 +71,12 @@ test("rotation invalidates offscreen heights and re-estimates proportional image
       image_mime_type: "image/webp",
     }),
   );
-  const { createRoot } = await import("react-dom/client");
-  const root = createRoot(document.getElementById("root")!);
-  const render = (pinnedStoryId?: string) =>
-    root.render(
-      <AppRouterContext.Provider value={{ push: () => {}, prefetch: async () => {} } as never}>
+  let root: Root | undefined;
+  try {
+    const { createRoot } = await import("react-dom/client");
+    root = createRoot(document.getElementById("root")!);
+    const render = (pinnedStoryId?: string) =>
+      root!.render(
         <WindowedStoryList
           stories={stories}
           ranked={false}
@@ -73,10 +85,8 @@ test("rotation invalidates offscreen heights and re-estimates proportional image
           leadImagePriority={false}
           leadStoryId="1"
           pinnedStoryId={pinnedStoryId}
-        />
-      </AppRouterContext.Provider>,
-    );
-  try {
+        />,
+      );
     await act(async () => render());
     await act(async () => render("151"));
     const spacerHeight = () =>
@@ -94,12 +104,15 @@ test("rotation invalidates offscreen heights and re-estimates proportional image
     await act(async () => window.dispatchEvent(new dom.window.Event("resize")));
     assert.equal(spacerHeight(), after, "unchanged width must not clear measurements again");
   } finally {
-    await act(async () => root.unmount());
-    dom.window.HTMLElement.prototype.getBoundingClientRect = originalRect;
-    dom.window.close();
-    Object.keys(values).forEach((key, index) => {
-      if (previous[index]) Object.defineProperty(globalThis, key, previous[index]!);
-      else Reflect.deleteProperty(globalThis, key);
-    });
+    try {
+      if (root) await act(async () => root!.unmount());
+    } finally {
+      dom.window.HTMLElement.prototype.getBoundingClientRect = originalRect;
+      dom.window.close();
+      Object.keys(values).forEach((key, index) => {
+        if (previous[index]) Object.defineProperty(globalThis, key, previous[index]!);
+        else Reflect.deleteProperty(globalThis, key);
+      });
+    }
   }
 });
