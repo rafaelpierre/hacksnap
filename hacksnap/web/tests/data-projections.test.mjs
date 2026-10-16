@@ -510,6 +510,7 @@ test("story loaders omit unavailable image columns and pick them up after reader
 
 test("image reads fall back to null projections until every reader grant is available", async () => {
   process.env.HACKSNAP_WEB_DATABASE_URL = "postgresql://reader@localhost/test";
+  const warning = jest.spyOn(console, "warn").mockImplementation(() => {});
   try {
     imagesAvailable = false;
     for (const [load, fields] of [
@@ -526,10 +527,17 @@ test("image reads fall back to null projections until every reader grant is avai
       assert.ok(queries.some((sql) => sql.includes(fields)));
       assert.ok(queries.every((sql) => !sql.includes("t.image_source_type")));
     }
+    assert.equal(warning.mock.calls.length, 5);
+    for (const [message] of warning.mock.calls)
+      assert.equal(
+        message,
+        "Hacksnap stored images unavailable: apply migrations through 0022 and reader grants",
+      );
   } finally {
     imagesAvailable = true;
     rows = [];
     delete process.env.HACKSNAP_WEB_DATABASE_URL;
+    warning.mockRestore();
   }
 });
 
