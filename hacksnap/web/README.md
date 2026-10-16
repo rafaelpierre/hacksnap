@@ -404,6 +404,12 @@ Run `npm run test:history` for ranking calculations and metric formatting unit t
 
 ## Search metadata
 
+Story search descriptions lead with the published takeaway, normalized and clipped
+at a word boundary to 155 Unicode code points. Missing or blank takeaways retain
+the existing coverage or pending-summary description and remain noindex. Social
+preview descriptions retain their discussion coverage and topic summaries;
+sampling details remain available in the story body.
+
 The canonical homepage at `/` uses `Hacksnap | AI News` for its search,
 Open Graph and Twitter titles. The shared layout supplies `WebSite` structured
 data naming the site `Hacksnap` at `https://hacksnap.live/` so search engines can

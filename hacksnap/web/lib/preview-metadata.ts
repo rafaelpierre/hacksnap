@@ -90,7 +90,9 @@ export function storyPreviewMetadata(story: {
   const title = previewText(story.title, 60);
   const pageTitle = `${title} | Hacksnap`;
   const reaction = reactionDescription(story.summary);
-  const description = previewText(reaction, 155);
+  // Lead search snippets with the story; coverage details remain in the body.
+  const takeaway = story.summary?.overall_takeaway;
+  const description = previewText(hasPublishedTakeaway(takeaway) ? takeaway : reaction, 155);
   const socialDescription = previewText(reaction, 125);
   const url = canonicalStoryUrl(story.hn_id, story.story_slug);
   const image = {

@@ -50,15 +50,16 @@ function formats(story: Story) {
   return {
     html,
     markdown: storyMarkdown(story),
-    description: storyPreviewMetadata(story).description as string,
+    description: storyPreviewMetadata(story).openGraph!.description as string,
   };
 }
 
-test("pending and legacy states agree across HTML, metadata and Markdown", () => {
+test("pending and legacy states agree across HTML, social metadata and Markdown", () => {
   const pending = formats({ ...base, summary: null });
   for (const value of Object.values(pending)) assert.match(value, /pending/i);
 
   const legacy = formats(base);
+  assert.equal(storyPreviewMetadata(base).description, "A practical takeaway.");
   for (const value of Object.values(legacy)) {
     assert.match(value, /Old topic/);
     assert.doesNotMatch(value, /New topic/);
@@ -91,6 +92,7 @@ test.each(analysisFixtures)(
       },
     };
     const { html, markdown, description } = formats(current);
+    assert.equal(storyPreviewMetadata(current).description, "A practical takeaway.");
     for (const value of [html, markdown, description]) assert.doesNotMatch(value, /Old topic/);
     if (expected.status === "no_comments") {
       for (const value of [html, markdown, description])
