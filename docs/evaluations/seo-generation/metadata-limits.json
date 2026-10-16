@@ -1,0 +1,36 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+  "max_tokens": 10000,
+  "generation_version": "1501442843720cf78f2778d436c03a89b33bb8e8a20baf61e802831147968b91",
+  "persisted": false,
+  "stories": [
+    {
+      "story_id": 50104299,
+      "seo_title": "Claude Diffed Windows USB Traces to Write Linux Drivers",
+      "seo_description": "A developer who had abandoned a Plustek OpticFilm 8200i Linux driver got it working in hours by having Claude diff Windows and Linux USB traces.",
+      "title_length": 55,
+      "description_length": 144,
+      "seconds": 27.15
+    },
+    {
+      "story_id": 50105647,
+      "seo_title": "Goodfire's Cammarata Argues Neural Networks Are Already Legible",
+      "seo_description": "Cammarata reports 99\u2013100% of InceptionV1's last-layer neurons are easily interpretable after architecture fixes, arguing polysemanticity was not superposition.",
+      "title_length": 63,
+      "description_length": 159,
+      "seconds": 46.19
+    },
+    {
+      "story_id": 50107379,
+      "seo_title": "Meta releases Muse Spark Open weights under $20M API revenue trigger",
+      "seo_description": "Meta released weights for Muse Spark Open, an 816B-parameter natively multimodal model with 42B active parameters and a 1M-token context.",
+      "title_length": 68,
+      "description_length": 137,
+      "seconds": 17.86
+    }
+  ],
+  "publication_config": {
+    "HACKSNAP_PUBLICATION_WEBHOOK_URL": false,
+    "HACKSNAP_PUBLICATION_SECRET": false
+  }
+}

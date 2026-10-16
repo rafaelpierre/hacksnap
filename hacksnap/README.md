@@ -11,13 +11,17 @@ does not automatically rewrite the archive.
 
 `pipeline/seo_prompts.py` contains the SEO agent's versioned instructions.
 `pipeline/seo.py` uses the existing Agents SDK adapter and configured editorial
-model with low reasoning effort, a 3,000-token response budget and no tools.
+model with low reasoning effort, a 10,000-token completion budget and no tools.
+The budget includes the model's reasoning, not just the two short output fields.
 Its inputs are the original and visible headlines, published article brief,
 key points, takeaway, source availability and initial discussion points. It does
 not fetch articles or require retained raw comments. Initial discussion points
 remain stable across routine analysis refreshes, keeping search copy stable.
 Editorial targets are 45–65 title characters and 140–160 description characters;
-safety bounds are 160 and 300, respectively. These are not Google display limits.
+safety bounds are 160 characters for each field. Descriptions must be complete
+sentences of at most 160 characters; shorter copy is accepted without padding.
+Overlong output fails validation and is never clipped. These are editorial bounds,
+not Google display limits.
 Single-line plain text, complete copy, and schema validity are checked before save;
 factual accuracy remains a model-quality concern requiring sample review.
 

@@ -37,13 +37,29 @@ def test_invalid_copy_is_rejected(copy):
         SearchMetadata(seo_title="A headline", seo_description=copy)
 
 
-def test_editorial_targets_are_not_hard_display_limits():
+def test_title_target_allows_qualifications_and_description_allows_short_copy():
     result = SearchMetadata(seo_title="A qualified headline " * 5,
-                            seo_description="A supported complete sentence. " * 7)
+                            seo_description="A supported complete sentence.")
     assert len(result.seo_title) > 65
-    assert len(result.seo_description) > 160
+    assert len(result.seo_description) < 140
     with pytest.raises(ValidationError):
         SearchMetadata(seo_title="Headline | Hacksnap", seo_description="A sentence.")
+
+
+def test_description_limit_rejects_instead_of_clipping():
+    description = "A" * 159 + "."
+    assert SearchMetadata(seo_title="Headline", seo_description=description).seo_description == description
+    with pytest.raises(ValidationError):
+        SearchMetadata(seo_title="Headline", seo_description="A" + description)
+
+
+def test_overlong_model_output_cannot_be_saved_even_if_validation_was_bypassed():
+    repository, generator = MagicMock(), agent()
+    generator.generate.return_value = SearchMetadata.model_construct(
+        seo_title="Headline", seo_description="An overlong sentence. " * 10,
+    )
+    assert process_seo(row(), repository, generator) == "failed"
+    repository.save_seo.assert_not_called()
 
 
 def test_fingerprint_ignores_routine_refreshes_scores_and_ingestion_age():
@@ -121,7 +137,7 @@ def test_batch_is_bounded_and_uses_automatic_selection_by_default():
     repository.seo_candidates.assert_called_once_with(generator.version, limit=50, after_id=None)
 
 
-def test_agent_uses_existing_sdk_with_no_tools_and_a_small_response_budget():
+def test_agent_allows_reasoning_tokens_but_constrains_description_output():
     requests = []
     def respond(request):
         body = json.loads(request.content)
@@ -138,8 +154,10 @@ def test_agent_uses_existing_sdk_with_no_tools_and_a_small_response_budget():
     assert result.seo_title == agent().generate.return_value.seo_title
     assert len(requests) == 1
     assert not requests[0].get("tools")
-    assert requests[0].get("max_tokens", requests[0].get("max_completion_tokens")) == 3000
+    assert requests[0].get("max_tokens", requests[0].get("max_completion_tokens")) == 10000
     assert requests[0]["response_format"]["type"] == "json_schema"
+    schema = requests[0]["response_format"]["json_schema"]["schema"]
+    assert schema["properties"]["seo_description"]["maxLength"] == 160
 
 
 def test_daily_run_enriches_after_publication_and_isolates_batch_errors(monkeypatch):
