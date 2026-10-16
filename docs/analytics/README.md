@@ -2,8 +2,9 @@
 
 ## Release status
 
-The v3 client integration adds opt-in PostHog alongside GA4. Production delivery,
-replay masking, heatmap rendering and baseline values are **unverified** until an
+The v3 client integration adds PostHog alongside GA4. Analytics now default to on,
+with the automatic consent banner temporarily disabled and saved opt-outs honored.
+Production delivery, replay masking, heatmap rendering and baseline values are **unverified** until an
 authorized release is checked. Local fixture results are not production measurements.
 
 On 2026-10-16, EU project **308138** was matched to the supplied public project token.
@@ -35,6 +36,7 @@ build-time variables in an ignored `.env.local` and the hosting provider:
 NEXT_PUBLIC_POSTHOG_ENABLED=true
 NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=<the supplied phc_ project token>
 NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
+NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT=false
 ```
 
 The three production variables were saved in Vercel on 2026-10-16 for the next
@@ -45,23 +47,30 @@ development traffic out of this project. `.env.example` documents the same defau
 Only the public project token belongs in the browser. Never use a personal or
 secret API key. Missing configuration, a host other than the EU ingestion host,
 or `NEXT_PUBLIC_POSTHOG_ENABLED` other than `true` disables PostHog. GA4 remains
-independently consent-gated. Changing a public variable requires rebuilding.
+independently controlled by the same analytics preference. Changing a public
+variable requires rebuilding.
+
+`NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT` defaults to false when unset. New readers
+start with analytics enabled, without showing the banner or writing an acceptance
+record. Saved declines are respected. Set the variable to `true` and rebuild to
+restore the automatic banner and explicit opt-in. The banner, preference storage,
+withdrawal and cross-tab code remain in place.
 
 The small `instrumentation-client.ts` entry installs a consent-aware runtime.
-After hydration and acceptance it dynamically imports the pinned `posthog-js`
-SDK. Returning consenting readers need no further interaction. GA4 also loads
-asynchronously after consent, preserving passive-visit coverage
-from the article-reading rollout on main. Neither provider waits for another input
-from a returning consenting reader; very early exits can still interrupt loading.
+After hydration it dynamically imports the pinned `posthog-js` SDK when analytics
+are enabled. GA4 also loads asynchronously, preserving passive-visit coverage
+from the article-reading rollout on main. Neither provider waits for reader input;
+very early exits can still interrupt loading.
 No server SDK, proxy or database change is included. A tiny inline bootstrap sets
 GA to disabled before hydration; it emits nothing and preserves Next's early
 stylesheet prelude on delayed streamed pages.
 
 The nonmodal preference offers equally prominent Allow and Decline controls,
 explains masked replay, supports Escape, and stays available through the footer's
-Analytics preferences button. Unknown, declined or unavailable storage means no
-vendor events, identifiers, SDK download or buffered replay. Acceptance starts a
-fresh visit on the current page; earlier activity is not backfilled. Repeated
+Analytics preferences button. Declined or unavailable storage means no vendor
+events, identifiers, SDK download or buffered replay. With explicit opt-in restored,
+an unknown choice also prevents collection. Acceptance starts a fresh visit on the
+current page; earlier activity is not backfilled. Repeated
 acceptance does not duplicate it. Withdrawal stops capture/recording, drops pending
 events and clears analytics storage/cookies. Storage events synchronize tabs.
 Requests already transmitted before withdrawal cannot be recalled.
@@ -117,9 +126,9 @@ layout version and sanitized referrer support segmentation. PostHog also records
 
 | Event | Meaning and fields |
 | --- | --- |
-| `$pageview` / GA `page_view` | One per consenting route occurrence; canonical public URL |
+| `$pageview` / GA `page_view` | One per analytics-enabled route occurrence; canonical public URL |
 | `$pageleave` / GA `page_leave` | Navigation or document exit; duration and maximum scroll/content percentage |
-| `reader_visit` | Hydrated consenting route occurrence |
+| `reader_visit` | Hydrated analytics-enabled route occurrence |
 | `story_view` | Existing story mounts or is current at acceptance; story_id, category_id, summary_state ready/pending |
 | `story_click` | Internal story activation, once per target/visit; story_id, placement, category_id and feed position when available |
 | `feed_story_exposure` | At least 50% of a feed card visible; deduplicated across virtual remounts by story/position/visit |
@@ -164,7 +173,7 @@ active-seconds measure; do not add the two cumulative clocks together.
    sessions with at least one. Reloading one story cannot qualify. The dashboard
    uses complete UTC days and splits by device. Boundary sessions can span the
    selected period; retain this limitation when comparing windows.
-2. **Seven-day return:** consenting browser identities with a pageview in another
+2. **Seven-day return:** analytics-enabled browser identities with a pageview in another
    session within seven elapsed days of their first observed pageview. First
    observation is searched from the rollout collection floor, then only cohorts
    at least seven days old are admitted. Never treat an immature cohort as zero.
@@ -199,7 +208,7 @@ Billing UI checked 2026-10-16: the organization is on the free plan, with no pai
 upgrade, a 1-million product-event limit and 5,000 web replays per billing cycle.
 The current cycle runs October 16–November 15. Heatmap ingestion is free and the
 free plan supports three capture rules. Product events are unsampled; replay
-starts at 10% of consenting sessions, with no short-session filter.
+starts at 10% of analytics-enabled sessions, with no short-session filter.
 
 The free plan has no editable dollar caps until a payment card is added. Do not
 add a card or upgrade for this release. Its free allowances enforce the zero-spend
@@ -231,9 +240,10 @@ should reach the production project. Other external requests still fail tests.
 
 Before release, verify:
 
-- Unknown, decline, accept, withdraw, reaccept, cross-tab and blocked storage.
+- Default-on without a saved choice or automatic banner, saved declines, accept,
+  withdraw, reaccept, cross-tab, blocked storage and restoration of explicit opt-in.
   Acceptance mid-story produces one vendor pageview/story view and no extra
-  first-party popularity view. No pre-consent replay buffering.
+  first-party popularity view. With opt-in restored, no pre-consent replay buffering.
 - Filter/pagination changes, reordered queries, Strict Mode, new tabs, Back/Forward,
   document exit and restored documents. One pageview per occurrence.
 - Foreground/idle reading time, virtualized exposure deduplication, recommendation
@@ -272,8 +282,9 @@ samples as inconclusive. Longer sessions alone do not establish improvement.
 
 Rollback PostHog by setting `NEXT_PUBLIC_POSTHOG_ENABLED=false` and rebuilding.
 For immediate collection control, disable replay/heatmaps in the project as needed.
-To withdraw both providers, use Analytics preferences. A code rollback must retain
-the consent gate; do not restore unconditional GA loading. Keep historical data and
+To withdraw both providers, use Analytics preferences. To restore opt-in collection
+and the automatic banner, set `NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT=true` and rebuild.
+A code rollback must retain saved opt-outs and withdrawal. Keep historical data and
 queries versioned instead of deleting them.
 
 ## References
@@ -283,6 +294,22 @@ queries versioned instead of deleting them.
 - [Native bounce definition](https://posthog.com/docs/web-analytics/dashboard)
 - [Heatmaps and free-plan URL rules](https://posthog.com/docs/toolbar/heatmaps)
 - [Billing limits and alerts](https://posthog.com/docs/billing/limits-alerts)
+
+## Default-on validation (2026-10-16)
+
+Node 22 checks passed: locked install, lint, formatting, all 484 Jest tests,
+typechecking, production build, cache smoke and all 199 browser checks.
+New-reader collection starts without input or a saved acceptance record. Saved
+opt-outs, withdrawal, cross-tab changes, blocked storage and vendor payload masking
+remain covered. The opt-in switch is tested with no saved preference.
+
+The automatic panel stays hidden at 320px and 1280px with 100% and 200% text.
+Footer preferences still open, Allow enables analytics, Turn analytics off stops
+collection, and Escape returns focus to the footer control. Keyboard and Axe checks
+pass. Reviewed fixture screenshots: [mobile without the banner](ui/banner-disabled-mobile.png),
+[desktop without the banner](ui/banner-disabled-desktop.png), and
+[preferences at 200% mobile text](ui/preferences-mobile-200.png).
+These local results do not establish production delivery or an engagement baseline.
 
 ## Local validation — 2026-10-16
 

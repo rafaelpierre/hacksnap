@@ -1,5 +1,8 @@
 export const ANALYTICS_CONSENT_KEY = "hacksnap:analytics-consent:v1";
 export const ANALYTICS_CONSENT_EVENT = "hacksnap:analytics-consent";
+// Set to true at build time to restore the automatic banner and explicit opt-in.
+export const ANALYTICS_CONSENT_REQUIRED =
+  process.env.NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT === "true";
 export type AnalyticsConsent = "accepted" | "declined" | "unknown";
 type ConsentWindow = Window & { __hacksnapAnalyticsStorageFailed?: boolean };
 
@@ -7,7 +10,8 @@ export function readAnalyticsConsent(): AnalyticsConsent {
   try {
     if ((window as ConsentWindow).__hacksnapAnalyticsStorageFailed) return "unknown";
     const value = window.localStorage.getItem(ANALYTICS_CONSENT_KEY);
-    return value === "accepted" || value === "declined" ? value : "unknown";
+    if (value === "accepted" || value === "declined") return value;
+    return ANALYTICS_CONSENT_REQUIRED ? "unknown" : "accepted";
   } catch {
     return "unknown";
   }
