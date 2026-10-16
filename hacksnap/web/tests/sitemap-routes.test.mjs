@@ -31,14 +31,15 @@ test("sitemap contains canonical Latest, supporting pages and dated feeds with n
   for (const id of ["pages", "0", "1"]) assert.ok(indexXML.includes(`/sitemap/${id}.xml`));
   const xml = (await (await shard("pages.xml")).text()) + (await (await shard("0.xml")).text());
   const urls = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
-  assert.ok(urls.includes("https://hacksnap.live/"));
-  assert.ok(urls.includes("https://hacksnap.live/about"));
-  assert.ok(urls.includes("https://hacksnap.live/topics"));
-  assert.ok(urls.includes("https://hacksnap.live/2026/10"));
-  assert.ok(urls.includes("https://hacksnap.live/2026/09"));
-  assert.ok(urls.includes("https://hacksnap.live/story/123"));
+  const uniqueURLs = new Set(urls);
+  assert.ok(uniqueURLs.has("https://hacksnap.live/"));
+  assert.ok(uniqueURLs.has("https://hacksnap.live/about"));
+  assert.ok(uniqueURLs.has("https://hacksnap.live/topics"));
+  assert.ok(uniqueURLs.has("https://hacksnap.live/2026/10"));
+  assert.ok(uniqueURLs.has("https://hacksnap.live/2026/09"));
+  assert.ok(uniqueURLs.has("https://hacksnap.live/story/123"));
   assert.ok(urls.some((url) => url.includes("?category=")));
-  assert.equal(new Set(urls).size, urls.length);
+  assert.equal(uniqueURLs.size, urls.length);
   assert.ok(urls.every((url) => !url.includes("/archive")));
 });
 
