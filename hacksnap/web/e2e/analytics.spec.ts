@@ -1,5 +1,5 @@
 import { gunzipSync } from "node:zlib";
-import { test, expect, storyPath } from "./browser";
+import { test, expect, storyPath, posthogRequestURL } from "./browser";
 import type { Request } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 // Exercise collection with a normal browser UA; the SDK correctly excludes bots.
@@ -44,8 +44,7 @@ test("new readers start analytics without a banner and withdrawal discards queue
   await context.addInitScript(() => localStorage.removeItem("hacksnap:analytics-consent:v1"));
   const requests: Request[] = [];
   page.on("request", (request) => {
-    if (["eu.i.posthog.com", "eu-assets.i.posthog.com"].includes(new URL(request.url()).hostname))
-      requests.push(request);
+    if (posthogRequestURL.test(request.url())) requests.push(request);
   });
   await page.goto(`${storyPath}?draft=PRIVATE_QUERY#PRIVATE_HASH`);
   await expect(page.getByRole("button", { name: "Allow analytics", exact: true })).toBeHidden();
@@ -63,6 +62,7 @@ test("new readers start analytics without a banner and withdrawal discards queue
   expect(events.filter((e) => e.event === "story_view")).toHaveLength(1);
   expect(events.filter((e) => e.event === "article_reading_start")).toHaveLength(1);
   expect(JSON.stringify(events)).not.toMatch(/PRIVATE_QUERY|PRIVATE_HASH|draft=/);
+  expect(requests.every((r) => new URL(r.url()).hostname === "relay.hacksnap.live")).toBe(true);
   await page.getByRole("button", { name: "Analytics preferences", exact: true }).click();
   await page.getByRole("button", { name: "Turn analytics off", exact: true }).click();
   const count = requests.length;
@@ -81,7 +81,10 @@ test("saved opt-outs stay off until the reader enables analytics", async ({ page
   );
   const requests: string[] = [];
   page.on("request", (request) => {
-    if (/posthog\.com|googletagmanager\.com/.test(new URL(request.url()).hostname))
+    if (
+      posthogRequestURL.test(request.url()) ||
+      new URL(request.url()).hostname === "www.googletagmanager.com"
+    )
       requests.push(request.url());
   });
   await page.goto(storyPath);
@@ -97,7 +100,8 @@ test("returning consenting reader initializes without input", async ({ page, con
     localStorage.setItem("hacksnap:analytics-consent:v1", "accepted"),
   );
   const sent = page.waitForRequest(
-    (r) => new URL(r.url()).hostname === "eu.i.posthog.com" && new URL(r.url()).pathname === "/e/",
+    (r) =>
+      new URL(r.url()).hostname === "relay.hacksnap.live" && new URL(r.url()).pathname === "/e/",
   );
   await page.goto(storyPath);
   const events = payload(await sent) as Array<{ event: string }>;
@@ -123,8 +127,7 @@ test("real replay snapshots and heatmaps exclude queries, hashes, inputs and sha
   });
   const requests: Request[] = [];
   page.on("request", (request) => {
-    if (["eu.i.posthog.com", "eu-assets.i.posthog.com"].includes(new URL(request.url()).hostname))
-      requests.push(request);
+    if (posthogRequestURL.test(request.url())) requests.push(request);
   });
   await page.goto(`${storyPath}?draft=PRIVATE_QUERY#PRIVATE_HASH`);
   await expect.poll(() => requests.some((r) => r.url().includes("recorder.js"))).toBe(true);
@@ -166,6 +169,7 @@ test("real replay snapshots and heatmaps exclude queries, hashes, inputs and sha
   );
   // Include configuration/flags requests, not just the ingestion endpoints.
   for (const request of requests) {
+    expect(new URL(request.url()).hostname).toBe("relay.hacksnap.live");
     expect(decodeURIComponent(request.url())).not.toMatch(
       /PRIVATE_QUERY|PRIVATE_HASH|PRIVATE_SHARE_DRAFT|PRIVATE_INPUT/,
     );
@@ -251,7 +255,7 @@ test("blocked storage cannot grant consent or interrupt reading", async ({ page,
   });
   const vendorRequests: string[] = [];
   page.on("request", (r) => {
-    if (/posthog\.com|googletagmanager\.com/.test(new URL(r.url()).hostname))
+    if (posthogRequestURL.test(r.url()) || new URL(r.url()).hostname === "www.googletagmanager.com")
       vendorRequests.push(r.url());
   });
   await page.goto(storyPath);
@@ -272,9 +276,7 @@ test.describe("blocked analytics endpoints", () => {
     await context.addInitScript(() =>
       localStorage.setItem("hacksnap:analytics-consent:v1", "accepted"),
     );
-    await page.route(/^https:\/\/(eu|eu-assets)\.i\.posthog\.com\//, (route) =>
-      route.abort("blockedbyclient"),
-    );
+    await page.route(posthogRequestURL, (route) => route.abort("blockedbyclient"));
     await page.goto(storyPath);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await page.getByRole("link", { name: "Hacksnap home", exact: true }).click();

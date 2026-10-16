@@ -1,5 +1,6 @@
 import { PostHog, type PostHogConfig } from "posthog-js";
 import { analyticsAllowed } from "./analytics-consent";
+import { posthogHost } from "./posthog-host";
 import {
   analyticsPageContext,
   maskReplayAttribute,
@@ -10,8 +11,10 @@ import {
 export function posthogConfig(
   sessionContext: () => Record<string, string> = () => ({}),
 ): Partial<PostHogConfig> {
+  const apiHost = posthogHost();
+  if (!apiHost) throw new Error("PostHog host is missing or unsupported");
   return {
-    api_host: "https://eu.i.posthog.com",
+    api_host: apiHost,
     ui_host: "https://eu.posthog.com",
     defaults: "2026-05-30",
     get_current_url: () => publicAnalyticsURL(window.location.href),

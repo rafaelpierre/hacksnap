@@ -1,5 +1,6 @@
 import { analyticsAllowed, subscribeAnalyticsConsent } from "./analytics-consent";
 import { analyticsPageContext } from "./analytics-privacy";
+import { posthogHost } from "./posthog-host";
 
 export const GA_ID = "G-059PVYBN82";
 const READY_EVENT = "hacksnap:analytics-ready";
@@ -18,7 +19,7 @@ export function posthogConfigured(): boolean {
   return (
     process.env.NEXT_PUBLIC_POSTHOG_ENABLED === "true" &&
     !!process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-    process.env.NEXT_PUBLIC_POSTHOG_HOST === "https://eu.i.posthog.com"
+    !!posthogHost()
   );
 }
 

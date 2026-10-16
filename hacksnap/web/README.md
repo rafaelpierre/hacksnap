@@ -1240,6 +1240,32 @@ NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
 NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT=false
 ```
 
+The host accepts only the EU ingestion endpoint above or the managed proxy
+`https://relay.hacksnap.live`. The SDK uses the selected host for ingestion and
+assets, while `ui_host` remains `https://eu.posthog.com` for PostHog UI links.
+
+### Managed reverse proxy
+
+The Hacksnap organization (EU project `308138`) has a managed proxy for
+`relay.hacksnap.live`. Its DNS record is:
+
+| Type  | Name    | Target                                                | Cloudflare proxy status |
+| ----- | ------- | ----------------------------------------------------- | ----------------------- |
+| CNAME | `relay` | `24daa69ee72aa27c0299.cf-prod-eu-proxy.europehog.com` | DNS only                |
+
+Check [PostHog proxy settings](https://eu.posthog.com/project/308138/settings/organization-proxy)
+and wait for the proxy to become live with a valid TLS certificate. Then set
+`NEXT_PUBLIC_POSTHOG_HOST=https://relay.hacksnap.live` in the deployment environment
+and rebuild/redeploy; this public variable is bundled at build time. Verify that
+events, flags/config and replay assets use the proxy, and that analytics withdrawal
+still stops collection. Revert to `https://eu.i.posthog.com` and rebuild to roll back.
+
+Managed proxy traffic is processed by Cloudflare under PostHog's DPA; this feature
+is not covered by a BAA and must not carry PHI. See the
+[managed proxy guide](https://posthog.com/docs/advanced/proxy).
+
+### Collection and consent
+
 Keep `.env.local` out of Git. Missing values or the disabled kill switch make
 PostHog a no-op. Analytics default to on when no choice is saved, with no automatic
 banner and no synthetic acceptance written to storage. Existing declines remain off.
@@ -1257,8 +1283,8 @@ The route identity remains pathname plus sorted query parameters excluding
 `journey`. Raw query/hash values are removed from vendor payloads; validated
 category IDs and pagination numbers are separate fields. Do not pool v3 with older
 GA populations. Replay samples 10% of analytics-enabled sessions, masks all inputs and
-blocks share drafts/manual-copy content. There are no person profiles, server SDK,
-ingestion proxy or schema changes.
+blocks share drafts/manual-copy content. There are no person profiles, server SDK
+or schema changes.
 
 See [the analytics README](../../docs/analytics/README.md) for event definitions,
 dashboards, free allowances, privacy checks, rollback and the post-release

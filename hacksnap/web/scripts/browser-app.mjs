@@ -69,7 +69,7 @@ env.NEXT_TELEMETRY_DISABLED = "1";
 // Dummy public configuration only. e2e/browser.ts intercepts every vendor request.
 env.NEXT_PUBLIC_POSTHOG_ENABLED = "true";
 env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_browser_fixture_not_a_real_project";
-env.NEXT_PUBLIC_POSTHOG_HOST = "https://eu.i.posthog.com";
+env.NEXT_PUBLIC_POSTHOG_HOST = "https://relay.hacksnap.live";
 if (cacheFixture) {
   env.HACKSNAP_CACHE_FIXTURE = "true";
   env.HACKSNAP_PUBLICATION_CACHE = "true";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { jest, test } from "@jest/globals";
 import { analyticsBrowser } from "./analytics-browser.mjs";
 
-test("PostHog requires the enabled switch, public token and EU host", async () => {
+test("PostHog requires the enabled switch, public token and an approved ingestion host", async () => {
   const keys = [
     "NEXT_PUBLIC_POSTHOG_ENABLED",
     "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN",
@@ -17,10 +17,25 @@ test("PostHog requires the enabled switch, public token and EU host", async () =
     process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_dummy";
     process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://eu.i.posthog.com";
     assert.equal(posthogConfigured(), true);
+    process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://relay.hacksnap.live";
+    assert.equal(posthogConfigured(), true);
     process.env.NEXT_PUBLIC_POSTHOG_ENABLED = "false";
     assert.equal(posthogConfigured(), false);
     process.env.NEXT_PUBLIC_POSTHOG_ENABLED = "true";
-    process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://example.com";
+    for (const host of [
+      "https://example.com",
+      "https://us.i.posthog.com",
+      "http://relay.hacksnap.live",
+      "https://relay.hacksnap.live.evil.example",
+      "https://relay.hacksnap.live@evil.example",
+      "https://relay.hacksnap.live/path",
+      "",
+    ]) {
+      process.env.NEXT_PUBLIC_POSTHOG_HOST = host;
+      assert.equal(posthogConfigured(), false, host);
+    }
+    process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://relay.hacksnap.live";
+    delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
     assert.equal(posthogConfigured(), false);
   } finally {
     keys.forEach((key, index) => {

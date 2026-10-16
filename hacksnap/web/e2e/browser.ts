@@ -4,6 +4,8 @@ import path from "node:path";
 
 export const title = "Small models make local tools more useful";
 export const storyPath = "/story/91000001";
+export const posthogRequestURL =
+  /^https:\/\/(?:(?:eu|eu-assets)\.i\.posthog\.com|relay\.hacksnap\.live)\//;
 export const test = base.extend<{ browserErrors: string[]; expectedNetworkErrors: boolean }>({
   expectedNetworkErrors: [false, { option: true }],
   browserErrors: [
@@ -26,7 +28,7 @@ export const test = base.extend<{ browserErrors: string[]; expectedNetworkErrors
             ((/Failed to load resource.*503/.test(message.text()) &&
               message.location().url.includes("/api/browse-stories")) ||
               (/ERR_BLOCKED_BY_CLIENT/.test(message.text()) &&
-                /^https:\/\/(eu|eu-assets)\.i\.posthog\.com\//.test(message.location().url)))
+                posthogRequestURL.test(message.location().url)))
           )
         )
           errors.push(message.text());
@@ -54,7 +56,7 @@ export const test = base.extend<{ browserErrors: string[]; expectedNetworkErrors
         } else if (url.origin === baseURL) await route.continue();
         else if (url.hostname === "www.googletagmanager.com")
           await route.fulfill({ contentType: "application/javascript", body: "" });
-        else if (["eu.i.posthog.com", "eu-assets.i.posthog.com"].includes(url.hostname)) {
+        else if (posthogRequestURL.test(url.href)) {
           // All PostHog endpoints are local responses, including replay assets.
           // Never forward fixture traffic or its dummy project token to a vendor.
           if (
