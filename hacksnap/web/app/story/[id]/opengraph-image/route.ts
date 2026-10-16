@@ -1,17 +1,13 @@
 import { getStory, getFreshStory } from "../../../../lib/data";
 import { connection } from "next/server";
-import {
-  storyISREnabled,
-  trackPublicationForISR,
-  trackUnpublishedForISR,
-} from "../../../../lib/publication-cache";
+import { storyISREnabled, trackUnpublishedForISR } from "../../../../lib/publication-cache";
 import { hasReadySummary } from "../../../../lib/ready-stories";
 import { availableData, unavailableResponse } from "../../../../lib/data-availability";
 import { domain } from "../../../../lib/format";
 import { ogImage } from "../../../../lib/og-image";
 import { storyIdFromSlug } from "../../../../lib/story-url";
 
-export const revalidate = 86400;
+export const revalidate = 300;
 export const generateStaticParams = storyISREnabled() ? () => [] : undefined;
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -33,7 +29,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   }
   const story = result.value;
   if (!hasReadySummary(story) && isr) await trackUnpublishedForISR();
-  else if (isr) await trackPublicationForISR();
   const image = await ogImage({
     title: story.title,
     source: domain(story.url),

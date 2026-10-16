@@ -19,18 +19,8 @@ async function get(url = "/story/91000001", headers = {}, redirect = "manual") {
   const response = await fetch(origin + url, { headers, redirect });
   return { status: response.status, headers: response.headers, body: await response.text() };
 }
-async function notify(kind = "correction") {
-  const response = await fetch(origin + "/api/revalidate-publication", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer cache-fixture-secret-not-for-production",
-    },
-    body: JSON.stringify({ changes: [{ storyId: "91000001", kind }] }),
-  });
-  assert.equal(response.status, 200);
-  await response.text();
-}
+const expire = () => new Promise((resolve) => setTimeout(resolve, 5500));
+
 try {
   for (let n = 0; ; n++) {
     try {
@@ -41,6 +31,9 @@ try {
       await pause();
     }
   }
+  const retired = await fetch(origin + "/api/revalidate-publication", { method: "POST" });
+  assert.equal(retired.status, 404, "the mutation endpoint must no longer exist");
+  await retired.text();
   await state({ title: "Cache fixture A" });
   const first = await get();
   assert.equal(first.status, 200);
@@ -60,7 +53,7 @@ try {
     second: hit.headers.get("x-nextjs-cache"),
     cacheControl: hit.headers.get("cache-control"),
   });
-  await notify();
+  await expire();
   let refreshed;
   for (let n = 0; n < 100; n++) {
     refreshed = await get();
@@ -69,7 +62,7 @@ try {
   }
   assert.match(refreshed.body, /Cache fixture B/);
   await state({ fail: true });
-  await notify();
+  await expire();
   const retained = await get();
   assert.equal(retained.status, 200, "regeneration failure must retain the successful ISR page");
   assert.match(retained.body, /Cache fixture B/);
@@ -78,18 +71,34 @@ try {
   assert.ok(cold.status >= 500);
   assert.match(cold.headers.get("cache-control"), /no-store/);
   await state({ removed: true });
-  await notify("removal");
-  const removed = await get();
+  await expire();
+  let removed;
+  for (let n = 0; n < 100; n++) {
+    removed = await get();
+    if (removed.status === 404) break;
+    await pause();
+  }
   assert.equal(removed.status, 404);
-  assert.match(removed.headers.get("cache-control"), /s-maxage=60/);
-  assert.equal((await get("/story/91000001/opengraph-image")).status, 404);
+  assert.match(removed.headers.get("cache-control"), /s-maxage=5/);
+  let removedImage;
+  for (let n = 0; n < 100; n++) {
+    removedImage = await get("/story/91000001/opengraph-image");
+    if (removedImage.status === 404) break;
+    await pause();
+  }
+  assert.equal(removedImage.status, 404);
   await state({ title: "Pending cache fixture", pending: true });
-  await notify("removal");
-  const pending = await get();
+  await expire();
+  let pending;
+  for (let n = 0; n < 100; n++) {
+    pending = await get();
+    if (pending.status === 200) break;
+    await pause();
+  }
   assert.equal(pending.status, 200);
-  assert.match(pending.headers.get("cache-control"), /s-maxage=60/);
+  assert.match(pending.headers.get("cache-control"), /s-maxage=5/);
   await state({ title: "Cache fixture C", slug: "canonical-story-91000001" });
-  await notify("publication");
+  await expire();
   const redirect = await get("/story/91000001?source=test&source=two");
   assert.equal(redirect.status, 308);
   assert.equal(
@@ -173,7 +182,7 @@ try {
     }
   }
   console.info(
-    "Cache smoke passed: shared ISR, publication refresh, outage retention, removal, canonical query, format separation, immutable assets",
+    "Cache smoke passed: shared ISR, time-based refresh, outage retention, removal, canonical query, format separation, immutable assets",
   );
 } finally {
   server.kill("SIGTERM");

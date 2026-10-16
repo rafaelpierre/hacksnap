@@ -72,11 +72,39 @@ try {
   await db.query('SELECT snapshot_id,score,descendants FROM hn_thread_snapshots');
   await assert.rejects(db.query('SELECT raw_payload FROM hn_thread_snapshots'), /permission denied/);
   await db.exec('RESET ROLE');
+  await db.exec(sql.seo);
+  await db.exec(`INSERT INTO hacksnap_summaries(story_id,overall_takeaway) VALUES(124,'Preserved article');
+    UPDATE hacksnap_summaries SET seo_title='Preserved SEO',seo_description='Preserved description.',
+      seo_metadata='{}' WHERE story_id=124;`);
+  await db.exec(sql.retire);
+  assert.equal((await db.query("SELECT to_regclass('hacksnap_publication_outbox') AS name")).rows[0].name, null);
+  assert.equal((await db.query("SELECT count(*)::int AS n FROM pg_trigger WHERE tgname IN ('hacksnap_summary_publication','hacksnap_thread_publication','hacksnap_fetch_withdrawal','hacksnap_seo_publication','hacksnap_seo_inputs','hacksnap_seo_original_title')")).rows[0].n, 0);
+  assert.equal((await db.query("SELECT count(*)::int AS n FROM information_schema.columns WHERE table_name='hacksnap_summaries' AND column_name IN ('seo_pending','seo_input_version','seo_attempted_at')")).rows[0].n, 0);
+  await db.exec(`UPDATE hacker_news_threads SET title='Corrected source' WHERE hn_id=124;
+    UPDATE hacksnap_summaries SET article_summary='Corrected summary' WHERE story_id=124;
+    INSERT INTO hacksnap_fetch_failures VALUES(124,'https://example.test');
+    DELETE FROM hacksnap_fetch_failures;`);
+  const saved = (await db.query('SELECT overall_takeaway,seo_title FROM hacksnap_summaries WHERE story_id=124')).rows[0];
+  assert.deepEqual(saved, {overall_takeaway:'Preserved article',seo_title:'Preserved SEO'});
+  await db.exec('SET ROLE hacksnap_reader');
+  await db.query('SELECT seo_title,seo_description FROM hacksnap_summaries');
+  await assert.rejects(db.query('SELECT seo_metadata FROM hacksnap_summaries'), /permission denied/);
+  await db.exec('RESET ROLE');
+  await db.exec(sql.restore);
+  await db.exec("UPDATE hacksnap_summaries SET overall_takeaway='Rollback publication' WHERE story_id=124");
+  assert.equal((await events()).length, 2, 'rollback restores summary and SEO notifications');
+  await db.exec(sql.seo_down);
   await db.exec(sql.downgrade);
 } finally { await db.close(); }
 '''
     result = subprocess.run(
         ["node", "--input-type=module", "-e", script], capture_output=True, text=True,
-        input=json.dumps({"upgrade": render("upgrade", MIGRATION), "downgrade": render("downgrade", MIGRATION)}),
+        input=json.dumps({
+            "upgrade": render("upgrade", MIGRATION), "downgrade": render("downgrade", MIGRATION),
+            "seo": render("upgrade", "0025_article_seo_article_seo_metadata.py"),
+            "seo_down": render("downgrade", "0025_article_seo_article_seo_metadata.py"),
+            "retire": render("upgrade", "0026_retire_webhook_retire_publication_notifications.py"),
+            "restore": render("downgrade", "0026_retire_webhook_retire_publication_notifications.py"),
+        }),
     )
     assert result.returncode == 0, result.stderr

@@ -18,16 +18,13 @@ def main():
         parser.error("limit must be 1-50 and after-id must be nonnegative")
     repository = SeoRepository(database_url_from_env())
     if not args.execute:
-        # Dry run is DB-read-only and needs no inference credentials. It lists a
-        # superset of candidates because the configured model version is unknown.
-        rows = repository.seo_candidates("dry-run", limit=args.limit, after_id=args.after_id)
+        # Dry run is DB-read-only and needs no inference credentials.
+        rows = repository.seo_candidates(limit=args.limit, after_id=args.after_id)
         print(json.dumps({"candidate_ids": [row["story_id"] for row in rows],
                           "last_id": rows[-1]["story_id"] if rows else None}))
         return
     result = refresh_seo(repository, SeoAgent(Settings.from_env()),
                          limit=args.limit, after_id=args.after_id)
-    from .publication import try_dispatch
-    try_dispatch()
     print(json.dumps(result))
 
 

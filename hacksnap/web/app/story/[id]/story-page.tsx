@@ -2,11 +2,7 @@ import { storyIdFromSlug, storyPath } from "../../../lib/story-url";
 import { availableData } from "../../../lib/data-availability";
 import { withDataFallback } from "../../with-data-fallback";
 import { connection } from "next/server";
-import {
-  storyISREnabled,
-  trackPublicationForISR,
-  trackUnpublishedForISR,
-} from "../../../lib/publication-cache";
+import { storyISREnabled, trackUnpublishedForISR } from "../../../lib/publication-cache";
 import { hasReadySummary } from "../../../lib/ready-stories";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -26,7 +22,6 @@ async function loadStory(id: string, requestTime = false) {
   }
   const story = await getFreshStory(id);
   if (!story || !hasReadySummary(story)) await trackUnpublishedForISR();
-  else await trackPublicationForISR();
   return story;
 }
 

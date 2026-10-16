@@ -45,6 +45,23 @@ if (command === "build") {
       .toFile(path.join(target, `public/browser-images/${width}.webp`));
   const fixture = await readFile(path.join(root, "e2e/fixtures/data.ts"), "utf8");
   await writeFile(path.join(target, "lib/data.ts"), fixture.replaceAll("../../lib/", "./"));
+  if (cacheFixture) {
+    for (const name of [
+      "app/story/[id]/page.tsx",
+      "app/story/[id]/opengraph-image/route.ts",
+      "lib/publication-cache.ts",
+    ]) {
+      const file = path.join(target, name);
+      const source = await readFile(file, "utf8");
+      await writeFile(
+        file,
+        source
+          .replaceAll("revalidate = 300", "revalidate = 5")
+          .replaceAll("PUBLICATION_TTL = 300", "PUBLICATION_TTL = 5")
+          .replaceAll("revalidate: 60", "revalidate: 5"),
+      );
+    }
+  }
   if (cacheFixture)
     await writeFile(
       path.join(target, "cache-fixture-state.json"),
@@ -74,7 +91,6 @@ if (cacheFixture) {
   env.HACKSNAP_CACHE_FIXTURE = "true";
   env.HACKSNAP_PUBLICATION_CACHE = "true";
   env.HACKSNAP_STORY_ISR = "true";
-  env.HACKSNAP_PUBLICATION_SECRET = "cache-fixture-secret-not-for-production";
 }
 const child = spawn(
   process.execPath,

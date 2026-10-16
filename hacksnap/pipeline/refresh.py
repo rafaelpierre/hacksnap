@@ -314,9 +314,6 @@ def refresh(repository, fetcher, summarizer, comment_budget: int = DEFAULT_COMME
                 ))
             for future in as_completed(futures):
                 counts[future.result()] += 1
-                from .publication import try_dispatch
-
-                try_dispatch()
     if len(attempted) == MAX_STORIES_PER_RUN:
         logger.info(json.dumps({"event": "refresh_attempt_limit", "limit": MAX_STORIES_PER_RUN}))
     # Capture the final ordering after failed articles have been excluded.
@@ -361,8 +358,8 @@ def run() -> dict:
             repository, fetcher, summarizer, settings.comment_chars,
             image_enabled=image_enabled,
         )
-        # Summaries have committed. SEO consumes the durable publication/correction
-        # queue and never changes this daily workflow's schedule or success status.
+        # Summaries have committed. Select recent published articles directly
+        # for SEO enrichment within this daily run; no queue or separate schedule.
         from .seo import SeoAgent, refresh_seo
         from .seo_repository import SeoRepository
 
@@ -374,8 +371,6 @@ def run() -> dict:
         except Exception as exc:  # noqa: BLE001 - optional enrichment is failure-isolated
             logger.warning(json.dumps({"event": "seo_batch_failed", "error_type": type(exc).__name__}))
             counts["seo"] = {"status": "failed"}
-        from .publication import try_dispatch
-        try_dispatch()
         cleanup = repository.cleanup_contents()
         logger.info(json.dumps({"event": "contents_cleanup", **cleanup}))
     # Individual stories are failure-isolated. Return their count for monitoring without

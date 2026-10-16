@@ -3,11 +3,9 @@ import * as nextCache from "next/cache";
 import { boundedCache } from "./bounded-cache";
 import { ARTICLE_IMAGE_HOSTNAME } from "./article-image-origin";
 
-export const PUBLICATION_TAG = "hacksnap:publication:v1";
-export const POPULARITY_TAG = "hacksnap:popularity:v1";
-export const PUBLICATION_TTL = 86_400;
+export const PUBLICATION_TTL = 300;
 
-// Enable only after the publication webhook has successfully received a delivery.
+// Optional shared caching uses time-based expiry; no external invalidation is needed.
 export function publicationCachingEnabled(): boolean {
   return process.env.HACKSNAP_PUBLICATION_CACHE === "true";
 }
@@ -16,26 +14,15 @@ export function storyISREnabled(): boolean {
   return publicationCachingEnabled() && process.env.HACKSNAP_STORY_ISR === "true";
 }
 
-let publicationMarker: (() => Promise<boolean>) | undefined;
 let negativeMarker: (() => Promise<boolean>) | undefined;
 export async function trackUnpublishedForISR() {
   negativeMarker ??= nextCache.unstable_cache(
     async () => true,
     ["hacksnap", "unpublished-isr-v1"],
-    { revalidate: 60, tags: [PUBLICATION_TAG] },
+    { revalidate: 60 },
   );
   await negativeMarker();
 }
-// Attach the publication tag to ISR output without caching the story read.
-export async function trackPublicationForISR() {
-  publicationMarker ??= nextCache.unstable_cache(
-    async () => true,
-    ["hacksnap", "isr-publication-v1"],
-    { revalidate: PUBLICATION_TTL, tags: [PUBLICATION_TAG] },
-  );
-  await publicationMarker();
-}
-
 export function encodeCacheValue(value: unknown): string {
   return JSON.stringify(value, function (key, item) {
     const original: unknown = this[key];
@@ -61,11 +48,11 @@ export function publicationCache<T>(
   name: string,
   load: (key: string) => Promise<T>,
   legacy: Parameters<typeof boundedCache<T>>[1],
-  options: { seconds?: number; tags?: string[] } = {},
+  options: { seconds?: number } = {},
 ): (key: string) => Promise<T> {
   const shortCache = boundedCache(load, legacy);
   // Retain only concurrent work locally. A completed local copy must never
-  // survive a shared-cache invalidation on another Vercel instance.
+  // extend the shared cache freshness window on another Vercel instance.
   const coalesced = boundedCache(load, { ...legacy, ttl: () => 0 });
   let shared: ((key: string) => Promise<string>) | undefined;
   return async (key) => {
@@ -74,12 +61,12 @@ export function publicationCache<T>(
       async (key: string) => encodeCacheValue(await coalesced(key)),
       [
         "hacksnap",
-        "public-data-v1",
+        "public-data-expiry-v2",
         name,
         process.env.HACKSNAP_DISCUSSION_RENDERING ?? "true",
         ARTICLE_IMAGE_HOSTNAME,
       ],
-      { revalidate: options.seconds ?? PUBLICATION_TTL, tags: options.tags ?? [PUBLICATION_TAG] },
+      { revalidate: options.seconds ?? PUBLICATION_TTL },
     );
     return decodeCacheValue<T>(await shared(key));
   };

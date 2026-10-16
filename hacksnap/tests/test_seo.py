@@ -18,7 +18,7 @@ def row():
             "article_key_points": ["Independent validation is absent."],
             "overall_takeaway": "The result remains limited to the reported benchmark.",
             "discussion_points": [], "source_coverage": {"article_status": "fetched"},
-            "seo_input_version": 0, "seo_metadata": None}
+            "seo_metadata": None}
 
 
 def agent():
@@ -76,7 +76,7 @@ def test_generation_persists_only_valid_copy_with_provenance_and_caches_it():
     repository, generator, source = MagicMock(), agent(), row()
     assert process_seo(source, repository, generator) == "generated"
     persisted_row, result, provenance = repository.save_seo.call_args.args
-    assert persisted_row["seo_input_version"] == 0
+    assert persisted_row == source
     assert provenance["model"] == generator.model
     assert len(provenance["input_fingerprint"]) == 64
     assert result == generator.generate.return_value
@@ -90,25 +90,19 @@ def test_failure_leaves_publication_and_prior_metadata_untouched():
     repository, generator = MagicMock(), agent()
     generator.generate.side_effect = RuntimeError("provider failed")
     assert process_seo(row(), repository, generator) == "failed"
-    repository.claim_seo.assert_called_once()
     repository.save_seo.assert_not_called()
     repository.save_summary.assert_not_called()
 
 
-def test_claim_conflict_and_correction_during_inference_do_not_publish_stale_results():
+def test_source_correction_during_inference_does_not_publish_stale_results():
     repository, generator = MagicMock(), agent()
-    repository.claim_seo.return_value = False
-    assert process_seo(row(), repository, generator) == "stale"
-    generator.generate.assert_not_called()
-    repository.claim_seo.return_value = True
     repository.save_seo.return_value = False
     assert process_seo(row(), repository, generator) == "stale"
 
 
-def test_expired_batch_budget_preserves_pending_work_without_inference():
+def test_expired_batch_budget_skips_inference():
     repository, generator = MagicMock(), agent()
     assert process_seo(row(), repository, generator, deadline=monotonic()) == "deferred"
-    repository.claim_seo.assert_not_called()
     generator.generate.assert_not_called()
 
 
@@ -125,8 +119,7 @@ def test_backfill_defaults_to_read_only_without_loading_inference_settings(monke
     monkeypatch.setattr(backfill_seo.Settings, "from_env", forbidden)
     backfill_seo.main()
     assert json.loads(capsys.readouterr().out) == {"candidate_ids": [42], "last_id": 42}
-    repository.seo_candidates.assert_called_once_with("dry-run", limit=1, after_id=10)
-    repository.claim_seo.assert_not_called()
+    repository.seo_candidates.assert_called_once_with(limit=1, after_id=10)
     repository.save_seo.assert_not_called()
 
 
@@ -134,7 +127,7 @@ def test_batch_is_bounded_and_uses_automatic_selection_by_default():
     repository, generator = MagicMock(), agent()
     repository.seo_candidates.return_value = [row()]
     assert refresh_seo(repository, generator)["generated"] == 1
-    repository.seo_candidates.assert_called_once_with(generator.version, limit=50, after_id=None)
+    repository.seo_candidates.assert_called_once_with(limit=50, after_id=None)
 
 
 def test_agent_allows_reasoning_tokens_but_constrains_description_output():
@@ -163,7 +156,7 @@ def test_agent_allows_reasoning_tokens_but_constrains_description_output():
 def test_daily_run_enriches_after_publication_and_isolates_batch_errors(monkeypatch):
     import pipeline.refresh as pipeline
     import pipeline.seo_repository as storage
-    from pipeline import publication, seo
+    from pipeline import seo
 
     events = []
     settings = Settings(database_url="unused", llm_base_url="https://fixture.invalid/v1",
@@ -174,12 +167,11 @@ def test_daily_run_enriches_after_publication_and_isolates_batch_errors(monkeypa
     monkeypatch.setattr(pipeline, "Repository", lambda _: repository)
     monkeypatch.setattr(pipeline, "refresh", lambda *a, **k: events.append("published") or {"generated": 1})
     monkeypatch.setattr(storage, "SeoRepository", lambda _: repository)
-    monkeypatch.setattr(publication, "try_dispatch", lambda: events.append("dispatch"))
     def fail(*args, **kwargs):
         events.append("seo")
         raise RuntimeError("database temporarily unavailable")
     monkeypatch.setattr(seo, "refresh_seo", fail)
     result = pipeline.run()
     assert result["generated"] == 1 and result["seo"] == {"status": "failed"}
-    assert events == ["published", "seo", "dispatch"]
+    assert events == ["published", "seo"]
     repository.cleanup_contents.assert_called_once()
