@@ -2,6 +2,7 @@
 
 import { useRef, useState, useSyncExternalStore } from "react";
 import {
+  ANALYTICS_CONSENT_REQUIRED,
   readAnalyticsConsent,
   setAnalyticsConsent,
   subscribeAnalyticsConsent,
@@ -23,7 +24,8 @@ export function AnalyticsPreferences() {
   const [failed, setFailed] = useState(false);
   const settings = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLElement>(null);
-  const visible = hydrated && (editing || (consent === "unknown" && !dismissed));
+  const visible =
+    hydrated && (editing || (ANALYTICS_CONSENT_REQUIRED && consent === "unknown" && !dismissed));
 
   function choose(value: "accepted" | "declined") {
     const saved = setAnalyticsConsent(value);

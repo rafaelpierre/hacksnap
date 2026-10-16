@@ -37,7 +37,7 @@ function expandReplay(value: unknown): unknown {
   return value;
 }
 
-test("consent gates real SDK requests and withdrawal discards queued events", async ({
+test("new readers start analytics without a banner and withdrawal discards queued events", async ({
   page,
   context,
 }) => {
@@ -48,10 +48,11 @@ test("consent gates real SDK requests and withdrawal discards queued events", as
       requests.push(request);
   });
   await page.goto(`${storyPath}?draft=PRIVATE_QUERY#PRIVATE_HASH`);
-  await expect(page.getByRole("button", { name: "Allow analytics", exact: true })).toBeVisible();
-  await page.waitForTimeout(500);
-  expect(requests).toHaveLength(0);
-  await page.getByRole("button", { name: "Allow analytics", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Allow analytics", exact: true })).toBeHidden();
+  await expect(page.locator("#hacksnap-google-analytics")).toHaveCount(1);
+  expect(
+    await page.evaluate(() => localStorage.getItem("hacksnap:analytics-consent:v1")),
+  ).toBeNull();
   await expect
     .poll(() => requests.filter((r) => new URL(r.url()).pathname === "/e/").length)
     .toBeGreaterThan(0);
@@ -72,6 +73,23 @@ test("consent gates real SDK requests and withdrawal discards queued events", as
   expect(
     await page.evaluate(() => Object.keys(localStorage).filter((key) => /^(ph_|__ph_)/.test(key))),
   ).toEqual([]);
+});
+
+test("saved opt-outs stay off until the reader enables analytics", async ({ page, context }) => {
+  await context.addInitScript(() =>
+    localStorage.setItem("hacksnap:analytics-consent:v1", "declined"),
+  );
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (/posthog\.com|googletagmanager\.com/.test(new URL(request.url()).hostname))
+      requests.push(request.url());
+  });
+  await page.goto(storyPath);
+  await page.getByRole("button", { name: "Analytics preferences", exact: true }).click();
+  await expect(page.getByText("Analytics are off.", { exact: true })).toBeVisible();
+  expect(requests).toEqual([]);
+  await page.getByRole("button", { name: "Allow analytics", exact: true }).click();
+  await expect(page.locator("#hacksnap-google-analytics")).toHaveCount(1);
 });
 
 test("returning consenting reader initializes without input", async ({ page, context }) => {
@@ -237,6 +255,8 @@ test("blocked storage cannot grant consent or interrupt reading", async ({ page,
       vendorRequests.push(r.url());
   });
   await page.goto(storyPath);
+  await expect(page.getByRole("button", { name: "Allow analytics", exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "Analytics preferences", exact: true }).click();
   await page.getByRole("button", { name: "Allow analytics", exact: true }).click();
   await expect(page.locator("#analytics-preferences").getByRole("status")).toContainText(
     "Analytics remain off",
@@ -276,13 +296,16 @@ for (const width of [320, 1280])
       await page.goto(storyPath);
       await page.addStyleTag({ content: `html { font-size: ${scale * 100}% !important; }` });
       const panel = page.getByRole("region", { name: "Reading analytics" });
+      await expect(panel).toBeHidden();
+      await page.screenshot({ path: testInfo.outputPath("banner-disabled.png") });
+      await page.getByRole("button", { name: "Analytics preferences", exact: true }).click();
       await expect(panel).toBeVisible();
       const bounds = await panel.boundingBox();
       expect(bounds!.x).toBeGreaterThanOrEqual(0);
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
       expect(await panel.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
       const accept = page.getByRole("button", { name: "Allow analytics", exact: true });
-      const decline = page.getByRole("button", { name: "Decline analytics", exact: true });
+      const decline = page.getByRole("button", { name: "Turn analytics off", exact: true });
       for (const button of [accept, decline])
         expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       expect(

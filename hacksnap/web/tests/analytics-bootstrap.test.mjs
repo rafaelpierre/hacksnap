@@ -30,8 +30,53 @@ test("PostHog requires the enabled switch, public token and EU host", async () =
   }
 });
 
-test("both vendors stay silent before consent; withdrawal clears queued events and identifiers", async () => {
+test("new readers load analytics after hydration without a saved choice or input", async () => {
   const close = analyticsBrowser("https://hacksnap.live/story/42?draft=private#secret", null);
+  jest.resetModules();
+  const { analyticsAllowed } = await import("../lib/analytics-consent.ts");
+  const runtime = await import("../lib/analytics-vendors.ts");
+  try {
+    assert.equal(analyticsAllowed(), true);
+    runtime.installAnalyticsRuntime();
+    assert.equal(document.scripts.length, 0);
+    runtime.notifyAnalyticsReady();
+    runtime.captureVendorEvent("story_view", { story_id: "42" });
+    assert.equal(document.scripts.length, 1);
+    assert.equal(window["ga-disable-G-059PVYBN82"], false);
+    assert.equal(window.dataLayer.filter((args) => args[1] === "story_view").length, 1);
+    assert.equal(localStorage.getItem("hacksnap:analytics-consent:v1"), null);
+  } finally {
+    close();
+  }
+});
+
+test("the opt-in switch restores unknown consent and prevents vendor loading", async () => {
+  const close = analyticsBrowser(undefined, null);
+  const before = process.env.NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT;
+  process.env.NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT = "true";
+  jest.resetModules();
+  const consent = await import("../lib/analytics-consent.ts");
+  const runtime = await import("../lib/analytics-vendors.ts");
+  try {
+    assert.equal(consent.readAnalyticsConsent(), "unknown");
+    assert.equal(consent.analyticsAllowed(), false);
+    runtime.installAnalyticsRuntime();
+    runtime.notifyAnalyticsReady();
+    runtime.captureVendorEvent("story_view", { story_id: "42" });
+    assert.equal(document.scripts.length, 0);
+    assert.equal(window.dataLayer.length, 0);
+    consent.setAnalyticsConsent("accepted");
+    assert.equal(document.scripts.length, 1);
+  } finally {
+    if (before === undefined) delete process.env.NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT;
+    else process.env.NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT = before;
+    jest.resetModules();
+    close();
+  }
+});
+
+test("saved opt-outs keep both vendors silent; withdrawal clears queued events and identifiers", async () => {
+  const close = analyticsBrowser("https://hacksnap.live/story/42?draft=private#secret", "declined");
   jest.resetModules();
   const consent = await import("../lib/analytics-consent.ts");
   const runtime = await import("../lib/analytics-vendors.ts");
@@ -82,7 +127,7 @@ test("cross-tab consent changes are observed, unavailable storage never grants c
     );
     localStorage.clear();
     window.dispatchEvent(new window.StorageEvent("storage", { key: null }));
-    assert.deepEqual(changes, [true, false]);
+    assert.deepEqual(changes, [true, true]);
     Object.defineProperty(window, "localStorage", {
       get() {
         throw Error("blocked");

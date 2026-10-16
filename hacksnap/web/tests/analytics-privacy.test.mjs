@@ -57,7 +57,7 @@ test("event and replay URLs are scrubbed independently, including nested SDK fie
 });
 
 test("acceptance records the current story once and never repeats first-party popularity views", () => {
-  const close = analyticsBrowser("https://hacksnap.live/story/42", null);
+  const close = analyticsBrowser("https://hacksnap.live/story/42", "declined");
   const events = [],
     popularity = [];
   window.gtag = (_command, name, props) => events.push({ name, ...props });
@@ -112,7 +112,7 @@ test("feed outcomes settle once, distinguish cancellation and cannot cross conse
 });
 
 test("article checkpoints preserve the source URL and cannot survive withdrawal", () => {
-  const close = analyticsBrowser("https://hacksnap.live/story/42?draft=PRIVATE", null);
+  const close = analyticsBrowser("https://hacksnap.live/story/42?draft=PRIVATE", "declined");
   const events = [];
   window.gtag = (_command, name, fields) => events.push({ name, ...fields });
   const context = {

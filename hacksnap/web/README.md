@@ -544,16 +544,18 @@ files. Route performance tests include font bytes and request counts, with a
 115,000-byte limit and at most two font URLs per cold route.
 See the [PageSpeed follow-up](../../docs/performance/pagespeed-2026-10-09.md)
 for measurements and the framework-JavaScript findings.
-GA4 and PostHog require explicit analytics consent. Before acceptance, neither
-provider loads or buffers activity. After acceptance, GA loads asynchronously and
-PostHog dynamically loads after hydration, including for returning consenting readers. Detailed article-section
+GA4 and configured PostHog start automatically after hydration for readers without
+a saved opt-out. GA loads asynchronously and PostHog dynamically loads. The automatic
+consent banner is temporarily disabled; the footer still opens Analytics preferences.
+Set `NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT=true` and rebuild to restore the banner
+and explicit opt-in before either provider loads or buffers activity. Detailed article-section
 measurement from [the reading contract](../../docs/analytics/article-reading.md)
 is retained behind the same consent gate. Automatic pageviews are disabled and
 the route lifecycle owns one pageview per occurrence. The consent panel adds no server-rendered content
 replacement. See [analytics configuration and release checks](../../docs/analytics/README.md).
 The cold-route budgets exercise declined consent. The browser suite serves vendor
 requests locally; it does not measure real GA transfer/execution or PostHog service
-latency. Opt-in readers download the SDK and sampled replay assets after hydration.
+latency. Readers with analytics enabled download the SDK and sampled replay assets after hydration.
 
 In Cloudflare, disable **Email Address Obfuscation** for `hacksnap.live` (use a
 hostname-scoped configuration rule if the zone serves other sites). Cloudflare
@@ -1227,7 +1229,7 @@ query parameters deduplicate. Transient journey tokens are excluded, and raw que
 values are never added to engagement event fields. Category labels appear on all
 feed cards, including selected topic feeds.
 
-## Consent-gated journey analytics
+## Journey analytics preferences
 
 PostHog uses the EU project and the following build-time public configuration:
 
@@ -1235,13 +1237,17 @@ PostHog uses the EU project and the following build-time public configuration:
 NEXT_PUBLIC_POSTHOG_ENABLED=true
 NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=<public project token>
 NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
+NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT=false
 ```
 
 Keep `.env.local` out of Git. Missing values or the disabled kill switch make
-PostHog a no-op. GA4 is independently gated by the same preference. Accept/decline
-are equally available; the footer's Analytics preferences control supports later
-withdrawal. Acceptance includes masked session replay. Blocked storage defaults
-to no tracking. Consent changes synchronize across tabs, discard queued vendor
+PostHog a no-op. Analytics default to on when no choice is saved, with no automatic
+banner and no synthetic acceptance written to storage. Existing declines remain off.
+Set `NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT=true` and rebuild to restore explicit
+opt-in and the automatic banner; the consent UI and storage code are retained.
+GA4 and PostHog honor the same preference. The footer's Analytics preferences control
+supports turning analytics off or back on. Collection includes masked session replay.
+Blocked storage defaults to no tracking. Consent changes synchronize across tabs, discard queued vendor
 events on withdrawal, and preserve functional reading history and first-party
 Most read collection.
 
@@ -1250,7 +1256,7 @@ outcomes, story-section markers, cumulative active reading and typed source link
 The route identity remains pathname plus sorted query parameters excluding
 `journey`. Raw query/hash values are removed from vendor payloads; validated
 category IDs and pagination numbers are separate fields. Do not pool v3 with older
-GA populations. Replay samples 10% of consenting sessions, masks all inputs and
+GA populations. Replay samples 10% of analytics-enabled sessions, masks all inputs and
 blocks share drafts/manual-copy content. There are no person profiles, server SDK,
 ingestion proxy or schema changes.
 

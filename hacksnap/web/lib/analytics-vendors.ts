@@ -92,7 +92,7 @@ function capturePostHog(name: string, properties: Properties) {
 async function initialize() {
   if (!hydrated || !analyticsAllowed()) return;
   (window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`] = false;
-  // Preserve passive-visit coverage from the article-reading rollout, after opt-in.
+  // Preserve passive-visit coverage whenever the current preference allows analytics.
   loadGoogle();
   if (!posthogConfigured() || client || loading) return;
   const epoch = generation;

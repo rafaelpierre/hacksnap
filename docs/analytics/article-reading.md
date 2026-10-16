@@ -6,8 +6,10 @@ The initial implementation is a single published layout, not an A/B experiment.
 
 ## Collection
 
-GA and PostHog start after hydration and explicit analytics consent, including
-passive visits by returning consenting readers. No section history is backfilled
+GA and configured PostHog start after hydration by default, including passive visits.
+Saved opt-outs and unavailable storage still prevent collection. The automatic
+banner is temporarily disabled; `NEXT_PUBLIC_ANALYTICS_REQUIRE_CONSENT=true`
+restores explicit opt-in after rebuilding. No section history is backfilled
 when a reader accepts mid-page. Withdrawal stops observation and discards pending
 vendor events. See [consent, privacy and release status](README.md).
 
