@@ -66,31 +66,12 @@ test("same-path listing entries retain their own feed depth across Back/Forward"
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
 });
 
-test("keyboard source popover and share controls preserve focus and accessibility", async ({
-  page,
-}) => {
+test("keyboard share controls preserve focus and accessibility", async ({ page }) => {
   await page.goto(storyPath);
-  const theme = page.locator("summary").filter({ hasText: "Measuring useful work" });
-  await theme.focus();
-  await page.keyboard.press("Enter");
   await expect(
     page.getByText("Readers ask for repeatable measurements of realistic tasks."),
   ).toBeVisible();
-  const source = page.getByRole("button", {
-    name: "Source comments for Measuring useful work",
-  });
-  await source.focus();
-  await page.keyboard.press("Enter");
-  const dialog = page.getByRole("dialog", { name: "Source comments", exact: true });
-  await expect(dialog).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close source comments" })).toBeFocused();
-  expect(
-    (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
-      .violations,
-  ).toEqual([]);
-  await page.keyboard.press("Escape");
-  await expect(dialog).not.toBeVisible();
-  await expect(source).toBeFocused();
+  await expect(page.getByRole("button", { name: /Source comments for/ })).toHaveCount(0);
   const share = page.getByRole("button", { name: `Share: ${title}`, exact: true }).first();
   await share.focus();
   await page.keyboard.press("Enter");
@@ -152,19 +133,19 @@ test("blocked storage and clipboard retain light appearance, navigation and manu
 test("slow and failed optional recommendations preserve the article", async ({ page }) => {
   await page.goto("/story/91000002", { waitUntil: "commit" });
   await expect(page.getByRole("heading", { name: "Practical AI research update 2" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Related stories" })).toHaveAttribute(
+  await expect(page.getByRole("region", { name: "Continue reading" })).toHaveAttribute(
     "aria-busy",
     "true",
   );
-  await expect(page.getByText("Loading related stories…", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Related stories" })).not.toHaveAttribute(
+  await expect(page.getByText("Finding more to read…", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Continue reading" })).not.toHaveAttribute(
     "aria-busy",
     "true",
   );
   await page.goto("/story/91000003");
   await expect(page.getByRole("heading", { name: "Practical AI research update 3" })).toBeVisible();
   await expect(page.getByRole("link", { name: "More in Models & Products" })).toBeVisible();
-  await expect(page.getByText(/Related stories are temporarily unavailable/)).toBeVisible();
+  await expect(page.getByText(/Reading suggestions are temporarily unavailable/)).toBeVisible();
 });
 
 test.describe("controlled continuation failure", () => {
@@ -311,16 +292,9 @@ test.describe("without JavaScript", () => {
     await expect(page).toHaveURL(new RegExp(`${storyPath}$`));
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: "Article summary", exact: true })).toBeVisible();
-    await page.locator("summary").filter({ hasText: "Measuring useful work" }).click();
     await expect(
       page.getByText("Readers ask for repeatable measurements of realistic tasks."),
     ).toBeVisible();
-    const source = page.getByRole("button", {
-      name: "Source comments for Measuring useful work",
-    });
-    await source.click();
-    await expect(page.getByRole("dialog", { name: "Source comments", exact: true })).toBeVisible();
-    await page.keyboard.press("Escape");
     await page.goBack();
     await expect(
       page.locator(".story-list").getByRole("link", { name: title, exact: true }),

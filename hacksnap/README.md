@@ -1,8 +1,8 @@
 # Hacksnap
 
-Generated article briefs begin with 1–2 sentences and at most 60 words, followed by informative H2
-sections where the source warrants them; H3 is reserved for a subsection within H2.
-The 160-240-word target for substantial sources applies to the whole summary, split
+Generated article briefs begin with 1–2 sentences and at most 60 words.
+The overview uses one or two short paragraphs without headings.
+The 80-120-word target for substantial sources applies to the whole summary, split
 into paragraphs of 1–3 sentences and at most 80 words, separated by blank lines.
 Short sources can stay a single paragraph within the opening limit. Secondary
 hardware identifiers, procedural steps, examples and patch status belong after the
@@ -275,10 +275,10 @@ pushing its feature branch only runs CI. No separate activation flag is required
 and information density, with Financial Times-style clarity, restraint and skepticism.
 The source and underlying technical questions lead the coverage.
 
-- **Article brief:** for substantial sources, `article_summary` targets 160-240 words covering
+- **Article brief:** for substantial sources, `article_summary` targets 80-120 words covering
   the central contribution, how it works, the strongest evidence and supported
-  limitations, with H2 sections and optional H3 subsections when useful.
-  `article_key_points` adds 1-6 non-repeating facts, normally 30-60 words
+  limitations, in one or two short paragraphs without headings.
+  `article_key_points` adds 3–5 non-repeating facts (fewer for sparse sources), normally 20-40 words
   each when explanation is useful. Short sources still need only a brief summary
   and one useful point; word targets are guidance, not minimums.
   Both can use selective bold emphasis.

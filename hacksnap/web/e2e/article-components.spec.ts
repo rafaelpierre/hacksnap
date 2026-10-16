@@ -76,22 +76,16 @@ for (const width of [320, 375, 768, 1280]) {
       await page.evaluate(() => document.fonts.ready);
       await brief.screenshot({ path: testInfo.outputPath("article-brief.png") });
 
-      const theme = page.locator(".analysis-theme-details").first();
-      const summary = theme.locator("summary");
-      await expect(theme.getByRole("button", { name: /Source comments for/ })).not.toBeVisible();
-      await summary.focus();
-      await page.keyboard.press("Enter");
-      await expect(theme).toHaveAttribute("open", "");
-      await expect(summary).toHaveCSS("background-color", "rgb(238, 238, 255)");
-      await expect(theme.getByRole("button", { name: /Source comments for/ })).toBeVisible();
-      await summary.scrollIntoViewIfNeeded();
-      await page.screenshot({ path: testInfo.outputPath("discussion-open.png") });
+      const theme = page.locator(".analysis-theme-section").first();
+      await expect(theme.locator("h3")).toBeVisible();
+      await expect(theme.locator(".analysis-theme-body")).toBeVisible();
+      await expect(theme.locator("details, button")).toHaveCount(0);
+      await theme.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath("discussion-visible.png") });
       expect(
         (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
           .violations,
       ).toEqual([]);
-      await summary.press("Space");
-      await expect(theme).not.toHaveAttribute("open", "");
 
       const card = page.locator(".related-story-list article").first();
       await expect(card.locator(".feed-excerpt")).not.toBeEmpty();

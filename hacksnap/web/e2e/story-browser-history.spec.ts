@@ -19,7 +19,10 @@ test.describe("mobile browser history", () => {
       await card.tap();
       await page.waitForURL(/\/story\/[^?]+$/);
       await settleRequests();
-      const related = page.getByRole("region", { name: "Related stories" }).locator("h3 a").first();
+      const related = page
+        .getByRole("region", { name: "Continue reading" })
+        .locator("h3 a")
+        .first();
       await related.scrollIntoViewIfNeeded();
       await settleRequests();
       const nextHref = await related.getAttribute("href");
@@ -120,7 +123,7 @@ test.describe("mobile browser history", () => {
     await first.tap();
     await page.waitForURL(/\/story\/[^?]+$/);
     await settleRequests();
-    const related = page.getByRole("region", { name: "Related stories" }).locator("h3 a").first();
+    const related = page.getByRole("region", { name: "Continue reading" }).locator("h3 a").first();
     await related.scrollIntoViewIfNeeded();
     await settleRequests();
     const nextHref = await related.getAttribute("href");

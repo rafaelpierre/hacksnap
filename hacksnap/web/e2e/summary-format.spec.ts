@@ -32,9 +32,7 @@ for (const width of [320, 1280]) {
       await expect(source).toHaveAttribute("href", "https://example.com/research");
       await source.focus();
       await expect(source).toHaveCSS("outline-style", "solid");
-      const theme = page.locator(".analysis-theme-details").first();
-      await theme.locator("summary").focus();
-      await page.keyboard.press("Enter");
+      const theme = page.locator(".analysis-theme-section").first();
       await expect(theme.locator("strong")).toHaveText("Repeatable measurements");
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
@@ -55,8 +53,7 @@ test.describe("structured summaries without JavaScript", () => {
     await page.goto("/story/91000039");
     await expect(page.getByRole("heading", { level: 3, name: "Reliability limits" })).toBeVisible();
     await expect(page.locator("#article-brief strong")).toHaveCount(3);
-    const theme = page.locator(".analysis-theme-details").first();
-    await theme.locator("summary").click();
+    const theme = page.locator(".analysis-theme-section").first();
     await expect(theme.locator("strong")).toBeVisible();
   });
 });

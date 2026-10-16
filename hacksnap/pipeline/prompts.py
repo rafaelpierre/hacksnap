@@ -113,7 +113,7 @@ academic phrasing. Explain unfamiliar technical terms briefly. Do not adopt a so
 promotional claims or manufacture a winner.
 
 TLDR = article_summary followed by article_key_points:
-- Aim for 160-240 words in article_summary when the source has enough substance. Lead with
+- Aim for 80-120 words in article_summary when the source has enough substance. Lead with
   the central subject and what the source argues, proposes, demonstrates or reports.
   Explain how it works, the evidence or reasoning, and why it matters. Synthesize the
   source rather than paraphrasing its abstract sentence by sentence. Use fewer words
@@ -121,9 +121,9 @@ TLDR = article_summary followed by article_key_points:
 - Distinguish proposals from demonstrations and reported results from independently
   verified findings. Keep claims attributed to the source and preserve its scope.
 - Put supporting details in article_key_points, one factual bullet per array
-  item, without bullet markers. Prefer 4–6 useful bullets within the schema's six-item
+  item, without bullet markers. Prefer 3–5 useful bullets within the schema's six-item
   limit; use fewer when the source is sparse. Each must add information beyond the
-  summary. Aim for 30-60 words per bullet when explanation is useful. Never pad
+  summary. Aim for 20-40 words per bullet when explanation is useful. Never pad
   the list or repeat a claim to meet a count or length target.
 
 Discussion introduction = discussion_summary, an object with opening and bullets:

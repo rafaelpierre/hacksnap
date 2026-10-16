@@ -38,24 +38,13 @@ for (const width of [320, 1280]) {
         ),
       )
       .toBe(true);
-    const topic = page.locator(".analysis-theme-details").first();
-    await topic.locator("summary").scrollIntoViewIfNeeded();
+    const topic = page.locator(".analysis-theme-section").first();
+    await topic.locator("h3").scrollIntoViewIfNeeded();
     await expect
       .poll(async () =>
         (await events(page)).some(
           (e) => e.name === "article_section_view" && e.section_id === "theme_heading_1",
         ),
-      )
-      .toBe(true);
-    expect(
-      (await events(page)).some(
-        (e) => e.name === "article_section_view" && e.section_id === "theme_body_1",
-      ),
-    ).toBe(false);
-    await topic.locator("summary").click();
-    await expect
-      .poll(async () =>
-        (await events(page)).some((e) => e.name === "article_theme_toggle" && e.action === "open"),
       )
       .toBe(true);
     await topic.locator(".analysis-theme-body").scrollIntoViewIfNeeded();
@@ -66,25 +55,8 @@ for (const width of [320, 1280]) {
         ),
       )
       .toBe(true);
-    await topic.getByRole("button", { name: /^Source comments for/ }).click();
-    await expect
-      .poll(async () =>
-        (await events(page)).some((e) => e.name === "article_source_action" && e.action === "open"),
-      )
-      .toBe(true);
-    const source = topic.locator(".analysis-source").first();
-    await source.evaluate((link) =>
-      link.addEventListener("click", (event) => event.preventDefault()),
-    );
-    await source.click();
-    await expect
-      .poll(async () =>
-        (await events(page)).some(
-          (e) => e.name === "article_source_action" && e.action === "click",
-        ),
-      )
-      .toBe(true);
-    expect(JSON.stringify(await events(page))).not.toContain("Source comments for");
+    expect((await events(page)).some((e) => e.name === "article_theme_toggle")).toBe(false);
+    await expect(topic.locator("button, details")).toHaveCount(0);
   });
 }
 

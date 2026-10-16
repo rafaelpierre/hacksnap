@@ -3,17 +3,15 @@ import AxeBuilder from "@axe-core/playwright";
 
 for (const width of [320, 1280])
   for (const textScale of [1, 2]) {
-    test(`topic deep link: ${width}px ${textScale * 100}% text`, async ({ page }, testInfo) => {
+    test(`visible topic deep link: ${width}px ${textScale * 100}% text`, async ({
+      page,
+    }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`${storyPath}#discussion-topic-evidence-1`);
       const topic = page.locator("#discussion-topic-evidence-1");
-      const details = topic.locator("details");
-      await expect(details).toHaveAttribute("open", "");
-      await expect(page.locator("#discussion-topic-evidence-0 details")).not.toHaveAttribute(
-        "open",
-      );
-      await expect(topic.locator("summary")).toBeInViewport();
+      await expect(topic.locator("h3")).toBeInViewport();
       await expect(topic.locator(".analysis-theme-body")).toBeVisible();
+      await expect(page.locator(".analysis-theme details, .analysis-source-action")).toHaveCount(0);
       await page.evaluate((scale) => {
         document.documentElement.style.fontSize = `${scale * 100}%`;
       }, textScale);
@@ -22,51 +20,36 @@ for (const width of [320, 1280])
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
       ).toBe(true);
       await page.screenshot({ path: testInfo.outputPath("topic-deep-link.png") });
-      await topic.locator("summary").focus();
-      await page.keyboard.press("Enter");
-      await expect(details).not.toHaveAttribute("open");
-      await page.keyboard.press("Enter");
-      await expect(details).toHaveAttribute("open", "");
       await page.reload();
-      await expect(details).toHaveAttribute("open", "");
-      await expect(topic.locator("summary")).toBeInViewport();
+      await expect(topic.locator("h3")).toBeInViewport();
     });
   }
 
-test("hash changes and Back/Forward reveal the selected topic", async ({ page }) => {
+test("hash navigation and Back/Forward keep theme text visible", async ({ page }) => {
   await page.goto(storyPath);
-  const first = page.locator("#discussion-topic-evidence-0 details");
-  const second = page.locator("#discussion-topic-evidence-1 details");
-  await expect(page.locator(".analysis-theme-details[open]")).toHaveCount(0);
   await page.evaluate(() => {
     location.hash = "discussion-topic-evidence-0";
   });
-  await expect(first).toHaveAttribute("open", "");
-  await expect(second).not.toHaveAttribute("open");
-  await first.locator("summary").click();
+  await expect(page.locator("#discussion-topic-evidence-0 h3")).toBeInViewport();
   await page.evaluate(() => {
     location.hash = "discussion-topic-evidence-1";
   });
-  await expect(second).toHaveAttribute("open", "");
-  await expect(first).not.toHaveAttribute("open");
-  await second.locator("summary").click();
+  await expect(page.locator("#discussion-topic-evidence-1 h3")).toBeInViewport();
   await page.goBack();
-  await expect(first).toHaveAttribute("open", "");
-  await expect(second).not.toHaveAttribute("open");
+  await expect(page.locator("#discussion-topic-evidence-0 h3")).toBeInViewport();
   await page.goForward();
-  await expect(second).toHaveAttribute("open", "");
-  await expect(first).toHaveAttribute("open", "");
+  await expect(page.locator("#discussion-topic-evidence-1 h3")).toBeInViewport();
 });
 
 for (const hash of ["discussion-topic-missing-99", "discussion-analysis", "%E0%A4%A"])
-  test(`unmatched fragment leaves topics collapsed: ${hash}`, async ({ page }) => {
+  test(`unmatched fragment keeps topics readable: ${hash}`, async ({ page }) => {
     await page.goto(`${storyPath}#${hash}`);
-    await expect(page.locator(".analysis-theme-details")).toHaveCount(2);
-    await expect(page.locator(".analysis-theme-details[open]")).toHaveCount(0);
+    await expect(page.locator(".analysis-theme-section")).toHaveCount(2);
+    await expect(page.locator(".analysis-theme details")).toHaveCount(0);
     await page.evaluate(() => {
       location.hash = "discussion-topic-%65vidence-1";
     });
-    await expect(page.locator("#discussion-topic-evidence-1 details")).toHaveAttribute("open", "");
+    await expect(page.locator("#discussion-topic-evidence-1 h3")).toBeInViewport();
   });
 
 for (const width of [320, 1280])
@@ -122,15 +105,6 @@ for (const width of [320, 1280])
       await trigger.click();
       await page.mouse.click(1, bounds!.y + 10);
       await expect(popup).not.toBeVisible();
-      await page
-        .locator(".analysis-theme-details > summary")
-        .filter({ hasText: "Measuring useful work" })
-        .click();
-      await page.getByRole("button", { name: "Source comments for Measuring useful work" }).click();
-      await expect(
-        page.getByRole("dialog", { name: "Source comments", exact: true }),
-      ).toBeVisible();
-      await expect(popup).not.toBeVisible();
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
       ).toBe(true);
@@ -150,12 +124,10 @@ test.describe("without JavaScript", () => {
     await expect(popup).not.toBeVisible();
   });
 
-  test("topic deep links retain a usable native disclosure", async ({ page }) => {
+  test("topic deep links remain readable without JavaScript", async ({ page }) => {
     await page.goto(`${storyPath}#discussion-topic-evidence-1`);
     const topic = page.locator("#discussion-topic-evidence-1");
-    await expect(topic.locator("summary")).toBeInViewport();
-    await topic.locator("summary").click();
-    await expect(topic.locator("details")).toHaveAttribute("open", "");
+    await expect(topic.locator("h3")).toBeInViewport();
     await expect(topic.locator(".analysis-theme-body")).toBeVisible();
   });
 });
