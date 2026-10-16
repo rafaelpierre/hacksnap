@@ -44,7 +44,8 @@ test("consent gates real SDK requests and withdrawal discards queued events", as
   await context.addInitScript(() => localStorage.removeItem("hacksnap:analytics-consent:v1"));
   const requests: Request[] = [];
   page.on("request", (request) => {
-    if (new URL(request.url()).hostname.endsWith("posthog.com")) requests.push(request);
+    if (["eu.i.posthog.com", "eu-assets.i.posthog.com"].includes(new URL(request.url()).hostname))
+      requests.push(request);
   });
   await page.goto(`${storyPath}?draft=PRIVATE_QUERY#PRIVATE_HASH`);
   await expect(page.getByRole("button", { name: "Allow analytics", exact: true })).toBeVisible();
@@ -104,7 +105,8 @@ test("real replay snapshots and heatmaps exclude queries, hashes, inputs and sha
   });
   const requests: Request[] = [];
   page.on("request", (request) => {
-    if (new URL(request.url()).hostname.endsWith("posthog.com")) requests.push(request);
+    if (["eu.i.posthog.com", "eu-assets.i.posthog.com"].includes(new URL(request.url()).hostname))
+      requests.push(request);
   });
   await page.goto(`${storyPath}?draft=PRIVATE_QUERY#PRIVATE_HASH`);
   await expect.poll(() => requests.some((r) => r.url().includes("recorder.js"))).toBe(true);
