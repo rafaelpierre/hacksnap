@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { acceptsMarkdown, isAiAgent } from "./lib/markdown";
+import { acceptsMarkdown } from "./lib/markdown";
 
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -11,9 +11,7 @@ export function proxy(request: NextRequest) {
     /^\/story\/[^/]+$/.test(pathname);
   if (!pageRoute) return NextResponse.next();
   const markdown =
-    ["GET", "HEAD"].includes(request.method) &&
-    (acceptsMarkdown(request.headers.get("accept")) ||
-      isAiAgent(request.headers.get("user-agent")));
+    ["GET", "HEAD"].includes(request.method) && acceptsMarkdown(request.headers.get("accept"));
   const url = request.nextUrl.clone();
   url.search = "";
   url.searchParams.set("page", request.nextUrl.pathname);
@@ -45,7 +43,7 @@ export function proxy(request: NextRequest) {
     request.nextUrl.searchParams.has("cursor")
   )
     response.headers.set("X-Robots-Tag", "noindex, follow");
-  response.headers.append("Vary", "Accept, User-Agent");
+  response.headers.append("Vary", "Accept");
   return response;
 }
 

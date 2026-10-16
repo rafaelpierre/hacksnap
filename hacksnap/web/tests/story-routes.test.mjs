@@ -8,6 +8,7 @@ const story = {
   category: null,
   summary: null,
   date_added: new Date("2026-09-29T12:00:00Z"),
+  observed_at: "2026-09-29T12:00:00Z",
   points: 1,
   comment_count: 0,
   url: null,
@@ -73,7 +74,7 @@ test("Markdown and HEAD preserve canonical redirects, content and missing status
       const response = await handler(request(slug));
       assert.equal(response.status, 308);
       assert.equal(response.headers.get("location"), "/story/readable-headline-123");
-      assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+      assert.equal(response.headers.get("vary"), "Accept");
     }
     const response = await handler(request("readable-headline-123"));
     assert.equal(response.status, 200);
@@ -88,7 +89,7 @@ test("Markdown and HEAD preserve canonical redirects, content and missing status
   }
 });
 
-test("AI story responses link the saved canonical URL after redirects", async () => {
+test("Markdown story responses link the saved canonical URL after redirects", async () => {
   const requestFor = (slug) =>
     new Request(`https://hacksnap.live/markdown?page=${encodeURIComponent(`/story/${slug}`)}`, {
       headers: { "user-agent": "Mozilla/5.0 (compatible; ChatGPT-User/1.0)" },
@@ -97,16 +98,20 @@ test("AI story responses link the saved canonical URL after redirects", async ()
     const redirect = await handler(requestFor("123"));
     assert.equal(redirect.status, 308);
     assert.equal(redirect.headers.get("location"), "/story/readable-headline-123");
-    assert.equal(redirect.headers.get("vary"), "Accept, User-Agent");
+    assert.equal(redirect.headers.get("vary"), "Accept");
     const response = await handler(requestFor("readable-headline-123"));
     assert.equal(response.status, 200);
     const body = await response.text();
     if (handler === GET) {
       assert.ok(
         body.startsWith(
-          "# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live/story/readable-headline-123\n\n# Readable headline",
+          "Canonical URL: <https://hacksnap.live/story/readable-headline-123>\n\n# Readable headline",
         ),
       );
+      assert.equal(body.match(/^# /gm)?.length, 1);
+      assert.doesNotMatch(body, /If the user wants more details|tell them/);
+      const ordinary = await GET(request("readable-headline-123"));
+      assert.equal(await ordinary.text(), body);
     } else assert.equal(body, "");
     getStory.mockResolvedValueOnce(null);
     const missing = await handler(requestFor("missing-999"));

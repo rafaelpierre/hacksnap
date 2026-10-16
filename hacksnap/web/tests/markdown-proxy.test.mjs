@@ -39,7 +39,7 @@ test("ISR keeps canonical requests cached and preserves query/navigation headers
   assert.equal(new URL(markdown.headers.get("x-middleware-rewrite")).pathname, "/markdown");
 });
 
-test("AI agents receive Markdown without an explicit Accept preference", () => {
+test("AI agents default to HTML and respect unacceptable or less preferred Markdown", () => {
   for (const agent of [
     "ChatGPT-User",
     "OAI-SearchBot",
@@ -51,7 +51,14 @@ test("AI agents receive Markdown without an explicit Accept preference", () => {
     "Perplexity-User",
   ]) {
     for (const method of ["GET", "HEAD"]) {
-      for (const accept of [null, "*/*", "text/html"]) {
+      for (const accept of [
+        null,
+        "*/*",
+        "text/html",
+        "text/markdown;q=0",
+        "text/markdown;q=0,*/*",
+        "text/markdown;q=0.5,text/html",
+      ]) {
         const headers = new Headers({ "user-agent": `Mozilla/5.0 (compatible; ${agent}/1.0)` });
         if (accept) headers.set("accept", accept);
         const response = proxy(
@@ -60,15 +67,9 @@ test("AI agents receive Markdown without an explicit Accept preference", () => {
             headers,
           }),
         );
-        const rewrite = new URL(response.headers.get("x-middleware-rewrite"));
-        assert.equal(rewrite.pathname, "/markdown");
-        assert.equal(rewrite.searchParams.get("page"), "/story/example-123");
-        assert.equal(rewrite.searchParams.has("source"), false);
-        assert.equal(
-          response.headers.get("x-middleware-request-x-hacksnap-markdown-page"),
-          "/story/example-123",
-        );
-        assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+        assert.equal(response.headers.get("x-middleware-rewrite"), null);
+        assert.equal(response.headers.get("x-middleware-next"), "1");
+        assert.equal(response.headers.get("vary"), "Accept");
       }
     }
   }
@@ -82,7 +83,7 @@ test("ordinary negotiation and non-read methods retain their behavior", () => {
       }),
     );
     assert.equal(response.headers.get("x-middleware-rewrite"), null);
-    assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+    assert.equal(response.headers.get("vary"), "Accept");
   }
   const markdown = proxy(
     new NextRequest("https://hacksnap.live/story/123", {
@@ -107,7 +108,7 @@ test("AI Markdown preserves noindex for temporary homepage pagination", () => {
       const response = proxy(
         new NextRequest(`https://hacksnap.live/${query}`, {
           method,
-          headers: { "user-agent": "ChatGPT-User/1.0" },
+          headers: { "user-agent": "ChatGPT-User/1.0", accept: "text/markdown" },
         }),
       );
       assert.ok(response.headers.get("x-middleware-rewrite"));
@@ -127,7 +128,7 @@ test("Latest Markdown negotiation preserves the requested page through its rewri
   assert.equal(rewrite.searchParams.get("page"), "/");
   assert.equal(response.headers.get("x-middleware-request-x-hacksnap-markdown-page"), "/");
   assert.equal(response.headers.get("x-middleware-request-x-hacksnap-markdown-query"), "?page=2");
-  assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+  assert.equal(response.headers.get("vary"), "Accept");
 });
 
 test("HTML and unsupported methods keep normal routing and negotiation headers", () => {
@@ -143,7 +144,7 @@ test("HTML and unsupported methods keep normal routing and negotiation headers",
     );
     assert.equal(response.headers.get("x-middleware-rewrite"), null);
     assert.equal(response.headers.get("x-middleware-next"), "1");
-    assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+    assert.equal(response.headers.get("vary"), "Accept");
   }
 });
 
@@ -152,13 +153,13 @@ test("AI Latest negotiation preserves pagination without excluding canonical pag
     const response = proxy(
       new NextRequest("https://hacksnap.live/?page=2", {
         method,
-        headers: { "user-agent": "ChatGPT-User/1.0", accept: "text/html" },
+        headers: { "user-agent": "ChatGPT-User/1.0", accept: "text/markdown" },
       }),
     );
     assert.equal(new URL(response.headers.get("x-middleware-rewrite")).pathname, "/markdown");
     assert.equal(response.headers.get("x-middleware-request-x-hacksnap-markdown-query"), "?page=2");
     assert.equal(response.headers.get("x-robots-tag"), null);
-    assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+    assert.equal(response.headers.get("vary"), "Accept");
   }
 });
 
@@ -203,12 +204,12 @@ test("recognized canonical and legacy dated feeds still negotiate AI Markdown", 
   for (const path of ["/2026/09", "/archive", "/archive/2026/09"]) {
     const response = proxy(
       new NextRequest(`https://hacksnap.live${path}?page=2`, {
-        headers: { "user-agent": "ChatGPT-User/1.0", accept: "text/html" },
+        headers: { "user-agent": "ChatGPT-User/1.0", accept: "text/markdown" },
       }),
     );
     assert.equal(new URL(response.headers.get("x-middleware-rewrite")).pathname, "/markdown");
     assert.equal(response.headers.get("x-middleware-request-x-hacksnap-markdown-page"), path);
     assert.equal(response.headers.get("x-middleware-request-x-hacksnap-markdown-query"), "?page=2");
-    assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+    assert.equal(response.headers.get("vary"), "Accept");
   }
 });

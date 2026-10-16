@@ -25,13 +25,15 @@ beforeEach(() => {
 });
 afterAll(() => now.mockRestore());
 
-test("sitemap contains canonical Latest and dated feeds with no legacy archive destinations", async () => {
+test("sitemap contains canonical Latest, supporting pages and dated feeds with no legacy archive destinations", async () => {
   const indexXML = await (await index()).text();
   assert.match(indexXML, /<sitemapindex/);
   for (const id of ["pages", "0", "1"]) assert.ok(indexXML.includes(`/sitemap/${id}.xml`));
   const xml = (await (await shard("pages.xml")).text()) + (await (await shard("0.xml")).text());
   const urls = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
   assert.ok(urls.includes("https://hacksnap.live/"));
+  assert.ok(urls.includes("https://hacksnap.live/about"));
+  assert.ok(urls.includes("https://hacksnap.live/topics"));
   assert.ok(urls.includes("https://hacksnap.live/2026/10"));
   assert.ok(urls.includes("https://hacksnap.live/2026/09"));
   assert.ok(urls.includes("https://hacksnap.live/story/123"));

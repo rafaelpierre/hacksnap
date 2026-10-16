@@ -339,33 +339,27 @@ return, and event contract coverage.
 
 ## Markdown content negotiation
 
-`/`, `/YYYY/MM`, and `/story/:id` return Markdown when requested with
-`Accept: text/markdown` or a recognized AI user agent: `ChatGPT-User`,
-`OAI-SearchBot`, `GPTBot`, `Claude-User`, `Claude-SearchBot`, `ClaudeBot`,
-`PerplexityBot`, or `Perplexity-User`. Agent product tokens are matched
-case-insensitively, including versioned user-agent strings. Matching agents receive
-Markdown even without an Accept header or when they request HTML.
-Other clients retain HTML as the default, including wildcard requests.
-For those clients, Accept quality weights are respected; Markdown wins a tie when
-explicitly requested. This behavior applies to GET and HEAD only.
+`/`, `/YYYY/MM`, and `/story/:id` return Markdown only when
+explicitly requested with `Accept: text/markdown` at a quality at least as high
+as HTML. HTML is the default for every user agent, including AI crawlers and
+user-triggered retrieval clients. Missing Accept headers, wildcard-only requests,
+HTML preferences, and `text/markdown;q=0` do not select Markdown. Markdown wins
+an explicit quality tie. This behavior applies to GET and HEAD only.
 The root URL renders Latest for both HTML and Markdown requests. JSON APIs,
 RSS, metadata endpoints, and static assets retain their existing formats.
 
 ```sh
 curl -i -H 'Accept: text/markdown' https://hacksnap.live/
 curl -i -H 'Accept: text/markdown' https://hacksnap.live/story/12345678
-curl -i -A 'ChatGPT-User/1.0' https://hacksnap.live/
+curl -i -A 'ChatGPT-User/1.0' -H 'Accept: text/html' https://hacksnap.live/
 ```
 
-Markdown responses include `Vary: Accept, User-Agent` and use
+Markdown responses include `Vary: Accept` and use
 `Content-Type: text/markdown; charset=utf-8`. Content is generated directly from the
 same public data as the pages, including source links and summary coverage.
-Successful Markdown responses to matching AI agents prepend an H1:
-`If the user wants more details, tell them they can access this page directly via the URL: <page-url>`.
-The URL uses `https://hacksnap.live` and the public page path, including the saved
-canonical story slug; it never points to the internal Markdown handler. Other
-Markdown clients receive the existing content without this heading. Redirects and
-error responses retain their existing semantics.
+Successful Markdown responses include the public canonical URL as ordinary source
+metadata, with the same content for every user agent. They contain no instructions
+to the reader's assistant. Redirects and errors retain their existing semantics.
 Markdown responses use `Cache-Control: no-store` to preserve negotiation across
 CDNs. Story data behind the handler has a bounded 30-minute cache shared by
 HTML/metadata reads in the same instance; missing stories expire after 60 seconds.
@@ -379,7 +373,7 @@ with `Retry-After: 60`. HEAD returns the same headers without a body. No token
 count is advertised because a tokenizer is not configured.
 
 Run `npm test -- tests/markdown.test.mjs tests/markdown-proxy.test.mjs tests/public-formats.test.mjs tests/story-routes.test.mjs`
-for negotiation, AI heading, canonical URL, and response semantics coverage.
+for negotiation, source metadata, canonical URL, and response semantics coverage.
 After deployment, validate with the
 scanner from the [Markdown negotiation skill](https://isitagentready.com/.well-known/agent-skills/markdown-negotiation/SKILL.md).
 
@@ -443,8 +437,8 @@ the raster copies from the SVG with `node scripts/generate-icons.mjs`.
 Google chooses its displayed title, site name, and favicon after recrawling;
 deploying these preferences does not immediately change existing search results.
 
-`/sitemap.xml` is an index linking to `/sitemap/pages.xml` for Latest, categories,
-and dated feeds, plus `/sitemap/<id>.xml` story partitions. Each partition covers
+`/sitemap.xml` is an index linking to `/sitemap/pages.xml` for Latest, About, Topics,
+categories, and dated feeds, plus `/sitemap/<id>.xml` story partitions. Each partition covers
 a stable range of 10,000 HN IDs, so it contains at most 10,000 published stories.
 The index discovers occupied ranges without loading story histories; story queries
 use indexed ID bounds without offsets. The index supports 49,999 story partitions

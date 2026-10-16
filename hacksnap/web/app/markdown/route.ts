@@ -7,7 +7,7 @@ import {
   getStory,
   getStoryMetrics,
 } from "../../lib/data";
-import { isAiAgent, latestMarkdown, markdownResponse, storyMarkdown } from "../../lib/markdown";
+import { latestMarkdown, markdownResponse, storyMarkdown } from "../../lib/markdown";
 import { archiveMonth, archivePage, archiveURL } from "../../lib/archive";
 import { categoryBySlug, categoryURL } from "../../lib/categories";
 
@@ -16,13 +16,8 @@ export async function GET(request: Request) {
   const requestURL = new URL(request.url);
   const page =
     request.headers.get("x-hacksnap-markdown-page") ?? requestURL.searchParams.get("page");
-  const aiAgent = isAiAgent(request.headers.get("user-agent"));
   const respond = (body: string, pagePath: string) =>
-    markdownResponse(
-      aiAgent
-        ? `# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live${pagePath}\n\n${body}`
-        : body,
-    );
+    markdownResponse(`Canonical URL: <https://hacksnap.live${pagePath}>\n\n${body}`);
   try {
     const dated = page?.match(/^\/([1-9]\d{3})\/(0[1-9]|1[0-2])$/);
     const legacyDated = page?.match(/^\/archive\/([1-9]\d{3})\/(0[1-9]|1[0-2])$/);
@@ -57,7 +52,7 @@ export async function GET(request: Request) {
           status: 308,
           headers: {
             Location: canonical,
-            Vary: "Accept, User-Agent",
+            Vary: "Accept",
             "Cache-Control": "no-store",
             ...(query.has("cursor") ? { "X-Robots-Tag": "noindex, follow" } : {}),
           },
@@ -81,7 +76,7 @@ export async function GET(request: Request) {
             status: 308,
             headers: {
               Location: canonical,
-              Vary: "Accept, User-Agent",
+              Vary: "Accept",
               "Cache-Control": "no-store",
             },
           });

@@ -21,6 +21,8 @@ const generate = boundedCache(
       const months = await getArchiveMonths();
       return sitemapXML([
         { url: "https://hacksnap.live/" },
+        { url: "https://hacksnap.live/about" },
+        { url: "https://hacksnap.live/topics" },
         ...CATEGORIES.map((category) => ({ url: `https://hacksnap.live${categoryURL(category)}` })),
         ...months.map(({ month }) => ({ url: `https://hacksnap.live/${month.replace("-", "/")}` })),
       ]);

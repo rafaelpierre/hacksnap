@@ -64,7 +64,7 @@ test("direct and negotiated Markdown preserve format, HEAD, validation and failu
     const head = await markdown.HEAD(request);
     assert.equal(get.status, 200);
     assert.match(get.headers.get("content-type"), /text\/markdown/);
-    assert.equal(get.headers.get("vary"), "Accept, User-Agent");
+    assert.equal(get.headers.get("vary"), "Accept");
     assert.equal(get.headers.get("cache-control"), "no-store");
     assert.deepEqual([...head.headers], [...get.headers]);
     assert.equal(await head.text(), "");
@@ -92,8 +92,14 @@ test("direct and negotiated Markdown preserve format, HEAD, validation and failu
   }
 });
 
-test("AI Markdown starts with the public page URL and retains content and HEAD semantics", async () => {
+test("Markdown starts with the public page URL and retains content and HEAD semantics", async () => {
   for (const page of ["/", "/2026/09"]) {
+    const ordinary = await markdown.GET(
+      new Request(`https://hacksnap.live/markdown?page=${encodeURIComponent(page)}`, {
+        headers: { accept: "text/markdown", "user-agent": "Mozilla/5.0" },
+      }),
+    );
+    const expectedBody = await ordinary.text();
     for (const ua of [
       "ChatGPT-User/1.0",
       "OAI-SearchBot/1.0",
@@ -109,23 +115,20 @@ test("AI Markdown starts with the public page URL and retains content and HEAD s
         }),
       ]) {
         const response = await markdown.GET(request);
-        const heading = `# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live${page}\n\n`;
+        const heading = `Canonical URL: <https://hacksnap.live${page}>\n\n`;
         const body = await response.text();
         assert.equal(response.status, 200);
         assert.ok(body.startsWith(heading));
         assert.match(body.slice(heading.length), /^# /);
+        assert.equal(body.match(/^# /gm)?.length, 1);
+        assert.equal(body, expectedBody);
+        assert.doesNotMatch(body, /If the user wants more details|tell them/);
         assert.doesNotMatch(body, /untrusted\.example|\/markdown\?page=/);
         const head = await markdown.HEAD(request);
         assert.deepEqual([...head.headers], [...response.headers]);
         assert.equal(await head.text(), "");
       }
     }
-    const ordinary = await markdown.GET(
-      new Request(`https://hacksnap.live/markdown?page=${encodeURIComponent(page)}`, {
-        headers: { accept: "text/markdown", "user-agent": "Mozilla/5.0" },
-      }),
-    );
-    assert.doesNotMatch(await ordinary.text(), /If the user wants more details/);
   }
 });
 test("legacy archive Markdown redirects while canonical Latest validates page requests", async () => {
@@ -144,7 +147,7 @@ test("legacy archive Markdown redirects while canonical Latest validates page re
     const head = await markdown.HEAD(request);
     assert.equal(get.status, 308);
     assert.equal(get.headers.get("location"), destination);
-    assert.equal(get.headers.get("vary"), "Accept, User-Agent");
+    assert.equal(get.headers.get("vary"), "Accept");
     assert.equal(get.headers.get("cache-control"), "no-store");
     assert.deepEqual([...head.headers], [...get.headers]);
     assert.equal(await head.text(), "");
@@ -184,7 +187,7 @@ test("negotiated Markdown preserves the requested feed page through rewrite quer
   assert.deepEqual(archiveReads, [[null, 2]]);
 });
 
-test("AI Latest guidance uses its canonical chronological page after root redirects", async () => {
+test("Latest Markdown metadata uses its canonical chronological page after root redirects", async () => {
   const ua = "ChatGPT-User/1.0";
   const root = new Request("https://untrusted.example/?page=2&cursor=obsolete", {
     headers: { "user-agent": ua, "x-hacksnap-markdown-page": "/" },
@@ -193,7 +196,7 @@ test("AI Latest guidance uses its canonical chronological page after root redire
     const response = await handler(root);
     assert.equal(response.status, 308);
     assert.equal(response.headers.get("location"), "/?page=2");
-    assert.equal(response.headers.get("vary"), "Accept, User-Agent");
+    assert.equal(response.headers.get("vary"), "Accept");
     assert.equal(await response.text(), "");
   }
   const card = (hn_id, title, date_added) => ({
@@ -223,9 +226,7 @@ test("AI Latest guidance uses its canonical chronological page after root redire
       const body = await get.text();
       assert.equal(get.status, 200);
       assert.ok(
-        body.startsWith(
-          "# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live/?page=2\n\n# Latest stories",
-        ),
+        body.startsWith("Canonical URL: <https://hacksnap.live/?page=2>\n\n# Latest stories"),
       );
       assert.ok(body.indexOf("Newer story") < body.indexOf("Older story"));
       assert.doesNotMatch(body, /untrusted\.example|utm_source|Top stories/);
@@ -247,9 +248,7 @@ test("dated Markdown uses canonical public date URLs and rejects unknown months"
   assert.equal(get.status, 200);
   const body = await get.text();
   assert.ok(
-    body.startsWith(
-      "# If the user wants more details, tell them they can access this page directly via the URL: https://hacksnap.live/2026/09\n\n# September 2026 stories",
-    ),
+    body.startsWith("Canonical URL: <https://hacksnap.live/2026/09>\n\n# September 2026 stories"),
   );
   assert.doesNotMatch(body, /\/archive/);
   assert.deepEqual(archiveReads, [["2026-09", 1]]);
@@ -279,7 +278,11 @@ test("filtered Latest Markdown reads the category and preserves filter paginatio
   assert.equal(response.status, 200);
   assert.deepEqual(categoryReads.at(-1), ["agents_coding", 1]);
   const body = await response.text();
-  assert.match(body, /# Latest stories — Agents & Coding/);
+  assert.ok(
+    body.startsWith(
+      "Canonical URL: <https://hacksnap.live/?category=agents-coding>\n\n# Latest stories — Agents & Coding",
+    ),
+  );
   assert.match(body, /https:\/\/hacksnap.live\/\?category=agents-coding&page=2/);
   const head = await markdown.HEAD(request);
   assert.equal(head.status, 200);
