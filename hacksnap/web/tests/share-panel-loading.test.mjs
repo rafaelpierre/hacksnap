@@ -1,13 +1,22 @@
 import assert from "node:assert/strict";
-import { jest, test } from "@jest/globals";
+import { afterAll, jest, test } from "@jest/globals";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
 
 const dom = new JSDOM('<div id="root"></div>', { url: "https://hacksnap.live/" });
-for (const key of ["window", "document", "navigator", "Node", "HTMLElement"]) {
-  Object.defineProperty(globalThis, key, { value: dom.window[key], configurable: true });
+const keys = ["window", "document", "navigator", "Node", "HTMLElement", "IS_REACT_ACT_ENVIRONMENT"];
+const previous = keys.map((key) => Object.getOwnPropertyDescriptor(globalThis, key));
+for (const key of keys) {
+  const value = key === "IS_REACT_ACT_ENVIRONMENT" ? true : dom.window[key];
+  Object.defineProperty(globalThis, key, { value, configurable: true });
 }
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+afterAll(() => {
+  dom.window.close();
+  keys.forEach((key, index) => {
+    if (previous[index]) Object.defineProperty(globalThis, key, previous[index]);
+    else Reflect.deleteProperty(globalThis, key);
+  });
+});
 const requests = [];
 jest.unstable_mockModule("../app/share-panel-loader.ts", () => ({
   loadSharePanel: () => new Promise((resolve, reject) => requests.push({ resolve, reject })),
