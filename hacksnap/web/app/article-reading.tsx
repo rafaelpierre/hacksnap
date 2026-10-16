@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { analyticsRouteIdentity, captureReadingVisit } from "../lib/analytics";
 import { createArticleReader } from "../lib/article-reading";
@@ -16,6 +16,25 @@ export function ArticleReading({
   children: ReactNode;
 }) {
   const root = useRef<HTMLElement>(null);
+  return (
+    <article className="detail" ref={root}>
+      {children}
+      <Suspense fallback={null}>
+        <ReadingObserver root={root} context={context} sourceURL={sourceURL} />
+      </Suspense>
+    </article>
+  );
+}
+
+function ReadingObserver({
+  root,
+  context,
+  sourceURL,
+}: {
+  root: RefObject<HTMLElement | null>;
+  context: ReadingContext;
+  sourceURL: string | null;
+}) {
   const saved = useRef<{
     key: string;
     reader: ReturnType<typeof createArticleReader>;
@@ -116,11 +135,7 @@ export function ArticleReading({
       reader.flush("route");
       reader.stop();
     };
-  }, [context, route, sourceURL]);
+  }, [context, route, sourceURL, root]);
 
-  return (
-    <article className="detail" ref={root}>
-      {children}
-    </article>
-  );
+  return null;
 }
