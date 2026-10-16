@@ -4,7 +4,6 @@ import Link from "next/link";
 import { categoryURL, type Category } from "../lib/categories";
 import type { RelatedStory } from "../lib/data";
 
-import { domain } from "../lib/format";
 import { NextStoryLink } from "./story-navigation";
 import { briefExcerpt } from "../lib/brief";
 import { readingSection } from "../lib/reading-metadata";
@@ -51,13 +50,12 @@ export function RelatedStories({
                   {category && <span className="related-topic">{category.label}</span>}
                   <h3>
                     <NextStoryLink id={story.hn_id} slug={story.story_slug}>
-                      {story.title} <ArrowRight className="inline-icon" aria-hidden="true" />
+                      {story.title}
                     </NextStoryLink>
                   </h3>
                   {story.takeaway?.trim() && (
                     <p className="feed-excerpt">{briefExcerpt(story.takeaway)}</p>
                   )}
-                  <span className="related-story-meta">{domain(story.url)}</span>
                 </article>
               </Recommendation>
             </li>
