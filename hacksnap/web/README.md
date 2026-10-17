@@ -39,8 +39,11 @@ stays stored; pending summaries and HN self-posts keep their existing behavior.
 
 Article summaries are parsed as CommonMark and rendered as semantic React elements
 on the server: paragraphs, headings, bold, italics, links, lists, blockquotes and code.
-Paragraphs and explicit hard breaks come from the stored Markdown. The renderer
-does not split sentences or add a source link to the opening. Plain URLs remain text;
+Stored paragraph boundaries and explicit hard breaks are preserved. A readability
+fallback splits oversized article paragraphs at sentence boundaries (60 words for
+the lead, 80 for later paragraphs), keeping emphasis and whole links/code intact.
+Individual long sentences still need editorial revision; they are never cut mid-sentence.
+The renderer does not add a source link to the opening. Plain URLs remain text;
 only Markdown links and autolinks create anchors. HTTP(S) links open in a new tab
 with `noopener noreferrer`; unsafe URLs and URLs with credentials become plain text.
 Raw HTML remains escaped text and Markdown images render their alt text without a
@@ -50,8 +53,11 @@ discussion summaries use the same parser with inline rendering.
 Markdown exports serialize the same safe tree. RSS descriptions and structured-data
 text remove formatting markers and retain link labels.
 Feed takeaways and titles remain plain text. No database migration is needed.
-Previously stored summaries with missing paragraph or heading line breaks need a
-content correction or regeneration; the renderer does not guess those boundaries.
+The fallback also repairs a limited set of joined sentence openings, including
+`1998.Claude` and `worked.The`, in prose text. Link labels/destinations, code, URLs
+and email addresses stay literal. Ambiguous punctuation and missing heading boundaries
+still need a content correction. The same fallback tree feeds HTML, Markdown, RSS
+and structured-data text, so existing summaries benefit without a database rewrite.
 
 Bricolage Grotesque is used for the wordmark, feed and reader headlines, section
 headings and related stories. Source Sans 3 carries navigation, metadata, feed

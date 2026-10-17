@@ -70,7 +70,11 @@ Short sources can stay a single paragraph within the opening limit. Secondary
 hardware identifiers, procedural steps, examples and patch status belong after the
 lead or in non-repeating key points. The reviewer requests a style revision for an
 overlong lead, oversized body paragraph or substantial summary without paragraph breaks;
-it also checks repetition between the summary and key points.
+it also checks repetition between the summary and key points. Deterministic checks
+now request revision when the lead exceeds 60 words, a later paragraph exceeds
+80 words, or recognizable sentence openings run together. Reviewer approval cannot
+override these findings. The existing timeout/unreviewed fallback policy is unchanged;
+the shared web formatter also protects already stored summaries.
 Briefs, key points and discussion topic/point summaries can use selective bold for
 important findings or qualifications. Titles, feed takeaways and the legacy discussion
 introduction stay plain text. The writer, topic refresh and editorial reviewer share
@@ -369,7 +373,7 @@ The source and underlying technical questions lead the coverage.
   limit per call, including reasoning. The 220-character takeaway stays compact.
 
 The reviewed summary prompt is `v18-readable-summary-intros`, the topic refresh prompt
-is `v7-formatted-topics`, and the reviewer is `v9-readable-summary-intros`.
+is `v7-formatted-topics`, and the reviewer is `v10-summary-readability-checks`.
 The legacy prompts in `pipeline/prompts.py` use the same length targets and no longer
 refer to the obsolete 8,000-token budget. Production cache identity hashes the full
 editorial prompts, so these changes invalidate the discussion-analysis fingerprint.

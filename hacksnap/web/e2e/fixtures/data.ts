@@ -27,6 +27,8 @@ export type RelatedStory = Pick<
   ArticleStory,
   "hn_id" | "title" | "url" | "date_added" | "story_slug"
 > & { takeaway: string };
+const malformedSummary =
+  "Anthropic researchers report that an internal Claude model recovered the origins of five NIST prime-curve seeds in under half an hour, and five ANSI X9.62 seeds show the same pattern. The seeds were not passphrase hashes, as a 2015 tip suggested, but outputs of the C library **lrand48** generator initialized with Unix timestamps between May 1997 and April 1998.Claude recognized the generator from zero top bits, recovered truncated states with lattice reduction, and reproduced each 160-bit seed, matching six base points to FreeLIP seeds. The work does not demonstrate a cryptographic break, and Anthropic says it makes deliberate backdoors less plausible. The P-224, P-256, P-384 and P-521 base points, the B-163 seed, and the criteria for skipping viable candidates remain unexplained.";
 const timestamp = "2026-01-15T12:00:00.000Z";
 const stories: ArticleStory[] = Array.from({ length: 40 }, (_, i) => ({
   hn_id: String(91000001 + i),
@@ -48,9 +50,11 @@ const stories: ArticleStory[] = Array.from({ length: 40 }, (_, i) => ({
       "Local models can help teams build useful tools while keeping their data close.",
     sentiment: 0,
     article_summary:
-      i === 38
-        ? "Researchers compared **small models** on development tasks. Results depend on the workload.\n\n## Repeatable measurements\n\nThe [source report](https://example.com/research) used **a fixed task set**.\n\n### Reliability limits\n\nThe measured improvements depend on the workload."
-        : "Researchers compared small models on a repeatable set of development tasks. The results show useful improvements with clear limits on reliability.",
+      i === 37
+        ? malformedSummary
+        : i === 38
+          ? "Researchers compared **small models** on development tasks. Results depend on the workload.\n\n## Repeatable measurements\n\nThe [source report](https://example.com/research) used **a fixed task set**.\n\n### Reliability limits\n\nThe measured improvements depend on the workload."
+          : "Researchers compared small models on a repeatable set of development tasks. The results show useful improvements with clear limits on reliability.",
     article_key_points: [
       i === 38
         ? "The evaluation uses **repeatable tasks**."
