@@ -156,11 +156,11 @@ test("spacing repairs leave code, URLs, email, decimals and abbreviations intact
     "It worked.The result held!However, costs rose.";
   const markdown = summaryMarkdown(text);
   assert.match(markdown, /It worked\. The result held! However/);
-  assert.match(markdown, /https:\/\/example.com\/1998\.Claude/);
-  assert.match(markdown, /www.example.com\/result.The/);
-  assert.match(markdown, /a.The@example.com/);
-  assert.match(markdown, /`1998.Claude`/);
-  assert.match(markdown, /\[1998.Claude\]\(https:\/\/example.com\/1998.Claude\)/);
+  assert.ok(markdown.includes("https://example.com/1998.Claude"));
+  assert.ok(markdown.includes("www.example.com/result.The"));
+  assert.ok(markdown.includes("a.The@example.com"));
+  assert.ok(markdown.includes("`1998.Claude`"));
+  assert.ok(markdown.includes("[1998.Claude](https://example.com/1998.Claude)"));
   assert.match(markdown, /Dr\. Smith measured 3\.14 in the U\.S\. using Node\.js and X9\.62/);
 });
 
