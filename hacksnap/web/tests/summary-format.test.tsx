@@ -9,6 +9,12 @@ import {
   summaryInlineMarkdown,
 } from "../lib/summary-format";
 
+import { readFileSync } from "node:fs";
+
+const malformed: { article_summary: string } = JSON.parse(
+  readFileSync(new URL("../../fixtures/summary-readability.json", import.meta.url), "utf8"),
+);
+
 const brief =
   "Researchers report **lower latency**. Costs remain uncertain.\n\n## Test conditions\n\nThe test used **one workload**.\n\n### Memory cost\n\nMemory doubled.";
 
@@ -118,5 +124,60 @@ test("escaped markers and malformed Markdown follow CommonMark without guessing 
   assert.equal(
     html,
     '<div class="article-summary"><p>Literal *stars* and **unclosed. ## An inline marker stays inline.</p></div>',
+  );
+});
+
+test("the reported ECDSA summary gets readable paragraphs and sentence spacing in every format", () => {
+  const html = renderToStaticMarkup(<ArticleSummary text={malformed.article_summary} />);
+  const plain = summaryPlainText(malformed.article_summary);
+  const paragraphs = plain.split("\n\n");
+  assert.equal(paragraphs.length, 3);
+  assert.ok(paragraphs[0].split(/\s+/).length <= 60);
+  assert.ok(paragraphs.every((p) => p.split(/\s+/).length <= 80));
+  assert.equal((html.match(/<p>/g) ?? []).length, paragraphs.length);
+  assert.match(html, /<strong>lrand48<\/strong>/);
+  assert.doesNotMatch(html, /1998\.Claude/);
+  assert.equal(
+    plain.replace(/\s+/g, " "),
+    malformed.article_summary.replaceAll("**", "").replace("1998.Claude", "1998. Claude"),
+  );
+  const markdown = summaryMarkdown(malformed.article_summary);
+  assert.equal(summaryPlainText(markdown), plain);
+  assert.equal(summaryMarkdown(markdown), markdown);
+  assert.equal(renderToStaticMarkup(<ArticleSummary text={markdown} />), html);
+  assert.match(summaryInlineText(malformed.article_summary), /1998\. Claude/);
+});
+
+test("spacing repairs leave code, URLs, email, decimals and abbreviations intact", () => {
+  const text =
+    "Dr. Smith measured 3.14 in the U.S. using Node.js and X9.62. " +
+    "Visit https://example.com/1998.Claude or www.example.com/result.The and mail a.The@example.com. " +
+    "`1998.Claude` and [1998.Claude](https://example.com/1998.Claude) stay literal. " +
+    "It worked.The result held!However, costs rose.";
+  const markdown = summaryMarkdown(text);
+  assert.match(markdown, /It worked\. The result held! However/);
+  assert.match(markdown, /https:\/\/example.com\/1998\.Claude/);
+  assert.match(markdown, /www.example.com\/result.The/);
+  assert.match(markdown, /a.The@example.com/);
+  assert.match(markdown, /`1998.Claude`/);
+  assert.match(markdown, /\[1998.Claude\]\(https:\/\/example.com\/1998.Claude\)/);
+  assert.match(markdown, /Dr\. Smith measured 3\.14 in the U\.S\. using Node\.js and X9\.62/);
+});
+
+test("fallback breaks preserve emphasis across sentences and never split link or code atoms", () => {
+  const sentence =
+    "Researchers compared small models across a repeatable set of development tasks with independently measured results and clearly stated limitations.";
+  const text = `**${sentence} ${sentence} ${sentence}** ${sentence}`;
+  const plain = summaryPlainText(text);
+  const html = renderToStaticMarkup(<ArticleSummary text={text} />);
+  assert.ok(plain.includes("\n\n"));
+  assert.equal(plain.replace(/\s+/g, " "), [sentence, sentence, sentence, sentence].join(" "));
+  assert.match(html, /<\/strong><\/p><p><strong>/);
+  const atom = `${sentence} ${sentence} ${sentence} ${sentence}`;
+  assert.equal(summaryPlainText(`[${atom}](https://example.com)`), atom);
+  assert.equal(summaryPlainText(`\`${atom}\``), atom);
+  assert.equal(
+    summaryPlainText("A single sentence " + "with detail ".repeat(90)).split("\n\n").length,
+    1,
   );
 });

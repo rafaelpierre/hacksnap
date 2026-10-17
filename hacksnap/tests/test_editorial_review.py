@@ -768,3 +768,27 @@ def test_repair_timeout_keeps_remaining_overall_deadline(
     result = asyncio.run(reviewed_generation(Writer([draft]), Reviewer([broken, TimeoutError()]), source))
     assert result.status == "unreviewed" and result.fallback_reason == "deadline"
     assert result.draft == draft.model_dump()
+
+
+def test_readability_checks_request_revision_despite_reviewer_approval(source, draft):
+    from pathlib import Path
+
+    fixture = json.loads((Path(__file__).parents[1] / "fixtures/summary-readability.json").read_text())
+    malformed = draft.model_copy(update=fixture)
+    writer = FakeInference([malformed, draft])
+    reviewer = FakeInference([verdict(malformed), verdict(draft)])
+    result = asyncio.run(reviewed_generation(writer, reviewer, source))
+    assert result.status == "accepted"
+    findings = writer.calls[1][2]["deterministic_findings"]
+    assert any("paragraph 1 exceeds 60" in issue for issue in findings)
+    assert any("missing whitespace" in issue for issue in findings)
+    assert result.draft["article_summary"] == draft.article_summary
+
+
+def test_repeated_readability_failure_cannot_be_approved(source, draft):
+    malformed = draft.model_copy(update={"article_summary": "Detail " * 81})
+    result = asyncio.run(reviewed_generation(
+        FakeInference([malformed, malformed]),
+        FakeInference([verdict(malformed), verdict(malformed)]), source))
+    assert result.status == "rejected"
+    assert result.draft is None

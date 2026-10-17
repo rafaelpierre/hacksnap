@@ -57,3 +57,32 @@ test.describe("structured summaries without JavaScript", () => {
     await expect(theme.locator("strong")).toBeVisible();
   });
 });
+
+for (const width of [320, 1280]) {
+  for (const textSize of [100, 200]) {
+    test(`legacy summary readability at ${width}px and ${textSize}% text`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/story/91000038");
+      await page.evaluate((size) => {
+        document.documentElement.style.fontSize = `${size}%`;
+      }, textSize);
+      const summary = page.locator(".article-summary");
+      await expect(summary.locator(":scope > p")).toHaveCount(3);
+      await expect(summary).not.toContainText("1998.Claude", { useInnerText: true });
+      await expect(summary.locator("strong")).toHaveText("lrand48");
+      const paragraphs = await summary.locator(":scope > p").allTextContents();
+      expect(paragraphs[0].split(/\s+/).length).toBeLessThanOrEqual(60);
+      expect(paragraphs.every((p) => p.split(/\s+/).length <= 80)).toBe(true);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+      ).toBe(true);
+      expect(
+        (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
+          .violations,
+      ).toEqual([]);
+      await summary.screenshot({ path: testInfo.outputPath("readable-summary.png") });
+    });
+  }
+}

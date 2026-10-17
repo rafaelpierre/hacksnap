@@ -1,5 +1,6 @@
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { toMarkdown } from "mdast-util-to-markdown";
+import { readableSummary } from "./summary-readability";
 import { visit } from "unist-util-visit";
 import type { Nodes, Definition } from "mdast";
 
@@ -25,6 +26,7 @@ function nodeText(node: Nodes): string {
 // Use the same safe CommonMark tree for HTML, Markdown exports and plain text.
 export function summaryTree(value: string) {
   const tree = fromMarkdown(value);
+  readableSummary(tree);
   const definitions = new Map<string, Definition>();
   visit(tree, "definition", (node) => {
     if (!definitions.has(node.identifier)) definitions.set(node.identifier, node);

@@ -19,9 +19,9 @@ from .models import (
     StrictModel,
 )
 from .preprocess import sample_sentiment_comments
-from .summary_format import SUMMARY_FORMAT_PROMPT
+from .summary_format import SUMMARY_FORMAT_PROMPT, article_readability_issues
 
-REVIEW_VERSION = "v9-readable-summary-intros"
+REVIEW_VERSION = "v10-summary-readability-checks"
 MAX_REVIEW_REPAIRS = 5
 logger = logging.getLogger("hacksnap")
 
@@ -259,7 +259,7 @@ def validate_draft(draft: BaseModel, source: dict, operation: str) -> list[str]:
         GeneratedDiscussionAnalysis.model_validate(draft.model_dump()).to_analysis().validate_refresh(
             source["comments"],
         )
-    issues = []
+    issues = article_readability_issues(draft.article_summary) if operation == "summary" else []
     authors = {c.get("author", "").casefold() for c in source["comments"]} - {""}
     for path, text in prose_fields(draft.model_dump()).items():
         if text == "No additional analysis available." and (
