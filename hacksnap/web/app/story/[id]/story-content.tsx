@@ -122,15 +122,13 @@ export function StoryContent({
                   </>
                 )}
               </>
-            ) : (
+            ) : source.kind === "article" ? (
               <p className="muted">
                 {source.brief === "unavailable"
                   ? "The original article was unavailable to summarize."
-                  : source.kind === "article"
-                    ? "No article brief is available."
-                    : "This is an HN post. The discussion is summarized below."}
+                  : "No article brief is available."}
               </p>
-            )}
+            ) : null}
           </section>
           <section
             id="discussion-analysis"

@@ -653,3 +653,18 @@ test("unavailable article retains discussion without an article brief or source 
   assert.match(html, /Discussion analysis/);
   assert.doesNotMatch(html, /The mocked article brief|class="key-points"/);
 });
+
+test("HN posts omit the generic summary placeholder", () => {
+  const post = {
+    ...story,
+    url: "https://news.ycombinator.com/item?id=123",
+    summary: {
+      ...story.summary!,
+      article_summary: null,
+      article_key_points: [],
+    },
+  };
+  const output = render(createElement(StoryContent, { story: post }));
+  assert.doesNotMatch(output, /This is an HN post|The discussion is summarized below/);
+  assert.match(output, /Discussion analysis/);
+});
