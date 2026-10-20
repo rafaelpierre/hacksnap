@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
-    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite": "^0.5.10",
     "@jest/globals": "^30.5.2",
     "@playwright/test": "^1.64.0",
     "@swc/core": "^1.16.18",
