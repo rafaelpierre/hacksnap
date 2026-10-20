@@ -668,3 +668,45 @@ test("HN posts omit the generic summary placeholder", () => {
   assert.doesNotMatch(output, /This is an HN post|The discussion is summarized below/);
   assert.match(output, /Discussion analysis/);
 });
+
+for (const takeaway of ["", "A short takeaway.", "x".repeat(220)]) {
+  test(`HN post with ${takeaway.length}-character takeaway omits empty brief region`, () => {
+    const post = {
+      ...story,
+      url: "https://news.ycombinator.com/item?id=123",
+      summary: {
+        ...story.summary!,
+        overall_takeaway: takeaway,
+        article_summary: null,
+        article_key_points: [],
+      },
+    };
+    const dom = new JSDOM(render(createElement(StoryContent, { story: post })));
+    assert.equal(dom.window.document.querySelector("#article-brief"), null);
+    assert.equal(dom.window.document.querySelector('[data-reading-id="brief_1"]'), null);
+    assert.ok(dom.window.document.querySelector("#discussion-analysis"));
+    if (takeaway)
+      assert.equal(dom.window.document.querySelector(".standfirst").textContent, takeaway);
+    dom.window.close();
+  });
+}
+
+test("HN posts retain brief regions with a longer takeaway or article summary", () => {
+  for (const summary of [
+    {
+      ...story.summary!,
+      overall_takeaway: "A longer takeaway. ".repeat(20),
+      article_summary: null,
+    },
+    story.summary!,
+  ]) {
+    const post = { ...story, url: "https://news.ycombinator.com/item?id=123", summary };
+    const dom = new JSDOM(render(createElement(StoryContent, { story: post })));
+    const brief = dom.window.document.querySelector("#article-brief");
+    assert.ok(brief);
+    assert.ok(
+      brief.textContent.includes(summary.article_summary ?? summary.overall_takeaway.trim()),
+    );
+    dom.window.close();
+  }
+});

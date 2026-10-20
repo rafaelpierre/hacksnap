@@ -48,6 +48,10 @@ export function StoryContent({
   const fullTakeaway = summary?.overall_takeaway?.trim().replace(/\s+/g, " ");
   const source = storySource(story.url, summary);
   const article = source.article;
+  const briefTakeaway = fullTakeaway && deck !== fullTakeaway ? fullTakeaway : "";
+  const hasBriefContent = Boolean(
+    briefTakeaway || source.brief === "available" || source.kind === "article",
+  );
   const discussion = storyDiscussion(summary);
   const hnURL = `https://news.ycombinator.com/item?id=${story.hn_id}`;
   const category = categoryById(story.category);
@@ -87,49 +91,51 @@ export function StoryContent({
       </header>
       {summary ? (
         <div className="editorial">
-          <section
-            id="article-brief"
-            className="tldr-section detail-section"
-            aria-label="Article summary"
-            tabIndex={-1}
-            {...readingSection(
-              "brief",
-              [
-                fullTakeaway && deck !== fullTakeaway ? fullTakeaway : "",
-                source.brief === "available" ? summary.article_summary : "",
-                ...summary.article_key_points,
-              ].join(" "),
-            )}
-          >
-            <SectionExposure storyId={story.hn_id} section="summary" />
-            {fullTakeaway && deck !== fullTakeaway && <p>{fullTakeaway}</p>}
-            {source.brief === "available" ? (
-              <>
-                <ArticleSummary text={summary.article_summary ?? ""} />
-                {summary.article_key_points.length > 0 && (
-                  <>
-                    <h2 className="key-points-heading">The bits that matter</h2>
-                    <ul
-                      className="key-points"
-                      {...readingSection("key_points", summary.article_key_points.join(" "))}
-                    >
-                      {summary.article_key_points.map((point, i) => (
-                        <li key={i}>
-                          <SummaryInline text={point} />
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </>
-            ) : source.kind === "article" ? (
-              <p className="muted">
-                {source.brief === "unavailable"
-                  ? "The original article was unavailable to summarize."
-                  : "No article brief is available."}
-              </p>
-            ) : null}
-          </section>
+          {hasBriefContent && (
+            <section
+              id="article-brief"
+              className="tldr-section detail-section"
+              aria-label="Article summary"
+              tabIndex={-1}
+              {...readingSection(
+                "brief",
+                [
+                  briefTakeaway,
+                  source.brief === "available" ? summary.article_summary : "",
+                  ...summary.article_key_points,
+                ].join(" "),
+              )}
+            >
+              <SectionExposure storyId={story.hn_id} section="summary" />
+              {briefTakeaway && <p>{briefTakeaway}</p>}
+              {source.brief === "available" ? (
+                <>
+                  <ArticleSummary text={summary.article_summary ?? ""} />
+                  {summary.article_key_points.length > 0 && (
+                    <>
+                      <h2 className="key-points-heading">The bits that matter</h2>
+                      <ul
+                        className="key-points"
+                        {...readingSection("key_points", summary.article_key_points.join(" "))}
+                      >
+                        {summary.article_key_points.map((point, i) => (
+                          <li key={i}>
+                            <SummaryInline text={point} />
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </>
+              ) : source.kind === "article" ? (
+                <p className="muted">
+                  {source.brief === "unavailable"
+                    ? "The original article was unavailable to summarize."
+                    : "No article brief is available."}
+                </p>
+              ) : null}
+            </section>
+          )}
           <section
             id="discussion-analysis"
             className="discussion-section detail-section"
