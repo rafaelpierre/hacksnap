@@ -1277,3 +1277,5 @@ or schema changes.
 See [the analytics README](../../docs/analytics/README.md) for event definitions,
 dashboards, free allowances, privacy checks, rollback and the post-release
 baseline cycle. Production delivery and engagement baseline remain unverified.
+
+HN posts without an article summary omit generic placeholder copy in both the story page and Markdown export.

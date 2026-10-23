@@ -113,17 +113,16 @@ export function storyMarkdown(
       "Summary runs start at 8 AM, noon, 4 PM, and 8 PM New York time. You can read the original sources above.",
       "",
     ].join("\n\n");
-  lines.push(
-    text(summary.overall_takeaway),
-    source.kind === "article" ? "## The brief" : "## The post",
-    source.brief === "available" && summary.article_summary
-      ? summaryMarkdown(summary.article_summary)
-      : source.brief === "unavailable"
-        ? "The original article couldn’t be retrieved. This brief covers the discussion only."
-        : source.kind === "article"
-          ? "No article brief is available. You can read the original source and the discussion."
-          : "This is an HN post. The discussion is summarized below.",
-  );
+  lines.push(text(summary.overall_takeaway));
+  if (source.brief === "available" || source.kind === "article")
+    lines.push(
+      source.kind === "article" ? "## The brief" : "## The post",
+      source.brief === "available" && summary.article_summary
+        ? summaryMarkdown(summary.article_summary)
+        : source.brief === "unavailable"
+          ? "The original article couldn’t be retrieved. This brief covers the discussion only."
+          : "No article brief is available. You can read the original source and the discussion.",
+    );
   if (source.brief === "available" && summary.article_key_points.length)
     lines.push(
       "## The bits that matter",

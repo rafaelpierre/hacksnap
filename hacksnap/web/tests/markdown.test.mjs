@@ -288,3 +288,18 @@ test("dated feed Markdown pagination never generates legacy archive URLs", () =>
   assert.ok(body.includes("[Older stories](<https://hacksnap.live/2026/09?page=3>)"));
   assert.doesNotMatch(body, /\/archive/);
 });
+
+test("HN posts omit the generic summary placeholder", () => {
+  const post = {
+    ...story,
+    url: "https://news.ycombinator.com/item?id=123",
+    summary: {
+      ...story.summary,
+      article_summary: null,
+      article_key_points: [],
+    },
+  };
+  const output = storyMarkdown(post);
+  assert.doesNotMatch(output, /This is an HN post|The discussion is summarized below/);
+  assert.match(output, /## Discussion themes/);
+});
