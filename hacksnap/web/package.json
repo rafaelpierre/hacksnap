@@ -46,7 +46,7 @@
     "@axe-core/playwright": "^4.14.0",
     "@electric-sql/pglite": "^0.5.10",
     "@jest/globals": "^30.5.2",
-    "@playwright/test": "^1.64.0",
+    "@playwright/test": "^1.64.1",
     "@swc/core": "^1.16.18",
     "@swc/jest": "^0.2.39",
     "@types/mdast": "^4.0.4",
