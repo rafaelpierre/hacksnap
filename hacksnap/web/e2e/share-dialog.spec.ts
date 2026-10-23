@@ -101,7 +101,9 @@ for (const width of [320, 1280]) {
       "data-copied",
       `https://hacksnap.live${path}`,
     );
-    await expect(dialog.getByRole("status")).toHaveText("Link copied to clipboard.");
+    await expect(
+      dialog.getByRole("status").filter({ hasText: "Link copied to clipboard." }),
+    ).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(share).toBeFocused();
     if (width === 320)

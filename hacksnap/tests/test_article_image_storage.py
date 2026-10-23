@@ -1,7 +1,5 @@
 """Image queue, compare-and-set, and Blob adapter contracts without live services."""
 
-import sys
-import types
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
@@ -78,25 +76,24 @@ def test_completion_requires_matching_lease_and_preserves_asset_on_failure(datab
 
 
 def test_blob_adapter_uploads_immutable_public_webp_and_deletes_by_url(monkeypatch):
-    client = MagicMock()
-    client.put.return_value.url = (
+    from vercel.blob import sync as blob
+
+    put = MagicMock()
+    put.return_value.url = (
         "https://store.public.blob.vercel-storage.com/articles/42/hero-abc.webp"
     )
-    module = types.ModuleType("vercel")
-    blob_module = types.ModuleType("vercel.blob")
-    blob_module.BlobClient = lambda **kwargs: client
-    monkeypatch.setitem(sys.modules, "vercel", module)
-    monkeypatch.setitem(sys.modules, "vercel.blob", blob_module)
-    client.__enter__.return_value = client
+    delete = MagicMock()
+    monkeypatch.setattr(blob, "put_blob", put)
+    monkeypatch.setattr(blob, "delete_blob", delete)
     store = VercelBlobStore("secret")
     url = store.upload_webp(42, b"RIFF")
-    assert url == client.put.return_value.url
-    client.put.assert_called_once_with(
+    assert url == put.return_value.url
+    put.assert_called_once_with(
         "articles/42/hero.webp", b"RIFF", access="public", content_type="image/webp",
-        add_random_suffix=True, overwrite=False, cache_control_max_age=31536000,
+        add_random_suffix=True, allow_overwrite=False, cache_control_max_age=31536000,
     )
     store.delete(url)
-    client.delete.assert_called_once_with(url)
+    delete.assert_called_once_with(url)
     with pytest.raises(ValueError, match="non-article"):
         store.delete("https://example.com/elsewhere.webp")
 

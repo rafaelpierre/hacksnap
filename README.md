@@ -71,6 +71,8 @@ the production deployment locks still serialize changes without interruption.
 Dependency audits run on manifest, lockfile, package-manager configuration and audit
 workflow changes, plus the weekly schedule and manual runs to catch newly disclosed
 vulnerabilities even when dependencies have not changed.
+Dependabot groups `react` and `react-dom` updates so their required matching versions
+are installed and tested together.
 
 If branch protection requires the former `test` check, update its required checks
 to match the new names. Path-filtered workflows do not report checks for unrelated

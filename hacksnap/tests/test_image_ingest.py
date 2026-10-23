@@ -115,19 +115,20 @@ def test_persistence_failure_is_sanitized_and_leaves_recovery_to_lease(monkeypat
 
 
 def test_blob_sdk_upload_bytes_random_suffix_and_close(monkeypatch):
-    client = Mock()
-    client.__enter__ = Mock(return_value=client)
-    client.__exit__ = Mock(return_value=None)
-    client.put.return_value = SimpleNamespace(url=CANONICAL)
-    constructor = Mock(return_value=client)
-    monkeypatch.setattr(upload, "BlobClient", constructor)
+    from unittest.mock import MagicMock
+
+    session = MagicMock()
+    constructor = Mock(return_value=session)
+    put = Mock(return_value=SimpleNamespace(url=CANONICAL))
+    monkeypatch.setattr(upload, "blob_session", constructor)
+    monkeypatch.setattr(upload.blob, "put_blob", put)
     assert BlobUploader("test-token").upload(100, b"webp") == CANONICAL
-    constructor.assert_called_once_with(token="test-token")
-    client.put.assert_called_once_with(
+    constructor.assert_called_once_with("test-token")
+    put.assert_called_once_with(
         "articles/100/hero.webp", b"webp", access="public", content_type="image/webp",
-        add_random_suffix=True, overwrite=False, cache_control_max_age=31536000,
+        add_random_suffix=True, allow_overwrite=False, cache_control_max_age=31536000,
     )
-    client.__exit__.assert_called_once()
+    session.__exit__.assert_called_once()
 
 
 @pytest.mark.parametrize("url", [
@@ -154,7 +155,7 @@ def test_image_config_needs_no_inference_credentials(monkeypatch):
 
 
 def test_blob_sdk_error_is_controlled(monkeypatch):
-    monkeypatch.setattr(upload, "BlobClient", Mock(side_effect=RuntimeError("token=private")))
+    monkeypatch.setattr(upload, "blob_session", Mock(side_effect=RuntimeError("token=private")))
     with pytest.raises(ImageError, match="^blob_upload_failed$"):
         BlobUploader("private").upload(100, b"webp")
 
