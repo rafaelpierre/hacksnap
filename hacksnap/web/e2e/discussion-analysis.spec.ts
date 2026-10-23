@@ -64,14 +64,14 @@ for (const width of [320, 1280])
       }, textScale);
       await page.locator("#discussion-analysis").scrollIntoViewIfNeeded();
       await expect(
-        page.getByRole("heading", { name: "Discussion analysis", exact: true }),
+        page.getByRole("heading", { name: "What people think", exact: true }),
       ).toBeVisible();
       const headingBounds = await page
-        .getByRole("heading", { name: "Discussion analysis", exact: true })
+        .getByRole("heading", { name: "What people think", exact: true })
         .boundingBox();
       expect(headingBounds!.width).toBeGreaterThanOrEqual(140);
       expect(headingBounds!.height).toBeLessThan(320);
-      const trigger = page.getByRole("button", { name: "About this discussion analysis" });
+      const trigger = page.getByRole("button", { name: "About What people think" });
       const popup = page.getByRole("dialog", { name: "Analysis details" });
       await trigger.scrollIntoViewIfNeeded();
       await expect(page.locator(".analysis-coverage")).not.toBeVisible();
@@ -118,7 +118,7 @@ test.describe("without JavaScript", () => {
     await page.goto(storyPath);
     const popup = page.getByRole("dialog", { name: "Analysis details" });
     await expect(page.locator(".analysis-coverage")).not.toBeVisible();
-    await page.getByRole("button", { name: "About this discussion analysis" }).click();
+    await page.getByRole("button", { name: "About What people think" }).click();
     await expect(popup).toBeVisible();
     await page.getByRole("button", { name: "Close analysis information" }).click();
     await expect(popup).not.toBeVisible();

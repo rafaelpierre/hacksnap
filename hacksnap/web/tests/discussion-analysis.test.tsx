@@ -41,7 +41,7 @@ for (const { id, expected: analysis } of fixtures) {
     const document = render(analysis);
     const text = document.body.textContent!;
     assert.doesNotMatch(text, /pending|consensus|Low skepticism/i);
-    assert.equal(document.querySelector("h2")?.textContent, "Discussion analysis");
+    assert.equal(document.querySelector("h2")?.textContent, "What people think");
     assert.equal(document.querySelectorAll(".analysis-group, .analysis-highlights").length, 0);
     for (const topic of analysis.topics) {
       const section = [...document.querySelectorAll(".analysis-theme-section")].find(
@@ -120,7 +120,7 @@ test("analysis coverage is inside a named, initially closed info popup", () => {
   const document = render(fixture("one_sided_criticism"));
   const trigger = document.querySelector(".analysis-heading > button")!;
   const panel = document.getElementById(trigger.getAttribute("popovertarget")!)!;
-  assert.equal(trigger.getAttribute("aria-label"), "About this discussion analysis");
+  assert.equal(trigger.getAttribute("aria-label"), "About What people think");
   assert.equal(panel.getAttribute("popover"), "auto");
   assert.equal(panel.getAttribute("role"), "dialog");
   assert.equal(panel.hasAttribute("open"), false);

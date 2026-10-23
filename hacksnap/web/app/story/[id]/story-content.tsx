@@ -113,7 +113,7 @@ export function StoryContent({
                   <ArticleSummary text={summary.article_summary ?? ""} />
                   {summary.article_key_points.length > 0 && (
                     <>
-                      <h2 className="key-points-heading">The bits that matter</h2>
+                      <h2 className="key-points-heading">Key takeaways</h2>
                       <ul
                         className="key-points"
                         {...readingSection("key_points", summary.article_key_points.join(" "))}
@@ -153,10 +153,10 @@ export function StoryContent({
               <>
                 <div
                   className="discussion-heading"
-                  {...readingSection("discussion", "Discussion analysis")}
+                  {...readingSection("discussion", "What people think")}
                 >
                   <h2 id="discussion-themes-heading" className="discussion-title">
-                    <span>Discussion analysis</span>
+                    <span>What people think</span>
                   </h2>
                 </div>
                 {discussion.kind === "legacy" && discussion.topics.length ? (

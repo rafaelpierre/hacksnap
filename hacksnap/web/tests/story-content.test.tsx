@@ -189,7 +189,7 @@ test("mocked story renders the reading journey and recommendations without a dat
   assert.match(html, /The mocked article brief/);
   assert.match(
     html,
-    /id="discussion-themes-heading"[^>]*>.*?<span>Discussion analysis<\/span><\/h2>/,
+    /id="discussion-themes-heading"[^>]*>.*?<span>What people think<\/span><\/h2>/,
   );
   assert.doesNotMatch(html, /The mocked discussion brief/);
   assert.match(html, /Low skepticism/);
@@ -202,7 +202,7 @@ test("article key points render the exact heading before a nonempty list", () =>
   const html = render(createElement(StoryContent, { story, relatedStories: [] }));
   assert.match(
     html,
-    /<h2[^>]*>The bits that matter<\/h2><ul class="key-points"[^>]*><li>A concrete point\.<\/li><\/ul>/,
+    /<h2[^>]*>Key takeaways<\/h2><ul class="key-points"[^>]*><li>A concrete point\.<\/li><\/ul>/,
   );
 });
 
@@ -214,7 +214,7 @@ test("available article with no key points keeps its brief without the heading o
     }),
   );
   assert.match(html, /<p>The mocked article brief\.<\/p>/);
-  assert.doesNotMatch(html, /The bits that matter|class="key-points-heading"|class="key-points"/);
+  assert.doesNotMatch(html, /Key takeaways|class="key-points-heading"|class="key-points"/);
 });
 
 test("article brief preserves its paragraph without injecting links or sentence breaks", () => {
@@ -288,7 +288,7 @@ test("feed rail keeps accessible counts, the HN link and sharing", () => {
   assert.match(html, /class="sr-only"> points/);
   assert.match(html, /class="sr-only"> comments/);
   assert.match(html, /href="https:\/\/news.ycombinator.com\/item\?id=90000001"/);
-  assert.doesNotMatch(html, /Read brief|Discussion analysis|feed-story-actions/);
+  assert.doesNotMatch(html, /Read brief|What people think|feed-story-actions/);
   assert.match(html, /aria-label="Share: A mocked story title"/);
   assert.match(html, /lucide-forward/);
 });
@@ -471,7 +471,7 @@ test("new discussion replaces old points and shows only themes at the stable anc
   };
   const html = render(createElement(StoryContent, { story: next, relatedStories: [] }));
   assert.match(html, /id="discussion-analysis"/);
-  assert.match(html, /Discussion analysis/);
+  assert.match(html, /What people think/);
   assert.match(html, /3 comments analyzed/);
   assert.doesNotMatch(html, /The mocked discussion brief|Most critical|Most supportive/);
   assert.doesNotMatch(html, /Old duplicate theme|Repeated content|skepticism-pill/);
@@ -610,7 +610,7 @@ test("old discussion introductions are hidden for current and legacy summaries",
       html,
       /The central question is production reliability|A separate concern is latency|unsafe/,
     );
-    assert.match(html, /Discussion analysis/);
+    assert.match(html, /What people think/);
   }
 });
 
@@ -630,7 +630,7 @@ test("old discussion bullets are hidden for current and legacy analysis", () => 
       html,
       /The question is production reliability|One workload was measured|unsafe/,
     );
-    assert.match(html, /Discussion analysis/);
+    assert.match(html, /What people think/);
   }
 });
 
@@ -650,7 +650,7 @@ test("unavailable article retains discussion without an article brief or source 
     html,
     /story-source-actions|Open the original source|Open Hacker News thread/,
   );
-  assert.match(html, /Discussion analysis/);
+  assert.match(html, /What people think/);
   assert.doesNotMatch(html, /The mocked article brief|class="key-points"/);
 });
 
@@ -666,7 +666,7 @@ test("HN posts omit the generic summary placeholder", () => {
   };
   const output = render(createElement(StoryContent, { story: post }));
   assert.doesNotMatch(output, /This is an HN post|The discussion is summarized below/);
-  assert.match(output, /Discussion analysis/);
+  assert.match(output, /What people think/);
 });
 
 for (const takeaway of ["", "A short takeaway.", "x".repeat(220)]) {
