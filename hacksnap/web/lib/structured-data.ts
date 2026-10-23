@@ -77,7 +77,7 @@ export function storyStructuredData(story: ArticleStory) {
           ...summary.article_key_points.map(summaryInlineText),
         ]
       : []),
-    ...(discussionText ? ["Discussion analysis", discussionText] : []),
+    ...(discussionText ? ["What people think", discussionText] : []),
   ].join("\n\n");
   // Generation can replace an earlier brief, so it isn't a first-publication date.
   const modified = [
@@ -118,7 +118,7 @@ export function storyStructuredData(story: ArticleStory) {
               hasPart: {
                 "@type": "WebPageElement",
                 "@id": `${url}#discussion-analysis`,
-                name: "Discussion analysis",
+                name: "What people think",
                 text: discussionText,
                 citation: [...new Set(topics.flatMap((topic) => topic.comment_ids))].map(
                   (id) => `https://news.ycombinator.com/item?id=${id}`,

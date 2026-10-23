@@ -125,10 +125,10 @@ export function storyMarkdown(
     );
   if (source.brief === "available" && summary.article_key_points.length)
     lines.push(
-      "## The bits that matter",
+      "## Key takeaways",
       summary.article_key_points.map((p) => `- ${summaryInlineMarkdown(p)}`).join("\n"),
     );
-  lines.push("## Discussion themes");
+  lines.push("## What people think");
   if (discussion.kind === "legacy_empty")
     lines.push("No usable discussion was available for this summary.");
   if (discussion.kind === "analysis") lines.push(...discussionMarkdown(summary));

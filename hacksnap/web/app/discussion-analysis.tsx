@@ -23,16 +23,16 @@ export function DiscussionAnalysis({
     <div className={`discussion-analysis ${styles.root}`}>
       <div
         className="discussion-heading analysis-heading"
-        {...readingSection("discussion", "Discussion analysis")}
+        {...readingSection("discussion", "What people think")}
       >
         <h2 id="discussion-themes-heading" className="discussion-title">
-          <span>Discussion analysis</span>
+          <span>What people think</span>
         </h2>
         <button
           type="button"
           className="analysis-source-info"
           popoverTarget="discussion-analysis-info"
-          aria-label="About this discussion analysis"
+          aria-label="About What people think"
         >
           <Info size={16} strokeWidth={1.5} aria-hidden="true" />
         </button>

@@ -68,7 +68,7 @@ Both page fonts remain local. Feed lead
 headlines use weight 750 and a larger scale; ordinary headlines use weight 700.
 Monospace is reserved for code.
 
-Article key points appear under “The bits that matter”, a compact H2 between
+Article key points appear under “Key takeaways”, a compact H2 between
 the article summary and its bullet list. The heading is omitted when there are
 no key points.
 
@@ -1003,10 +1003,10 @@ without JavaScript and supports keyboard dismissal. The header comment count lin
 to the full HN discussion. Stored comment IDs and export citations are preserved.
 
 New themes replace legacy discussion points. Story HTML labels the section
-**Discussion analysis**. The article summary appears without a visible section heading.
+**What people think**. The article summary appears without a visible section heading.
 Summarized story pages omit the original-article and Hacker News action row below
 the brief. The header comment link remains available.
-Markdown retains **Discussion themes**. Both omit the older introduction and
+Markdown uses the same **What people think** heading. Both omit the older introduction and
 stance cards. The
 stored summary string and RSS remain unchanged. Historical
 claim and stance arrays remain stored; new analysis leaves them

@@ -76,7 +76,8 @@ test("story Markdown preserves public content, citations and coverage without HT
     "AI-generated summary",
   ])
     assert.ok(body.includes(value), value);
-  assert.match(body, /## Discussion themes/);
+  assert.match(body, /## Key takeaways/);
+  assert.match(body, /## What people think/);
   assert.doesNotMatch(body, /The discussion/);
   assert.ok(body.includes("[Read original](<https://example.com/a(b)>)"));
   assert.ok(body.includes("Example \\[story\\] \\<script\\>"));
@@ -187,7 +188,7 @@ test.each(analysisFixtures)(
 test("Markdown preserves legacy content when analysis is absent or null", () => {
   assert.equal(storyMarkdown(analysisStory(null)).includes("Some context"), true);
   assert.equal(storyMarkdown(story).includes("Some context"), true);
-  assert.doesNotMatch(storyMarkdown(analysisStory(null)), /Discussion analysis|Analyzed:/);
+  assert.doesNotMatch(storyMarkdown(analysisStory(null)), /Analysis sample:|Analyzed:/);
 });
 
 test("Markdown escapes theme text and excludes private metadata", () => {
@@ -301,5 +302,5 @@ test("HN posts omit the generic summary placeholder", () => {
   };
   const output = storyMarkdown(post);
   assert.doesNotMatch(output, /This is an HN post|The discussion is summarized below/);
-  assert.match(output, /## Discussion themes/);
+  assert.match(output, /## What people think/);
 });
