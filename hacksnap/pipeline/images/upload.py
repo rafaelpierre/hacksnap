@@ -3,8 +3,9 @@
 import re
 from urllib.parse import urlsplit
 
-from vercel.blob import BlobClient
+from vercel.blob import sync as blob
 
+from ..blob import blob_session
 from . import ImageError
 
 
@@ -27,11 +28,11 @@ class BlobUploader:
 
     def upload(self, hn_id: int, data: bytes) -> str:
         try:
-            with BlobClient(token=self.token) as client:
-                result = client.put(
+            with blob_session(self.token):
+                result = blob.put_blob(
                     f"articles/{hn_id}/hero.webp", data,
                     access="public", content_type="image/webp", add_random_suffix=True,
-                    overwrite=False, cache_control_max_age=31536000,
+                    allow_overwrite=False, cache_control_max_age=31536000,
                 )
             if not canonical_blob_url(result.url):
                 raise ValueError("Unexpected Blob URL")

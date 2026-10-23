@@ -986,6 +986,11 @@ is required to enable these internal workers.
 
 ## Vercel Python SDK telemetry
 
+Both Blob adapters use the Vercel 0.12 synchronous functions inside a scoped SDK
+session. Each session receives the adapter's explicit read-write token and its
+embedded store ID, closes its HTTP client, and keeps uploads public with random
+suffixes and overwriting disabled.
+
 The pipeline disables Vercel SDK usage telemetry with
 `VERCEL_TELEMETRY_DISABLED=1` before importing the SDK. This applies to local
 runs and Modal workers, including both Blob adapters. Blob storage operations
