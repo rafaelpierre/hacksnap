@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -719,7 +719,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=12.0,<14" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4" },
     { name = "pydantic", specifier = ">=2.11,<3" },
-    { name = "vercel", specifier = "==0.12.0" },
+    { name = "vercel", specifier = "==0.12.1" },
 ]
 provides-extras = ["editorial"]
 
@@ -2252,7 +2252,7 @@ wheels = [
 
 [[package]]
 name = "vercel"
-version = "0.12.0"
+version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -2270,9 +2270,9 @@ dependencies = [
     { name = "vercel-workflow" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d8/e6/525f16286631d0c6a28916173c69224031859773565e3fc3b7cd6abcfa70/vercel-0.12.0.tar.gz", hash = "sha256:88f21af66e0ddd39bf640994366a4a327dc581abd3824482abe64be38f5e5fa7", size = 52295, upload-time = "2026-10-15T16:38:04.51Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3d/5f/671974c8d7b12b47f4c14db65d1fb4ef0b397123814880b378dc440c7596/vercel-0.12.1.tar.gz", hash = "sha256:3a0d30adc8fb141b03d29fe085e079ab0104c354b1cc29713e141dc2eabe0042", size = 52298, upload-time = "2026-10-23T18:34:27.053Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/76/66/59a90db7b29018e7fe82691dd186e097afdf9095c4e5d74af19484ebed8c/vercel-0.12.0-py3-none-any.whl", hash = "sha256:1075d70fb0da3a62469360f8ee08da93e8c6aef7bfb125e4df33cee27c182c8d", size = 33174, upload-time = "2026-10-15T16:38:03.347Z" },
+    { url = "https://files.pythonhosted.org/packages/02/de/77fe0c8b59bfa7a02a122135034e382f44684b4a870899c10ab7da849dba/vercel-0.12.1-py3-none-any.whl", hash = "sha256:57848c5b5dd419198e2da2469e4ffd95b6812206fcbbc92f92faa20cbd2f72ea", size = 33172, upload-time = "2026-10-23T18:34:26.068Z" },
 ]
 
 [[package]]
@@ -2356,7 +2356,7 @@ wheels = [
 
 [[package]]
 name = "vercel-queue"
-version = "0.9.2"
+version = "0.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -2367,14 +2367,14 @@ dependencies = [
     { name = "vercel-internal-core" },
     { name = "vercel-oidc" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9e/9e/98480d76492093b78625849a36d6d06e67a5672a664d2086119650617cef/vercel_queue-0.9.2.tar.gz", hash = "sha256:35e5ab79ca731b7bbccadc0981a7e5af9d45e1b8816d1cbbb8de46528076c536", size = 87168, upload-time = "2026-10-15T16:23:07.419Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/f8/2c2a85ff4c6eb5719caa6c5474f0792659c42877e79f9ab39583041ab7e3/vercel_queue-0.10.0.tar.gz", hash = "sha256:754db52587cdd2bb10398fb28ae40f017af4849b21a23e3c80825ccf8c1782d7", size = 87773, upload-time = "2026-10-23T18:33:53.958Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/e2/3743d5f9493696523d4bda547cfa6cafdcc032621707204e6d5ecf894158/vercel_queue-0.9.2-py3-none-any.whl", hash = "sha256:b9f78efe4182fe636c8074cc494a9ed6a43f6d6ee6c41367a08f9ce25af7596c", size = 95468, upload-time = "2026-10-15T16:23:06.336Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/01/49ceb299aa4945f5cbbe53f5a10b2ed0ee1fe2a274c9622a7544d4ff5ef7/vercel_queue-0.10.0-py3-none-any.whl", hash = "sha256:abb8be982df61eed9c482585314ea5cc887b2e3d254791299c7b9eccd0316861", size = 96114, upload-time = "2026-10-23T18:33:52.862Z" },
 ]
 
 [[package]]
 name = "vercel-sandbox"
-version = "0.9.1"
+version = "0.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -2383,14 +2383,14 @@ dependencies = [
     { name = "vercel-internal-core" },
     { name = "vercel-oidc" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/32/a6/e80ff5fa33ff5541b3b21110b2e12864babea5defde655fe16d430b3211c/vercel_sandbox-0.9.1.tar.gz", hash = "sha256:3aa377e771acdac99d2370a8586fef354b732a73e944fc8de434ddab8e169970", size = 91329, upload-time = "2026-10-15T16:23:12.2Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ea/e5/3ba557d14c96779260d386ddbb2d386ab55315e95e3776a10644c20fe3f6/vercel_sandbox-0.10.0.tar.gz", hash = "sha256:8027a0400a8e4cecb6f52ee03d0195e633c43260ad487b18ff5d3e11c62ff83d", size = 120638, upload-time = "2026-10-23T18:33:59.816Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1f/c5/1217b8b51cf45d020481d62b20481d70e237c0dc7215ef120e46b892ea60/vercel_sandbox-0.9.1-py3-none-any.whl", hash = "sha256:ff4d51d66e5d4ab5a37559d7828706ea5f77c95cc7d34ba3590d590d71fb7f92", size = 103755, upload-time = "2026-10-15T16:23:11.194Z" },
+    { url = "https://files.pythonhosted.org/packages/73/91/8baec94862df37e09a496565a2d54ff852633ff45ae7b172e7b840b16a8b/vercel_sandbox-0.10.0-py3-none-any.whl", hash = "sha256:d421fbd85370f07ec39f5062a2f4434d76536a32e4d6b49a77a9d8646769fcc8", size = 136530, upload-time = "2026-10-23T18:33:58.788Z" },
 ]
 
 [[package]]
 name = "vercel-workflow"
-version = "0.11.2"
+version = "0.12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -2406,9 +2406,9 @@ dependencies = [
     { name = "vercel-queue" },
     { name = "zstandard", marker = "python_full_version < '3.14'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/90/fd/159ba1c3e530fe6d6da26df5e9e8333639a3d5a7a97501f402e4fe1ddfa5/vercel_workflow-0.11.2.tar.gz", hash = "sha256:470e442b1a3408cdc83ba8333bff749801047933a13b02ff500c4354c6ca89ea", size = 138590, upload-time = "2026-10-15T16:23:14.722Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/9b/4d31875e67634fa8f199e2ae341000b1768c84a61d758d13a8749bea853c/vercel_workflow-0.12.0.tar.gz", hash = "sha256:418405198ad0daced316a65088ce4ad050d5e97494e128b996fff83945b0313a", size = 140209, upload-time = "2026-10-23T18:34:02.704Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/22/23/40947775fb9098e7f329b955f173ff0e0b7b0b8ab8c5e71c53061591734e/vercel_workflow-0.11.2-py3-none-any.whl", hash = "sha256:4737379d360c61986fc3d6701d0d28d33da304e97dc76ee11bf146de239aa8a2", size = 152829, upload-time = "2026-10-15T16:23:13.659Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/93/b993c47cbcb51a53817ee12eef48c7ea59b4c2bb5e8f4fd7afb878184d64/vercel_workflow-0.12.0-py3-none-any.whl", hash = "sha256:4c4ed3dc16f48647bccc68cd563976bb2f6d55c712f3a1bfb32cc5a90b4bd76e", size = 154506, upload-time = "2026-10-23T18:34:01.609Z" },
 ]
 
 [[package]]
